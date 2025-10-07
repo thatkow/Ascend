@@ -120,6 +120,38 @@
         top: 1rem;
         right: 1rem;
         z-index: 5;
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+      }
+
+      .role-badge {
+        padding: 0.4rem 0.85rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.15);
+        font-size: 0.8rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+
+      .nav-links a {
+        padding: 0.5rem 0.85rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.15);
+        color: inherit;
+        font-size: 0.8rem;
+        text-decoration: none;
+        transition: background 0.2s ease;
+      }
+
+      .nav-links a:hover {
+        background: rgba(255, 255, 255, 0.3);
       }
 
       .sign-out {
@@ -162,13 +194,35 @@
     </div>
     <div id="appContent" class="app hidden" aria-live="polite">
       <header class="app-header">
+        <nav id="navLinks" class="nav-links" aria-label="Available pages">
+          <a id="setterLink" class="hidden" href="setter.html">Setter Tools</a>
+          <a id="adminLink" class="hidden" href="admin.html">Admin</a>
+        </nav>
+        <span id="roleBadge" class="role-badge hidden" aria-live="polite"></span>
         <button id="signOutButton" class="sign-out">Sign out</button>
       </header>
       <canvas id="previewCanvas" aria-hidden="true"></canvas>
     </div>
     <script type="module">
       import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-      import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+      import {
+        getAuth,
+        onAuthStateChanged,
+        signInWithEmailAndPassword,
+        createUserWithEmailAndPassword,
+        signOut,
+      } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+      import {
+        getFirestore,
+        doc,
+        getDoc,
+        setDoc,
+        serverTimestamp,
+        collection,
+        getDocs,
+        query,
+        limit,
+      } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
       const firebaseConfig = {
         apiKey: 'AIzaSyCUKr8bmjIfICZwXDHE7xoaBbAXizJhx3I',
@@ -183,6 +237,8 @@
       const firebaseApp = initializeApp(firebaseConfig);
       const auth = getAuth(firebaseApp);
 
+      const db = getFirestore(firebaseApp);
+
       const authOverlay = document.getElementById('authOverlay');
       const appContent = document.getElementById('appContent');
       const authForm = document.getElementById('authForm');
@@ -193,6 +249,9 @@
       const authSwitchLabel = document.getElementById('authSwitchLabel');
       const toggleAuthModeButton = document.getElementById('toggleAuthMode');
       const signOutButton = document.getElementById('signOutButton');
+      const roleBadge = document.getElementById('roleBadge');
+      const setterLink = document.getElementById('setterLink');
+      const adminLink = document.getElementById('adminLink');
 
       let authMode = 'login';
 
@@ -234,13 +293,88 @@
         });
       });
 
-      onAuthStateChanged(auth, (user) => {
+      async function ensureUserRole(user) {
+        if (!user) {
+          return null;
+        }
+
+        const roleRef = doc(db, 'roles', user.uid);
+        const existingSnap = await getDoc(roleRef);
+
+        if (existingSnap.exists()) {
+          return existingSnap.data();
+        }
+
+        let role = 'climber';
+
+        try {
+          const snapshot = await getDocs(query(collection(db, 'roles'), limit(1)));
+          if (snapshot.empty) {
+            role = 'admin';
+          }
+        } catch (error) {
+          console.warn('Unable to inspect existing roles:', error);
+        }
+
+        const roleData = {
+          role,
+          email: user.email ?? '',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+
+        await setDoc(roleRef, roleData);
+        return roleData;
+      }
+
+      async function resolveUserRole(user) {
+        if (!user) {
+          return null;
+        }
+
+        try {
+          const roleRef = doc(db, 'roles', user.uid);
+          const roleSnap = await getDoc(roleRef);
+          if (roleSnap.exists()) {
+            return roleSnap.data().role;
+          }
+
+          const createdRole = await ensureUserRole(user);
+          return createdRole ? createdRole.role : null;
+        } catch (error) {
+          console.error('Failed to fetch user role:', error);
+          return null;
+        }
+      }
+
+      function updateNavigationForRole(role) {
+        roleBadge.textContent = role ? role.toUpperCase() : '';
+        roleBadge.classList.toggle('hidden', !role);
+
+        setterLink.classList.toggle('hidden', role !== 'setter' && role !== 'admin');
+        adminLink.classList.toggle('hidden', role !== 'admin');
+      }
+
+      onAuthStateChanged(auth, async (user) => {
         if (user) {
           authOverlay.classList.add('hidden');
+
+          const role = await resolveUserRole(user);
+
+          if (!role) {
+            authError.textContent = 'Unable to determine your role. Please try again later.';
+            await signOut(auth);
+            return;
+          }
+
+          updateNavigationForRole(role);
           appContent.classList.remove('hidden');
         } else {
           authOverlay.classList.remove('hidden');
           appContent.classList.add('hidden');
+          roleBadge.classList.add('hidden');
+          setterLink.classList.add('hidden');
+          adminLink.classList.add('hidden');
           authForm.reset();
           setAuthMode('login');
         }

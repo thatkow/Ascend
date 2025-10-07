@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smooth Bézier Drawing</title>
+  <title>Setter Tools</title>
   <style>
     * {
       box-sizing: border-box;
@@ -235,6 +235,70 @@
       text-align: center;
       font-size: 0.85rem;
     }
+
+    .app-header {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 10;
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.55);
+      padding: 0.65rem 1rem;
+      border-radius: 999px;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .nav-links a {
+      padding: 0.45rem 0.85rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.15);
+      color: inherit;
+      font-size: 0.8rem;
+      text-decoration: none;
+      transition: background 0.2s ease;
+    }
+
+    .nav-links a:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .role-badge {
+      padding: 0.4rem 0.85rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.15);
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .unauthorized {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 30;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .unauthorized a {
+      color: #7ed957;
+      font-weight: 600;
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -259,6 +323,13 @@
   </div>
 
   <div id="appContent" class="hidden">
+    <header class="app-header">
+      <nav class="nav-links" aria-label="Available pages">
+        <a href="index.html">Preview</a>
+        <a id="adminLink" class="hidden" href="admin.html">Admin</a>
+      </nav>
+      <span id="roleBadge" class="role-badge hidden" aria-live="polite"></span>
+    </header>
     <canvas id="drawingCanvas"></canvas>
     <div class="controls">
       <label>
@@ -282,9 +353,32 @@
 
   </div>
 
+  <div id="unauthorizedNotice" class="unauthorized hidden" role="alert">
+    <p><strong>Access denied.</strong> Your account does not have permission to use the setter tools.</p>
+    <p>You can return to the <a href="index.html">preview page</a> or contact an administrator.</p>
+    <button id="unauthorizedSignOut" class="auth-submit" type="button">Sign Out</button>
+  </div>
+
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import {
+      getAuth,
+      onAuthStateChanged,
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword,
+      signOut,
+    } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import {
+      getFirestore,
+      doc,
+      getDoc,
+      setDoc,
+      serverTimestamp,
+      collection,
+      getDocs,
+      query,
+      limit,
+    } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey: 'AIzaSyCUKr8bmjIfICZwXDHE7xoaBbAXizJhx3I',
@@ -298,6 +392,7 @@
 
     const firebaseApp = initializeApp(firebaseConfig);
     const auth = getAuth(firebaseApp);
+    const db = getFirestore(firebaseApp);
 
     const authOverlay = document.getElementById('authOverlay');
     const appContent = document.getElementById('appContent');
@@ -309,6 +404,10 @@
     const authSwitchLabel = document.getElementById('authSwitchLabel');
     const toggleAuthModeButton = document.getElementById('toggleAuthMode');
     const signOutButton = document.getElementById('signOutButton');
+    const unauthorizedSignOut = document.getElementById('unauthorizedSignOut');
+    const unauthorizedNotice = document.getElementById('unauthorizedNotice');
+    const roleBadge = document.getElementById('roleBadge');
+    const adminLink = document.getElementById('adminLink');
 
     let authMode = 'login';
 
@@ -350,13 +449,106 @@
       });
     });
 
-    onAuthStateChanged(auth, (user) => {
+    unauthorizedSignOut.addEventListener('click', () => {
+      signOut(auth).catch((error) => {
+        console.error('Failed to sign out:', error);
+      });
+    });
+
+    async function ensureUserRole(user) {
+      if (!user) {
+        return null;
+      }
+
+      const roleRef = doc(db, 'roles', user.uid);
+      const existingSnap = await getDoc(roleRef);
+
+      if (existingSnap.exists()) {
+        return existingSnap.data();
+      }
+
+      let role = 'climber';
+
+      try {
+        const snapshot = await getDocs(query(collection(db, 'roles'), limit(1)));
+        if (snapshot.empty) {
+          role = 'admin';
+        }
+      } catch (error) {
+        console.warn('Unable to inspect existing roles:', error);
+      }
+
+      const roleData = {
+        role,
+        email: user.email ?? '',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      await setDoc(roleRef, roleData);
+      return roleData;
+    }
+
+    async function resolveUserRole(user) {
+      if (!user) {
+        return null;
+      }
+
+      try {
+        const roleRef = doc(db, 'roles', user.uid);
+        const roleSnap = await getDoc(roleRef);
+        if (roleSnap.exists()) {
+          return roleSnap.data().role;
+        }
+
+        const createdRole = await ensureUserRole(user);
+        return createdRole ? createdRole.role : null;
+      } catch (error) {
+        console.error('Failed to fetch user role:', error);
+        return null;
+      }
+    }
+
+    function handleUnauthorized(role) {
+      appContent.classList.add('hidden');
+      unauthorizedNotice.classList.remove('hidden');
+      roleBadge.textContent = role ? role.toUpperCase() : '';
+      roleBadge.classList.toggle('hidden', !role);
+      adminLink.classList.add('hidden');
+    }
+
+    function handleAuthorized(role) {
+      unauthorizedNotice.classList.add('hidden');
+      appContent.classList.remove('hidden');
+      roleBadge.textContent = role.toUpperCase();
+      roleBadge.classList.remove('hidden');
+      adminLink.classList.toggle('hidden', role !== 'admin');
+    }
+
+    onAuthStateChanged(auth, async (user) => {
       if (user) {
         authOverlay.classList.add('hidden');
-        appContent.classList.remove('hidden');
+
+        const role = await resolveUserRole(user);
+
+        if (!role) {
+          authError.textContent = 'Unable to determine your role. Please try again later.';
+          await signOut(auth);
+          return;
+        }
+
+        if (role !== 'setter' && role !== 'admin') {
+          handleUnauthorized(role);
+          return;
+        }
+
+        handleAuthorized(role);
       } else {
         authOverlay.classList.remove('hidden');
         appContent.classList.add('hidden');
+        unauthorizedNotice.classList.add('hidden');
+        roleBadge.classList.add('hidden');
+        adminLink.classList.add('hidden');
         authForm.reset();
         setAuthMode('login');
       }
