@@ -917,11 +917,13 @@
           const radius = Math.max(12, canvas.width * 0.01);
 
           ctx.save();
-          ctx.fillStyle = 'rgba(126, 217, 87, 0.95)';
+          ctx.fillStyle = strokeColor;
+          ctx.globalAlpha = 0.92;
           ctx.beginPath();
           ctx.arc(anchor.x, anchor.y, radius, 0, Math.PI * 2);
           ctx.fill();
 
+          ctx.globalAlpha = 1;
           ctx.strokeStyle = '#111';
           ctx.lineWidth = Math.max(2, radius * 0.18);
           ctx.lineCap = 'round';
