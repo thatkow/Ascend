@@ -375,10 +375,6 @@
           <span>Date set</span>
           <input id="routeDateSetInput" type="datetime-local" />
         </label>
-        <label class="control-field">
-          <span>Date removed (optional)</span>
-          <input id="routeDateRemovedInput" type="datetime-local" />
-        </label>
       </div>
       <div class="control-section">
         <label class="control-field">
@@ -421,6 +417,7 @@
       query,
       limit,
       deleteDoc,
+      deleteField,
     } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
     const firebaseConfig = {
@@ -455,7 +452,6 @@
     const routeTitleInput = document.getElementById('routeTitleInput');
     const routeDescriptionInput = document.getElementById('routeDescriptionInput');
     const routeDateSetInput = document.getElementById('routeDateSetInput');
-    const routeDateRemovedInput = document.getElementById('routeDateRemovedInput');
     const newRouteButton = document.getElementById('newRouteButton');
     const deleteButton = document.getElementById('deleteButton');
     const routeStatus = document.getElementById('routeStatus');
@@ -541,15 +537,15 @@
     }
 
     function normalizeRouteData(raw = {}) {
+      const { date_removed: _unusedDateRemoved, ...rest } = raw || {};
       return {
-        ...raw,
-        setter: typeof raw.setter === 'string' ? raw.setter.trim() : '',
-        title: typeof raw.title === 'string' ? raw.title.trim() : '',
-        description: typeof raw.description === 'string' ? raw.description.trim() : '',
-        strokeColor: sanitizeColor(raw.strokeColor),
-        points: Array.isArray(raw.points) ? raw.points : [],
-        date_set: normalizeDateValue(raw.date_set),
-        date_removed: normalizeDateValue(raw.date_removed),
+        ...rest,
+        setter: typeof rest.setter === 'string' ? rest.setter.trim() : '',
+        title: typeof rest.title === 'string' ? rest.title.trim() : '',
+        description: typeof rest.description === 'string' ? rest.description.trim() : '',
+        strokeColor: sanitizeColor(rest.strokeColor),
+        points: Array.isArray(rest.points) ? rest.points : [],
+        date_set: normalizeDateValue(rest.date_set),
       };
     }
 
@@ -744,7 +740,7 @@
         }
 
         const color = sanitizeColor(data.strokeColor);
-        drawRouteFromCanvasPoints(canvasPoints, color, 0.5);
+        drawRouteFromCanvasPoints(canvasPoints, color, 0.25);
       });
     }
 
@@ -823,7 +819,6 @@
       routeTitleInput.value = data.title;
       routeDescriptionInput.value = data.description;
       routeDateSetInput.value = isoStringToInputValue(data.date_set) || '';
-      routeDateRemovedInput.value = isoStringToInputValue(data.date_removed) || '';
       strokeColor = data.strokeColor;
       colorPicker.value = strokeColor;
       applyNormalizedPoints(data.points);
@@ -844,7 +839,6 @@
       routeTitleInput.value = '';
       routeDescriptionInput.value = '';
       routeDateSetInput.value = getNowInputValue();
-      routeDateRemovedInput.value = '';
       strokeColor = '#ffde59';
       colorPicker.value = strokeColor;
       loadedNormalizedPoints = null;
@@ -960,13 +954,6 @@
         return;
       }
 
-      const dateRemovedIso = inputValueToIsoString(routeDateRemovedInput.value);
-      if (routeDateRemovedInput.value && !dateRemovedIso) {
-        setStatus('Enter a valid removal date or clear the field.', 'error');
-        routeDateRemovedInput.focus();
-        return;
-      }
-
       const payload = {
         setter,
         title,
@@ -974,7 +961,7 @@
         strokeColor,
         points: normalizedPoints,
         date_set: dateSetIso,
-        date_removed: dateRemovedIso ?? null,
+        date_removed: deleteField(),
         updatedAt: serverTimestamp(),
       };
 
@@ -1068,12 +1055,10 @@
       }
     });
 
-    [routeDateSetInput, routeDateRemovedInput].forEach((element) => {
-      if (element) {
-        element.addEventListener('change', markUnsavedChange);
-        element.addEventListener('input', markUnsavedChange);
-      }
-    });
+    if (routeDateSetInput) {
+      routeDateSetInput.addEventListener('change', markUnsavedChange);
+      routeDateSetInput.addEventListener('input', markUnsavedChange);
+    }
 
     canvas.addEventListener('click', addPoint);
     window.addEventListener('resize', resizeCanvas);
