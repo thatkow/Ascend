@@ -188,6 +188,10 @@
         transition: opacity 0.12s ease, transform 0.12s ease;
       }
 
+      .route-tooltip.pinned {
+        pointer-events: auto;
+      }
+
       .route-tooltip.visible {
         opacity: 1;
         transform: translate(-50%, 0);
@@ -458,6 +462,7 @@
           routes = [];
           currentUser = null;
           ascendedRoutes.clear();
+          hideTooltip({ force: true });
           redraw();
         }
       });
@@ -470,6 +475,8 @@
       let routes = [];
       let routePaths = [];
       let activeRouteId = null;
+      let pinnedRouteId = null;
+      let pinnedPosition = null;
       const ascendedRoutes = new Set();
 
       async function loadAscents(email) {
@@ -619,29 +626,88 @@
         tooltip.style.top = `${clampedTop}px`;
       }
 
-      function showTooltip(route, clientX, clientY) {
+      function showTooltip(route, clientX, clientY, options = {}) {
         if (!tooltip) {
           return;
         }
+
+        const { pin = false } = options;
 
         if (route.id !== activeRouteId) {
           updateTooltipContent(route);
         }
 
-        positionTooltip(clientX, clientY);
+        const position = { x: clientX, y: clientY };
+        positionTooltip(position.x, position.y);
         tooltip.classList.add('visible');
         tooltip.setAttribute('aria-hidden', 'false');
         activeRouteId = route.id;
+
+        if (pin) {
+          pinnedRouteId = route.id;
+          pinnedPosition = { ...position };
+          tooltip.classList.add('pinned');
+        } else {
+          pinnedRouteId = null;
+          pinnedPosition = null;
+          tooltip.classList.remove('pinned');
+        }
       }
 
-      function hideTooltip() {
+      function hideTooltip(options = {}) {
         if (!tooltip) {
           return;
         }
 
+        const { force = false } = options;
+
+        if (!force && pinnedRouteId) {
+          return;
+        }
+
         tooltip.classList.remove('visible');
+        tooltip.classList.remove('pinned');
         tooltip.setAttribute('aria-hidden', 'true');
         activeRouteId = null;
+        pinnedRouteId = null;
+        pinnedPosition = null;
+      }
+
+      function getRouteEntryAtClientPoint(clientX, clientY) {
+        if (!routePaths.length) {
+          return null;
+        }
+
+        const rect = canvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+
+        for (let index = routePaths.length - 1; index >= 0; index -= 1) {
+          const entry = routePaths[index];
+          const previousLineWidth = ctx.lineWidth;
+          ctx.lineWidth = entry.lineWidth;
+          const isInside = ctx.isPointInStroke(entry.path, x, y);
+          ctx.lineWidth = previousLineWidth;
+
+          if (isInside) {
+            return entry;
+          }
+        }
+
+        return null;
+      }
+
+      function extractClientPoint(event) {
+        if (typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+          return { x: event.clientX, y: event.clientY };
+        }
+
+        const touch = event.touches?.[0] ?? event.changedTouches?.[0];
+        if (touch) {
+          return { x: touch.clientX, y: touch.clientY };
+        }
+
+        return null;
       }
 
       async function loadRoutes() {
@@ -784,6 +850,10 @@
         routePaths = [];
         hideTooltip();
         routes.forEach(drawRoute);
+
+        if (pinnedRouteId && pinnedPosition) {
+          positionTooltip(pinnedPosition.x, pinnedPosition.y);
+        }
       }
 
       function drawRoute(route) {
@@ -865,42 +935,79 @@
       }
 
       function handlePointerMove(event) {
-        if ('pointerType' in event && event.pointerType !== 'mouse') {
-          hideTooltip();
+        if (pinnedRouteId) {
           return;
         }
 
-        if (!routePaths.length) {
-          hideTooltip();
-          return;
-        }
-
-        const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-
-        for (let index = routePaths.length - 1; index >= 0; index -= 1) {
-          const entry = routePaths[index];
-          const previousLineWidth = ctx.lineWidth;
-          ctx.lineWidth = entry.lineWidth;
-          const isInside = ctx.isPointInStroke(entry.path, x, y);
-          ctx.lineWidth = previousLineWidth;
-
-          if (isInside) {
-            showTooltip(entry.route, event.clientX, event.clientY);
+        if ('pointerType' in event) {
+          const pointerType = event.pointerType;
+          if (pointerType && pointerType !== 'mouse' && pointerType !== 'pen') {
+            hideTooltip();
             return;
           }
+        }
+
+        const entry = getRouteEntryAtClientPoint(event.clientX, event.clientY);
+
+        if (entry) {
+          showTooltip(entry.route, event.clientX, event.clientY);
+          return;
         }
 
         hideTooltip();
       }
 
+      function handlePointerLeave() {
+        if (pinnedRouteId) {
+          return;
+        }
+
+        hideTooltip();
+      }
+
+      function handleCanvasPointerDown(event) {
+        const point = extractClientPoint(event);
+        if (!point) {
+          return;
+        }
+
+        const entry = getRouteEntryAtClientPoint(point.x, point.y);
+
+        if (entry) {
+          showTooltip(entry.route, point.x, point.y, { pin: true });
+        } else {
+          hideTooltip({ force: true });
+        }
+      }
+
+      function handleDocumentPointerDown(event) {
+        if (!tooltip) {
+          return;
+        }
+
+        if (event.target === canvas) {
+          return;
+        }
+
+        if (tooltip.contains(event.target)) {
+          return;
+        }
+
+        hideTooltip({ force: true });
+      }
+
       if ('PointerEvent' in window) {
         canvas.addEventListener('pointermove', handlePointerMove);
-        canvas.addEventListener('pointerleave', hideTooltip);
+        canvas.addEventListener('pointerleave', handlePointerLeave);
+        canvas.addEventListener('pointerdown', handleCanvasPointerDown);
+        document.addEventListener('pointerdown', handleDocumentPointerDown);
       } else {
         canvas.addEventListener('mousemove', handlePointerMove);
-        canvas.addEventListener('mouseleave', hideTooltip);
+        canvas.addEventListener('mouseleave', handlePointerLeave);
+        canvas.addEventListener('mousedown', handleCanvasPointerDown);
+        canvas.addEventListener('touchstart', handleCanvasPointerDown);
+        document.addEventListener('mousedown', handleDocumentPointerDown);
+        document.addEventListener('touchstart', handleDocumentPointerDown);
       }
 
       window.addEventListener('resize', resizeCanvas);
