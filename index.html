@@ -186,6 +186,9 @@
         opacity: 0;
         transform: translate(-50%, -12px);
         transition: opacity 0.12s ease, transform 0.12s ease;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
       }
 
       .route-tooltip.pinned {
@@ -197,14 +200,21 @@
         transform: translate(-50%, 0);
       }
 
-      .route-tooltip strong {
+      .route-tooltip .tooltip-title {
         display: block;
         font-size: 0.95rem;
-        margin-bottom: 0.35rem;
+        font-weight: 600;
       }
 
-      .route-tooltip span + span {
-        margin-top: 0.25rem;
+      .route-tooltip .tooltip-lines {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        white-space: pre-line;
+      }
+
+      .route-tooltip .tooltip-line {
+        display: block;
       }
 
       .ascend-toggle {
@@ -235,7 +245,6 @@
         display: inline-flex;
         align-items: center;
         gap: 0.35rem;
-        margin-top: 0.5rem;
         font-weight: 600;
         color: #7ed957;
       }
@@ -564,29 +573,44 @@
           return;
         }
 
-        tooltip.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+        const ariaLines = [];
 
-        const titleLine = document.createElement('strong');
-        titleLine.textContent = route.title || route.id;
-        tooltip.appendChild(titleLine);
+        const displayTitle = (route.title || route.id || '').trim();
+        if (displayTitle) {
+          const titleLine = document.createElement('strong');
+          titleLine.className = 'tooltip-title';
+          titleLine.textContent = displayTitle;
+          fragment.appendChild(titleLine);
+          ariaLines.push(displayTitle);
+        }
 
-        const setterLine = document.createElement('span');
-        setterLine.textContent = `Setter: ${route.setter || 'Unknown'}`;
-        tooltip.appendChild(setterLine);
+        const infoContainer = document.createElement('div');
+        infoContainer.className = 'tooltip-lines';
+        fragment.appendChild(infoContainer);
 
-        const descriptionLine = document.createElement('span');
-        descriptionLine.textContent = route.description ? `Description: ${route.description}` : 'Description: —';
-        tooltip.appendChild(descriptionLine);
+        const appendInfoLine = (text, className = '') => {
+          if (!text) {
+            return;
+          }
+          const line = document.createElement('div');
+          line.className = className ? `tooltip-line ${className}` : 'tooltip-line';
+          line.textContent = text;
+          infoContainer.appendChild(line);
+          ariaLines.push(text);
+        };
 
-        const dateLine = document.createElement('span');
-        dateLine.textContent = `Date set: ${formatDisplayDate(route.date_set)}`;
-        tooltip.appendChild(dateLine);
+        const setterValue = typeof route.setter === 'string' ? route.setter : '';
+        appendInfoLine(`Setter: ${setterValue.trim() || 'Unknown'}`);
+
+        const descriptionText =
+          typeof route.description === 'string' ? route.description.trim() : '';
+        appendInfoLine(descriptionText ? `Description: ${descriptionText}` : 'Description: —');
+
+        appendInfoLine(`Date set: ${formatDisplayDate(route.date_set)}`);
 
         if (ascendedRoutes.has(route.id)) {
-          const ascendedLine = document.createElement('span');
-          ascendedLine.className = 'ascend-status';
-          ascendedLine.textContent = 'Ascended';
-          tooltip.appendChild(ascendedLine);
+          appendInfoLine('Ascended', 'ascend-status');
         }
 
         if (currentUser) {
@@ -599,7 +623,15 @@
             event.stopPropagation();
             toggleRouteAscent(route);
           });
-          tooltip.appendChild(actionButton);
+          fragment.appendChild(actionButton);
+        }
+
+        tooltip.replaceChildren(fragment);
+
+        if (ariaLines.length) {
+          tooltip.setAttribute('aria-label', ariaLines.join('\n'));
+        } else {
+          tooltip.removeAttribute('aria-label');
         }
       }
 
@@ -848,10 +880,24 @@
         }
 
         routePaths = [];
-        hideTooltip();
+        const shouldPreservePinned = Boolean(pinnedRouteId && pinnedPosition);
+        const pinnedRoute = shouldPreservePinned
+          ? routes.find((route) => route.id === pinnedRouteId)
+          : null;
+
+        if (!shouldPreservePinned) {
+          hideTooltip();
+        } else if (!pinnedRoute) {
+          hideTooltip({ force: true });
+        }
+
         routes.forEach(drawRoute);
 
-        if (pinnedRouteId && pinnedPosition) {
+        if (pinnedRoute && tooltip) {
+          updateTooltipContent(pinnedRoute);
+          tooltip.classList.add('visible');
+          tooltip.classList.add('pinned');
+          tooltip.setAttribute('aria-hidden', 'false');
           positionTooltip(pinnedPosition.x, pinnedPosition.y);
         }
       }
