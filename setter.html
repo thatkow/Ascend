@@ -358,13 +358,7 @@
             <option value="">Create new route…</option>
           </select>
         </label>
-        <div class="control-row">
-          <label class="control-field">
-            <span>Route ID</span>
-            <input id="routeIdInput" type="text" placeholder="unique-route-id" autocomplete="off" />
-          </label>
-          <button id="newRouteButton" type="button">New</button>
-        </div>
+        <button id="newRouteButton" type="button">New route</button>
         <label class="control-field">
           <span>Setter</span>
           <input id="routeSetterInput" type="email" placeholder="setter@example.com" autocomplete="off" />
@@ -377,16 +371,14 @@
           <span>Description</span>
           <textarea id="routeDescriptionInput" placeholder="Describe the climb"></textarea>
         </label>
-        <div class="control-row">
-          <label class="control-field">
-            <span>Date set</span>
-            <input id="routeDateSetInput" type="datetime-local" />
-          </label>
-          <label class="control-field">
-            <span>Date removed (optional)</span>
-            <input id="routeDateRemovedInput" type="datetime-local" />
-          </label>
-        </div>
+        <label class="control-field">
+          <span>Date set</span>
+          <input id="routeDateSetInput" type="datetime-local" />
+        </label>
+        <label class="control-field">
+          <span>Date removed (optional)</span>
+          <input id="routeDateRemovedInput" type="datetime-local" />
+        </label>
       </div>
       <div class="control-section">
         <label class="control-field">
@@ -459,7 +451,6 @@
     const unauthorizedNotice = document.getElementById('unauthorizedNotice');
     const roleBadge = document.getElementById('roleBadge');
     const routeSelector = document.getElementById('routeSelector');
-    const routeIdInput = document.getElementById('routeIdInput');
     const routeSetterInput = document.getElementById('routeSetterInput');
     const routeTitleInput = document.getElementById('routeTitleInput');
     const routeDescriptionInput = document.getElementById('routeDescriptionInput');
@@ -479,10 +470,10 @@
     const saveButton = document.getElementById('saveButton');
 
     const points = [];
-    let strokeColor = colorPicker.value || '#ffde59';
+    let strokeColor = sanitizeColor(colorPicker.value || '#ffde59');
     let backgroundReady = false;
     let loadedNormalizedPoints = null;
-    let currentRouteId = '';
+    let currentRouteKey = '';
     let hasUnsavedChanges = false;
     let isSaving = false;
     let currentUserEmail = '';
@@ -552,14 +543,51 @@
     function normalizeRouteData(raw = {}) {
       return {
         ...raw,
-        setter: typeof raw.setter === 'string' ? raw.setter : '',
-        title: typeof raw.title === 'string' ? raw.title : '',
-        description: typeof raw.description === 'string' ? raw.description : '',
+        setter: typeof raw.setter === 'string' ? raw.setter.trim() : '',
+        title: typeof raw.title === 'string' ? raw.title.trim() : '',
+        description: typeof raw.description === 'string' ? raw.description.trim() : '',
         strokeColor: sanitizeColor(raw.strokeColor),
         points: Array.isArray(raw.points) ? raw.points : [],
         date_set: normalizeDateValue(raw.date_set),
         date_removed: normalizeDateValue(raw.date_removed),
       };
+    }
+
+    function createRouteKeyFromTitle(title) {
+      if (typeof title !== 'string') {
+        return '';
+      }
+
+      const trimmed = title.trim();
+      if (!trimmed) {
+        return '';
+      }
+
+      return trimmed.replace(/\//g, '-');
+    }
+
+    function findConflictingRouteKey(title, excludeKey = '') {
+      if (typeof title !== 'string') {
+        return null;
+      }
+
+      const target = title.trim().toLowerCase();
+      if (!target) {
+        return null;
+      }
+
+      for (const [key, data] of routesCache.entries()) {
+        if (key === excludeKey) {
+          continue;
+        }
+
+        const existingTitle = (data?.title || key).trim().toLowerCase();
+        if (existingTitle === target) {
+          return key;
+        }
+      }
+
+      return null;
     }
 
     function setStatus(message, variant = 'info') {
@@ -636,46 +664,88 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      drawCurve();
-      drawPoints();
+      drawExistingRoutesOverlay();
+      drawRouteFromCanvasPoints(points, strokeColor, 1);
     }
 
-    function drawPoints() {
-      ctx.fillStyle = strokeColor;
-      points.forEach((point) => {
+    function drawRouteFromCanvasPoints(routePoints = [], color = '#ffde59', alpha = 1) {
+      if (!Array.isArray(routePoints) || !routePoints.length) {
+        return;
+      }
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      if (routePoints.length >= 2) {
+        ctx.lineWidth = 10;
+        ctx.strokeStyle = color;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(routePoints[0].x, routePoints[0].y);
+
+        for (let i = 0; i < routePoints.length - 1; i++) {
+          const p0 = i === 0 ? routePoints[0] : routePoints[i - 1];
+          const p1 = routePoints[i];
+          const p2 = routePoints[i + 1];
+          const p3 = i + 2 < routePoints.length ? routePoints[i + 2] : routePoints[i + 1];
+
+          const cp1x = p1.x + (p2.x - p0.x) / 6;
+          const cp1y = p1.y + (p2.y - p0.y) / 6;
+          const cp2x = p2.x - (p3.x - p1.x) / 6;
+          const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+          ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+        }
+
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = color;
+      routePoints.forEach((point) => {
         ctx.beginPath();
         ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
         ctx.fill();
       });
+
+      ctx.restore();
     }
 
-    function drawCurve() {
-      if (points.length < 2) {
+    function convertNormalizedToCanvasPoints(normalizedPoints = []) {
+      if (!Array.isArray(normalizedPoints) || !canvas.width || !canvas.height) {
+        return [];
+      }
+
+      return normalizedPoints
+        .map((point) => {
+          const x = Number(point?.x);
+          const y = Number(point?.y);
+          if (Number.isFinite(x) && Number.isFinite(y)) {
+            return { x: x * canvas.width, y: y * canvas.height };
+          }
+          return null;
+        })
+        .filter(Boolean);
+    }
+
+    function drawExistingRoutesOverlay() {
+      if (!routesCache.size) {
         return;
       }
 
-      ctx.lineWidth = 10;
-      ctx.strokeStyle = strokeColor;
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, points[0].y);
+      routesCache.forEach((data, key) => {
+        if (!data || key === currentRouteKey) {
+          return;
+        }
 
-      for (let i = 0; i < points.length - 1; i++) {
-        const p0 = i === 0 ? points[0] : points[i - 1];
-        const p1 = points[i];
-        const p2 = points[i + 1];
-        const p3 = i + 2 < points.length ? points[i + 2] : points[i + 1];
+        const canvasPoints = convertNormalizedToCanvasPoints(data.points);
+        if (!canvasPoints.length) {
+          return;
+        }
 
-        const cp1x = p1.x + (p2.x - p0.x) / 6;
-        const cp1y = p1.y + (p2.y - p0.y) / 6;
-        const cp2x = p2.x - (p3.x - p1.x) / 6;
-        const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-      }
-
-      ctx.stroke();
+        const color = sanitizeColor(data.strokeColor);
+        drawRouteFromCanvasPoints(canvasPoints, color, 0.5);
+      });
     }
 
     function applyNormalizedPoints(normalizedPoints = []) {
@@ -744,12 +814,11 @@
       return '#ffde59';
     }
 
-    function applyRouteToCanvas(routeId, rawData = {}) {
+    function applyRouteToCanvas(routeKey, rawData = {}) {
       const data = normalizeRouteData(rawData);
 
-      currentRouteId = routeId;
-      routeSelector.value = routeId;
-      routeIdInput.value = routeId;
+      currentRouteKey = routeKey;
+      routeSelector.value = routeKey;
       routeSetterInput.value = data.setter || currentUserEmail || '';
       routeTitleInput.value = data.title;
       routeDescriptionInput.value = data.description;
@@ -758,20 +827,19 @@
       strokeColor = data.strokeColor;
       colorPicker.value = strokeColor;
       applyNormalizedPoints(data.points);
-      deleteButton.disabled = !routeId;
+      deleteButton.disabled = !routeKey;
       resetUnsavedState();
 
-      if (routeId) {
-        routesCache.set(routeId, data);
-        const label = data.title ? `${data.title} (${routeId})` : routeId;
-        setStatus(`Loaded route ${label}.`, 'success');
+      if (routeKey) {
+        routesCache.set(routeKey, data);
+        const label = data.title || routeKey;
+        setStatus(`Loaded route “${label}”.`, 'success');
       }
     }
 
     function prepareNewRoute(statusMessage = '') {
-      currentRouteId = '';
+      currentRouteKey = '';
       routeSelector.value = '';
-      routeIdInput.value = '';
       routeSetterInput.value = currentUserEmail || '';
       routeTitleInput.value = '';
       routeDescriptionInput.value = '';
@@ -791,7 +859,7 @@
       }
     }
 
-    async function loadRoutesList(selectedRouteId = '') {
+    async function loadRoutesList(selectedRouteKey = '') {
       try {
         routeSelector.disabled = true;
         const snapshot = await getDocs(collection(db, 'routes'));
@@ -815,12 +883,12 @@
         sortedEntries.forEach(([id, data]) => {
           const option = document.createElement('option');
           option.value = id;
-          option.textContent = data?.title ? `${data.title} (${id})` : id;
+          option.textContent = data?.title || id;
           routeSelector.appendChild(option);
         });
 
-        if (selectedRouteId && routesCache.has(selectedRouteId)) {
-          routeSelector.value = selectedRouteId;
+        if (selectedRouteKey && routesCache.has(selectedRouteKey)) {
+          routeSelector.value = selectedRouteKey;
         }
       } catch (error) {
         console.error('Failed to load routes:', error);
@@ -828,6 +896,7 @@
         throw error;
       } finally {
         routeSelector.disabled = false;
+        redraw();
       }
     }
 
@@ -836,12 +905,7 @@
         return;
       }
 
-      const routeId = routeIdInput.value.trim();
-      if (!routeId) {
-        setStatus('Route ID is required before saving.', 'error');
-        routeIdInput.focus();
-        return;
-      }
+      const previousRouteKey = currentRouteKey;
 
       if (points.length < 2) {
         setStatus('Add at least two points to define the route.', 'error');
@@ -864,6 +928,28 @@
         routeTitleInput.focus();
         return;
       }
+
+      const routeKey = createRouteKeyFromTitle(title);
+      if (!routeKey) {
+        setStatus('Route title must include valid characters.', 'error');
+        routeTitleInput.focus();
+        return;
+      }
+
+      const conflictingKey = findConflictingRouteKey(title, previousRouteKey);
+      if (conflictingKey && conflictingKey !== previousRouteKey) {
+        setStatus('Another route already uses this title. Choose a different title.', 'error');
+        routeTitleInput.focus();
+        return;
+      }
+
+      if (routesCache.has(routeKey) && routeKey !== previousRouteKey) {
+        setStatus('Another route already uses this title. Choose a different title.', 'error');
+        routeTitleInput.focus();
+        return;
+      }
+
+      const isRenaming = Boolean(previousRouteKey && previousRouteKey !== routeKey);
 
       const description = routeDescriptionInput.value.trim();
       routeDescriptionInput.value = description;
@@ -892,7 +978,7 @@
         updatedAt: serverTimestamp(),
       };
 
-      const routeRef = doc(db, 'routes', routeId);
+      const routeRef = doc(db, 'routes', routeKey);
 
       try {
         isSaving = true;
@@ -909,16 +995,25 @@
         await setDoc(routeRef, payload, { merge: true });
 
         loadedNormalizedPoints = normalizedPoints;
-        currentRouteId = routeId;
-        routesCache.set(routeId, normalizeRouteData(payload));
+        currentRouteKey = routeKey;
+        routesCache.set(routeKey, normalizeRouteData(payload));
+
+        if (isRenaming) {
+          try {
+            await deleteDoc(doc(db, 'routes', previousRouteKey));
+            routesCache.delete(previousRouteKey);
+          } catch (error) {
+            console.warn('Failed to delete previous route entry:', error);
+          }
+        }
+
         resetUnsavedState();
 
-        await loadRoutesList(routeId);
-        routeSelector.value = routeId;
-        routeIdInput.value = routeId;
+        await loadRoutesList(routeKey);
+        routeSelector.value = routeKey;
         deleteButton.disabled = false;
 
-        const label = title || routeId;
+        const label = title || routeKey;
         setStatus(`Route “${label}” saved successfully.`, 'success');
       } catch (error) {
         console.error('Failed to save route:', error);
@@ -927,19 +1022,19 @@
         isSaving = false;
         saveButton.disabled = false;
         routeSelector.disabled = false;
-        deleteButton.disabled = !currentRouteId;
+        deleteButton.disabled = !currentRouteKey;
       }
     }
 
     async function deleteCurrentRoute() {
-      const targetId = currentRouteId || routeIdInput.value.trim();
-      if (!targetId) {
+      const targetKey = currentRouteKey;
+      if (!targetKey) {
         setStatus('Select a saved route to delete.', 'error');
         return;
       }
 
-      const cachedRoute = routesCache.get(targetId);
-      const routeLabel = cachedRoute?.title ? `${cachedRoute.title} (${targetId})` : targetId;
+      const cachedRoute = routesCache.get(targetKey);
+      const routeLabel = cachedRoute?.title || targetKey;
       const confirmed = window.confirm(`Delete route “${routeLabel}”? This cannot be undone.`);
       if (!confirmed) {
         return;
@@ -951,8 +1046,8 @@
         routeSelector.disabled = true;
         setStatus('Deleting route…', 'info');
 
-        await deleteDoc(doc(db, 'routes', targetId));
-        routesCache.delete(targetId);
+        await deleteDoc(doc(db, 'routes', targetKey));
+        routesCache.delete(targetKey);
 
         await loadRoutesList();
         prepareNewRoute('Route deleted. You can create a new one.');
@@ -967,7 +1062,7 @@
       }
     }
 
-    [routeIdInput, routeSetterInput, routeTitleInput, routeDescriptionInput].forEach((element) => {
+    [routeSetterInput, routeTitleInput, routeDescriptionInput].forEach((element) => {
       if (element) {
         element.addEventListener('input', markUnsavedChange);
       }
@@ -991,19 +1086,19 @@
     });
 
     routeSelector.addEventListener('change', async (event) => {
-      const selectedId = event.target.value;
-      if (!selectedId) {
+      const selectedKey = event.target.value;
+      if (!selectedKey) {
         prepareNewRoute('Creating a new route.');
         return;
       }
 
-      let data = routesCache.get(selectedId);
+      let data = routesCache.get(selectedKey);
       if (!data) {
         try {
-          const snap = await getDoc(doc(db, 'routes', selectedId));
+          const snap = await getDoc(doc(db, 'routes', selectedKey));
           if (snap.exists()) {
             data = normalizeRouteData(snap.data());
-            routesCache.set(selectedId, data);
+            routesCache.set(selectedKey, data);
           }
         } catch (error) {
           console.error('Failed to fetch route:', error);
@@ -1015,11 +1110,11 @@
         return;
       }
 
-      applyRouteToCanvas(selectedId, data);
+      applyRouteToCanvas(selectedKey, data);
     });
 
     colorPicker.addEventListener('input', (event) => {
-      strokeColor = event.target.value || '#ffde59';
+      strokeColor = sanitizeColor(event.target.value || '#ffde59');
       loadedNormalizedPoints = null;
       redraw();
       markUnsavedChange();
@@ -1171,9 +1266,9 @@
         handleAuthorized(role);
 
         try {
-          await loadRoutesList(currentRouteId);
-          if (currentRouteId && routesCache.has(currentRouteId)) {
-            applyRouteToCanvas(currentRouteId, routesCache.get(currentRouteId));
+          await loadRoutesList(currentRouteKey);
+          if (currentRouteKey && routesCache.has(currentRouteKey)) {
+            applyRouteToCanvas(currentRouteKey, routesCache.get(currentRouteKey));
           } else {
             prepareNewRoute('Select a saved route or start drawing a new one.');
           }
