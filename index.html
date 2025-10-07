@@ -83,6 +83,12 @@
         canvas.height = window.innerHeight;
         redraw();
       }
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = strokeColor;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
 
       function redraw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
