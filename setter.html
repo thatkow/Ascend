@@ -34,47 +34,88 @@
       top: 1rem;
       right: 1rem;
       display: flex;
-      gap: 0.5rem;
-      align-items: center;
+      flex-direction: column;
+      gap: 0.75rem;
+      align-items: stretch;
       background: rgba(0, 0, 0, 0.55);
-      padding: 0.75rem 1rem;
-      border-radius: 999px;
+      padding: 1rem;
+      border-radius: 1rem;
       backdrop-filter: blur(6px);
       box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+      width: min(320px, 92vw);
     }
 
-    .controls label {
+    .control-section {
       display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .control-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      font-size: 0.85rem;
+    }
+
+    .control-field span {
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .control-field input,
+    .control-field select {
+      border-radius: 0.65rem;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(0, 0, 0, 0.35);
+      color: inherit;
+      padding: 0.5rem 0.75rem;
       font-size: 0.9rem;
     }
 
+    .control-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-end;
+    }
+
+    .control-row .control-field {
+      flex: 1;
+    }
+
     .controls input[type="color"] {
-      width: 2rem;
-      height: 2rem;
+      width: 100%;
+      min-height: 2.5rem;
       border: none;
-      background: none;
+      padding: 0.25rem;
       cursor: pointer;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 0.65rem;
     }
 
     .controls button {
       border: none;
-      border-radius: 999px;
-      padding: 0.5rem 1rem;
+      border-radius: 0.65rem;
+      padding: 0.55rem 0.85rem;
       font-size: 0.85rem;
       font-weight: 600;
       cursor: pointer;
-      transition: transform 0.15s ease, background 0.15s ease;
+      transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
       color: #111;
     }
 
     #clearButton {
-      background: #ff7474;
+      background: rgba(255, 116, 116, 0.9);
+      color: #111;
     }
 
     #saveButton {
       background: #7ed957;
+    }
+
+    #deleteButton {
+      background: rgba(255, 116, 116, 0.8);
+      color: #111;
     }
 
     #signOutButton {
@@ -84,69 +125,14 @@
 
     .controls button:hover {
       transform: translateY(-2px);
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
     }
 
-    .modal {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0, 0, 0, 0.55);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s ease;
-      padding: 1rem;
-    }
-
-    .modal.visible {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .modal-content {
-      background: #1b1b1b;
-      border-radius: 0.75rem;
-      padding: 1.25rem;
-      width: min(90vw, 520px);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .modal-content header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .modal-content h2 {
-      font-size: 1.1rem;
-    }
-
-    .modal-content button {
-      background: #ff7474;
-      color: #111;
-      border: none;
-      border-radius: 999px;
-      padding: 0.4rem 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-      align-self: flex-end;
-    }
-
-    .modal-content textarea {
-      width: 100%;
-      height: 200px;
-      border-radius: 0.5rem;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      background: rgba(0, 0, 0, 0.6);
-      color: #f8f8f8;
-      padding: 0.75rem;
-      font-family: "Fira Code", "Courier New", monospace;
-      font-size: 0.85rem;
-      resize: vertical;
+    .controls button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
     }
 
     .auth-overlay {
@@ -299,6 +285,34 @@
       font-weight: 600;
       text-decoration: underline;
     }
+
+    .status-message {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      background: rgba(0, 0, 0, 0.55);
+      padding: 0.75rem 1rem;
+      border-radius: 0.85rem;
+      min-width: min(320px, 92vw);
+      max-width: min(360px, 92vw);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(6px);
+      font-size: 0.85rem;
+      letter-spacing: 0.01em;
+      color: #e1e1e1;
+    }
+
+    .status-message[data-variant='success'] {
+      color: #7ed957;
+    }
+
+    .status-message[data-variant='error'] {
+      color: #ff7a7a;
+    }
+
+    .status-message[data-variant='info'] {
+      color: #f1f1f1;
+    }
   </style>
 </head>
 <body>
@@ -331,25 +345,40 @@
     </header>
     <canvas id="drawingCanvas"></canvas>
     <div class="controls">
-      <label>
-        <span>Stroke</span>
-        <input type="color" id="colorPicker" value="#ffde59" />
-      </label>
-      <button id="saveButton">Save JSON</button>
-      <button id="clearButton">Clear</button>
-      <button id="signOutButton">Sign Out</button>
+      <div class="control-section">
+        <label class="control-field">
+          <span>Saved routes</span>
+          <select id="routeSelector">
+            <option value="">Create new route…</option>
+          </select>
+        </label>
+        <div class="control-row">
+          <label class="control-field">
+            <span>Route ID</span>
+            <input id="routeIdInput" type="text" placeholder="unique-route-id" autocomplete="off" />
+          </label>
+          <button id="newRouteButton" type="button">New</button>
+        </div>
+        <label class="control-field">
+          <span>Name</span>
+          <input id="routeNameInput" type="text" placeholder="Route name" autocomplete="off" />
+        </label>
+        <label class="control-field">
+          <span>Grade</span>
+          <input id="routeGradeInput" type="text" placeholder="Grade" autocomplete="off" />
+        </label>
+      </div>
+      <div class="control-section">
+        <label class="control-field">
+          <span>Stroke colour</span>
+          <input type="color" id="colorPicker" value="#ffde59" />
+        </label>
+        <button id="saveButton" type="button">Save route</button>
+        <button id="deleteButton" type="button">Delete route</button>
+        <button id="clearButton" type="button">Clear drawing</button>
+        <button id="signOutButton" type="button">Sign Out</button>
+      </div>
     </div>
-
-  <div class="modal" id="jsonModal" aria-hidden="true">
-    <div class="modal-content">
-      <header>
-        <h2>Curve Definition</h2>
-        <button type="button" id="closeModal">Close</button>
-      </header>
-      <textarea id="jsonOutput" readonly></textarea>
-    </div>
-  </div>
-
   </div>
 
   <div id="unauthorizedNotice" class="unauthorized hidden" role="alert">
@@ -357,6 +386,8 @@
     <p>You can return to the <a href="index.html">preview page</a> or contact a setter for help.</p>
     <button id="unauthorizedSignOut" class="auth-submit" type="button">Sign Out</button>
   </div>
+
+  <p id="routeStatus" class="status-message" role="status" aria-live="polite"></p>
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -377,6 +408,7 @@
       getDocs,
       query,
       limit,
+      deleteDoc,
     } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
     const firebaseConfig = {
@@ -406,6 +438,440 @@
     const unauthorizedSignOut = document.getElementById('unauthorizedSignOut');
     const unauthorizedNotice = document.getElementById('unauthorizedNotice');
     const roleBadge = document.getElementById('roleBadge');
+    const routeSelector = document.getElementById('routeSelector');
+    const routeIdInput = document.getElementById('routeIdInput');
+    const routeNameInput = document.getElementById('routeNameInput');
+    const routeGradeInput = document.getElementById('routeGradeInput');
+    const newRouteButton = document.getElementById('newRouteButton');
+    const deleteButton = document.getElementById('deleteButton');
+    const routeStatus = document.getElementById('routeStatus');
+
+    deleteButton.disabled = true;
+    routeSelector.disabled = true;
+
+    const canvas = document.getElementById('drawingCanvas');
+    const ctx = canvas.getContext('2d');
+    const colorPicker = document.getElementById('colorPicker');
+    const clearButton = document.getElementById('clearButton');
+    const saveButton = document.getElementById('saveButton');
+
+    const points = [];
+    let strokeColor = colorPicker.value || '#ffde59';
+    let backgroundReady = false;
+    let loadedNormalizedPoints = null;
+    let currentRouteId = '';
+    let hasUnsavedChanges = false;
+    let isSaving = false;
+
+    const routesCache = new Map();
+
+    function setStatus(message, variant = 'info') {
+      if (!routeStatus) {
+        return;
+      }
+      routeStatus.textContent = message;
+      if (variant) {
+        routeStatus.dataset.variant = variant;
+      } else {
+        delete routeStatus.dataset.variant;
+      }
+    }
+
+    function clearStatus() {
+      if (!routeStatus) {
+        return;
+      }
+      routeStatus.textContent = '';
+      delete routeStatus.dataset.variant;
+    }
+
+    function markUnsavedChange() {
+      if (!hasUnsavedChanges) {
+        hasUnsavedChanges = true;
+        setStatus('Unsaved changes – remember to save.', 'info');
+      }
+    }
+
+    function resetUnsavedState() {
+      hasUnsavedChanges = false;
+    }
+
+    const backgroundImage = new Image();
+    backgroundImage.src = 'background.png';
+    backgroundImage.onload = () => {
+      backgroundReady = true;
+      resizeCanvas();
+    };
+
+    function resizeCanvas() {
+      const previousWidth = canvas.width || window.innerWidth;
+      const previousHeight = canvas.height || window.innerHeight;
+
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      if (loadedNormalizedPoints) {
+        points.length = 0;
+        loadedNormalizedPoints.forEach(({ x, y }) => {
+          if (Number.isFinite(x) && Number.isFinite(y)) {
+            points.push({ x: x * canvas.width, y: y * canvas.height });
+          }
+        });
+      } else if (points.length && previousWidth && previousHeight) {
+        const scaledPoints = points.map(({ x, y }) => ({
+          x: (x / previousWidth) * canvas.width,
+          y: (y / previousHeight) * canvas.height,
+        }));
+        points.length = 0;
+        points.push(...scaledPoints);
+      }
+
+      redraw();
+    }
+
+    function redraw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (backgroundReady) {
+        ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      drawCurve();
+      drawPoints();
+    }
+
+    function drawPoints() {
+      ctx.fillStyle = strokeColor;
+      points.forEach((point) => {
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function drawCurve() {
+      if (points.length < 2) {
+        return;
+      }
+
+      ctx.lineWidth = 10;
+      ctx.strokeStyle = strokeColor;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+
+      for (let i = 0; i < points.length - 1; i++) {
+        const p0 = i === 0 ? points[0] : points[i - 1];
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = i + 2 < points.length ? points[i + 2] : points[i + 1];
+
+        const cp1x = p1.x + (p2.x - p0.x) / 6;
+        const cp1y = p1.y + (p2.y - p0.y) / 6;
+        const cp2x = p2.x - (p3.x - p1.x) / 6;
+        const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+      }
+
+      ctx.stroke();
+    }
+
+    function applyNormalizedPoints(normalizedPoints = []) {
+      if (!Array.isArray(normalizedPoints)) {
+        loadedNormalizedPoints = null;
+        points.length = 0;
+        redraw();
+        return;
+      }
+
+      const filtered = normalizedPoints
+        .map((point) => {
+          const x = Number(point?.x);
+          const y = Number(point?.y);
+          if (Number.isFinite(x) && Number.isFinite(y)) {
+            return { x, y };
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      loadedNormalizedPoints = filtered;
+      points.length = 0;
+      filtered.forEach(({ x, y }) => {
+        points.push({ x: x * canvas.width, y: y * canvas.height });
+      });
+
+      redraw();
+    }
+
+    function convertPointsToNormalized() {
+      if (!canvas.width || !canvas.height) {
+        return [];
+      }
+
+      return points.map(({ x, y }) => ({
+        x: Number((x / canvas.width).toFixed(6)),
+        y: Number((y / canvas.height).toFixed(6)),
+      }));
+    }
+
+    function addPoint(event) {
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      points.push({ x, y });
+      loadedNormalizedPoints = null;
+      redraw();
+      markUnsavedChange();
+    }
+
+    function clearCanvas() {
+      if (!points.length) {
+        return;
+      }
+      points.length = 0;
+      loadedNormalizedPoints = null;
+      redraw();
+      markUnsavedChange();
+    }
+
+    function sanitizeColor(value) {
+      if (typeof value === 'string' && /^#([0-9a-f]{6})$/i.test(value)) {
+        return value;
+      }
+      return '#ffde59';
+    }
+
+    function applyRouteToCanvas(routeId, data = {}) {
+      currentRouteId = routeId;
+      routeSelector.value = routeId;
+      routeIdInput.value = routeId;
+      routeNameInput.value = data.name ?? '';
+      routeGradeInput.value = data.grade ?? '';
+      strokeColor = sanitizeColor(data.strokeColor);
+      colorPicker.value = strokeColor;
+      applyNormalizedPoints(Array.isArray(data.points) ? data.points : []);
+      deleteButton.disabled = !routeId;
+      resetUnsavedState();
+      if (routeId) {
+        const label = data.name ? `${data.name} (${routeId})` : routeId;
+        setStatus(`Loaded route ${label}.`, 'success');
+      }
+    }
+
+    function prepareNewRoute(statusMessage = '') {
+      currentRouteId = '';
+      routeSelector.value = '';
+      routeIdInput.value = '';
+      routeNameInput.value = '';
+      routeGradeInput.value = '';
+      loadedNormalizedPoints = null;
+      points.length = 0;
+      redraw();
+      deleteButton.disabled = true;
+      resetUnsavedState();
+      if (statusMessage) {
+        setStatus(statusMessage, 'info');
+      } else {
+        clearStatus();
+      }
+    }
+
+    async function loadRoutesList(selectedRouteId = '') {
+      try {
+        routeSelector.disabled = true;
+        const snapshot = await getDocs(collection(db, 'routes'));
+        routesCache.clear();
+        snapshot.forEach((docSnap) => {
+          routesCache.set(docSnap.id, docSnap.data());
+        });
+
+        const sortedEntries = [...routesCache.entries()].sort((a, b) => {
+          const labelA = (a[1]?.name || a[0]).toLowerCase();
+          const labelB = (b[1]?.name || b[0]).toLowerCase();
+          return labelA.localeCompare(labelB);
+        });
+
+        routeSelector.innerHTML = '';
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = 'Create new route…';
+        routeSelector.appendChild(defaultOption);
+
+        sortedEntries.forEach(([id, data]) => {
+          const option = document.createElement('option');
+          option.value = id;
+          option.textContent = data?.name ? `${data.name} (${id})` : id;
+          routeSelector.appendChild(option);
+        });
+
+        if (selectedRouteId && routesCache.has(selectedRouteId)) {
+          routeSelector.value = selectedRouteId;
+        }
+      } catch (error) {
+        console.error('Failed to load routes:', error);
+        setStatus('Failed to load routes. Please try again.', 'error');
+        throw error;
+      } finally {
+        routeSelector.disabled = false;
+      }
+    }
+
+    async function saveRoute() {
+      if (isSaving) {
+        return;
+      }
+
+      const routeId = routeIdInput.value.trim();
+      if (!routeId) {
+        setStatus('Route ID is required before saving.', 'error');
+        routeIdInput.focus();
+        return;
+      }
+
+      if (points.length < 2) {
+        setStatus('Add at least two points to define the route.', 'error');
+        return;
+      }
+
+      const normalizedPoints = convertPointsToNormalized();
+      const name = routeNameInput.value.trim();
+      const grade = routeGradeInput.value.trim();
+
+      const payload = {
+        name: name || null,
+        grade: grade || null,
+        strokeColor,
+        points: normalizedPoints,
+        updatedAt: serverTimestamp(),
+      };
+
+      const routeRef = doc(db, 'routes', routeId);
+
+      try {
+        isSaving = true;
+        saveButton.disabled = true;
+        routeSelector.disabled = true;
+        deleteButton.disabled = true;
+        setStatus('Saving route…', 'info');
+
+        const existingSnap = await getDoc(routeRef);
+        if (!existingSnap.exists()) {
+          payload.createdAt = serverTimestamp();
+        }
+
+        await setDoc(routeRef, payload, { merge: true });
+
+        loadedNormalizedPoints = normalizedPoints;
+        currentRouteId = routeId;
+        resetUnsavedState();
+
+        await loadRoutesList(routeId);
+        routeSelector.value = routeId;
+        deleteButton.disabled = false;
+
+        setStatus(`Route “${routeId}” saved successfully.`, 'success');
+      } catch (error) {
+        console.error('Failed to save route:', error);
+        setStatus(error.message || 'Failed to save route.', 'error');
+      } finally {
+        isSaving = false;
+        saveButton.disabled = false;
+        routeSelector.disabled = false;
+        deleteButton.disabled = !currentRouteId;
+      }
+    }
+
+    async function deleteCurrentRoute() {
+      const targetId = currentRouteId || routeIdInput.value.trim();
+      if (!targetId) {
+        setStatus('Select a saved route to delete.', 'error');
+        return;
+      }
+
+      const confirmed = window.confirm(`Delete route “${targetId}”? This cannot be undone.`);
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        saveButton.disabled = true;
+        deleteButton.disabled = true;
+        routeSelector.disabled = true;
+        setStatus('Deleting route…', 'info');
+
+        await deleteDoc(doc(db, 'routes', targetId));
+        routesCache.delete(targetId);
+
+        await loadRoutesList();
+        prepareNewRoute('Route deleted. You can create a new one.');
+        setStatus(`Route “${targetId}” deleted.`, 'success');
+      } catch (error) {
+        console.error('Failed to delete route:', error);
+        setStatus(error.message || 'Failed to delete route.', 'error');
+        deleteButton.disabled = false;
+      } finally {
+        saveButton.disabled = false;
+        routeSelector.disabled = false;
+      }
+    }
+
+    canvas.addEventListener('click', addPoint);
+    window.addEventListener('resize', resizeCanvas);
+
+    clearButton.addEventListener('click', clearCanvas);
+    saveButton.addEventListener('click', saveRoute);
+    deleteButton.addEventListener('click', deleteCurrentRoute);
+    newRouteButton.addEventListener('click', () => {
+      prepareNewRoute('Creating a new route.');
+    });
+
+    routeSelector.addEventListener('change', async (event) => {
+      const selectedId = event.target.value;
+      if (!selectedId) {
+        prepareNewRoute('Creating a new route.');
+        return;
+      }
+
+      let data = routesCache.get(selectedId);
+      if (!data) {
+        try {
+          const snap = await getDoc(doc(db, 'routes', selectedId));
+          if (snap.exists()) {
+            data = snap.data();
+            routesCache.set(selectedId, data);
+          }
+        } catch (error) {
+          console.error('Failed to fetch route:', error);
+        }
+      }
+
+      if (!data) {
+        setStatus('Unable to load the selected route.', 'error');
+        return;
+      }
+
+      applyRouteToCanvas(selectedId, data);
+    });
+
+    colorPicker.addEventListener('input', (event) => {
+      strokeColor = event.target.value || '#ffde59';
+      loadedNormalizedPoints = null;
+      redraw();
+      markUnsavedChange();
+    });
+
+    if (backgroundImage.complete) {
+      backgroundReady = true;
+      resizeCanvas();
+    } else {
+      resizeCanvas();
+    }
 
     let authMode = 'login';
 
@@ -512,6 +978,9 @@
       unauthorizedNotice.classList.remove('hidden');
       roleBadge.textContent = role ? role.toUpperCase() : '';
       roleBadge.classList.toggle('hidden', !role);
+      routeSelector.disabled = true;
+      deleteButton.disabled = true;
+      clearStatus();
     }
 
     function handleAuthorized(role) {
@@ -519,6 +988,7 @@
       appContent.classList.remove('hidden');
       roleBadge.textContent = role.toUpperCase();
       roleBadge.classList.remove('hidden');
+      routeSelector.disabled = false;
     }
 
     onAuthStateChanged(auth, async (user) => {
@@ -539,160 +1009,34 @@
         }
 
         handleAuthorized(role);
+
+        try {
+          await loadRoutesList(currentRouteId);
+          if (currentRouteId && routesCache.has(currentRouteId)) {
+            applyRouteToCanvas(currentRouteId, routesCache.get(currentRouteId));
+          } else {
+            prepareNewRoute('Select a saved route or start drawing a new one.');
+          }
+        } catch (error) {
+          console.error('Unable to initialise routes:', error);
+        }
       } else {
         authOverlay.classList.remove('hidden');
         appContent.classList.add('hidden');
         unauthorizedNotice.classList.add('hidden');
         roleBadge.classList.add('hidden');
+        routeSelector.disabled = true;
+        deleteButton.disabled = true;
         authForm.reset();
+        prepareNewRoute();
+        clearStatus();
         setAuthMode('login');
       }
     });
 
     setAuthMode('login');
 
-    const canvas = document.getElementById('drawingCanvas');
-    const ctx = canvas.getContext('2d');
-    const colorPicker = document.getElementById('colorPicker');
-    const clearButton = document.getElementById('clearButton');
-    const saveButton = document.getElementById('saveButton');
-    const modal = document.getElementById('jsonModal');
-    const closeModalButton = document.getElementById('closeModal');
-    const jsonOutput = document.getElementById('jsonOutput');
-
-    const points = [];
-    let strokeColor = colorPicker.value;
-    let backgroundReady = false;
-
-    const backgroundImage = new Image();
-    backgroundImage.src = 'background.png';
-    backgroundImage.onload = () => {
-      backgroundReady = true;
-      resizeCanvas();
-    };
-
-    function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      redraw();
-    }
-
-    function redraw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      if (backgroundReady) {
-        ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
-      } else {
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
-
-      drawCurve();
-      drawPoints();
-    }
-
-    function drawPoints() {
-      ctx.fillStyle = strokeColor;
-      points.forEach((point) => {
-        ctx.beginPath();
-        ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
-        ctx.fill();
-      });
-    }
-
-    function drawCurve() {
-      if (points.length < 2) {
-        return;
-      }
-
-      ctx.lineWidth = 10;
-      ctx.strokeStyle = strokeColor;
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, points[0].y);
-
-      for (let i = 0; i < points.length - 1; i++) {
-        const p0 = i === 0 ? points[0] : points[i - 1];
-        const p1 = points[i];
-        const p2 = points[i + 1];
-        const p3 = i + 2 < points.length ? points[i + 2] : points[i + 1];
-
-        const cp1x = p1.x + (p2.x - p0.x) / 6;
-        const cp1y = p1.y + (p2.y - p0.y) / 6;
-        const cp2x = p2.x - (p3.x - p1.x) / 6;
-        const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-      }
-
-      ctx.stroke();
-    }
-
-    function addPoint(event) {
-      const rect = canvas.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      points.push({ x, y });
-      redraw();
-    }
-
-    function clearCanvas() {
-      points.length = 0;
-      redraw();
-    }
-
-    function openModal() {
-      if (!points.length) {
-        jsonOutput.value = JSON.stringify({ strokeColor, points: [] }, null, 2);
-        modal.classList.add('visible');
-        modal.setAttribute('aria-hidden', 'false');
-        return;
-      }
-
-      const normalizedPoints = points.map(({ x, y }) => ({
-        x: Number((x / canvas.width).toFixed(6)),
-        y: Number((y / canvas.height).toFixed(6)),
-      }));
-
-      const exportData = {
-        strokeColor,
-        points: normalizedPoints,
-      };
-
-      jsonOutput.value = JSON.stringify(exportData, null, 2);
-      modal.classList.add('visible');
-      modal.setAttribute('aria-hidden', 'false');
-    }
-
-    function closeModal() {
-      modal.classList.remove('visible');
-      modal.setAttribute('aria-hidden', 'true');
-    }
-
-    canvas.addEventListener('click', addPoint);
-    window.addEventListener('resize', resizeCanvas);
-
-    clearButton.addEventListener('click', clearCanvas);
-    saveButton.addEventListener('click', openModal);
-    closeModalButton.addEventListener('click', closeModal);
-    modal.addEventListener('click', (event) => {
-      if (event.target === modal) {
-        closeModal();
-      }
-    });
-
-    colorPicker.addEventListener('input', (event) => {
-      strokeColor = event.target.value;
-      redraw();
-    });
-
-    if (backgroundImage.complete) {
-      backgroundReady = true;
-      resizeCanvas();
-    } else {
-      resizeCanvas();
-    }
+    prepareNewRoute();
   </script>
 </body>
 </html>

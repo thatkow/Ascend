@@ -366,6 +366,7 @@
 
           updateNavigationForRole(role);
           appContent.classList.remove('hidden');
+          await loadRoutes();
         } else {
           authOverlay.classList.remove('hidden');
           appContent.classList.add('hidden');
@@ -373,6 +374,8 @@
           setterLink.classList.add('hidden');
           authForm.reset();
           setAuthMode('login');
+          routes = [];
+          redraw();
         }
       });
 
@@ -381,43 +384,48 @@
       const canvas = document.getElementById('previewCanvas');
       const ctx = canvas.getContext('2d');
 
-      const curves = [
-        {
-          strokeColor: '#ffde59',
-          points: [
-            { x: 0.110445, y: 0.891122 },
-            { x: 0.114726, y: 0.745394 },
-            { x: 0.157962, y: 0.586265 },
-            { x: 0.183219, y: 0.398660 },
-            { x: 0.170377, y: 0.246231 },
-            { x: 0.166524, y: 0.180905 },
-          ],
-        },
-        {
-          strokeColor: '#84fd5b',
-          points: [
-            { x: 0.410103, y: 0.880235 },
-            { x: 0.412671, y: 0.760469 },
-            { x: 0.507277, y: 0.722781 },
-            { x: 0.522260, y: 0.599665 },
-            { x: 0.465753, y: 0.526801 },
-            { x: 0.470034, y: 0.320771 },
-            { x: 0.537243, y: 0.245394 },
-            { x: 0.475599, y: 0.0 },
-          ],
-        },
-        {
-          strokeColor: '#0918d7',
-          points: [
-            { x: 0.860445, y: 0.881910 },
-            { x: 0.883134, y: 0.773032 },
-            { x: 0.920805, y: 0.672529 },
-            { x: 0.892551, y: 0.510888 },
-            { x: 0.895120, y: 0.342546 },
-            { x: 0.861729, y: 0.136516 },
-          ],
-        },
-      ];
+      let routes = [];
+
+      async function loadRoutes() {
+        try {
+          const snapshot = await getDocs(collection(db, 'routes'));
+          routes = snapshot.docs
+            .map((docSnap) => {
+              const data = docSnap.data();
+              const normalizedPoints = Array.isArray(data.points)
+                ? data.points
+                    .map((point) => {
+                      const x = Number(point?.x);
+                      const y = Number(point?.y);
+                      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+                        return null;
+                      }
+                      return { x, y };
+                    })
+                    .filter(Boolean)
+                : [];
+
+              return {
+                id: docSnap.id,
+                strokeColor: typeof data.strokeColor === 'string' ? data.strokeColor : '#ffde59',
+                points: normalizedPoints,
+                name: data.name ?? '',
+                grade: data.grade ?? '',
+              };
+            })
+            .sort((a, b) => {
+              const nameA = (a.name || a.id).toLowerCase();
+              const nameB = (b.name || b.id).toLowerCase();
+              return nameA.localeCompare(nameB);
+            });
+
+          redraw();
+        } catch (error) {
+          console.error('Failed to load routes:', error);
+          routes = [];
+          redraw();
+        }
+      }
 
       const backgroundImage = new Image();
       let backgroundReady = false;
@@ -444,12 +452,14 @@
           ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        curves.forEach(drawCurve);
+        routes.forEach(drawRoute);
       }
 
-      function drawCurve(curve) {
-        const { strokeColor, points } = curve;
-        if (!points || points.length < 2) {
+      function drawRoute(route) {
+        const strokeColor = typeof route.strokeColor === 'string' ? route.strokeColor : '#ffde59';
+        const points = Array.isArray(route.points) ? route.points : [];
+
+        if (points.length < 2) {
           return;
         }
 
@@ -459,10 +469,23 @@
         ctx.lineCap = 'round';
         ctx.beginPath();
 
-        const scaledPoints = points.map((point) => ({
-          x: point.x * canvas.width,
-          y: point.y * canvas.height,
-        }));
+        const scaledPoints = points
+          .map((point) => {
+            const x = Number(point?.x);
+            const y = Number(point?.y);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) {
+              return null;
+            }
+            return {
+              x: x * canvas.width,
+              y: y * canvas.height,
+            };
+          })
+          .filter(Boolean);
+
+        if (scaledPoints.length < 2) {
+          return;
+        }
 
         ctx.moveTo(scaledPoints[0].x, scaledPoints[0].y);
 
