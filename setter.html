@@ -64,13 +64,19 @@
     }
 
     .control-field input,
-    .control-field select {
+    .control-field select,
+    .control-field textarea {
       border-radius: 0.65rem;
       border: 1px solid rgba(255, 255, 255, 0.15);
       background: rgba(0, 0, 0, 0.35);
       color: inherit;
       padding: 0.5rem 0.75rem;
       font-size: 0.9rem;
+    }
+
+    .control-field textarea {
+      min-height: 4.5rem;
+      resize: vertical;
     }
 
     .control-row {
@@ -360,13 +366,27 @@
           <button id="newRouteButton" type="button">New</button>
         </div>
         <label class="control-field">
-          <span>Name</span>
-          <input id="routeNameInput" type="text" placeholder="Route name" autocomplete="off" />
+          <span>Setter</span>
+          <input id="routeSetterInput" type="email" placeholder="setter@example.com" autocomplete="off" />
         </label>
         <label class="control-field">
-          <span>Grade</span>
-          <input id="routeGradeInput" type="text" placeholder="Grade" autocomplete="off" />
+          <span>Title</span>
+          <input id="routeTitleInput" type="text" placeholder="Route title" autocomplete="off" />
         </label>
+        <label class="control-field">
+          <span>Description</span>
+          <textarea id="routeDescriptionInput" placeholder="Describe the climb"></textarea>
+        </label>
+        <div class="control-row">
+          <label class="control-field">
+            <span>Date set</span>
+            <input id="routeDateSetInput" type="datetime-local" />
+          </label>
+          <label class="control-field">
+            <span>Date removed (optional)</span>
+            <input id="routeDateRemovedInput" type="datetime-local" />
+          </label>
+        </div>
       </div>
       <div class="control-section">
         <label class="control-field">
@@ -440,8 +460,11 @@
     const roleBadge = document.getElementById('roleBadge');
     const routeSelector = document.getElementById('routeSelector');
     const routeIdInput = document.getElementById('routeIdInput');
-    const routeNameInput = document.getElementById('routeNameInput');
-    const routeGradeInput = document.getElementById('routeGradeInput');
+    const routeSetterInput = document.getElementById('routeSetterInput');
+    const routeTitleInput = document.getElementById('routeTitleInput');
+    const routeDescriptionInput = document.getElementById('routeDescriptionInput');
+    const routeDateSetInput = document.getElementById('routeDateSetInput');
+    const routeDateRemovedInput = document.getElementById('routeDateRemovedInput');
     const newRouteButton = document.getElementById('newRouteButton');
     const deleteButton = document.getElementById('deleteButton');
     const routeStatus = document.getElementById('routeStatus');
@@ -462,8 +485,82 @@
     let currentRouteId = '';
     let hasUnsavedChanges = false;
     let isSaving = false;
+    let currentUserEmail = '';
 
     const routesCache = new Map();
+
+    function normalizeDateValue(value) {
+      if (!value) {
+        return null;
+      }
+
+      if (typeof value === 'string') {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date.toISOString();
+      }
+
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value.toISOString();
+      }
+
+      if (typeof value?.toDate === 'function') {
+        const date = value.toDate();
+        if (date instanceof Date && !Number.isNaN(date.getTime())) {
+          return date.toISOString();
+        }
+        return null;
+      }
+
+      return null;
+    }
+
+    function isoStringToInputValue(isoString) {
+      if (!isoString) {
+        return '';
+      }
+
+      const date = new Date(isoString);
+      if (Number.isNaN(date.getTime())) {
+        return '';
+      }
+
+      const offset = date.getTimezoneOffset();
+      const local = new Date(date.getTime() - offset * 60000);
+      return local.toISOString().slice(0, 16);
+    }
+
+    function inputValueToIsoString(inputValue) {
+      if (!inputValue) {
+        return null;
+      }
+
+      const date = new Date(inputValue);
+      if (Number.isNaN(date.getTime())) {
+        return null;
+      }
+
+      return date.toISOString();
+    }
+
+    function getNowInputValue() {
+      const now = new Date();
+      const offset = now.getTimezoneOffset();
+      const local = new Date(now.getTime() - offset * 60000);
+      return local.toISOString().slice(0, 16);
+    }
+
+    function normalizeRouteData(raw = {}) {
+      return {
+        ...raw,
+        setter: typeof raw.setter === 'string' ? raw.setter : '',
+        title: typeof raw.title === 'string' ? raw.title : '',
+        description: typeof raw.description === 'string' ? raw.description : '',
+        strokeColor: sanitizeColor(raw.strokeColor),
+        points: Array.isArray(raw.points) ? raw.points : [],
+        date_set: normalizeDateValue(raw.date_set),
+        date_removed: normalizeDateValue(raw.date_removed),
+      };
+    }
 
     function setStatus(message, variant = 'info') {
       if (!routeStatus) {
@@ -647,19 +744,26 @@
       return '#ffde59';
     }
 
-    function applyRouteToCanvas(routeId, data = {}) {
+    function applyRouteToCanvas(routeId, rawData = {}) {
+      const data = normalizeRouteData(rawData);
+
       currentRouteId = routeId;
       routeSelector.value = routeId;
       routeIdInput.value = routeId;
-      routeNameInput.value = data.name ?? '';
-      routeGradeInput.value = data.grade ?? '';
-      strokeColor = sanitizeColor(data.strokeColor);
+      routeSetterInput.value = data.setter || currentUserEmail || '';
+      routeTitleInput.value = data.title;
+      routeDescriptionInput.value = data.description;
+      routeDateSetInput.value = isoStringToInputValue(data.date_set) || '';
+      routeDateRemovedInput.value = isoStringToInputValue(data.date_removed) || '';
+      strokeColor = data.strokeColor;
       colorPicker.value = strokeColor;
-      applyNormalizedPoints(Array.isArray(data.points) ? data.points : []);
+      applyNormalizedPoints(data.points);
       deleteButton.disabled = !routeId;
       resetUnsavedState();
+
       if (routeId) {
-        const label = data.name ? `${data.name} (${routeId})` : routeId;
+        routesCache.set(routeId, data);
+        const label = data.title ? `${data.title} (${routeId})` : routeId;
         setStatus(`Loaded route ${label}.`, 'success');
       }
     }
@@ -668,8 +772,13 @@
       currentRouteId = '';
       routeSelector.value = '';
       routeIdInput.value = '';
-      routeNameInput.value = '';
-      routeGradeInput.value = '';
+      routeSetterInput.value = currentUserEmail || '';
+      routeTitleInput.value = '';
+      routeDescriptionInput.value = '';
+      routeDateSetInput.value = getNowInputValue();
+      routeDateRemovedInput.value = '';
+      strokeColor = '#ffde59';
+      colorPicker.value = strokeColor;
       loadedNormalizedPoints = null;
       points.length = 0;
       redraw();
@@ -688,12 +797,12 @@
         const snapshot = await getDocs(collection(db, 'routes'));
         routesCache.clear();
         snapshot.forEach((docSnap) => {
-          routesCache.set(docSnap.id, docSnap.data());
+          routesCache.set(docSnap.id, normalizeRouteData(docSnap.data()));
         });
 
         const sortedEntries = [...routesCache.entries()].sort((a, b) => {
-          const labelA = (a[1]?.name || a[0]).toLowerCase();
-          const labelB = (b[1]?.name || b[0]).toLowerCase();
+          const labelA = (a[1]?.title || a[0]).toLowerCase();
+          const labelB = (b[1]?.title || b[0]).toLowerCase();
           return labelA.localeCompare(labelB);
         });
 
@@ -706,7 +815,7 @@
         sortedEntries.forEach(([id, data]) => {
           const option = document.createElement('option');
           option.value = id;
-          option.textContent = data?.name ? `${data.name} (${id})` : id;
+          option.textContent = data?.title ? `${data.title} (${id})` : id;
           routeSelector.appendChild(option);
         });
 
@@ -740,14 +849,46 @@
       }
 
       const normalizedPoints = convertPointsToNormalized();
-      const name = routeNameInput.value.trim();
-      const grade = routeGradeInput.value.trim();
+      const setter = routeSetterInput.value.trim();
+      routeSetterInput.value = setter;
+      if (!setter) {
+        setStatus('Setter email is required before saving.', 'error');
+        routeSetterInput.focus();
+        return;
+      }
+
+      const title = routeTitleInput.value.trim();
+      routeTitleInput.value = title;
+      if (!title) {
+        setStatus('Route title is required before saving.', 'error');
+        routeTitleInput.focus();
+        return;
+      }
+
+      const description = routeDescriptionInput.value.trim();
+      routeDescriptionInput.value = description;
+      const dateSetIso = inputValueToIsoString(routeDateSetInput.value);
+      if (!dateSetIso) {
+        setStatus('Enter a valid set date for the route.', 'error');
+        routeDateSetInput.focus();
+        return;
+      }
+
+      const dateRemovedIso = inputValueToIsoString(routeDateRemovedInput.value);
+      if (routeDateRemovedInput.value && !dateRemovedIso) {
+        setStatus('Enter a valid removal date or clear the field.', 'error');
+        routeDateRemovedInput.focus();
+        return;
+      }
 
       const payload = {
-        name: name || null,
-        grade: grade || null,
+        setter,
+        title,
+        description: description || null,
         strokeColor,
         points: normalizedPoints,
+        date_set: dateSetIso,
+        date_removed: dateRemovedIso ?? null,
         updatedAt: serverTimestamp(),
       };
 
@@ -769,13 +910,16 @@
 
         loadedNormalizedPoints = normalizedPoints;
         currentRouteId = routeId;
+        routesCache.set(routeId, normalizeRouteData(payload));
         resetUnsavedState();
 
         await loadRoutesList(routeId);
         routeSelector.value = routeId;
+        routeIdInput.value = routeId;
         deleteButton.disabled = false;
 
-        setStatus(`Route “${routeId}” saved successfully.`, 'success');
+        const label = title || routeId;
+        setStatus(`Route “${label}” saved successfully.`, 'success');
       } catch (error) {
         console.error('Failed to save route:', error);
         setStatus(error.message || 'Failed to save route.', 'error');
@@ -794,7 +938,9 @@
         return;
       }
 
-      const confirmed = window.confirm(`Delete route “${targetId}”? This cannot be undone.`);
+      const cachedRoute = routesCache.get(targetId);
+      const routeLabel = cachedRoute?.title ? `${cachedRoute.title} (${targetId})` : targetId;
+      const confirmed = window.confirm(`Delete route “${routeLabel}”? This cannot be undone.`);
       if (!confirmed) {
         return;
       }
@@ -810,7 +956,7 @@
 
         await loadRoutesList();
         prepareNewRoute('Route deleted. You can create a new one.');
-        setStatus(`Route “${targetId}” deleted.`, 'success');
+        setStatus(`Route “${routeLabel}” deleted.`, 'success');
       } catch (error) {
         console.error('Failed to delete route:', error);
         setStatus(error.message || 'Failed to delete route.', 'error');
@@ -820,6 +966,19 @@
         routeSelector.disabled = false;
       }
     }
+
+    [routeIdInput, routeSetterInput, routeTitleInput, routeDescriptionInput].forEach((element) => {
+      if (element) {
+        element.addEventListener('input', markUnsavedChange);
+      }
+    });
+
+    [routeDateSetInput, routeDateRemovedInput].forEach((element) => {
+      if (element) {
+        element.addEventListener('change', markUnsavedChange);
+        element.addEventListener('input', markUnsavedChange);
+      }
+    });
 
     canvas.addEventListener('click', addPoint);
     window.addEventListener('resize', resizeCanvas);
@@ -843,7 +1002,7 @@
         try {
           const snap = await getDoc(doc(db, 'routes', selectedId));
           if (snap.exists()) {
-            data = snap.data();
+            data = normalizeRouteData(snap.data());
             routesCache.set(selectedId, data);
           }
         } catch (error) {
@@ -993,6 +1152,7 @@
 
     onAuthStateChanged(auth, async (user) => {
       if (user) {
+        currentUserEmail = user.email ?? '';
         authOverlay.classList.add('hidden');
 
         const role = await resolveUserRole(user);
@@ -1021,6 +1181,7 @@
           console.error('Unable to initialise routes:', error);
         }
       } else {
+        currentUserEmail = '';
         authOverlay.classList.remove('hidden');
         appContent.classList.add('hidden');
         unauthorizedNotice.classList.add('hidden');
