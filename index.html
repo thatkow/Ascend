@@ -170,6 +170,38 @@
       .sign-out:hover {
         background: rgba(255, 255, 255, 0.3);
       }
+
+      .route-tooltip {
+        position: fixed;
+        pointer-events: none;
+        background: rgba(0, 0, 0, 0.75);
+        color: #fff;
+        padding: 0.75rem 1rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+        font-size: 0.85rem;
+        line-height: 1.4;
+        max-width: min(280px, 80vw);
+        z-index: 6;
+        opacity: 0;
+        transform: translate(-50%, -12px);
+        transition: opacity 0.12s ease, transform 0.12s ease;
+      }
+
+      .route-tooltip.visible {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+
+      .route-tooltip strong {
+        display: block;
+        font-size: 0.95rem;
+        margin-bottom: 0.35rem;
+      }
+
+      .route-tooltip span + span {
+        margin-top: 0.25rem;
+      }
     </style>
   </head>
   <body>
@@ -202,6 +234,13 @@
       </header>
       <canvas id="previewCanvas" aria-hidden="true"></canvas>
     </div>
+    <div
+      id="routeTooltip"
+      class="route-tooltip"
+      role="status"
+      aria-live="polite"
+      aria-hidden="true"
+    ></div>
     <script type="module">
       import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
       import {
@@ -250,6 +289,7 @@
       const signOutButton = document.getElementById('signOutButton');
       const roleBadge = document.getElementById('roleBadge');
       const setterLink = document.getElementById('setterLink');
+      const tooltip = document.getElementById('routeTooltip');
 
       let authMode = 'login';
 
@@ -366,6 +406,7 @@
 
           updateNavigationForRole(role);
           appContent.classList.remove('hidden');
+          await loadRoutes();
         } else {
           authOverlay.classList.remove('hidden');
           appContent.classList.add('hidden');
@@ -373,6 +414,8 @@
           setterLink.classList.add('hidden');
           authForm.reset();
           setAuthMode('login');
+          routes = [];
+          redraw();
         }
       });
 
@@ -381,43 +424,167 @@
       const canvas = document.getElementById('previewCanvas');
       const ctx = canvas.getContext('2d');
 
-      const curves = [
-        {
-          strokeColor: '#ffde59',
-          points: [
-            { x: 0.110445, y: 0.891122 },
-            { x: 0.114726, y: 0.745394 },
-            { x: 0.157962, y: 0.586265 },
-            { x: 0.183219, y: 0.398660 },
-            { x: 0.170377, y: 0.246231 },
-            { x: 0.166524, y: 0.180905 },
-          ],
-        },
-        {
-          strokeColor: '#84fd5b',
-          points: [
-            { x: 0.410103, y: 0.880235 },
-            { x: 0.412671, y: 0.760469 },
-            { x: 0.507277, y: 0.722781 },
-            { x: 0.522260, y: 0.599665 },
-            { x: 0.465753, y: 0.526801 },
-            { x: 0.470034, y: 0.320771 },
-            { x: 0.537243, y: 0.245394 },
-            { x: 0.475599, y: 0.0 },
-          ],
-        },
-        {
-          strokeColor: '#0918d7',
-          points: [
-            { x: 0.860445, y: 0.881910 },
-            { x: 0.883134, y: 0.773032 },
-            { x: 0.920805, y: 0.672529 },
-            { x: 0.892551, y: 0.510888 },
-            { x: 0.895120, y: 0.342546 },
-            { x: 0.861729, y: 0.136516 },
-          ],
-        },
-      ];
+      let routes = [];
+      let routePaths = [];
+      let activeRouteId = null;
+
+      function normalizeDate(value) {
+        if (!value) {
+          return null;
+        }
+
+        if (typeof value === 'string') {
+          const date = new Date(value);
+          return Number.isNaN(date.getTime()) ? null : date.toISOString();
+        }
+
+        if (value instanceof Date) {
+          return Number.isNaN(value.getTime()) ? null : value.toISOString();
+        }
+
+        if (typeof value?.toDate === 'function') {
+          const date = value.toDate();
+          if (date instanceof Date && !Number.isNaN(date.getTime())) {
+            return date.toISOString();
+          }
+          return null;
+        }
+
+        return null;
+      }
+
+      function formatDisplayDate(isoString) {
+        if (!isoString) {
+          return 'Unknown';
+        }
+
+        const date = new Date(isoString);
+        if (Number.isNaN(date.getTime())) {
+          return 'Unknown';
+        }
+
+        return date.toLocaleDateString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        });
+      }
+
+      function updateTooltipContent(route) {
+        if (!tooltip) {
+          return;
+        }
+
+        tooltip.innerHTML = '';
+
+        const titleLine = document.createElement('strong');
+        titleLine.textContent = route.title || route.id;
+        tooltip.appendChild(titleLine);
+
+        const setterLine = document.createElement('span');
+        setterLine.textContent = `Setter: ${route.setter || 'Unknown'}`;
+        tooltip.appendChild(setterLine);
+
+        const descriptionLine = document.createElement('span');
+        descriptionLine.textContent = route.description ? `Description: ${route.description}` : 'Description: —';
+        tooltip.appendChild(descriptionLine);
+
+        const dateLine = document.createElement('span');
+        dateLine.textContent = `Date set: ${formatDisplayDate(route.date_set)}`;
+        tooltip.appendChild(dateLine);
+      }
+
+      function positionTooltip(clientX, clientY) {
+        if (!tooltip) {
+          return;
+        }
+
+        const tooltipWidth = tooltip.offsetWidth || 0;
+        const tooltipHeight = tooltip.offsetHeight || 0;
+        const halfWidth = tooltipWidth / 2;
+
+        const minX = halfWidth + 12;
+        const maxX = window.innerWidth - halfWidth - 12;
+        const desiredLeft = clientX;
+        const clampedLeft = maxX < minX ? window.innerWidth / 2 : Math.min(maxX, Math.max(minX, desiredLeft));
+
+        const minTop = 20;
+        const maxTop = window.innerHeight - tooltipHeight + 4;
+        const desiredTop = clientY - 24;
+        const clampedTop = maxTop < minTop ? window.innerHeight / 2 : Math.min(maxTop, Math.max(minTop, desiredTop));
+
+        tooltip.style.left = `${clampedLeft}px`;
+        tooltip.style.top = `${clampedTop}px`;
+      }
+
+      function showTooltip(route, clientX, clientY) {
+        if (!tooltip) {
+          return;
+        }
+
+        if (route.id !== activeRouteId) {
+          updateTooltipContent(route);
+        }
+
+        positionTooltip(clientX, clientY);
+        tooltip.classList.add('visible');
+        tooltip.setAttribute('aria-hidden', 'false');
+        activeRouteId = route.id;
+      }
+
+      function hideTooltip() {
+        if (!tooltip) {
+          return;
+        }
+
+        tooltip.classList.remove('visible');
+        tooltip.setAttribute('aria-hidden', 'true');
+        activeRouteId = null;
+      }
+
+      async function loadRoutes() {
+        try {
+          const snapshot = await getDocs(collection(db, 'routes'));
+          routes = snapshot.docs
+            .map((docSnap) => {
+              const data = docSnap.data();
+              const normalizedPoints = Array.isArray(data.points)
+                ? data.points
+                    .map((point) => {
+                      const x = Number(point?.x);
+                      const y = Number(point?.y);
+                      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+                        return null;
+                      }
+                      return { x, y };
+                    })
+                    .filter(Boolean)
+                : [];
+
+              return {
+                id: docSnap.id,
+                strokeColor: typeof data.strokeColor === 'string' ? data.strokeColor : '#ffde59',
+                points: normalizedPoints,
+                title: typeof data.title === 'string' ? data.title : '',
+                setter: typeof data.setter === 'string' ? data.setter : '',
+                description: typeof data.description === 'string' ? data.description : '',
+                date_set: normalizeDate(data.date_set),
+                date_removed: normalizeDate(data.date_removed),
+              };
+            })
+            .sort((a, b) => {
+              const nameA = (a.title || a.id).toLowerCase();
+              const nameB = (b.title || b.id).toLowerCase();
+              return nameA.localeCompare(nameB);
+            });
+
+          redraw();
+        } catch (error) {
+          console.error('Failed to load routes:', error);
+          routes = [];
+          redraw();
+        }
+      }
 
       const backgroundImage = new Image();
       let backgroundReady = false;
@@ -444,27 +611,39 @@
           ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        curves.forEach(drawCurve);
+        routePaths = [];
+        hideTooltip();
+        routes.forEach(drawRoute);
       }
 
-      function drawCurve(curve) {
-        const { strokeColor, points } = curve;
-        if (!points || points.length < 2) {
+      function drawRoute(route) {
+        const strokeColor = typeof route.strokeColor === 'string' ? route.strokeColor : '#ffde59';
+        const points = Array.isArray(route.points) ? route.points : [];
+
+        if (points.length < 2) {
           return;
         }
 
-        ctx.lineWidth = 10;
-        ctx.strokeStyle = strokeColor;
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
-        ctx.beginPath();
+        const scaledPoints = points
+          .map((point) => {
+            const x = Number(point?.x);
+            const y = Number(point?.y);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) {
+              return null;
+            }
+            return {
+              x: x * canvas.width,
+              y: y * canvas.height,
+            };
+          })
+          .filter(Boolean);
 
-        const scaledPoints = points.map((point) => ({
-          x: point.x * canvas.width,
-          y: point.y * canvas.height,
-        }));
+        if (scaledPoints.length < 2) {
+          return;
+        }
 
-        ctx.moveTo(scaledPoints[0].x, scaledPoints[0].y);
+        const path = new Path2D();
+        path.moveTo(scaledPoints[0].x, scaledPoints[0].y);
 
         for (let i = 0; i < scaledPoints.length - 1; i++) {
           const p0 = i === 0 ? scaledPoints[0] : scaledPoints[i - 1];
@@ -477,10 +656,60 @@
           const cp2x = p2.x - (p3.x - p1.x) / 6;
           const cp2y = p2.y - (p3.y - p1.y) / 6;
 
-          ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+          path.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
         }
 
-        ctx.stroke();
+        const lineWidth = 10;
+        ctx.lineWidth = lineWidth;
+        ctx.strokeStyle = strokeColor;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.stroke(path);
+
+        routePaths.push({
+          route,
+          path,
+          lineWidth,
+        });
+      }
+
+      function handlePointerMove(event) {
+        if ('pointerType' in event && event.pointerType !== 'mouse') {
+          hideTooltip();
+          return;
+        }
+
+        if (!routePaths.length) {
+          hideTooltip();
+          return;
+        }
+
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        for (let index = routePaths.length - 1; index >= 0; index -= 1) {
+          const entry = routePaths[index];
+          const previousLineWidth = ctx.lineWidth;
+          ctx.lineWidth = entry.lineWidth;
+          const isInside = ctx.isPointInStroke(entry.path, x, y);
+          ctx.lineWidth = previousLineWidth;
+
+          if (isInside) {
+            showTooltip(entry.route, event.clientX, event.clientY);
+            return;
+          }
+        }
+
+        hideTooltip();
+      }
+
+      if ('PointerEvent' in window) {
+        canvas.addEventListener('pointermove', handlePointerMove);
+        canvas.addEventListener('pointerleave', hideTooltip);
+      } else {
+        canvas.addEventListener('mousemove', handlePointerMove);
+        canvas.addEventListener('mouseleave', hideTooltip);
       }
 
       window.addEventListener('resize', resizeCanvas);
