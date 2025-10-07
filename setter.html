@@ -18,6 +18,10 @@
       overflow: hidden;
     }
 
+    .hidden {
+      display: none !important;
+    }
+
     canvas {
       display: block;
       width: 100vw;
@@ -71,6 +75,11 @@
 
     #saveButton {
       background: #7ed957;
+    }
+
+    #signOutButton {
+      background: rgba(255, 255, 255, 0.25);
+      color: #fff;
     }
 
     .controls button:hover {
@@ -139,18 +148,127 @@
       font-size: 0.85rem;
       resize: vertical;
     }
+
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.75);
+      padding: 1.5rem;
+      backdrop-filter: blur(2px);
+      z-index: 20;
+    }
+
+    .auth-card {
+      background: rgba(18, 18, 18, 0.95);
+      border-radius: 1rem;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      width: min(90vw, 360px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+    }
+
+    .auth-card h1 {
+      font-size: 1.4rem;
+      text-align: center;
+    }
+
+    .auth-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .auth-field input {
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(0, 0, 0, 0.35);
+      color: #fff;
+      padding: 0.65rem 1rem;
+      font-size: 1rem;
+    }
+
+    .auth-submit {
+      border: none;
+      border-radius: 999px;
+      padding: 0.75rem 1rem;
+      background: #7ed957;
+      color: #111;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .auth-submit:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 22px rgba(126, 217, 87, 0.3);
+    }
+
+    .auth-switch {
+      font-size: 0.9rem;
+      text-align: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .auth-switch button {
+      background: none;
+      border: none;
+      color: #7ed957;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .auth-error {
+      min-height: 1.25rem;
+      color: #ff7a7a;
+      text-align: center;
+      font-size: 0.85rem;
+    }
   </style>
 </head>
 <body>
-  <canvas id="drawingCanvas"></canvas>
-  <div class="controls">
-    <label>
-      <span>Stroke</span>
-      <input type="color" id="colorPicker" value="#ffde59" />
-    </label>
-    <button id="saveButton">Save JSON</button>
-    <button id="clearButton">Clear</button>
+  <div id="authOverlay" class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <form id="authForm" class="auth-card">
+      <h1 id="authTitle">Sign in to continue</h1>
+      <label class="auth-field">
+        <span>Email</span>
+        <input id="authEmail" type="email" name="email" autocomplete="email" required />
+      </label>
+      <label class="auth-field">
+        <span>Password</span>
+        <input id="authPassword" type="password" name="password" autocomplete="current-password" minlength="6" required />
+      </label>
+      <p id="authError" class="auth-error" role="alert" aria-live="assertive"></p>
+      <button type="submit" class="auth-submit">Sign In</button>
+      <p class="auth-switch">
+        <span id="authSwitchLabel">Don't have an account?</span>
+        <button type="button" id="toggleAuthMode">Create one</button>
+      </p>
+    </form>
   </div>
+
+  <div id="appContent" class="hidden">
+    <canvas id="drawingCanvas"></canvas>
+    <div class="controls">
+      <label>
+        <span>Stroke</span>
+        <input type="color" id="colorPicker" value="#ffde59" />
+      </label>
+      <button id="saveButton">Save JSON</button>
+      <button id="clearButton">Clear</button>
+      <button id="signOutButton">Sign Out</button>
+    </div>
 
   <div class="modal" id="jsonModal" aria-hidden="true">
     <div class="modal-content">
@@ -162,7 +280,90 @@
     </div>
   </div>
 
-  <script>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+    const firebaseConfig = {
+      apiKey: 'AIzaSyCUKr8bmjIfICZwXDHE7xoaBbAXizJhx3I',
+      authDomain: 'anuascend-3f734.firebaseapp.com',
+      projectId: 'anuascend-3f734',
+      storageBucket: 'anuascend-3f734.firebasestorage.app',
+      messagingSenderId: '305441086779',
+      appId: '1:305441086779:web:0079c53daf3462bc82eb1e',
+      measurementId: 'G-MNT686PF8L',
+    };
+
+    const firebaseApp = initializeApp(firebaseConfig);
+    const auth = getAuth(firebaseApp);
+
+    const authOverlay = document.getElementById('authOverlay');
+    const appContent = document.getElementById('appContent');
+    const authForm = document.getElementById('authForm');
+    const authEmail = document.getElementById('authEmail');
+    const authPassword = document.getElementById('authPassword');
+    const authError = document.getElementById('authError');
+    const authTitle = document.getElementById('authTitle');
+    const authSwitchLabel = document.getElementById('authSwitchLabel');
+    const toggleAuthModeButton = document.getElementById('toggleAuthMode');
+    const signOutButton = document.getElementById('signOutButton');
+
+    let authMode = 'login';
+
+    function setAuthMode(mode) {
+      authMode = mode;
+      const isLogin = authMode === 'login';
+      authTitle.textContent = isLogin ? 'Sign in to continue' : 'Create your account';
+      authSwitchLabel.textContent = isLogin ? "Don't have an account?" : 'Already have an account?';
+      toggleAuthModeButton.textContent = isLogin ? 'Create one' : 'Sign in';
+      authForm.querySelector('.auth-submit').textContent = isLogin ? 'Sign In' : 'Create Account';
+      authPassword.setAttribute('autocomplete', isLogin ? 'current-password' : 'new-password');
+      authError.textContent = '';
+    }
+
+    toggleAuthModeButton.addEventListener('click', () => {
+      setAuthMode(authMode === 'login' ? 'register' : 'login');
+    });
+
+    authForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      authError.textContent = '';
+      const email = authEmail.value.trim();
+      const password = authPassword.value;
+
+      try {
+        if (authMode === 'login') {
+          await signInWithEmailAndPassword(auth, email, password);
+        } else {
+          await createUserWithEmailAndPassword(auth, email, password);
+        }
+      } catch (error) {
+        authError.textContent = error.message;
+      }
+    });
+
+    signOutButton.addEventListener('click', () => {
+      signOut(auth).catch((error) => {
+        console.error('Failed to sign out:', error);
+      });
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        authOverlay.classList.add('hidden');
+        appContent.classList.remove('hidden');
+      } else {
+        authOverlay.classList.remove('hidden');
+        appContent.classList.add('hidden');
+        authForm.reset();
+        setAuthMode('login');
+      }
+    });
+
+    setAuthMode('login');
+
     const canvas = document.getElementById('drawingCanvas');
     const ctx = canvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
