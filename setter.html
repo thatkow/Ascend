@@ -326,7 +326,6 @@
     <header class="app-header">
       <nav class="nav-links" aria-label="Available pages">
         <a href="index.html">Preview</a>
-        <a id="adminLink" class="hidden" href="admin.html">Admin</a>
       </nav>
       <span id="roleBadge" class="role-badge hidden" aria-live="polite"></span>
     </header>
@@ -355,7 +354,7 @@
 
   <div id="unauthorizedNotice" class="unauthorized hidden" role="alert">
     <p><strong>Access denied.</strong> Your account does not have permission to use the setter tools.</p>
-    <p>You can return to the <a href="index.html">preview page</a> or contact an administrator.</p>
+    <p>You can return to the <a href="index.html">preview page</a> or contact a setter for help.</p>
     <button id="unauthorizedSignOut" class="auth-submit" type="button">Sign Out</button>
   </div>
 
@@ -407,7 +406,6 @@
     const unauthorizedSignOut = document.getElementById('unauthorizedSignOut');
     const unauthorizedNotice = document.getElementById('unauthorizedNotice');
     const roleBadge = document.getElementById('roleBadge');
-    const adminLink = document.getElementById('adminLink');
 
     let authMode = 'login';
 
@@ -472,7 +470,7 @@
       try {
         const snapshot = await getDocs(query(collection(db, 'roles'), limit(1)));
         if (snapshot.empty) {
-          role = 'admin';
+          role = 'setter';
         }
       } catch (error) {
         console.warn('Unable to inspect existing roles:', error);
@@ -514,7 +512,6 @@
       unauthorizedNotice.classList.remove('hidden');
       roleBadge.textContent = role ? role.toUpperCase() : '';
       roleBadge.classList.toggle('hidden', !role);
-      adminLink.classList.add('hidden');
     }
 
     function handleAuthorized(role) {
@@ -522,7 +519,6 @@
       appContent.classList.remove('hidden');
       roleBadge.textContent = role.toUpperCase();
       roleBadge.classList.remove('hidden');
-      adminLink.classList.toggle('hidden', role !== 'admin');
     }
 
     onAuthStateChanged(auth, async (user) => {
@@ -537,7 +533,7 @@
           return;
         }
 
-        if (role !== 'setter' && role !== 'admin') {
+        if (role !== 'setter') {
           handleUnauthorized(role);
           return;
         }
@@ -548,7 +544,6 @@
         appContent.classList.add('hidden');
         unauthorizedNotice.classList.add('hidden');
         roleBadge.classList.add('hidden');
-        adminLink.classList.add('hidden');
         authForm.reset();
         setAuthMode('login');
       }
