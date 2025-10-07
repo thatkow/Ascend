@@ -1,222 +1,88 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smooth Bézier Drawing</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #111;
-      color: #fff;
-      overflow: hidden;
-    }
-
-    canvas {
-      display: block;
-      width: 100vw;
-      height: 100vh;
-      cursor: crosshair;
-    }
-
-    .controls {
-      position: fixed;
-      top: 1rem;
-      right: 1rem;
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      background: rgba(0, 0, 0, 0.55);
-      padding: 0.75rem 1rem;
-      border-radius: 999px;
-      backdrop-filter: blur(6px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-    }
-
-    .controls label {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.9rem;
-    }
-
-    .controls input[type="color"] {
-      width: 2rem;
-      height: 2rem;
-      border: none;
-      background: none;
-      cursor: pointer;
-    }
-
-    .controls button {
-      border: none;
-      border-radius: 999px;
-      padding: 0.5rem 1rem;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.15s ease, background 0.15s ease;
-      color: #111;
-    }
-
-    #clearButton {
-      background: #ff7474;
-    }
-
-    #saveButton {
-      background: #7ed957;
-    }
-
-    .controls button:hover {
-      transform: translateY(-2px);
-    }
-
-    .modal {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0, 0, 0, 0.55);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s ease;
-      padding: 1rem;
-    }
-
-    .modal.visible {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .modal-content {
-      background: #1b1b1b;
-      border-radius: 0.75rem;
-      padding: 1.25rem;
-      width: min(90vw, 520px);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .modal-content header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .modal-content h2 {
-      font-size: 1.1rem;
-    }
-
-    .modal-content button {
-      background: #ff7474;
-      color: #111;
-      border: none;
-      border-radius: 999px;
-      padding: 0.4rem 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-      align-self: flex-end;
-    }
-
-    .modal-content textarea {
-      width: 100%;
-      height: 200px;
-      border-radius: 0.5rem;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      background: rgba(0, 0, 0, 0.6);
-      color: #f8f8f8;
-      padding: 0.75rem;
-      font-family: "Fira Code", "Courier New", monospace;
-      font-size: 0.85rem;
-      resize: vertical;
-    }
-  </style>
-</head>
-<body>
-  <canvas id="drawingCanvas"></canvas>
-  <div class="controls">
-    <label>
-      <span>Stroke</span>
-      <input type="color" id="colorPicker" value="#ffde59" />
-    </label>
-    <button id="saveButton">Save JSON</button>
-    <button id="clearButton">Clear</button>
-  </div>
-
-  <div class="modal" id="jsonModal" aria-hidden="true">
-    <div class="modal-content">
-      <header>
-        <h2>Curve Definition</h2>
-        <button type="button" id="closeModal">Close</button>
-      </header>
-      <textarea id="jsonOutput" readonly></textarea>
-    </div>
-  </div>
-
-  <script>
-    const canvas = document.getElementById('drawingCanvas');
-    const ctx = canvas.getContext('2d');
-    const colorPicker = document.getElementById('colorPicker');
-    const clearButton = document.getElementById('clearButton');
-    const saveButton = document.getElementById('saveButton');
-    const modal = document.getElementById('jsonModal');
-    const closeModalButton = document.getElementById('closeModal');
-    const jsonOutput = document.getElementById('jsonOutput');
-
-    const points = [];
-    let strokeColor = colorPicker.value;
-    let backgroundReady = false;
-
-    const backgroundImage = new Image();
-    backgroundImage.src = 'background.png';
-    backgroundImage.onload = () => {
-      backgroundReady = true;
-      resizeCanvas();
-    };
-
-    function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      redraw();
-    }
-
-    function redraw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      if (backgroundReady) {
-        ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
-      } else {
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ascend Preview</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
       }
 
-      drawCurve();
-      drawPoints();
-    }
-
-    function drawPoints() {
-      ctx.fillStyle = strokeColor;
-      points.forEach((point) => {
-        ctx.beginPath();
-        ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
-        ctx.fill();
-      });
-    }
-
-    function drawCurve() {
-      if (points.length < 2) {
-        return;
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #111;
+        color: #fff;
+        overflow: hidden;
       }
 
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="previewCanvas" aria-hidden="true"></canvas>
+    <script>
+      const canvas = document.getElementById('previewCanvas');
+      const ctx = canvas.getContext('2d');
+
+      const curves = [
+        {
+          strokeColor: '#ffde59',
+          points: [
+            { x: 0.110445, y: 0.891122 },
+            { x: 0.114726, y: 0.745394 },
+            { x: 0.157962, y: 0.586265 },
+            { x: 0.183219, y: 0.398660 },
+            { x: 0.170377, y: 0.246231 },
+            { x: 0.166524, y: 0.180905 },
+          ],
+        },
+        {
+          strokeColor: '#84fd5b',
+          points: [
+            { x: 0.410103, y: 0.880235 },
+            { x: 0.412671, y: 0.760469 },
+            { x: 0.507277, y: 0.722781 },
+            { x: 0.522260, y: 0.599665 },
+            { x: 0.465753, y: 0.526801 },
+            { x: 0.470034, y: 0.320771 },
+            { x: 0.537243, y: 0.245394 },
+            { x: 0.475599, y: 0.0 },
+          ],
+        },
+        {
+          strokeColor: '#0918d7',
+          points: [
+            { x: 0.860445, y: 0.881910 },
+            { x: 0.883134, y: 0.773032 },
+            { x: 0.920805, y: 0.672529 },
+            { x: 0.892551, y: 0.510888 },
+            { x: 0.895120, y: 0.342546 },
+            { x: 0.861729, y: 0.136516 },
+          ],
+        },
+      ];
+
+      const backgroundImage = new Image();
+      let backgroundReady = false;
+
+      backgroundImage.src = 'background.png';
+      backgroundImage.onload = () => {
+        backgroundReady = true;
+        resizeCanvas();
+      };
+
+      function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        redraw();
+      }
       ctx.lineWidth = 2;
       ctx.strokeStyle = strokeColor;
       ctx.lineJoin = 'round';
@@ -224,74 +90,63 @@
       ctx.beginPath();
       ctx.moveTo(points[0].x, points[0].y);
 
-      for (let i = 0; i < points.length - 1; i++) {
-        const p0 = i === 0 ? points[0] : points[i - 1];
-        const p1 = points[i];
-        const p2 = points[i + 1];
-        const p3 = i + 2 < points.length ? points[i + 2] : points[i + 1];
+      function redraw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const cp1x = p1.x + (p2.x - p0.x) / 6;
-        const cp1y = p1.y + (p2.y - p0.y) / 6;
-        const cp2x = p2.x - (p3.x - p1.x) / 6;
-        const cp2y = p2.y - (p3.y - p1.y) / 6;
+        if (backgroundReady) {
+          ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+        } else {
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
 
-        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+        curves.forEach(drawCurve);
       }
 
-      ctx.stroke();
-    }
+      function drawCurve(curve) {
+        const { strokeColor, points } = curve;
+        if (!points || points.length < 2) {
+          return;
+        }
 
-    function addPoint(event) {
-      const rect = canvas.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      points.push({ x, y });
-      redraw();
-    }
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = strokeColor;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.beginPath();
 
-    function clearCanvas() {
-      points.length = 0;
-      redraw();
-    }
+        const scaledPoints = points.map((point) => ({
+          x: point.x * canvas.width,
+          y: point.y * canvas.height,
+        }));
 
-    function openModal() {
-      const exportData = {
-        strokeColor,
-        points: points.map(({ x, y }) => ({ x, y })),
-      };
-      jsonOutput.value = JSON.stringify(exportData, null, 2);
-      modal.classList.add('visible');
-      modal.setAttribute('aria-hidden', 'false');
-    }
+        ctx.moveTo(scaledPoints[0].x, scaledPoints[0].y);
 
-    function closeModal() {
-      modal.classList.remove('visible');
-      modal.setAttribute('aria-hidden', 'true');
-    }
+        for (let i = 0; i < scaledPoints.length - 1; i++) {
+          const p0 = i === 0 ? scaledPoints[0] : scaledPoints[i - 1];
+          const p1 = scaledPoints[i];
+          const p2 = scaledPoints[i + 1];
+          const p3 = i + 2 < scaledPoints.length ? scaledPoints[i + 2] : scaledPoints[i + 1];
 
-    canvas.addEventListener('click', addPoint);
-    window.addEventListener('resize', resizeCanvas);
+          const cp1x = p1.x + (p2.x - p0.x) / 6;
+          const cp1y = p1.y + (p2.y - p0.y) / 6;
+          const cp2x = p2.x - (p3.x - p1.x) / 6;
+          const cp2y = p2.y - (p3.y - p1.y) / 6;
 
-    clearButton.addEventListener('click', clearCanvas);
-    saveButton.addEventListener('click', openModal);
-    closeModalButton.addEventListener('click', closeModal);
-    modal.addEventListener('click', (event) => {
-      if (event.target === modal) {
-        closeModal();
+          ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+        }
+
+        ctx.stroke();
       }
-    });
 
-    colorPicker.addEventListener('input', (event) => {
-      strokeColor = event.target.value;
-      redraw();
-    });
+      window.addEventListener('resize', resizeCanvas);
 
-    if (backgroundImage.complete) {
-      backgroundReady = true;
-      resizeCanvas();
-    } else {
-      resizeCanvas();
-    }
-  </script>
-</body>
+      if (backgroundImage.complete) {
+        backgroundReady = true;
+        resizeCanvas();
+      } else {
+        resizeCanvas();
+      }
+    </script>
+  </body>
 </html>
