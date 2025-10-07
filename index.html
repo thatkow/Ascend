@@ -202,6 +202,44 @@
       .route-tooltip span + span {
         margin-top: 0.25rem;
       }
+
+      .ascend-toggle {
+        margin-top: 0.75rem;
+        width: 100%;
+        border: none;
+        border-radius: 999px;
+        padding: 0.6rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        background: rgba(126, 217, 87, 0.15);
+        color: #7ed957;
+      }
+
+      .ascend-toggle:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 18px rgba(126, 217, 87, 0.25);
+      }
+
+      .ascend-toggle.ascended {
+        background: rgba(126, 217, 87, 0.85);
+        color: #111;
+      }
+
+      .ascend-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        margin-top: 0.5rem;
+        font-weight: 600;
+        color: #7ed957;
+      }
+
+      .ascend-status::before {
+        content: '✔';
+        font-size: 0.9rem;
+      }
     </style>
   </head>
   <body>
@@ -292,7 +330,8 @@
       const tooltip = document.getElementById('routeTooltip');
 
       let authMode = 'login';
-
+      let currentUser = null;
+      
       function setAuthMode(mode) {
         authMode = mode;
         const isLogin = authMode === 'login';
@@ -396,6 +435,7 @@
         if (user) {
           authOverlay.classList.add('hidden');
 
+          currentUser = user;
           const role = await resolveUserRole(user);
 
           if (!role) {
@@ -406,6 +446,7 @@
 
           updateNavigationForRole(role);
           appContent.classList.remove('hidden');
+          await loadAscents(user.email ?? '');
           await loadRoutes();
         } else {
           authOverlay.classList.remove('hidden');
@@ -415,6 +456,8 @@
           authForm.reset();
           setAuthMode('login');
           routes = [];
+          currentUser = null;
+          ascendedRoutes.clear();
           redraw();
         }
       });
@@ -427,6 +470,45 @@
       let routes = [];
       let routePaths = [];
       let activeRouteId = null;
+      const ascendedRoutes = new Set();
+
+      async function loadAscents(email) {
+        ascendedRoutes.clear();
+
+        if (!email) {
+          return;
+        }
+
+        try {
+          const ascentRef = doc(db, 'ascents', email);
+          const ascentSnap = await getDoc(ascentRef);
+
+          if (!ascentSnap.exists()) {
+            return;
+          }
+
+          const ascentData = ascentSnap.data() ?? {};
+          const routesData = ascentData.routes;
+
+          if (routesData && typeof routesData === 'object') {
+            Object.entries(routesData).forEach(([routeId, details]) => {
+              if (!details) {
+                return;
+              }
+
+              ascendedRoutes.add(routeId);
+            });
+            return;
+          }
+
+          const singleRouteId = typeof ascentData.route_id === 'string' ? ascentData.route_id : null;
+          if (singleRouteId) {
+            ascendedRoutes.add(singleRouteId);
+          }
+        } catch (error) {
+          console.error('Failed to load ascents:', error);
+        }
+      }
 
       function normalizeDate(value) {
         if (!value) {
@@ -492,6 +574,26 @@
         const dateLine = document.createElement('span');
         dateLine.textContent = `Date set: ${formatDisplayDate(route.date_set)}`;
         tooltip.appendChild(dateLine);
+
+        if (ascendedRoutes.has(route.id)) {
+          const ascendedLine = document.createElement('span');
+          ascendedLine.className = 'ascend-status';
+          ascendedLine.textContent = 'Ascended';
+          tooltip.appendChild(ascendedLine);
+        }
+
+        if (currentUser) {
+          const actionButton = document.createElement('button');
+          actionButton.type = 'button';
+          actionButton.className = `ascend-toggle${ascendedRoutes.has(route.id) ? ' ascended' : ''}`;
+          actionButton.textContent = ascendedRoutes.has(route.id) ? 'Unmark as ascended' : 'Mark as ascended';
+          actionButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleRouteAscent(route);
+          });
+          tooltip.appendChild(actionButton);
+        }
       }
 
       function positionTooltip(clientX, clientY) {
@@ -586,6 +688,74 @@
         }
       }
 
+      async function toggleRouteAscent(route) {
+        if (!currentUser) {
+          return;
+        }
+
+        const email = currentUser.email;
+        if (!email) {
+          console.warn('Unable to mark ascent: user email missing.');
+          return;
+        }
+
+        const routeId = route.id;
+        const ascentRef = doc(db, 'ascents', email);
+        const isAscended = ascendedRoutes.has(routeId);
+
+        try {
+          if (isAscended) {
+            let remainingRoutes = {};
+
+            try {
+              const ascentSnap = await getDoc(ascentRef);
+              if (ascentSnap.exists()) {
+                const ascentData = ascentSnap.data() ?? {};
+                const currentRoutes =
+                  ascentData.routes && typeof ascentData.routes === 'object' ? { ...ascentData.routes } : {};
+                delete currentRoutes[routeId];
+                remainingRoutes = currentRoutes;
+              }
+            } catch (loadError) {
+              console.warn('Unable to load existing ascents before removal:', loadError);
+            }
+
+            await setDoc(
+              ascentRef,
+              {
+                climber_email: email,
+                updatedAt: serverTimestamp(),
+                routes: remainingRoutes,
+              },
+              { merge: true },
+            );
+            ascendedRoutes.delete(routeId);
+          } else {
+            await setDoc(
+              ascentRef,
+              {
+                climber_email: email,
+                updatedAt: serverTimestamp(),
+                routes: {
+                  [routeId]: {
+                    route_id: routeId,
+                    date_ascended: new Date().toISOString(),
+                    climber_email: email,
+                  },
+                },
+              },
+              { merge: true },
+            );
+            ascendedRoutes.add(routeId);
+          }
+
+          updateTooltipContent(route);
+          redraw();
+        } catch (error) {
+          console.error('Failed to update ascent:', error);
+        }
+      }
+
       const backgroundImage = new Image();
       let backgroundReady = false;
 
@@ -671,6 +841,27 @@
           path,
           lineWidth,
         });
+
+        if (ascendedRoutes.has(route.id)) {
+          const anchor = scaledPoints[Math.floor(scaledPoints.length / 2)];
+          const radius = Math.max(12, canvas.width * 0.01);
+
+          ctx.save();
+          ctx.fillStyle = 'rgba(126, 217, 87, 0.95)';
+          ctx.beginPath();
+          ctx.arc(anchor.x, anchor.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = '#111';
+          ctx.lineWidth = Math.max(2, radius * 0.18);
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(anchor.x - radius * 0.45, anchor.y + radius * 0.1);
+          ctx.lineTo(anchor.x - radius * 0.15, anchor.y + radius * 0.45);
+          ctx.lineTo(anchor.x + radius * 0.5, anchor.y - radius * 0.35);
+          ctx.stroke();
+          ctx.restore();
+        }
       }
 
       function handlePointerMove(event) {
