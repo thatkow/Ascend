@@ -186,6 +186,13 @@
         opacity: 0;
         transform: translate(-50%, -12px);
         transition: opacity 0.12s ease, transform 0.12s ease;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .route-tooltip.pinned {
+        pointer-events: auto;
       }
 
       .route-tooltip.visible {
@@ -193,14 +200,58 @@
         transform: translate(-50%, 0);
       }
 
-      .route-tooltip strong {
+      .route-tooltip .tooltip-title {
         display: block;
         font-size: 0.95rem;
-        margin-bottom: 0.35rem;
+        font-weight: 600;
       }
 
-      .route-tooltip span + span {
-        margin-top: 0.25rem;
+      .route-tooltip .tooltip-lines {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        white-space: pre-line;
+      }
+
+      .route-tooltip .tooltip-line {
+        display: block;
+      }
+
+      .ascend-toggle {
+        margin-top: 0.75rem;
+        width: 100%;
+        border: none;
+        border-radius: 999px;
+        padding: 0.6rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        background: rgba(126, 217, 87, 0.15);
+        color: #7ed957;
+      }
+
+      .ascend-toggle:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 18px rgba(126, 217, 87, 0.25);
+      }
+
+      .ascend-toggle.ascended {
+        background: rgba(126, 217, 87, 0.85);
+        color: #111;
+      }
+
+      .ascend-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-weight: 600;
+        color: #7ed957;
+      }
+
+      .ascend-status::before {
+        content: '✔';
+        font-size: 0.9rem;
       }
     </style>
   </head>
@@ -292,7 +343,8 @@
       const tooltip = document.getElementById('routeTooltip');
 
       let authMode = 'login';
-
+      let currentUser = null;
+      
       function setAuthMode(mode) {
         authMode = mode;
         const isLogin = authMode === 'login';
@@ -396,6 +448,7 @@
         if (user) {
           authOverlay.classList.add('hidden');
 
+          currentUser = user;
           const role = await resolveUserRole(user);
 
           if (!role) {
@@ -406,6 +459,7 @@
 
           updateNavigationForRole(role);
           appContent.classList.remove('hidden');
+          await loadAscents(user.email ?? '');
           await loadRoutes();
         } else {
           authOverlay.classList.remove('hidden');
@@ -415,6 +469,9 @@
           authForm.reset();
           setAuthMode('login');
           routes = [];
+          currentUser = null;
+          ascendedRoutes.clear();
+          hideTooltip({ force: true });
           redraw();
         }
       });
@@ -427,6 +484,47 @@
       let routes = [];
       let routePaths = [];
       let activeRouteId = null;
+      let pinnedRouteId = null;
+      let pinnedPosition = null;
+      const ascendedRoutes = new Set();
+
+      async function loadAscents(email) {
+        ascendedRoutes.clear();
+
+        if (!email) {
+          return;
+        }
+
+        try {
+          const ascentRef = doc(db, 'ascents', email);
+          const ascentSnap = await getDoc(ascentRef);
+
+          if (!ascentSnap.exists()) {
+            return;
+          }
+
+          const ascentData = ascentSnap.data() ?? {};
+          const routesData = ascentData.routes;
+
+          if (routesData && typeof routesData === 'object') {
+            Object.entries(routesData).forEach(([routeId, details]) => {
+              if (!details) {
+                return;
+              }
+
+              ascendedRoutes.add(routeId);
+            });
+            return;
+          }
+
+          const singleRouteId = typeof ascentData.route_id === 'string' ? ascentData.route_id : null;
+          if (singleRouteId) {
+            ascendedRoutes.add(singleRouteId);
+          }
+        } catch (error) {
+          console.error('Failed to load ascents:', error);
+        }
+      }
 
       function normalizeDate(value) {
         if (!value) {
@@ -475,23 +573,66 @@
           return;
         }
 
-        tooltip.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+        const ariaLines = [];
 
-        const titleLine = document.createElement('strong');
-        titleLine.textContent = route.title || route.id;
-        tooltip.appendChild(titleLine);
+        const displayTitle = (route.title || route.id || '').trim();
+        if (displayTitle) {
+          const titleLine = document.createElement('strong');
+          titleLine.className = 'tooltip-title';
+          titleLine.textContent = displayTitle;
+          fragment.appendChild(titleLine);
+          ariaLines.push(displayTitle);
+        }
 
-        const setterLine = document.createElement('span');
-        setterLine.textContent = `Setter: ${route.setter || 'Unknown'}`;
-        tooltip.appendChild(setterLine);
+        const infoContainer = document.createElement('div');
+        infoContainer.className = 'tooltip-lines';
+        fragment.appendChild(infoContainer);
 
-        const descriptionLine = document.createElement('span');
-        descriptionLine.textContent = route.description ? `Description: ${route.description}` : 'Description: —';
-        tooltip.appendChild(descriptionLine);
+        const appendInfoLine = (text, className = '') => {
+          if (!text) {
+            return;
+          }
+          const line = document.createElement('div');
+          line.className = className ? `tooltip-line ${className}` : 'tooltip-line';
+          line.textContent = text;
+          infoContainer.appendChild(line);
+          ariaLines.push(text);
+        };
 
-        const dateLine = document.createElement('span');
-        dateLine.textContent = `Date set: ${formatDisplayDate(route.date_set)}`;
-        tooltip.appendChild(dateLine);
+        const setterValue = typeof route.setter === 'string' ? route.setter : '';
+        appendInfoLine(`Setter: ${setterValue.trim() || 'Unknown'}`);
+
+        const descriptionText =
+          typeof route.description === 'string' ? route.description.trim() : '';
+        appendInfoLine(descriptionText ? `Description: ${descriptionText}` : 'Description: —');
+
+        appendInfoLine(`Date set: ${formatDisplayDate(route.date_set)}`);
+
+        if (ascendedRoutes.has(route.id)) {
+          appendInfoLine('Ascended', 'ascend-status');
+        }
+
+        if (currentUser) {
+          const actionButton = document.createElement('button');
+          actionButton.type = 'button';
+          actionButton.className = `ascend-toggle${ascendedRoutes.has(route.id) ? ' ascended' : ''}`;
+          actionButton.textContent = ascendedRoutes.has(route.id) ? 'Unmark as ascended' : 'Mark as ascended';
+          actionButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleRouteAscent(route);
+          });
+          fragment.appendChild(actionButton);
+        }
+
+        tooltip.replaceChildren(fragment);
+
+        if (ariaLines.length) {
+          tooltip.setAttribute('aria-label', ariaLines.join('\n'));
+        } else {
+          tooltip.removeAttribute('aria-label');
+        }
       }
 
       function positionTooltip(clientX, clientY) {
@@ -517,29 +658,88 @@
         tooltip.style.top = `${clampedTop}px`;
       }
 
-      function showTooltip(route, clientX, clientY) {
+      function showTooltip(route, clientX, clientY, options = {}) {
         if (!tooltip) {
           return;
         }
+
+        const { pin = false } = options;
 
         if (route.id !== activeRouteId) {
           updateTooltipContent(route);
         }
 
-        positionTooltip(clientX, clientY);
+        const position = { x: clientX, y: clientY };
+        positionTooltip(position.x, position.y);
         tooltip.classList.add('visible');
         tooltip.setAttribute('aria-hidden', 'false');
         activeRouteId = route.id;
+
+        if (pin) {
+          pinnedRouteId = route.id;
+          pinnedPosition = { ...position };
+          tooltip.classList.add('pinned');
+        } else {
+          pinnedRouteId = null;
+          pinnedPosition = null;
+          tooltip.classList.remove('pinned');
+        }
       }
 
-      function hideTooltip() {
+      function hideTooltip(options = {}) {
         if (!tooltip) {
           return;
         }
 
+        const { force = false } = options;
+
+        if (!force && pinnedRouteId) {
+          return;
+        }
+
         tooltip.classList.remove('visible');
+        tooltip.classList.remove('pinned');
         tooltip.setAttribute('aria-hidden', 'true');
         activeRouteId = null;
+        pinnedRouteId = null;
+        pinnedPosition = null;
+      }
+
+      function getRouteEntryAtClientPoint(clientX, clientY) {
+        if (!routePaths.length) {
+          return null;
+        }
+
+        const rect = canvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+
+        for (let index = routePaths.length - 1; index >= 0; index -= 1) {
+          const entry = routePaths[index];
+          const previousLineWidth = ctx.lineWidth;
+          ctx.lineWidth = entry.lineWidth;
+          const isInside = ctx.isPointInStroke(entry.path, x, y);
+          ctx.lineWidth = previousLineWidth;
+
+          if (isInside) {
+            return entry;
+          }
+        }
+
+        return null;
+      }
+
+      function extractClientPoint(event) {
+        if (typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+          return { x: event.clientX, y: event.clientY };
+        }
+
+        const touch = event.touches?.[0] ?? event.changedTouches?.[0];
+        if (touch) {
+          return { x: touch.clientX, y: touch.clientY };
+        }
+
+        return null;
       }
 
       async function loadRoutes() {
@@ -586,6 +786,74 @@
         }
       }
 
+      async function toggleRouteAscent(route) {
+        if (!currentUser) {
+          return;
+        }
+
+        const email = currentUser.email;
+        if (!email) {
+          console.warn('Unable to mark ascent: user email missing.');
+          return;
+        }
+
+        const routeId = route.id;
+        const ascentRef = doc(db, 'ascents', email);
+        const isAscended = ascendedRoutes.has(routeId);
+
+        try {
+          if (isAscended) {
+            let remainingRoutes = {};
+
+            try {
+              const ascentSnap = await getDoc(ascentRef);
+              if (ascentSnap.exists()) {
+                const ascentData = ascentSnap.data() ?? {};
+                const currentRoutes =
+                  ascentData.routes && typeof ascentData.routes === 'object' ? { ...ascentData.routes } : {};
+                delete currentRoutes[routeId];
+                remainingRoutes = currentRoutes;
+              }
+            } catch (loadError) {
+              console.warn('Unable to load existing ascents before removal:', loadError);
+            }
+
+            await setDoc(
+              ascentRef,
+              {
+                climber_email: email,
+                updatedAt: serverTimestamp(),
+                routes: remainingRoutes,
+              },
+              { merge: true },
+            );
+            ascendedRoutes.delete(routeId);
+          } else {
+            await setDoc(
+              ascentRef,
+              {
+                climber_email: email,
+                updatedAt: serverTimestamp(),
+                routes: {
+                  [routeId]: {
+                    route_id: routeId,
+                    date_ascended: new Date().toISOString(),
+                    climber_email: email,
+                  },
+                },
+              },
+              { merge: true },
+            );
+            ascendedRoutes.add(routeId);
+          }
+
+          updateTooltipContent(route);
+          redraw();
+        } catch (error) {
+          console.error('Failed to update ascent:', error);
+        }
+      }
+
       const backgroundImage = new Image();
       let backgroundReady = false;
 
@@ -612,8 +880,26 @@
         }
 
         routePaths = [];
-        hideTooltip();
+        const shouldPreservePinned = Boolean(pinnedRouteId && pinnedPosition);
+        const pinnedRoute = shouldPreservePinned
+          ? routes.find((route) => route.id === pinnedRouteId)
+          : null;
+
+        if (!shouldPreservePinned) {
+          hideTooltip();
+        } else if (!pinnedRoute) {
+          hideTooltip({ force: true });
+        }
+
         routes.forEach(drawRoute);
+
+        if (pinnedRoute && tooltip) {
+          updateTooltipContent(pinnedRoute);
+          tooltip.classList.add('visible');
+          tooltip.classList.add('pinned');
+          tooltip.setAttribute('aria-hidden', 'false');
+          positionTooltip(pinnedPosition.x, pinnedPosition.y);
+        }
       }
 
       function drawRoute(route) {
@@ -671,45 +957,105 @@
           path,
           lineWidth,
         });
+
+        if (ascendedRoutes.has(route.id)) {
+          const anchor = scaledPoints[Math.floor(scaledPoints.length / 2)];
+          const radius = Math.max(12, canvas.width * 0.01);
+
+          ctx.save();
+          ctx.fillStyle = strokeColor;
+          ctx.globalAlpha = 0.92;
+          ctx.beginPath();
+          ctx.arc(anchor.x, anchor.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.globalAlpha = 1;
+          ctx.strokeStyle = '#111';
+          ctx.lineWidth = Math.max(2, radius * 0.18);
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(anchor.x - radius * 0.45, anchor.y + radius * 0.1);
+          ctx.lineTo(anchor.x - radius * 0.15, anchor.y + radius * 0.45);
+          ctx.lineTo(anchor.x + radius * 0.5, anchor.y - radius * 0.35);
+          ctx.stroke();
+          ctx.restore();
+        }
       }
 
       function handlePointerMove(event) {
-        if ('pointerType' in event && event.pointerType !== 'mouse') {
-          hideTooltip();
+        if (pinnedRouteId) {
           return;
         }
 
-        if (!routePaths.length) {
-          hideTooltip();
-          return;
-        }
-
-        const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-
-        for (let index = routePaths.length - 1; index >= 0; index -= 1) {
-          const entry = routePaths[index];
-          const previousLineWidth = ctx.lineWidth;
-          ctx.lineWidth = entry.lineWidth;
-          const isInside = ctx.isPointInStroke(entry.path, x, y);
-          ctx.lineWidth = previousLineWidth;
-
-          if (isInside) {
-            showTooltip(entry.route, event.clientX, event.clientY);
+        if ('pointerType' in event) {
+          const pointerType = event.pointerType;
+          if (pointerType && pointerType !== 'mouse' && pointerType !== 'pen') {
+            hideTooltip();
             return;
           }
+        }
+
+        const entry = getRouteEntryAtClientPoint(event.clientX, event.clientY);
+
+        if (entry) {
+          showTooltip(entry.route, event.clientX, event.clientY);
+          return;
         }
 
         hideTooltip();
       }
 
+      function handlePointerLeave() {
+        if (pinnedRouteId) {
+          return;
+        }
+
+        hideTooltip();
+      }
+
+      function handleCanvasPointerDown(event) {
+        const point = extractClientPoint(event);
+        if (!point) {
+          return;
+        }
+
+        const entry = getRouteEntryAtClientPoint(point.x, point.y);
+
+        if (entry) {
+          showTooltip(entry.route, point.x, point.y, { pin: true });
+        } else {
+          hideTooltip({ force: true });
+        }
+      }
+
+      function handleDocumentPointerDown(event) {
+        if (!tooltip) {
+          return;
+        }
+
+        if (event.target === canvas) {
+          return;
+        }
+
+        if (tooltip.contains(event.target)) {
+          return;
+        }
+
+        hideTooltip({ force: true });
+      }
+
       if ('PointerEvent' in window) {
         canvas.addEventListener('pointermove', handlePointerMove);
-        canvas.addEventListener('pointerleave', hideTooltip);
+        canvas.addEventListener('pointerleave', handlePointerLeave);
+        canvas.addEventListener('pointerdown', handleCanvasPointerDown);
+        document.addEventListener('pointerdown', handleDocumentPointerDown);
       } else {
         canvas.addEventListener('mousemove', handlePointerMove);
-        canvas.addEventListener('mouseleave', hideTooltip);
+        canvas.addEventListener('mouseleave', handlePointerLeave);
+        canvas.addEventListener('mousedown', handleCanvasPointerDown);
+        canvas.addEventListener('touchstart', handleCanvasPointerDown);
+        document.addEventListener('mousedown', handleDocumentPointerDown);
+        document.addEventListener('touchstart', handleDocumentPointerDown);
       }
 
       window.addEventListener('resize', resizeCanvas);
