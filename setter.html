@@ -29,20 +29,84 @@
       cursor: crosshair;
     }
 
-    .controls {
+    .control-panel {
       position: fixed;
-      top: 1rem;
-      right: 1rem;
+      top: 0;
+      right: 0;
+      height: 100vh;
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      z-index: 12;
+      --toggle-visible-width: 52px;
+      transition: transform 0.25s ease;
+      transform: translateX(0);
+    }
+
+    .panel-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      align-self: center;
+      order: 1;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      border: none;
+      border-radius: 0.85rem 0 0 0.85rem;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      padding: 1.5rem 0.65rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .panel-toggle:hover,
+    .panel-toggle:focus-visible {
+      background: rgba(0, 0, 0, 0.8);
+      transform: translateX(-1px);
+      outline: none;
+    }
+
+    .controls {
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
+      gap: 1rem;
       align-items: stretch;
-      background: rgba(0, 0, 0, 0.55);
-      padding: 1rem;
-      border-radius: 1rem;
-      backdrop-filter: blur(6px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
       width: min(320px, 92vw);
+      max-width: 360px;
+      height: 100vh;
+      padding: 1.25rem;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(8px);
+      border-radius: 1rem 0 0 1rem;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+      overflow-y: auto;
+      transition: box-shadow 0.25s ease, background 0.25s ease;
+    }
+
+    .controls {
+      order: 2;
+    }
+
+    .control-panel[data-expanded='false'] {
+      transform: translateX(calc(100% - var(--toggle-visible-width)));
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
     }
 
     .control-section {
@@ -108,6 +172,7 @@
       cursor: pointer;
       transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
       color: #111;
+      text-align: center;
     }
 
     #clearButton {
@@ -127,6 +192,11 @@
     #signOutButton {
       background: rgba(255, 255, 255, 0.25);
       color: #fff;
+    }
+
+    #openPreviewButton {
+      background: rgba(255, 255, 255, 0.4);
+      color: #111;
     }
 
     .controls button:hover {
@@ -228,50 +298,6 @@
       font-size: 0.85rem;
     }
 
-    .app-header {
-      position: fixed;
-      top: 1rem;
-      left: 1rem;
-      z-index: 10;
-      display: flex;
-      gap: 0.75rem;
-      align-items: center;
-      background: rgba(0, 0, 0, 0.55);
-      padding: 0.65rem 1rem;
-      border-radius: 999px;
-      backdrop-filter: blur(6px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-    }
-
-    .nav-links {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-    }
-
-    .nav-links a {
-      padding: 0.45rem 0.85rem;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.15);
-      color: inherit;
-      font-size: 0.8rem;
-      text-decoration: none;
-      transition: background 0.2s ease;
-    }
-
-    .nav-links a:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
-
-    .role-badge {
-      padding: 0.4rem 0.85rem;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.15);
-      font-size: 0.8rem;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
     .unauthorized {
       position: fixed;
       inset: 0;
@@ -343,50 +369,58 @@
   </div>
 
   <div id="appContent" class="hidden">
-    <header class="app-header">
-      <nav class="nav-links" aria-label="Available pages">
-        <a href="index.html">Preview</a>
-      </nav>
-      <span id="roleBadge" class="role-badge hidden" aria-live="polite"></span>
-    </header>
     <canvas id="drawingCanvas"></canvas>
-    <div class="controls">
-      <div class="control-section">
-        <label class="control-field">
-          <span>Saved routes</span>
-          <select id="routeSelector">
-            <option value="">Create new route…</option>
-          </select>
-        </label>
-        <button id="newRouteButton" type="button">New route</button>
-        <label class="control-field">
-          <span>Setter</span>
-          <input id="routeSetterInput" type="email" placeholder="setter@example.com" autocomplete="off" />
-        </label>
-        <label class="control-field">
-          <span>Title</span>
-          <input id="routeTitleInput" type="text" placeholder="Route title" autocomplete="off" />
-        </label>
-        <label class="control-field">
-          <span>Description</span>
-          <textarea id="routeDescriptionInput" placeholder="Describe the climb"></textarea>
-        </label>
-        <label class="control-field">
-          <span>Date set</span>
-          <input id="routeDateSetInput" type="datetime-local" />
-        </label>
+    <div class="control-panel" data-expanded="true">
+      <div id="controlsPanel" class="controls">
+        <div class="control-section">
+          <label class="control-field">
+            <span>Saved routes</span>
+            <select id="routeSelector">
+              <option value="">Create new route…</option>
+            </select>
+          </label>
+          <button id="newRouteButton" type="button">New route</button>
+          <label class="control-field">
+            <span>Setter</span>
+            <input id="routeSetterInput" type="email" placeholder="setter@example.com" autocomplete="off" />
+          </label>
+          <label class="control-field">
+            <span>Title</span>
+            <input id="routeTitleInput" type="text" placeholder="Route title" autocomplete="off" />
+          </label>
+          <label class="control-field">
+            <span>Description</span>
+            <textarea id="routeDescriptionInput" placeholder="Describe the climb"></textarea>
+          </label>
+          <label class="control-field">
+            <span>Date set</span>
+            <input id="routeDateSetInput" type="datetime-local" />
+          </label>
+        </div>
+        <div class="control-section">
+          <label class="control-field">
+            <span>Stroke colour</span>
+            <input type="color" id="colorPicker" value="#ffde59" />
+          </label>
+          <button id="saveButton" type="button">Save route</button>
+          <button id="deleteButton" type="button">Delete route</button>
+          <button id="clearButton" type="button">Clear drawing</button>
+          <button id="signOutButton" type="button">Sign Out</button>
+          <button id="openPreviewButton" type="button">Open Preview</button>
+        </div>
       </div>
-      <div class="control-section">
-        <label class="control-field">
-          <span>Stroke colour</span>
-          <input type="color" id="colorPicker" value="#ffde59" />
-        </label>
-        <button id="saveButton" type="button">Save route</button>
-        <button id="deleteButton" type="button">Delete route</button>
-        <button id="clearButton" type="button">Clear drawing</button>
-        <button id="signOutButton" type="button">Sign Out</button>
-      </div>
+      <button
+        id="controlsToggle"
+        class="panel-toggle"
+        type="button"
+        aria-expanded="true"
+        aria-controls="controlsPanel"
+      >
+        <span class="sr-only">Toggle menu</span>
+        Menu
+      </button>
     </div>
+
   </div>
 
   <div id="unauthorizedNotice" class="unauthorized hidden" role="alert">
@@ -446,7 +480,6 @@
     const signOutButton = document.getElementById('signOutButton');
     const unauthorizedSignOut = document.getElementById('unauthorizedSignOut');
     const unauthorizedNotice = document.getElementById('unauthorizedNotice');
-    const roleBadge = document.getElementById('roleBadge');
     const routeSelector = document.getElementById('routeSelector');
     const routeSetterInput = document.getElementById('routeSetterInput');
     const routeTitleInput = document.getElementById('routeTitleInput');
@@ -455,6 +488,20 @@
     const newRouteButton = document.getElementById('newRouteButton');
     const deleteButton = document.getElementById('deleteButton');
     const routeStatus = document.getElementById('routeStatus');
+    const controlPanel = document.querySelector('.control-panel');
+    const controlsToggle = document.getElementById('controlsToggle');
+    const openPreviewButton = document.getElementById('openPreviewButton');
+
+    const updatePanelMeasurements = () => {
+      if (!controlPanel || !controlsToggle) {
+        return;
+      }
+
+      const { width } = controlsToggle.getBoundingClientRect();
+      if (Number.isFinite(width) && width > 0) {
+        controlPanel.style.setProperty('--toggle-visible-width', `${Math.ceil(width)}px`);
+      }
+    };
 
     deleteButton.disabled = true;
     routeSelector.disabled = true;
@@ -475,6 +522,31 @@
     let currentUserEmail = '';
 
     const routesCache = new Map();
+
+    if (controlsToggle && controlPanel) {
+      updatePanelMeasurements();
+
+      controlsToggle.addEventListener('click', () => {
+        const expanded = controlPanel.getAttribute('data-expanded') === 'true';
+        const next = !expanded;
+        controlPanel.setAttribute('data-expanded', String(next));
+        controlsToggle.setAttribute('aria-expanded', String(next));
+        requestAnimationFrame(updatePanelMeasurements);
+      });
+
+      window.addEventListener('resize', updatePanelMeasurements);
+
+      if ('ResizeObserver' in window) {
+        const resizeObserver = new ResizeObserver(updatePanelMeasurements);
+        resizeObserver.observe(controlsToggle);
+      }
+    }
+
+    if (openPreviewButton) {
+      openPreviewButton.addEventListener('click', () => {
+        window.location.href = 'index.html';
+      });
+    }
 
     function normalizeDateValue(value) {
       if (!value) {
@@ -1212,21 +1284,17 @@
       }
     }
 
-    function handleUnauthorized(role) {
+    function handleUnauthorized() {
       appContent.classList.add('hidden');
       unauthorizedNotice.classList.remove('hidden');
-      roleBadge.textContent = role ? role.toUpperCase() : '';
-      roleBadge.classList.toggle('hidden', !role);
       routeSelector.disabled = true;
       deleteButton.disabled = true;
       clearStatus();
     }
 
-    function handleAuthorized(role) {
+    function handleAuthorized() {
       unauthorizedNotice.classList.add('hidden');
       appContent.classList.remove('hidden');
-      roleBadge.textContent = role.toUpperCase();
-      roleBadge.classList.remove('hidden');
       routeSelector.disabled = false;
     }
 
@@ -1244,11 +1312,11 @@
         }
 
         if (role !== 'setter') {
-          handleUnauthorized(role);
+          handleUnauthorized();
           return;
         }
 
-        handleAuthorized(role);
+        handleAuthorized();
 
         try {
           await loadRoutesList(currentRouteKey);
@@ -1265,7 +1333,6 @@
         authOverlay.classList.remove('hidden');
         appContent.classList.add('hidden');
         unauthorizedNotice.classList.add('hidden');
-        roleBadge.classList.add('hidden');
         routeSelector.disabled = true;
         deleteButton.disabled = true;
         authForm.reset();
