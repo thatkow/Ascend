@@ -253,6 +253,15 @@
         content: '✔';
         font-size: 0.9rem;
       }
+
+      .ascend-status.not-ascended {
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .ascend-status.not-ascended::before {
+        content: '○';
+        font-size: 0.9rem;
+      }
     </style>
   </head>
   <body>
@@ -612,6 +621,8 @@
 
         if (ascendedRoutes.has(route.id)) {
           appendInfoLine('Ascended', 'ascend-status');
+        } else {
+          appendInfoLine('Not ascended', 'ascend-status not-ascended');
         }
 
         if (currentUser) {
