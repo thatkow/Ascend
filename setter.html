@@ -625,7 +625,7 @@
           <button id="removeSetterButton" type="button">Remove setter role</button>
           <p
             id="roleStatusMessage"
-            class="status-message"
+            class="status-message hidden"
             role="status"
             aria-live="polite"
           ></p>
@@ -651,7 +651,7 @@
     <button id="unauthorizedSignOut" class="auth-submit" type="button">Sign Out</button>
   </div>
 
-  <p id="routeStatus" class="status-message" role="status" aria-live="polite"></p>
+  <p id="routeStatus" class="status-message hidden" role="status" aria-live="polite"></p>
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -1410,7 +1410,12 @@
       if (!routeStatus) {
         return;
       }
+      if (!message) {
+        clearStatus();
+        return;
+      }
       routeStatus.textContent = message;
+      routeStatus.classList.remove('hidden');
       if (variant) {
         routeStatus.dataset.variant = variant;
       } else {
@@ -1423,6 +1428,7 @@
         return;
       }
       routeStatus.textContent = '';
+      routeStatus.classList.add('hidden');
       delete routeStatus.dataset.variant;
     }
 
@@ -1430,7 +1436,12 @@
       if (!roleStatusMessage) {
         return;
       }
+      if (!message) {
+        clearRoleStatus();
+        return;
+      }
       roleStatusMessage.textContent = message;
+      roleStatusMessage.classList.remove('hidden');
       if (variant) {
         roleStatusMessage.dataset.variant = variant;
       } else {
@@ -1443,6 +1454,7 @@
         return;
       }
       roleStatusMessage.textContent = '';
+      roleStatusMessage.classList.add('hidden');
       delete roleStatusMessage.dataset.variant;
     }
 
@@ -1460,7 +1472,7 @@
       updateRoleActionState();
     }
 
-    function resetRoleManagementUI(message = 'Search for a user to begin.') {
+    function resetRoleManagementUI(message = '') {
       if (roleSearchInput) {
         roleSearchInput.value = '';
       }
