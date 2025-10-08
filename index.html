@@ -248,11 +248,12 @@
         --tooltip-accent-rgb: 126, 217, 87;
         --tooltip-accent-soft: rgba(126, 217, 87, 0.18);
         --tooltip-accent-strong: rgba(126, 217, 87, 0.85);
-        --tooltip-on-accent: #111;
+        --tooltip-on-accent: #000;
+        --tooltip-foreground: #fff;
         position: fixed;
         pointer-events: none;
         background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.72);
-        color: #fff;
+        color: var(--tooltip-foreground, #fff);
         padding: 0.75rem 1rem;
         border-radius: 0.75rem;
         border: 1px solid rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.45);
@@ -316,7 +317,7 @@
 
       .ascend-toggle.ascended {
         background: var(--tooltip-accent-strong, rgba(126, 217, 87, 0.85));
-        color: var(--tooltip-on-accent, #111);
+        color: var(--tooltip-on-accent, #000);
         box-shadow: 0 10px 18px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.25);
       }
 
@@ -597,8 +598,10 @@
         const rgbString = `${r}, ${g}, ${b}`;
         const accent = parsed.hex ? parsed.hex : `rgb(${rgbString})`;
 
-        const luminance = (0.2126 * (r / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255));
-        const onAccent = luminance > 0.6 ? '#111' : '#f9f9f9';
+        const luminance = 0.2126 * (r / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255);
+        const isBright = luminance > 0.6;
+        const onAccent = isBright ? '#000' : '#f9f9f9';
+        const foreground = isBright ? '#000' : '#fff';
 
         return {
           accent,
@@ -606,6 +609,7 @@
           soft: `rgba(${rgbString}, 0.18)`,
           strong: `rgba(${rgbString}, 0.85)`,
           onAccent,
+          foreground,
         };
       }
 
@@ -620,13 +624,15 @@
         const rgb = scheme?.rgb ?? '126, 217, 87';
         const soft = scheme?.soft ?? 'rgba(126, 217, 87, 0.18)';
         const strong = scheme?.strong ?? 'rgba(126, 217, 87, 0.85)';
-        const onAccent = scheme?.onAccent ?? '#111';
+        const onAccent = scheme?.onAccent ?? '#000';
+        const foreground = scheme?.foreground ?? '#fff';
 
         tooltip.style.setProperty('--tooltip-accent', accent);
         tooltip.style.setProperty('--tooltip-accent-rgb', rgb);
         tooltip.style.setProperty('--tooltip-accent-soft', soft);
         tooltip.style.setProperty('--tooltip-accent-strong', strong);
         tooltip.style.setProperty('--tooltip-on-accent', onAccent);
+        tooltip.style.setProperty('--tooltip-foreground', foreground);
       }
 
       function closeInfoPopover() {
