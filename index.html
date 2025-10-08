@@ -241,6 +241,87 @@
         color: #111;
       }
 
+      .grade-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        margin-top: 0.75rem;
+      }
+
+      .grade-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .grade-form label {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+
+      .grade-form input[type='number'] {
+        border-radius: 0.65rem;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.08);
+        color: inherit;
+        padding: 0.45rem 0.6rem;
+        font-size: 0.85rem;
+      }
+
+      .grade-form input[type='number']:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .grade-form-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .grade-form button {
+        border: none;
+        border-radius: 999px;
+        padding: 0.45rem 0.9rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      .grade-form button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .grade-submit {
+        background: rgba(126, 217, 87, 0.85);
+        color: #111;
+      }
+
+      .grade-submit:not(:disabled):hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 18px rgba(126, 217, 87, 0.25);
+      }
+
+      .grade-clear {
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+      }
+
+      .grade-clear:not(:disabled):hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 18px rgba(255, 255, 255, 0.2);
+      }
+
+      .grade-note {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
       .ascend-status {
         display: inline-flex;
         align-items: center;
@@ -481,6 +562,8 @@
           routes = [];
           currentUser = null;
           ascendedRoutes.clear();
+          routeGrades.clear();
+          routeMedianGrades = new Map();
           hideTooltip({ force: true });
           redraw();
         }
@@ -497,9 +580,12 @@
       let pinnedRouteId = null;
       let pinnedPosition = null;
       const ascendedRoutes = new Set();
+      const routeGrades = new Map();
+      let routeMedianGrades = new Map();
 
       async function loadAscents(email) {
         ascendedRoutes.clear();
+        routeGrades.clear();
 
         if (!email) {
           return;
@@ -523,6 +609,11 @@
               }
 
               ascendedRoutes.add(routeId);
+
+              const gradeValue = normalizeGradeValue(details?.grade);
+              if (gradeValue !== null) {
+                routeGrades.set(routeId, gradeValue);
+              }
             });
             return;
           }
@@ -578,6 +669,278 @@
         });
       }
 
+      function normalizeGradeValue(value) {
+        if (value === null || value === undefined) {
+          return null;
+        }
+
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return null;
+        }
+
+        if (!Number.isInteger(numeric)) {
+          return null;
+        }
+
+        if (numeric < 1 || numeric > 25) {
+          return null;
+        }
+
+        return numeric;
+      }
+
+      function formatGradeDisplay(value) {
+        if (typeof value !== 'number' || !Number.isFinite(value)) {
+          return '—';
+        }
+
+        return Number.isInteger(value) ? String(value) : value.toFixed(1);
+      }
+
+      function getUserGradeForRoute(routeId) {
+        if (!routeId) {
+          return null;
+        }
+
+        const stored = routeGrades.get(routeId);
+        return typeof stored === 'number' && Number.isFinite(stored) ? stored : null;
+      }
+
+      function buildGradeControls(route) {
+        if (!route || !route.id) {
+          return null;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'grade-section';
+
+        const gradeForm = document.createElement('form');
+        gradeForm.className = 'grade-form';
+        gradeForm.noValidate = true;
+
+        const gradeLabel = document.createElement('label');
+        const labelText = document.createElement('span');
+        labelText.textContent = 'Your grade (1-25)';
+        gradeLabel.appendChild(labelText);
+
+        const gradeInput = document.createElement('input');
+        gradeInput.type = 'number';
+        gradeInput.min = '1';
+        gradeInput.max = '25';
+        gradeInput.step = '1';
+        gradeInput.inputMode = 'numeric';
+        const existingGrade = getUserGradeForRoute(route.id);
+        gradeInput.value = existingGrade !== null ? String(existingGrade) : '';
+        gradeInput.placeholder = '—';
+        gradeLabel.appendChild(gradeInput);
+
+        gradeForm.appendChild(gradeLabel);
+
+        const actions = document.createElement('div');
+        actions.className = 'grade-form-actions';
+
+        const saveButton = document.createElement('button');
+        saveButton.type = 'submit';
+        saveButton.className = 'grade-submit';
+        saveButton.textContent = 'Save grade';
+
+        const clearButton = document.createElement('button');
+        clearButton.type = 'button';
+        clearButton.className = 'grade-clear';
+        clearButton.textContent = 'Clear grade';
+        const hasExistingGrade = typeof existingGrade === 'number' && Number.isFinite(existingGrade);
+        clearButton.disabled = !hasExistingGrade;
+
+        actions.appendChild(saveButton);
+        actions.appendChild(clearButton);
+        gradeForm.appendChild(actions);
+
+        const isAscended = ascendedRoutes.has(route.id);
+        if (!isAscended) {
+          gradeInput.disabled = true;
+          saveButton.disabled = true;
+          clearButton.disabled = true;
+        }
+
+        gradeForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+
+          if (!ascendedRoutes.has(route.id)) {
+            return;
+          }
+
+          const rawValue = gradeInput.value.trim();
+          if (!rawValue) {
+            gradeInput.setCustomValidity('');
+            await applyUserRouteGrade(route, null);
+            gradeInput.value = '';
+            return;
+          }
+
+          const parsed = normalizeGradeValue(rawValue);
+          if (parsed === null) {
+            gradeInput.setCustomValidity('Enter a whole number between 1 and 25.');
+            gradeInput.reportValidity();
+            return;
+          }
+
+          gradeInput.setCustomValidity('');
+          await applyUserRouteGrade(route, parsed);
+        });
+
+        clearButton.addEventListener('click', async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+
+          if (!ascendedRoutes.has(route.id)) {
+            return;
+          }
+
+          gradeInput.value = '';
+          gradeInput.setCustomValidity('');
+          await applyUserRouteGrade(route, null);
+        });
+
+        container.appendChild(gradeForm);
+
+        if (!isAscended) {
+          const note = document.createElement('p');
+          note.className = 'grade-note';
+          note.textContent = 'Mark this route as ascended to record a grade.';
+          container.appendChild(note);
+        }
+
+        return container;
+      }
+
+      async function applyUserRouteGrade(route, gradeValue) {
+        if (!route || !route.id) {
+          return;
+        }
+
+        if (!currentUser) {
+          console.warn('Unable to save grade: no authenticated user.');
+          return;
+        }
+
+        if (!ascendedRoutes.has(route.id)) {
+          console.warn('Unable to save grade: route not marked as ascended.');
+          return;
+        }
+
+        const email = currentUser.email;
+        if (!email) {
+          console.warn('Unable to save grade: user email missing.');
+          return;
+        }
+
+        const sanitizedGrade = gradeValue === null ? null : normalizeGradeValue(gradeValue);
+        if (sanitizedGrade === null && gradeValue !== null) {
+          console.warn('Unable to save grade: invalid grade value provided.');
+          return;
+        }
+
+        const ascentRef = doc(db, 'ascents', email);
+
+        try {
+          await setDoc(
+            ascentRef,
+            {
+              climber_email: email,
+              updatedAt: serverTimestamp(),
+              routes: {
+                [route.id]: {
+                  grade: sanitizedGrade,
+                  route_id: route.id,
+                  climber_email: email,
+                },
+              },
+            },
+            { merge: true },
+          );
+
+          if (sanitizedGrade === null) {
+            routeGrades.delete(route.id);
+          } else {
+            routeGrades.set(route.id, sanitizedGrade);
+          }
+
+          updateTooltipContent(route);
+          await refreshMedianGrades();
+        } catch (error) {
+          console.error('Failed to update route grade:', error);
+        }
+      }
+
+      async function fetchMedianGrades() {
+        const medianMap = new Map();
+
+        try {
+          const snapshot = await getDocs(collection(db, 'ascents'));
+          const gradeBuckets = new Map();
+
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data() ?? {};
+            const routesData = data.routes;
+
+            if (!routesData || typeof routesData !== 'object') {
+              return;
+            }
+
+            Object.entries(routesData).forEach(([routeId, details]) => {
+              if (!details) {
+                return;
+              }
+
+              const grade = normalizeGradeValue(details.grade);
+              if (grade === null) {
+                return;
+              }
+
+              if (!gradeBuckets.has(routeId)) {
+                gradeBuckets.set(routeId, []);
+              }
+
+              gradeBuckets.get(routeId).push(grade);
+            });
+          });
+
+          gradeBuckets.forEach((grades, routeId) => {
+            if (!Array.isArray(grades) || grades.length === 0) {
+              return;
+            }
+
+            grades.sort((a, b) => a - b);
+            const mid = Math.floor(grades.length / 2);
+
+            if (grades.length % 2 === 0) {
+              medianMap.set(routeId, (grades[mid - 1] + grades[mid]) / 2);
+            } else {
+              medianMap.set(routeId, grades[mid]);
+            }
+          });
+        } catch (error) {
+          console.error('Failed to load route grades:', error);
+        }
+
+        return medianMap;
+      }
+
+      async function refreshMedianGrades() {
+        routeMedianGrades = await fetchMedianGrades();
+
+        if (Array.isArray(routes)) {
+          routes.forEach((route) => {
+            const median = routeMedianGrades.get(route.id);
+            route.medianGrade = typeof median === 'number' && Number.isFinite(median) ? median : null;
+          });
+        }
+
+        redraw();
+      }
+
       function updateTooltipContent(route) {
         if (!tooltip) {
           return;
@@ -619,10 +982,20 @@
 
         appendInfoLine(`Date set: ${formatDisplayDate(route.date_set)}`);
 
+        const medianGrade = route && typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)
+          ? route.medianGrade
+          : null;
+        appendInfoLine(`Median grade: ${formatGradeDisplay(medianGrade)}`);
+
         if (ascendedRoutes.has(route.id)) {
           appendInfoLine('Ascended', 'ascend-status');
         } else {
           appendInfoLine('Not ascended', 'ascend-status not-ascended');
+        }
+
+        if (currentUser) {
+          const userGrade = getUserGradeForRoute(route.id);
+          appendInfoLine(`Your grade: ${formatGradeDisplay(userGrade)}`);
         }
 
         if (currentUser) {
@@ -636,6 +1009,11 @@
             toggleRouteAscent(route);
           });
           fragment.appendChild(actionButton);
+
+          const gradeControls = buildGradeControls(route);
+          if (gradeControls) {
+            fragment.appendChild(gradeControls);
+          }
         }
 
         tooltip.replaceChildren(fragment);
@@ -756,8 +1134,14 @@
 
       async function loadRoutes() {
         try {
-          const snapshot = await getDocs(collection(db, 'routes'));
-          routes = snapshot.docs
+          const [routesSnapshot, medianMap] = await Promise.all([
+            getDocs(collection(db, 'routes')),
+            fetchMedianGrades(),
+          ]);
+
+          routeMedianGrades = medianMap instanceof Map ? medianMap : new Map();
+
+          routes = routesSnapshot.docs
             .map((docSnap) => {
               const data = docSnap.data();
               const normalizedPoints = Array.isArray(data.points)
@@ -773,6 +1157,9 @@
                     .filter(Boolean)
                 : [];
 
+              const median = routeMedianGrades.get(docSnap.id);
+              const medianGrade = typeof median === 'number' && Number.isFinite(median) ? median : null;
+
               return {
                 id: docSnap.id,
                 strokeColor: typeof data.strokeColor === 'string' ? data.strokeColor : '#ffde59',
@@ -782,6 +1169,7 @@
                 description: typeof data.description === 'string' ? data.description : '',
                 date_set: normalizeDate(data.date_set),
                 date_removed: normalizeDate(data.date_removed),
+                medianGrade,
               };
             })
             .sort((a, b) => {
@@ -794,6 +1182,7 @@
         } catch (error) {
           console.error('Failed to load routes:', error);
           routes = [];
+          routeMedianGrades = new Map();
           redraw();
         }
       }
@@ -812,6 +1201,7 @@
         const routeId = route.id;
         const ascentRef = doc(db, 'ascents', email);
         const isAscended = ascendedRoutes.has(routeId);
+        let shouldRefreshMedians = false;
 
         try {
           if (isAscended) {
@@ -840,7 +1230,16 @@
               });
             }
             ascendedRoutes.delete(routeId);
+            if (routeGrades.has(routeId)) {
+              routeGrades.delete(routeId);
+              shouldRefreshMedians = true;
+            }
           } else {
+            const existingGrade = routeGrades.get(routeId);
+            const gradeValue = typeof existingGrade === 'number' && Number.isFinite(existingGrade)
+              ? existingGrade
+              : null;
+
             await setDoc(
               ascentRef,
               {
@@ -851,6 +1250,7 @@
                     route_id: routeId,
                     date_ascended: new Date().toISOString(),
                     climber_email: email,
+                    grade: gradeValue,
                   },
                 },
               },
@@ -860,7 +1260,11 @@
           }
 
           updateTooltipContent(route);
-          redraw();
+          if (shouldRefreshMedians) {
+            await refreshMedianGrades();
+          } else {
+            redraw();
+          }
         } catch (error) {
           console.error('Failed to update ascent:', error);
         }
@@ -959,7 +1363,45 @@
 
         const lineWidth = 10;
         const anchorIndex = Math.floor(scaledPoints.length / 2);
-        const anchor = scaledPoints[anchorIndex];
+        let anchor = scaledPoints[anchorIndex];
+
+        const routeMedian = typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)
+          ? route.medianGrade
+          : null;
+
+        if (routeMedian !== null && scaledPoints.length) {
+          let minY = Infinity;
+          let maxY = -Infinity;
+
+          for (let i = 0; i < scaledPoints.length; i += 1) {
+            const point = scaledPoints[i];
+            if (point.y < minY) {
+              minY = point.y;
+            }
+            if (point.y > maxY) {
+              maxY = point.y;
+            }
+          }
+
+          if (Number.isFinite(minY) && Number.isFinite(maxY) && maxY > minY) {
+            const normalized = Math.min(1, Math.max(0, (routeMedian - 1) / 24));
+            const targetY = maxY - normalized * (maxY - minY);
+            let closestPoint = scaledPoints[0];
+            let smallestDistance = Math.abs(closestPoint.y - targetY);
+
+            for (let i = 1; i < scaledPoints.length; i += 1) {
+              const candidate = scaledPoints[i];
+              const distance = Math.abs(candidate.y - targetY);
+              if (distance < smallestDistance) {
+                closestPoint = candidate;
+                smallestDistance = distance;
+              }
+            }
+
+            anchor = closestPoint;
+          }
+        }
+
         const radius = Math.max(12, canvas.width * 0.01);
         const gapRadius = anchor ? Math.max(0, radius - lineWidth / 2) : 0;
 
