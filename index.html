@@ -958,20 +958,33 @@
         }
 
         const lineWidth = 10;
+        const anchorIndex = Math.floor(scaledPoints.length / 2);
+        const anchor = scaledPoints[anchorIndex];
+        const radius = Math.max(12, canvas.width * 0.01);
+        const gapRadius = anchor ? Math.max(0, radius - lineWidth / 2) : 0;
+
+        ctx.save();
         ctx.lineWidth = lineWidth;
         ctx.strokeStyle = strokeColor;
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
+
+        if (anchor && gapRadius > 0) {
+          ctx.beginPath();
+          ctx.rect(0, 0, canvas.width, canvas.height);
+          ctx.moveTo(anchor.x + gapRadius, anchor.y);
+          ctx.arc(anchor.x, anchor.y, gapRadius, 0, Math.PI * 2);
+          ctx.clip('evenodd');
+        }
+
         ctx.stroke(path);
+        ctx.restore();
 
         routePaths.push({
           route,
           path,
           lineWidth,
         });
-
-        const anchor = scaledPoints[Math.floor(scaledPoints.length / 2)];
-        const radius = Math.max(12, canvas.width * 0.01);
 
         if (ascendedRoutes.has(route.id)) {
           ctx.save();
@@ -993,9 +1006,8 @@
           ctx.restore();
         } else {
           ctx.save();
-          ctx.lineWidth = Math.max(2, radius * 0.18);
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-          ctx.globalAlpha = 0.9;
+          ctx.lineWidth = lineWidth;
+          ctx.strokeStyle = strokeColor;
           ctx.beginPath();
           ctx.arc(anchor.x, anchor.y, radius, 0, Math.PI * 2);
           ctx.stroke();
