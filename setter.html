@@ -13,7 +13,12 @@
 
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: url("./background.jpg") center / cover no-repeat fixed;
+      background-color: #000;
+      background-image: url("./background.jpg");
+      background-position: center;
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
       color: #fff;
       overflow: hidden;
     }
@@ -1733,7 +1738,9 @@
     function redraw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if (backgroundReady) {
+      if (backgroundReady && backgroundImage.naturalWidth > 0 && backgroundImage.naturalHeight > 0) {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
       } else {
         ctx.fillStyle = '#000';
