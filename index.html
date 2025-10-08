@@ -505,6 +505,7 @@
         signOut,
         updateProfile,
         deleteUser,
+        getIdTokenResult,
       } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
       import {
         getFirestore,
@@ -559,6 +560,58 @@
         }
         return value.trim().toLowerCase();
       };
+
+      function cacheAuthenticatedUsername(username) {
+        const normalized = normalizeUsername(username);
+        authenticatedUsernameClaim = isValidUsername(normalized) ? normalized : '';
+        return authenticatedUsernameClaim;
+      }
+
+      async function resolveAuthenticatedUsername(options = {}) {
+        const { forceRefresh = false } = options;
+
+        if (!currentUser) {
+          authenticatedUsernameClaim = '';
+          return isValidUsername(currentUsername) ? normalizeUsername(currentUsername) : '';
+        }
+
+        if (!forceRefresh) {
+          const cachedClaim = normalizeUsername(authenticatedUsernameClaim);
+          if (isValidUsername(cachedClaim)) {
+            return cachedClaim;
+          }
+        }
+
+        const fallbackUsername = isValidUsername(currentUsername)
+          ? normalizeUsername(currentUsername)
+          : '';
+
+        try {
+          const tokenResult = await getIdTokenResult(currentUser, forceRefresh);
+          const claimUsername = normalizeUsername(tokenResult?.claims?.username);
+
+          if (isValidUsername(claimUsername)) {
+            return cacheAuthenticatedUsername(claimUsername);
+          }
+        } catch (error) {
+          console.warn(
+            forceRefresh
+              ? 'Failed to refresh authenticated username claim:'
+              : 'Failed to read authenticated username claim:',
+            error,
+          );
+        }
+
+        if (!forceRefresh) {
+          return resolveAuthenticatedUsername({ forceRefresh: true });
+        }
+
+        if (fallbackUsername) {
+          return cacheAuthenticatedUsername(fallbackUsername);
+        }
+
+        return '';
+      }
 
       const buildSyntheticEmail = (username) => {
         const normalized = normalizeUsername(username);
@@ -761,6 +814,7 @@
       let authMode = 'login';
       let currentUser = null;
       let currentUsername = '';
+      let authenticatedUsernameClaim = '';
       
       function setAuthMode(mode) {
         authMode = mode;
@@ -1043,12 +1097,18 @@
             return;
           }
 
-          currentUsername = resolvedUsername;
-          const role = await resolveUserRole(user, resolvedUsername);
+          currentUsername = normalizeUsername(resolvedUsername);
+          authenticatedUsernameClaim = '';
+          const canonicalUsername = await resolveAuthenticatedUsername();
+          if (isValidUsername(canonicalUsername)) {
+            currentUsername = canonicalUsername;
+          }
+
+          const role = await resolveUserRole(user, currentUsername);
 
           updateNavigationForRole(role);
           appContent.classList.remove('hidden');
-          await loadAscents(resolvedUsername);
+          await loadAscents({ userId: user.uid, username: currentUsername });
           await loadRoutes();
         } else {
           authOverlay.classList.remove('hidden');
@@ -1059,6 +1119,7 @@
           routes = [];
           currentUser = null;
           currentUsername = '';
+          authenticatedUsernameClaim = '';
           ascendedRoutes.clear();
           routeGrades.clear();
           routeMedianGrades = new Map();
@@ -1086,23 +1147,68 @@
       const routeGrades = new Map();
       let routeMedianGrades = new Map();
 
-      async function loadAscents(username) {
+      async function loadAscents({ userId, username }) {
         ascendedRoutes.clear();
         routeGrades.clear();
 
-        if (!username) {
+        const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
+        const normalizedUsername = normalizeUsername(username);
+        const hasValidUsername = isValidUsername(normalizedUsername);
+        if (!normalizedUserId && !hasValidUsername) {
           return;
         }
 
         try {
-          const ascentRef = doc(db, 'ascents', username);
-          const ascentSnap = await getDoc(ascentRef);
+          let ascentData = null;
 
-          if (!ascentSnap.exists()) {
+          if (normalizedUserId) {
+            const ascentRef = doc(db, 'ascents', normalizedUserId);
+            const ascentSnap = await getDoc(ascentRef);
+            if (ascentSnap.exists()) {
+              ascentData = ascentSnap.data() ?? {};
+            }
+
+            if (!ascentData && hasValidUsername && normalizedUsername !== normalizedUserId) {
+              const legacyRef = doc(db, 'ascents', normalizedUsername);
+              const legacySnap = await getDoc(legacyRef);
+
+              if (legacySnap.exists()) {
+                ascentData = legacySnap.data() ?? {};
+
+                try {
+                  const migrationPayload = {
+                    ...ascentData,
+                    climber_uid: normalizedUserId,
+                    updatedAt: serverTimestamp(),
+                  };
+
+                  if (hasValidUsername) {
+                    migrationPayload.climber_username = normalizedUsername;
+                  }
+
+                  await setDoc(ascentRef, migrationPayload, { merge: true });
+                } catch (migrationError) {
+                  console.warn('Failed to migrate legacy ascent document to UID path:', migrationError);
+                }
+              }
+            }
+          }
+
+          if (!ascentData && hasValidUsername && normalizedUsername !== normalizedUserId) {
+            const ascentRef = doc(db, 'ascents', normalizedUsername);
+            const ascentSnap = await getDoc(ascentRef);
+
+            if (!ascentSnap.exists()) {
+              return;
+            }
+
+            ascentData = ascentSnap.data() ?? {};
+          }
+
+          if (!ascentData) {
             return;
           }
 
-          const ascentData = ascentSnap.data() ?? {};
           const routesData = ascentData.routes;
 
           if (routesData && typeof routesData === 'object') {
@@ -1333,9 +1439,15 @@
           return;
         }
 
-        const username = currentUsername;
+        const username = await resolveAuthenticatedUsername();
         if (!username) {
           console.warn('Unable to save grade: user username missing.');
+          return;
+        }
+
+        const userId = typeof currentUser?.uid === 'string' ? currentUser.uid.trim() : '';
+        if (!userId) {
+          console.warn('Unable to save grade: user ID missing.');
           return;
         }
 
@@ -1345,18 +1457,20 @@
           return;
         }
 
-        const ascentRef = doc(db, 'ascents', username);
+        const ascentRef = doc(db, 'ascents', userId);
 
         try {
           await setDoc(
             ascentRef,
             {
+              climber_uid: userId,
               climber_username: username,
               updatedAt: serverTimestamp(),
               routes: {
                 [route.id]: {
                   grade: sanitizedGrade,
                   route_id: route.id,
+                  climber_uid: userId,
                   climber_username: username,
                 },
               },
@@ -1697,14 +1811,24 @@
           return;
         }
 
-        const username = currentUsername;
+        const username = await resolveAuthenticatedUsername();
         if (!username) {
           console.warn('Unable to mark ascent: user username missing.');
           return;
         }
 
-        const routeId = route.id;
-        const ascentRef = doc(db, 'ascents', username);
+        const userId = typeof currentUser?.uid === 'string' ? currentUser.uid.trim() : '';
+        if (!userId) {
+          console.warn('Unable to mark ascent: user ID missing.');
+          return;
+        }
+
+        const routeId = route?.id;
+        if (!routeId) {
+          console.warn('Unable to mark ascent: route ID missing.');
+          return;
+        }
+        const ascentRef = doc(db, 'ascents', userId);
         const isAscended = ascendedRoutes.has(routeId);
         let shouldRefreshMedians = false;
 
@@ -1729,6 +1853,7 @@
               await deleteDoc(ascentRef);
             } else {
               await setDoc(ascentRef, {
+                climber_uid: userId,
                 climber_username: username,
                 updatedAt: serverTimestamp(),
                 routes: remainingRoutes,
@@ -1748,12 +1873,14 @@
             await setDoc(
               ascentRef,
               {
+                climber_uid: userId,
                 climber_username: username,
                 updatedAt: serverTimestamp(),
                 routes: {
                   [routeId]: {
                     route_id: routeId,
                     date_ascended: new Date().toISOString(),
+                    climber_uid: userId,
                     climber_username: username,
                     grade: gradeValue,
                   },
