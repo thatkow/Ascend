@@ -2008,6 +2008,82 @@
         }
       }
 
+      function findAnchorPointForRoute(route, scaledPoints, canvasHeight) {
+        if (!Array.isArray(scaledPoints) || scaledPoints.length === 0) {
+          return null;
+        }
+
+        const fallback = scaledPoints[Math.floor(scaledPoints.length / 2)] || scaledPoints[0];
+        const routeMedian = typeof route?.medianGrade === 'number' && Number.isFinite(route.medianGrade)
+          ? route.medianGrade
+          : null;
+
+        if (routeMedian === null || !Number.isFinite(canvasHeight) || canvasHeight <= 0) {
+          return fallback ? { ...fallback } : null;
+        }
+
+        const gradeMin = 1;
+        const gradeMax = 25;
+        const gradeRange = gradeMax - gradeMin;
+
+        if (gradeRange <= 0) {
+          return fallback ? { ...fallback } : null;
+        }
+
+        const normalized = (routeMedian - gradeMin) / gradeRange;
+        const clamped = Math.min(1, Math.max(0, normalized));
+        const targetY = canvasHeight - clamped * canvasHeight;
+
+        let anchorPoint = null;
+
+        for (let index = 0; index < scaledPoints.length - 1; index += 1) {
+          const start = scaledPoints[index];
+          const end = scaledPoints[index + 1];
+
+          if (!start || !end) {
+            continue;
+          }
+
+          const minSegmentY = Math.min(start.y, end.y);
+          const maxSegmentY = Math.max(start.y, end.y);
+
+          if (targetY >= minSegmentY && targetY <= maxSegmentY) {
+            const deltaY = end.y - start.y;
+            const t = deltaY === 0 ? 0 : (targetY - start.y) / deltaY;
+            const clampedT = Math.min(1, Math.max(0, t));
+
+            anchorPoint = {
+              x: start.x + (end.x - start.x) * clampedT,
+              y: start.y + (end.y - start.y) * clampedT,
+            };
+            break;
+          }
+        }
+
+        if (!anchorPoint) {
+          anchorPoint = scaledPoints.reduce((closest, point) => {
+            if (!point) {
+              return closest;
+            }
+
+            if (!closest) {
+              return point;
+            }
+
+            const closestDelta = Math.abs(closest.y - targetY);
+            const currentDelta = Math.abs(point.y - targetY);
+
+            return currentDelta < closestDelta ? point : closest;
+          }, null);
+        }
+
+        if (anchorPoint) {
+          return { ...anchorPoint };
+        }
+
+        return fallback ? { ...fallback } : null;
+      }
+
       function drawRoute(route) {
         const strokeColor = typeof route.strokeColor === 'string' ? route.strokeColor : '#ffde59';
         const points = Array.isArray(route.points) ? route.points : [];
@@ -2053,76 +2129,9 @@
 
         const lineWidth = 10;
         const anchorIndex = Math.floor(scaledPoints.length / 2);
-        let anchor = scaledPoints[anchorIndex];
-
-        const routeMedian = typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)
-          ? route.medianGrade
-          : null;
-
-        if (routeMedian !== null && scaledPoints.length) {
-          const gradeMin = 1;
-          const gradeMax = 25;
-          const gradeRange = gradeMax - gradeMin;
-
-          if (gradeRange > 0) {
-            const normalized = (routeMedian - gradeMin) / gradeRange;
-            const clamped = Math.min(1, Math.max(0, normalized));
-            const targetY = canvas.height - clamped * canvas.height;
-            const fallbackPoint = scaledPoints[anchorIndex] || scaledPoints[0];
-
-            let anchorPoint = null;
-
-            for (let i = 0; i < scaledPoints.length - 1; i++) {
-              const start = scaledPoints[i];
-              const end = scaledPoints[i + 1];
-
-              if (!start || !end) {
-                continue;
-              }
-
-              const minY = Math.min(start.y, end.y);
-              const maxY = Math.max(start.y, end.y);
-
-              if (targetY >= minY && targetY <= maxY) {
-                const deltaY = end.y - start.y;
-                const t = deltaY === 0 ? 0 : (targetY - start.y) / deltaY;
-                const clampedT = Math.min(1, Math.max(0, t));
-
-                anchorPoint = {
-                  x: start.x + (end.x - start.x) * clampedT,
-                  y: start.y + (end.y - start.y) * clampedT,
-                };
-                break;
-              }
-            }
-
-            if (!anchorPoint) {
-              anchorPoint = scaledPoints.reduce((closest, point) => {
-                if (!point) {
-                  return closest;
-                }
-
-                if (!closest) {
-                  return point;
-                }
-
-                const closestDelta = Math.abs(closest.y - targetY);
-                const currentDelta = Math.abs(point.y - targetY);
-
-                return currentDelta < closestDelta ? point : closest;
-              }, null);
-            }
-
-            const finalAnchor = anchorPoint || fallbackPoint;
-            const anchorX = finalAnchor ? finalAnchor.x : fallbackPoint ? fallbackPoint.x : canvas.width / 2;
-            const anchorY = finalAnchor ? finalAnchor.y : fallbackPoint ? fallbackPoint.y : targetY;
-
-            anchor = {
-              x: anchorX,
-              y: anchorY,
-            };
-          }
-        }
+        const fallbackAnchor = scaledPoints[anchorIndex] || scaledPoints[0] || null;
+        const computedAnchor = findAnchorPointForRoute(route, scaledPoints, canvas.height);
+        const anchor = computedAnchor || (fallbackAnchor ? { ...fallbackAnchor } : null);
 
         const radius = Math.max(12, canvas.width * 0.01);
         const gapRadius = anchor ? Math.max(0, radius - lineWidth / 2) : 0;
@@ -2148,6 +2157,8 @@
           route,
           path,
           lineWidth,
+          anchor,
+          anchorRadius: radius,
         });
 
         if (ascendedRoutes.has(route.id)) {
