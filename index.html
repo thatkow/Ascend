@@ -139,15 +139,6 @@
         align-items: center;
       }
 
-      .role-badge {
-        padding: 0.4rem 0.85rem;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.15);
-        font-size: 0.8rem;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-      }
-
       .nav-links {
         display: flex;
         gap: 0.5rem;
@@ -384,7 +375,6 @@
         <nav id="navLinks" class="nav-links" aria-label="Available pages">
           <a id="setterLink" class="hidden" href="setter.html">Setter Tools</a>
         </nav>
-        <span id="roleBadge" class="role-badge hidden" aria-live="polite"></span>
         <button id="signOutButton" class="sign-out">Sign out</button>
       </header>
       <div class="canvas-container">
@@ -445,7 +435,6 @@
       const authSwitchLabel = document.getElementById('authSwitchLabel');
       const toggleAuthModeButton = document.getElementById('toggleAuthMode');
       const signOutButton = document.getElementById('signOutButton');
-      const roleBadge = document.getElementById('roleBadge');
       const setterLink = document.getElementById('setterLink');
       const tooltip = document.getElementById('routeTooltip');
 
@@ -545,9 +534,6 @@
       }
 
       function updateNavigationForRole(role) {
-        roleBadge.textContent = role ? role.toUpperCase() : '';
-        roleBadge.classList.toggle('hidden', !role);
-
         setterLink.classList.toggle('hidden', role !== 'setter');
       }
 
@@ -571,7 +557,6 @@
         } else {
           authOverlay.classList.remove('hidden');
           appContent.classList.add('hidden');
-          roleBadge.classList.add('hidden');
           setterLink.classList.add('hidden');
           authForm.reset();
           setAuthMode('login');
@@ -1360,7 +1345,7 @@
         resizeCanvas();
       };
 
-      backgroundImage.src = 'background.png';
+      backgroundImage.src = 'background_with_axis.png';
 
       function redraw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
