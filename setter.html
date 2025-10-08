@@ -177,6 +177,125 @@
       border-radius: 0.65rem;
     }
 
+    .color-wheel-toggle {
+      background: rgba(255, 255, 255, 0.2);
+      color: #111;
+      margin-top: 0.5rem;
+    }
+
+    .color-wheel-toggle:hover,
+    .color-wheel-toggle:focus-visible {
+      background: rgba(255, 255, 255, 0.35);
+      outline: none;
+      transform: translateY(-1px);
+      box-shadow: 0 10px 18px rgba(255, 255, 255, 0.2);
+    }
+
+    .color-wheel {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      border-radius: 0.75rem;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .color-wheel-canvas-wrapper {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #colorWheelCanvas {
+      width: min(220px, 100%);
+      height: auto;
+      max-width: 100%;
+      border-radius: 50%;
+      touch-action: none;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      cursor: crosshair;
+    }
+
+    #colorWheelCanvas:focus-visible {
+      outline: 2px solid rgba(126, 217, 87, 0.65);
+      outline-offset: 4px;
+    }
+
+    .color-wheel-marker {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.4);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .color-lightness-control {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .color-lightness-control label {
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .color-lightness-control input[type='range'] {
+      width: 100%;
+      appearance: none;
+      height: 0.65rem;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #000, #fff);
+      cursor: pointer;
+    }
+
+    .color-lightness-control input[type='range']::-webkit-slider-thumb {
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid rgba(0, 0, 0, 0.6);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    .color-lightness-control input[type='range']::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid rgba(0, 0, 0, 0.6);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    .color-wheel-preview {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      letter-spacing: 0.05em;
+    }
+
+    .color-wheel-swatch {
+      width: 1.8rem;
+      height: 1.8rem;
+      border-radius: 0.4rem;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: #ffde59;
+    }
+
+    .color-wheel-hint {
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.7);
+      line-height: 1.4;
+    }
+
     .controls button {
       border: none;
       border-radius: 0.65rem;
@@ -441,6 +560,44 @@
             <span>Stroke colour</span>
             <input type="color" id="colorPicker" value="#ffde59" />
           </label>
+          <button
+            id="advancedColorToggle"
+            class="color-wheel-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-controls="advancedColorPicker"
+          >
+            Open colour wheel
+          </button>
+          <div
+            id="advancedColorPicker"
+            class="color-wheel hidden"
+            aria-hidden="true"
+          >
+            <div class="color-wheel-canvas-wrapper">
+              <canvas
+                id="colorWheelCanvas"
+                width="220"
+                height="220"
+                tabindex="0"
+                role="application"
+                aria-label="Colour wheel selector"
+                aria-describedby="colorWheelHint"
+              ></canvas>
+              <div id="colorWheelMarker" class="color-wheel-marker" aria-hidden="true"></div>
+            </div>
+            <p id="colorWheelHint" class="color-wheel-hint">
+              Drag on the wheel or use the arrow keys to adjust hue and saturation.
+            </p>
+            <div class="color-lightness-control">
+              <label for="colorLightnessSlider">Lightness</label>
+              <input id="colorLightnessSlider" type="range" min="0" max="100" value="50" />
+            </div>
+            <div class="color-wheel-preview" aria-live="polite">
+              <div id="colorWheelSwatch" class="color-wheel-swatch" aria-hidden="true"></div>
+              <code id="colorWheelValue">#FFDE59</code>
+            </div>
+          </div>
           <button id="saveButton" type="button">Save route</button>
           <button id="deleteButton" type="button">Delete route</button>
           <button id="clearButton" type="button">Clear drawing</button>
@@ -589,11 +746,22 @@
     const canvas = document.getElementById('drawingCanvas');
     const ctx = canvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
+    const advancedColorToggle = document.getElementById('advancedColorToggle');
+    const advancedColorPicker = document.getElementById('advancedColorPicker');
+    const colorWheelCanvas = document.getElementById('colorWheelCanvas');
+    const colorWheelMarker = document.getElementById('colorWheelMarker');
+    const colorLightnessSlider = document.getElementById('colorLightnessSlider');
+    const colorWheelValue = document.getElementById('colorWheelValue');
+    const colorWheelSwatch = document.getElementById('colorWheelSwatch');
     const clearButton = document.getElementById('clearButton');
     const saveButton = document.getElementById('saveButton');
 
     const points = [];
     let strokeColor = sanitizeColor(colorPicker.value || '#ffde59');
+    let wheelHue = 48;
+    let wheelSaturation = 1;
+    let wheelLightness = 0.5;
+    let isWheelPointerActive = false;
     let backgroundReady = false;
     let loadedNormalizedPoints = null;
     let currentRouteKey = '';
@@ -625,6 +793,358 @@
         resizeObserver.observe(controlsToggle);
       }
     }
+
+    const wheelCtx = colorWheelCanvas ? colorWheelCanvas.getContext('2d') : null;
+
+    if (colorWheelCanvas) {
+      const baseSize = 220;
+      const ratio = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+      colorWheelCanvas.width = Math.round(baseSize * ratio);
+      colorWheelCanvas.height = Math.round(baseSize * ratio);
+    }
+
+    function hslToRgb(h, s, l) {
+      let r;
+      let g;
+      let b;
+
+      if (s === 0) {
+        r = g = b = l;
+      } else {
+        const hueToRgb = (p, q, t) => {
+          let temp = t;
+          if (temp < 0) temp += 1;
+          if (temp > 1) temp -= 1;
+          if (temp < 1 / 6) return p + (q - p) * 6 * temp;
+          if (temp < 1 / 2) return q;
+          if (temp < 2 / 3) return p + (q - p) * (2 / 3 - temp) * 6;
+          return p;
+        };
+
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+
+        r = hueToRgb(p, q, h + 1 / 3);
+        g = hueToRgb(p, q, h);
+        b = hueToRgb(p, q, h - 1 / 3);
+      }
+
+      return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+    }
+
+    function hslToHex(h, s, l) {
+      const [r, g, b] = hslToRgb((h % 360 + 360) % 360 / 360, s, l);
+      return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+    }
+
+    function rgbToHsl(r, g, b) {
+      const red = r / 255;
+      const green = g / 255;
+      const blue = b / 255;
+      const max = Math.max(red, green, blue);
+      const min = Math.min(red, green, blue);
+      let h = 0;
+      let s = 0;
+      const l = (max + min) / 2;
+
+      if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case red:
+            h = (green - blue) / d + (green < blue ? 6 : 0);
+            break;
+          case green:
+            h = (blue - red) / d + 2;
+            break;
+          default:
+            h = (red - green) / d + 4;
+            break;
+        }
+        h /= 6;
+      }
+
+      return { h: h * 360, s, l };
+    }
+
+    function hexToHsl(value) {
+      if (typeof value !== 'string') {
+        return { h: wheelHue, s: wheelSaturation, l: wheelLightness };
+      }
+
+      const match = value.trim().match(/^#?([0-9a-f]{6})$/i);
+      if (!match) {
+        return { h: wheelHue, s: wheelSaturation, l: wheelLightness };
+      }
+
+      const hex = match[1];
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      return rgbToHsl(r, g, b);
+    }
+
+    function drawColorWheel(lightness = wheelLightness) {
+      if (!wheelCtx || !colorWheelCanvas) {
+        return;
+      }
+
+      const { width, height } = colorWheelCanvas;
+      const imageData = wheelCtx.createImageData(width, height);
+      const { data } = imageData;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const radius = Math.min(centerX, centerY);
+
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          const dx = x - centerX;
+          const dy = y - centerY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const index = (y * width + x) * 4;
+
+          if (distance <= radius) {
+            const hue = (Math.atan2(dy, dx) * 180) / Math.PI;
+            const saturation = Math.min(1, distance / radius);
+            const [r, g, b] = hslToRgb(((hue % 360) + 360) % 360 / 360, saturation, lightness);
+            data[index] = r;
+            data[index + 1] = g;
+            data[index + 2] = b;
+            data[index + 3] = 255;
+          } else {
+            data[index] = 0;
+            data[index + 1] = 0;
+            data[index + 2] = 0;
+            data[index + 3] = 0;
+          }
+        }
+      }
+
+      wheelCtx.putImageData(imageData, 0, 0);
+    }
+
+    function updateColorWheelMarker() {
+      if (!colorWheelMarker || !colorWheelCanvas) {
+        return;
+      }
+
+      const radius = Math.min(colorWheelCanvas.width, colorWheelCanvas.height) / 2;
+      const angle = (wheelHue * Math.PI) / 180;
+      const markerRadius = wheelSaturation * radius;
+      const x = radius + Math.cos(angle) * markerRadius;
+      const y = radius + Math.sin(angle) * markerRadius;
+      colorWheelMarker.style.left = `${x}px`;
+      colorWheelMarker.style.top = `${y}px`;
+    }
+
+    function updateLightnessSliderGradient() {
+      if (!colorLightnessSlider) {
+        return;
+      }
+
+      const dark = hslToHex(wheelHue, wheelSaturation, 0);
+      const mid = hslToHex(wheelHue, wheelSaturation, 0.5);
+      const light = hslToHex(wheelHue, wheelSaturation, 1);
+      colorLightnessSlider.style.background = `linear-gradient(90deg, ${dark}, ${mid}, ${light})`;
+    }
+
+    function updateAdvancedPreview(hex) {
+      if (colorWheelValue) {
+        colorWheelValue.textContent = hex.toUpperCase();
+      }
+      if (colorWheelSwatch) {
+        colorWheelSwatch.style.background = hex;
+      }
+    }
+
+    function setStrokeColorFromWheel(nextHue, nextSaturation, nextLightness, { quiet = false } = {}) {
+      wheelHue = ((nextHue % 360) + 360) % 360;
+      wheelSaturation = Math.min(Math.max(nextSaturation, 0), 1);
+      wheelLightness = Math.min(Math.max(nextLightness, 0), 1);
+
+      if (colorLightnessSlider) {
+        const sliderValue = Math.round(wheelLightness * 100);
+        if (Number.isFinite(sliderValue)) {
+          colorLightnessSlider.value = String(sliderValue);
+        }
+      }
+
+      updateColorWheelMarker();
+      updateLightnessSliderGradient();
+
+      const hex = sanitizeColor(hslToHex(wheelHue, wheelSaturation, wheelLightness));
+      if (colorPicker && colorPicker.value !== hex) {
+        colorPicker.value = hex;
+      }
+      updateAdvancedPreview(hex);
+
+      if (strokeColor !== hex && !quiet) {
+        strokeColor = hex;
+        loadedNormalizedPoints = null;
+        redraw();
+        markUnsavedChange();
+      } else if (strokeColor !== hex) {
+        strokeColor = hex;
+      }
+    }
+
+    function syncAdvancedColorPicker(color) {
+      if (!colorWheelCanvas) {
+        return;
+      }
+
+      const sanitized = sanitizeColor(color);
+      const { h, s, l } = hexToHsl(sanitized);
+      wheelHue = Number.isFinite(h) ? h : wheelHue;
+      wheelSaturation = Number.isFinite(s) ? s : wheelSaturation;
+      wheelLightness = Number.isFinite(l) ? l : wheelLightness;
+
+      drawColorWheel(wheelLightness);
+      updateColorWheelMarker();
+      updateLightnessSliderGradient();
+
+      if (colorLightnessSlider) {
+        colorLightnessSlider.value = String(Math.round(wheelLightness * 100));
+      }
+
+      updateAdvancedPreview(sanitized);
+    }
+
+    function handleWheelSelection(clientX, clientY) {
+      if (!colorWheelCanvas) {
+        return;
+      }
+
+      const rect = colorWheelCanvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) {
+        return;
+      }
+
+      const scaleX = colorWheelCanvas.width / rect.width;
+      const scaleY = colorWheelCanvas.height / rect.height;
+      const x = (clientX - rect.left) * scaleX;
+      const y = (clientY - rect.top) * scaleY;
+      const centerX = colorWheelCanvas.width / 2;
+      const centerY = colorWheelCanvas.height / 2;
+      let dx = x - centerX;
+      let dy = y - centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const radius = Math.min(centerX, centerY);
+
+      if (distance > radius) {
+        const ratio = radius / distance;
+        dx *= ratio;
+        dy *= ratio;
+      }
+
+      const hue = ((Math.atan2(dy, dx) * 180) / Math.PI + 360) % 360;
+      const saturation = Math.min(1, Math.sqrt(dx * dx + dy * dy) / radius);
+      setStrokeColorFromWheel(hue, saturation, wheelLightness);
+    }
+
+    if (advancedColorToggle && advancedColorPicker) {
+      advancedColorToggle.addEventListener('click', () => {
+        if (!advancedColorPicker) {
+          return;
+        }
+
+        const isHidden = advancedColorPicker.classList.toggle('hidden');
+        const expanded = !isHidden;
+        advancedColorToggle.setAttribute('aria-expanded', String(expanded));
+        advancedColorPicker.setAttribute('aria-hidden', String(!expanded));
+        advancedColorToggle.textContent = expanded ? 'Hide colour wheel' : 'Open colour wheel';
+
+        if (expanded) {
+          drawColorWheel(wheelLightness);
+          updateColorWheelMarker();
+          updateLightnessSliderGradient();
+        }
+      });
+    }
+
+    if (colorWheelCanvas) {
+      const normalizeEvent = (event) => {
+        event.preventDefault();
+        handleWheelSelection(event.clientX, event.clientY);
+      };
+
+      colorWheelCanvas.addEventListener('pointerdown', (event) => {
+        isWheelPointerActive = true;
+        if (typeof colorWheelCanvas.setPointerCapture === 'function') {
+          colorWheelCanvas.setPointerCapture(event.pointerId);
+        }
+        if (document.activeElement !== colorWheelCanvas) {
+          colorWheelCanvas.focus();
+        }
+        normalizeEvent(event);
+      });
+
+      colorWheelCanvas.addEventListener('pointermove', (event) => {
+        if (!isWheelPointerActive) {
+          return;
+        }
+        normalizeEvent(event);
+      });
+
+      const stopPointer = (event) => {
+        if (
+          typeof colorWheelCanvas.releasePointerCapture === 'function' &&
+          colorWheelCanvas.hasPointerCapture(event.pointerId)
+        ) {
+          colorWheelCanvas.releasePointerCapture(event.pointerId);
+        }
+        isWheelPointerActive = false;
+      };
+
+      colorWheelCanvas.addEventListener('pointerup', stopPointer);
+      colorWheelCanvas.addEventListener('pointercancel', stopPointer);
+      colorWheelCanvas.addEventListener('pointerleave', () => {
+        isWheelPointerActive = false;
+      });
+
+      colorWheelCanvas.addEventListener('keydown', (event) => {
+        const hueStep = event.shiftKey ? 10 : 3;
+        const satStep = event.shiftKey ? 0.05 : 0.02;
+        let handled = true;
+
+        switch (event.key) {
+          case 'ArrowLeft':
+            setStrokeColorFromWheel(wheelHue - hueStep, wheelSaturation, wheelLightness);
+            break;
+          case 'ArrowRight':
+            setStrokeColorFromWheel(wheelHue + hueStep, wheelSaturation, wheelLightness);
+            break;
+          case 'ArrowUp':
+            setStrokeColorFromWheel(wheelHue, Math.min(1, wheelSaturation + satStep), wheelLightness);
+            break;
+          case 'ArrowDown':
+            setStrokeColorFromWheel(wheelHue, Math.max(0, wheelSaturation - satStep), wheelLightness);
+            break;
+          default:
+            handled = false;
+            break;
+        }
+
+        if (handled) {
+          event.preventDefault();
+        }
+      });
+    }
+
+    if (colorLightnessSlider) {
+      colorLightnessSlider.addEventListener('input', (event) => {
+        const value = Number(event.target.value);
+        if (!Number.isFinite(value)) {
+          return;
+        }
+
+        const normalized = Math.min(Math.max(value, 0), 100) / 100;
+        setStrokeColorFromWheel(wheelHue, wheelSaturation, normalized);
+        drawColorWheel(wheelLightness);
+      });
+    }
+
+    syncAdvancedColorPicker(strokeColor);
 
     if (openPreviewButton) {
       openPreviewButton.addEventListener('click', () => {
@@ -1368,6 +1888,7 @@
       routeDateSetInput.value = isoStringToInputValue(data.date_set) || '';
       strokeColor = data.strokeColor;
       colorPicker.value = strokeColor;
+      syncAdvancedColorPicker(strokeColor);
       applyNormalizedPoints(data.points);
       deleteButton.disabled = !routeKey;
       resetUnsavedState();
@@ -1388,6 +1909,7 @@
       routeDateSetInput.value = getNowInputValue();
       strokeColor = '#ffde59';
       colorPicker.value = strokeColor;
+      syncAdvancedColorPicker(strokeColor);
       loadedNormalizedPoints = null;
       points.length = 0;
       redraw();
@@ -1646,6 +2168,7 @@
       loadedNormalizedPoints = null;
       redraw();
       markUnsavedChange();
+      syncAdvancedColorPicker(strokeColor);
     });
 
     if (backgroundImage.complete) {
