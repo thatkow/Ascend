@@ -2317,7 +2317,7 @@
       }
       updateRoleActionState();
       if (!roleResultsList || !roleResultsList.value || !roleSearchResults.has(roleResultsList.value)) {
-        setRoleStatus('Search for a user to grant setter access.', 'info');
+        clearRoleStatus();
       }
     }
 
