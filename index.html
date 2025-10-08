@@ -139,6 +139,63 @@
         align-items: center;
       }
 
+      .info-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .info-button {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 2px solid rgba(126, 217, 87, 0.6);
+        background: #7ed957;
+        color: #0c1905;
+        font-size: 1.05rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 22px rgba(126, 217, 87, 0.35);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      }
+
+      .info-button:hover,
+      .info-button:focus-visible {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 28px rgba(126, 217, 87, 0.45);
+        border-color: rgba(126, 217, 87, 0.9);
+        outline: none;
+      }
+
+      .info-button:focus-visible {
+        box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.25), 0 12px 28px rgba(126, 217, 87, 0.45);
+      }
+
+      .info-popover {
+        position: absolute;
+        top: calc(100% + 0.75rem);
+        right: 0;
+        width: min(280px, 70vw);
+        padding: 0.9rem 1rem;
+        border-radius: 0.75rem;
+        background: rgba(0, 0, 0, 0.85);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        line-height: 1.4;
+        text-align: left;
+      }
+
+      .info-popover p {
+        color: rgba(255, 255, 255, 0.85);
+      }
+
       .nav-links {
         display: flex;
         gap: 0.5rem;
@@ -146,34 +203,44 @@
       }
 
       .nav-links a {
-        padding: 0.5rem 0.85rem;
+        padding: 0.55rem 0.95rem;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.15);
-        color: inherit;
-        font-size: 0.8rem;
+        background: rgba(255, 255, 255, 0.18);
+        color: #0c1905;
+        font-size: 0.85rem;
+        font-weight: 600;
         text-decoration: none;
-        transition: background 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.45));
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
       }
 
-      .nav-links a:hover {
-        background: rgba(255, 255, 255, 0.3);
+      .nav-links a:hover,
+      .nav-links a:focus-visible {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 22px rgba(255, 255, 255, 0.25);
+        outline: none;
       }
 
       .sign-out {
-        border: none;
+        border: 1px solid rgba(255, 255, 255, 0.35);
         border-radius: 999px;
-        padding: 0.5rem 1rem;
-        font-size: 0.85rem;
-        font-weight: 600;
+        padding: 0.6rem 1.25rem;
+        font-size: 0.9rem;
+        font-weight: 700;
         cursor: pointer;
-        background: rgba(255, 255, 255, 0.15);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08));
         color: #fff;
-        backdrop-filter: blur(4px);
-        transition: background 0.2s ease;
+        backdrop-filter: blur(6px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
       }
 
-      .sign-out:hover {
-        background: rgba(255, 255, 255, 0.3);
+      .sign-out:hover,
+      .sign-out:focus-visible {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
+        outline: none;
       }
 
       .route-tooltip {
@@ -375,6 +442,30 @@
         <nav id="navLinks" class="nav-links" aria-label="Available pages">
           <a id="setterLink" class="hidden" href="setter.html">Setter Tools</a>
         </nav>
+        <div class="info-wrapper">
+          <button
+            id="infoButton"
+            class="info-button"
+            type="button"
+            aria-label="Learn about Ascend"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+            aria-controls="infoPopover"
+          >
+            i
+          </button>
+          <div
+            id="infoPopover"
+            class="info-popover hidden"
+            role="dialog"
+            aria-modal="false"
+            aria-hidden="true"
+            aria-label="About Ascend"
+          >
+            <p>Track which climbs you have completed.</p>
+            <p>The height of each circle shows its difficulty based on community scoring.</p>
+          </div>
+        </div>
         <button id="signOutButton" class="sign-out">Sign out</button>
       </header>
       <div class="canvas-container">
@@ -437,6 +528,58 @@
       const signOutButton = document.getElementById('signOutButton');
       const setterLink = document.getElementById('setterLink');
       const tooltip = document.getElementById('routeTooltip');
+      const infoButton = document.getElementById('infoButton');
+      const infoPopover = document.getElementById('infoPopover');
+
+      function closeInfoPopover() {
+        if (!infoPopover) {
+          return;
+        }
+
+        if (!infoPopover.classList.contains('hidden')) {
+          infoPopover.classList.add('hidden');
+          infoPopover.setAttribute('aria-hidden', 'true');
+          if (infoButton) {
+            infoButton.setAttribute('aria-expanded', 'false');
+          }
+        }
+      }
+
+      function toggleInfoPopover() {
+        if (!infoPopover || !infoButton) {
+          return;
+        }
+
+        const isHidden = infoPopover.classList.contains('hidden');
+        if (isHidden) {
+          infoPopover.classList.remove('hidden');
+          infoPopover.setAttribute('aria-hidden', 'false');
+          infoButton.setAttribute('aria-expanded', 'true');
+        } else {
+          closeInfoPopover();
+        }
+      }
+
+      if (infoButton && infoPopover) {
+        infoButton.addEventListener('click', (event) => {
+          event.stopPropagation();
+          toggleInfoPopover();
+        });
+
+        infoPopover.addEventListener('click', (event) => {
+          event.stopPropagation();
+        });
+
+        document.addEventListener('click', () => {
+          closeInfoPopover();
+        });
+
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {
+            closeInfoPopover();
+          }
+        });
+      }
 
       let authMode = 'login';
       let currentUser = null;
