@@ -2060,35 +2060,21 @@
           : null;
 
         if (routeMedian !== null && scaledPoints.length) {
-          let minY = Infinity;
-          let maxY = -Infinity;
+          const gradeMin = 1;
+          const gradeMax = 25;
+          const gradeRange = gradeMax - gradeMin;
 
-          for (let i = 0; i < scaledPoints.length; i += 1) {
-            const point = scaledPoints[i];
-            if (point.y < minY) {
-              minY = point.y;
-            }
-            if (point.y > maxY) {
-              maxY = point.y;
-            }
-          }
+          if (gradeRange > 0) {
+            const normalized = (routeMedian - gradeMin) / gradeRange;
+            const clamped = Math.min(1, Math.max(0, normalized));
+            const scaledY = clamped * canvas.height;
+            const fallbackPoint = scaledPoints[anchorIndex] || scaledPoints[0];
+            const anchorX = fallbackPoint ? fallbackPoint.x : canvas.width / 2;
 
-          if (Number.isFinite(minY) && Number.isFinite(maxY) && maxY > minY) {
-            const normalized = Math.min(1, Math.max(0, (routeMedian - 1) / 24));
-            const targetY = maxY - normalized * (maxY - minY);
-            let closestPoint = scaledPoints[0];
-            let smallestDistance = Math.abs(closestPoint.y - targetY);
-
-            for (let i = 1; i < scaledPoints.length; i += 1) {
-              const candidate = scaledPoints[i];
-              const distance = Math.abs(candidate.y - targetY);
-              if (distance < smallestDistance) {
-                closestPoint = candidate;
-                smallestDistance = distance;
-              }
-            }
-
-            anchor = closestPoint;
+            anchor = {
+              x: anchorX,
+              y: scaledY,
+            };
           }
         }
 
