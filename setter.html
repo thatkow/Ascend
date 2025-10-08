@@ -189,6 +189,20 @@
       text-align: center;
     }
 
+    #roleResultsList {
+      width: 100%;
+      min-height: 8rem;
+      border-radius: 0.65rem;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(0, 0, 0, 0.35);
+      color: inherit;
+      padding: 0.35rem 0.5rem;
+    }
+
+    #roleResultsList option {
+      padding: 0.25rem 0.35rem;
+    }
+
     #clearButton {
       background: rgba(255, 116, 116, 0.9);
       color: #111;
@@ -423,6 +437,31 @@
           <button id="signOutButton" type="button">Sign Out</button>
           <button id="openPreviewButton" type="button">Open Preview</button>
         </div>
+        <div class="control-section">
+          <label class="control-field">
+            <span>Grant setter access</span>
+            <div class="control-row">
+              <input
+                id="roleSearchInput"
+                type="search"
+                placeholder="Search users by email"
+                autocomplete="off"
+              />
+              <button id="roleLookupButton" type="button">Lookup</button>
+            </div>
+          </label>
+          <label class="control-field">
+            <span>Matching users</span>
+            <select id="roleResultsList" size="4"></select>
+          </label>
+          <button id="grantSetterButton" type="button">Grant setter role</button>
+          <p
+            id="roleStatusMessage"
+            class="status-message"
+            role="status"
+            aria-live="polite"
+          ></p>
+        </div>
       </div>
       <button
         id="controlsToggle"
@@ -465,6 +504,9 @@
       getDocs,
       query,
       limit,
+      orderBy,
+      startAt,
+      endAt,
       deleteDoc,
       deleteField,
     } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
@@ -505,6 +547,11 @@
     const controlPanel = document.querySelector('.control-panel');
     const controlsToggle = document.getElementById('controlsToggle');
     const openPreviewButton = document.getElementById('openPreviewButton');
+    const roleSearchInput = document.getElementById('roleSearchInput');
+    const roleLookupButton = document.getElementById('roleLookupButton');
+    const roleResultsList = document.getElementById('roleResultsList');
+    const grantSetterButton = document.getElementById('grantSetterButton');
+    const roleStatusMessage = document.getElementById('roleStatusMessage');
 
     const updatePanelMeasurements = () => {
       if (!controlPanel || !controlsToggle) {
@@ -519,6 +566,9 @@
 
     deleteButton.disabled = true;
     routeSelector.disabled = true;
+    if (grantSetterButton) {
+      grantSetterButton.disabled = true;
+    }
 
     const canvasContainer = document.querySelector('.canvas-container');
     const canvas = document.getElementById('drawingCanvas');
@@ -535,9 +585,12 @@
     let hasUnsavedChanges = false;
     let isSaving = false;
     let currentUserEmail = '';
+    let currentUserId = null;
     let isCanvasScrollable = false;
 
     const routesCache = new Map();
+    const roleSearchResults = new Map();
+    const MAX_ROLE_RESULTS = 10;
 
     if (controlsToggle && controlPanel) {
       updatePanelMeasurements();
@@ -563,6 +616,92 @@
         window.location.href = 'index.html';
       });
     }
+
+    if (roleLookupButton) {
+      roleLookupButton.addEventListener('click', () => {
+        performRoleLookup();
+      });
+    }
+
+    if (roleSearchInput) {
+      roleSearchInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          performRoleLookup();
+        }
+      });
+    }
+
+    if (roleResultsList) {
+      roleResultsList.addEventListener('change', () => {
+        updateRoleActionState();
+        const selectedId = roleResultsList.value;
+        if (!selectedId || !roleSearchResults.has(selectedId)) {
+          setRoleStatus('Select a user to grant setter access.', 'info');
+          return;
+        }
+
+        const entry = roleSearchResults.get(selectedId);
+        if (entry.role === 'setter') {
+          setRoleStatus(`${entry.email} is already a setter.`, 'info');
+        } else if (currentUserId && selectedId === currentUserId) {
+          setRoleStatus('You already have setter access.', 'info');
+        } else {
+          setRoleStatus(`Ready to grant setter role to ${entry.email}.`, 'info');
+        }
+      });
+    }
+
+    if (grantSetterButton) {
+      grantSetterButton.addEventListener('click', async () => {
+        const selectedId = roleResultsList?.value || '';
+        if (!selectedId || !roleSearchResults.has(selectedId)) {
+          setRoleStatus('Select a user to grant setter access.', 'info');
+          updateRoleActionState();
+          return;
+        }
+
+        const entry = roleSearchResults.get(selectedId);
+        if (entry.role === 'setter') {
+          setRoleStatus(`${entry.email} is already a setter.`, 'info');
+          updateRoleActionState();
+          return;
+        }
+
+        if (currentUserId && selectedId === currentUserId) {
+          setRoleStatus('You already have setter access.', 'info');
+          updateRoleActionState();
+          return;
+        }
+
+        try {
+          grantSetterButton.disabled = true;
+          setRoleStatus(`Granting setter role to ${entry.email}…`, 'info');
+          const roleRef = doc(db, 'roles', selectedId);
+          const email = entry.email || '';
+          await setDoc(
+            roleRef,
+            {
+              role: 'setter',
+              updatedAt: serverTimestamp(),
+              email,
+              emailLower: email.toLowerCase(),
+            },
+            { merge: true },
+          );
+          roleSearchResults.set(selectedId, { ...entry, role: 'setter' });
+          updateRoleOptionLabel(selectedId);
+          updateRoleActionState();
+          setRoleStatus(`Setter role granted to ${entry.email}.`, 'success');
+        } catch (error) {
+          console.error('Failed to grant setter role:', error);
+          setRoleStatus('Unable to grant setter role. Please try again.', 'error');
+          updateRoleActionState();
+        }
+      });
+    }
+
+    resetRoleManagementUI();
 
     function normalizeDateValue(value) {
       if (!value) {
@@ -692,6 +831,184 @@
       }
       routeStatus.textContent = '';
       delete routeStatus.dataset.variant;
+    }
+
+    function setRoleStatus(message, variant = 'info') {
+      if (!roleStatusMessage) {
+        return;
+      }
+      roleStatusMessage.textContent = message;
+      if (variant) {
+        roleStatusMessage.dataset.variant = variant;
+      } else {
+        delete roleStatusMessage.dataset.variant;
+      }
+    }
+
+    function clearRoleStatus() {
+      if (!roleStatusMessage) {
+        return;
+      }
+      roleStatusMessage.textContent = '';
+      delete roleStatusMessage.dataset.variant;
+    }
+
+    function clearRoleResults(placeholder = 'Search for a user to begin.') {
+      roleSearchResults.clear();
+      if (roleResultsList) {
+        roleResultsList.innerHTML = '';
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = placeholder;
+        option.disabled = true;
+        option.selected = true;
+        roleResultsList.append(option);
+      }
+      updateRoleActionState();
+    }
+
+    function resetRoleManagementUI(message = 'Search for a user to begin.') {
+      if (roleSearchInput) {
+        roleSearchInput.value = '';
+      }
+      if (message) {
+        setRoleStatus(message, 'info');
+      } else {
+        clearRoleStatus();
+      }
+      clearRoleResults(message || 'Search for a user to begin.');
+    }
+
+    function updateRoleOptionLabel(userId) {
+      if (!roleResultsList || !roleSearchResults.has(userId)) {
+        return;
+      }
+      const record = roleSearchResults.get(userId);
+      const email = record?.email || 'Unknown email';
+      const role = record?.role || 'unknown';
+      const suffix = currentUserId && userId === currentUserId ? ' (you)' : '';
+      const label = `${email} – ${role}${suffix}`;
+      for (const option of roleResultsList.options) {
+        if (option.value === userId) {
+          option.textContent = label;
+          break;
+        }
+      }
+    }
+
+    function updateRoleActionState() {
+      if (!grantSetterButton) {
+        return;
+      }
+      const selectedId = roleResultsList?.value || '';
+      if (!selectedId || !roleSearchResults.has(selectedId)) {
+        grantSetterButton.disabled = true;
+        return;
+      }
+
+      const record = roleSearchResults.get(selectedId);
+      const isSelf = currentUserId && selectedId === currentUserId;
+      grantSetterButton.disabled = record?.role === 'setter' || Boolean(isSelf);
+    }
+
+    async function performRoleLookup() {
+      if (!roleSearchInput) {
+        return;
+      }
+
+      const rawTerm = roleSearchInput.value.trim();
+      const normalized = rawTerm.toLowerCase();
+
+      if (!normalized) {
+        clearRoleResults('Enter an email to search');
+        setRoleStatus('Enter an email address to search.', 'info');
+        return;
+      }
+
+      setRoleStatus('Searching for users…', 'info');
+
+      if (roleResultsList) {
+        roleResultsList.innerHTML = '';
+        const loadingOption = document.createElement('option');
+        loadingOption.value = '';
+        loadingOption.textContent = 'Searching…';
+        loadingOption.disabled = true;
+        loadingOption.selected = true;
+        roleResultsList.append(loadingOption);
+      }
+      updateRoleActionState();
+
+      try {
+        const rolesQuery = query(
+          collection(db, 'roles'),
+          orderBy('email'),
+          startAt(rawTerm),
+          endAt(`${rawTerm}\uf8ff`),
+          limit(MAX_ROLE_RESULTS),
+        );
+
+        const snapshot = await getDocs(rolesQuery);
+        roleSearchResults.clear();
+
+        if (!roleResultsList) {
+          return;
+        }
+
+        roleResultsList.innerHTML = '';
+
+        const matches = [];
+
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data() || {};
+          const email = typeof data.email === 'string' ? data.email.trim() : '';
+          const role = typeof data.role === 'string' ? data.role.trim() : 'climber';
+          if (!email) {
+            return;
+          }
+
+          if (!email.toLowerCase().includes(normalized)) {
+            return;
+          }
+
+          matches.push({ id: docSnap.id, email, role });
+        });
+
+        if (matches.length === 0) {
+          clearRoleResults('No users found');
+          setRoleStatus('No matching users found.', 'info');
+          return;
+        }
+
+        for (const match of matches) {
+          const { id, email, role } = match;
+          roleSearchResults.set(id, { email, role });
+          const option = document.createElement('option');
+          option.value = id;
+          option.textContent = `${email} – ${role}${currentUserId && id === currentUserId ? ' (you)' : ''}`;
+          roleResultsList.append(option);
+        }
+
+        roleResultsList.selectedIndex = 0;
+        updateRoleActionState();
+
+        const firstId = roleResultsList.value;
+        if (firstId && roleSearchResults.has(firstId)) {
+          const entry = roleSearchResults.get(firstId);
+          if (entry.role === 'setter') {
+            setRoleStatus(`${entry.email} is already a setter.`, 'info');
+          } else if (currentUserId && firstId === currentUserId) {
+            setRoleStatus('You already have setter access.', 'info');
+          } else {
+            setRoleStatus(`Ready to grant setter role to ${entry.email}.`, 'info');
+          }
+        } else {
+          setRoleStatus('Select a user to grant setter access.', 'info');
+        }
+      } catch (error) {
+        console.error('Failed to lookup user roles:', error);
+        clearRoleResults('Unable to load users');
+        setRoleStatus('Failed to search for users. Please try again.', 'error');
+      }
     }
 
     function markUnsavedChange() {
@@ -1314,10 +1631,24 @@
       const existingSnap = await getDoc(roleRef);
 
       if (existingSnap.exists()) {
+        const existingData = existingSnap.data() || {};
+        if (existingData.email && !existingData.emailLower) {
+          try {
+            await setDoc(
+              roleRef,
+              { emailLower: String(existingData.email).toLowerCase(), updatedAt: serverTimestamp() },
+              { merge: true },
+            );
+          } catch (error) {
+            console.warn('Failed to backfill emailLower field:', error);
+          }
+        }
         return existingSnap.data();
       }
 
       let role = 'climber';
+
+      const email = typeof user.email === 'string' ? user.email.trim() : '';
 
       try {
         const snapshot = await getDocs(query(collection(db, 'roles'), limit(1)));
@@ -1330,7 +1661,8 @@
 
       const roleData = {
         role,
-        email: user.email ?? '',
+        email,
+        emailLower: email.toLowerCase(),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -1365,16 +1697,25 @@
       routeSelector.disabled = true;
       deleteButton.disabled = true;
       clearStatus();
+      resetRoleManagementUI('Setter access required to manage roles.');
     }
 
     function handleAuthorized() {
       unauthorizedNotice.classList.add('hidden');
       appContent.classList.remove('hidden');
       routeSelector.disabled = false;
+      for (const userId of roleSearchResults.keys()) {
+        updateRoleOptionLabel(userId);
+      }
+      updateRoleActionState();
+      if (!roleResultsList || !roleResultsList.value || !roleSearchResults.has(roleResultsList.value)) {
+        setRoleStatus('Search for a user to grant setter access.', 'info');
+      }
     }
 
     onAuthStateChanged(auth, async (user) => {
       if (user) {
+        currentUserId = user.uid;
         currentUserEmail = user.email ?? '';
         authOverlay.classList.add('hidden');
 
@@ -1405,6 +1746,7 @@
         }
       } else {
         currentUserEmail = '';
+        currentUserId = null;
         authOverlay.classList.remove('hidden');
         appContent.classList.add('hidden');
         unauthorizedNotice.classList.add('hidden');
@@ -1413,6 +1755,7 @@
         authForm.reset();
         prepareNewRoute();
         clearStatus();
+        resetRoleManagementUI();
         setAuthMode('login');
       }
     });
