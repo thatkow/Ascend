@@ -672,6 +672,7 @@
       getDocs,
       query,
       limit,
+      where,
       orderBy,
       startAt,
       endAt,
@@ -1275,14 +1276,14 @@
           await setDoc(
             roleRef,
             {
-              role: 'climber',
+              role: 'default',
               updatedAt: serverTimestamp(),
               email,
               emailLower: email.toLowerCase(),
             },
             { merge: true },
           );
-          roleSearchResults.set(selectedId, { ...entry, role: 'climber' });
+          roleSearchResults.set(selectedId, { ...entry, role: 'default' });
           updateRoleOptionLabel(selectedId);
           updateRoleActionState();
           setRoleStatus(`Setter role removed from ${entry.email}.`, 'success');
@@ -1577,7 +1578,7 @@
         snapshot.forEach((docSnap) => {
           const data = docSnap.data() || {};
           const email = typeof data.email === 'string' ? data.email.trim() : '';
-          const role = typeof data.role === 'string' ? data.role.trim() : 'climber';
+          const role = typeof data.role === 'string' ? data.role.trim() : 'default';
           if (!email) {
             return;
           }
@@ -2266,12 +2267,14 @@
         return existingSnap.data();
       }
 
-      let role = 'climber';
+      let role = 'default';
 
       const email = typeof user.email === 'string' ? user.email.trim() : '';
 
       try {
-        const snapshot = await getDocs(query(collection(db, 'roles'), limit(1)));
+        const snapshot = await getDocs(
+          query(collection(db, 'roles'), where('role', '==', 'setter'), limit(1)),
+        );
         if (snapshot.empty) {
           role = 'setter';
         }
@@ -2300,14 +2303,15 @@
         const roleRef = doc(db, 'roles', user.uid);
         const roleSnap = await getDoc(roleRef);
         if (roleSnap.exists()) {
-          return roleSnap.data().role;
+          const data = roleSnap.data();
+          return typeof data.role === 'string' ? data.role.trim() : 'default';
         }
 
         const createdRole = await ensureUserRole(user);
-        return createdRole ? createdRole.role : null;
+        return createdRole ? createdRole.role : 'default';
       } catch (error) {
         console.error('Failed to fetch user role:', error);
-        return null;
+        return 'default';
       }
     }
 
