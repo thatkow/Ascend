@@ -46,10 +46,11 @@
       justify-content: center;
       gap: 0.35rem;
       align-self: center;
+      order: 2;
       writing-mode: vertical-rl;
       text-orientation: mixed;
       border: none;
-      border-radius: 0.85rem 0 0 0.85rem;
+      border-radius: 0 0.85rem 0.85rem 0;
       background: rgba(0, 0, 0, 0.6);
       color: #fff;
       padding: 1.5rem 0.65rem;
@@ -86,11 +87,15 @@
     }
 
     .control-panel[data-expanded='false'] .controls {
-      transform: translateX(calc(100% + 0.25rem));
+      transform: translateX(calc(-100% - 0.25rem));
     }
 
     .control-panel[data-expanded='true'] .controls {
       transform: translateX(0);
+    }
+
+    .controls {
+      order: 1;
     }
 
     .sr-only {
@@ -159,8 +164,7 @@
       border-radius: 0.65rem;
     }
 
-    .controls button,
-    .controls a.control-link {
+    .controls button {
       border: none;
       border-radius: 0.65rem;
       padding: 0.55rem 0.85rem;
@@ -170,7 +174,6 @@
       transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
       color: #111;
       text-align: center;
-      text-decoration: none;
     }
 
     #clearButton {
@@ -192,8 +195,12 @@
       color: #fff;
     }
 
-    .controls button:hover,
-    .controls a.control-link:hover {
+    #openPreviewButton {
+      background: rgba(255, 255, 255, 0.4);
+      color: #111;
+    }
+
+    .controls button:hover {
       transform: translateY(-2px);
       box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
     }
@@ -292,40 +299,6 @@
       font-size: 0.85rem;
     }
 
-    .app-header {
-      position: fixed;
-      top: 1rem;
-      left: 1rem;
-      z-index: 10;
-      display: flex;
-      gap: 0.75rem;
-      align-items: center;
-      background: rgba(0, 0, 0, 0.55);
-      padding: 0.65rem 1rem;
-      border-radius: 999px;
-      backdrop-filter: blur(6px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-    }
-
-    .role-badge {
-      padding: 0.4rem 0.85rem;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.15);
-      font-size: 0.8rem;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
-    .preview-link {
-      background: rgba(255, 255, 255, 0.25);
-      color: #fff;
-    }
-
-    .preview-link:hover {
-      background: rgba(255, 255, 255, 0.4);
-      color: #111;
-    }
-
     .unauthorized {
       position: fixed;
       inset: 0;
@@ -397,21 +370,8 @@
   </div>
 
   <div id="appContent" class="hidden">
-    <header class="app-header">
-      <span id="roleBadge" class="role-badge hidden" aria-live="polite"></span>
-    </header>
     <canvas id="drawingCanvas"></canvas>
     <div class="control-panel" data-expanded="true">
-      <button
-        id="controlsToggle"
-        class="panel-toggle"
-        type="button"
-        aria-expanded="true"
-        aria-controls="controlsPanel"
-      >
-        <span class="sr-only">Toggle menu</span>
-        Menu
-      </button>
       <div id="controlsPanel" class="controls">
         <div class="control-section">
           <label class="control-field">
@@ -447,10 +407,22 @@
           <button id="deleteButton" type="button">Delete route</button>
           <button id="clearButton" type="button">Clear drawing</button>
           <button id="signOutButton" type="button">Sign Out</button>
-          <a class="control-link preview-link" href="index.html">Preview</a>
+          <button id="openPreviewButton" type="button">Open Preview</button>
         </div>
       </div>
+      <button
+        id="controlsToggle"
+        class="panel-toggle"
+        type="button"
+        aria-expanded="true"
+        aria-controls="controlsPanel"
+      >
+        <span class="sr-only">Toggle menu</span>
+        Menu
+      </button>
     </div>
+
+  </div>
 
   <div id="unauthorizedNotice" class="unauthorized hidden" role="alert">
     <p><strong>Access denied.</strong> Your account does not have permission to use the setter tools.</p>
@@ -509,7 +481,6 @@
     const signOutButton = document.getElementById('signOutButton');
     const unauthorizedSignOut = document.getElementById('unauthorizedSignOut');
     const unauthorizedNotice = document.getElementById('unauthorizedNotice');
-    const roleBadge = document.getElementById('roleBadge');
     const routeSelector = document.getElementById('routeSelector');
     const routeSetterInput = document.getElementById('routeSetterInput');
     const routeTitleInput = document.getElementById('routeTitleInput');
@@ -520,6 +491,7 @@
     const routeStatus = document.getElementById('routeStatus');
     const controlPanel = document.querySelector('.control-panel');
     const controlsToggle = document.getElementById('controlsToggle');
+    const openPreviewButton = document.getElementById('openPreviewButton');
 
     deleteButton.disabled = true;
     routeSelector.disabled = true;
@@ -547,6 +519,12 @@
         const next = !expanded;
         controlPanel.setAttribute('data-expanded', String(next));
         controlsToggle.setAttribute('aria-expanded', String(next));
+      });
+    }
+
+    if (openPreviewButton) {
+      openPreviewButton.addEventListener('click', () => {
+        window.location.href = 'index.html';
       });
     }
 
@@ -1286,21 +1264,17 @@
       }
     }
 
-    function handleUnauthorized(role) {
+    function handleUnauthorized() {
       appContent.classList.add('hidden');
       unauthorizedNotice.classList.remove('hidden');
-      roleBadge.textContent = role ? role.toUpperCase() : '';
-      roleBadge.classList.toggle('hidden', !role);
       routeSelector.disabled = true;
       deleteButton.disabled = true;
       clearStatus();
     }
 
-    function handleAuthorized(role) {
+    function handleAuthorized() {
       unauthorizedNotice.classList.add('hidden');
       appContent.classList.remove('hidden');
-      roleBadge.textContent = role.toUpperCase();
-      roleBadge.classList.remove('hidden');
       routeSelector.disabled = false;
     }
 
@@ -1318,11 +1292,11 @@
         }
 
         if (role !== 'setter') {
-          handleUnauthorized(role);
+          handleUnauthorized();
           return;
         }
 
-        handleAuthorized(role);
+        handleAuthorized();
 
         try {
           await loadRoutesList(currentRouteKey);
@@ -1339,7 +1313,6 @@
         authOverlay.classList.remove('hidden');
         appContent.classList.add('hidden');
         unauthorizedNotice.classList.add('hidden');
-        roleBadge.classList.add('hidden');
         routeSelector.disabled = true;
         deleteButton.disabled = true;
         authForm.reset();
