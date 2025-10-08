@@ -306,6 +306,7 @@
         doc,
         getDoc,
         setDoc,
+        deleteDoc,
         serverTimestamp,
         collection,
         getDocs,
@@ -818,15 +819,15 @@
               console.warn('Unable to load existing ascents before removal:', loadError);
             }
 
-            await setDoc(
-              ascentRef,
-              {
+            if (Object.keys(remainingRoutes).length === 0) {
+              await deleteDoc(ascentRef);
+            } else {
+              await setDoc(ascentRef, {
                 climber_email: email,
                 updatedAt: serverTimestamp(),
                 routes: remainingRoutes,
-              },
-              { merge: true },
-            );
+              });
+            }
             ascendedRoutes.delete(routeId);
           } else {
             await setDoc(
