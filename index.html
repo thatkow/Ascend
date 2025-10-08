@@ -438,8 +438,8 @@
       <form id="authForm" class="auth-card">
         <h1 id="authTitle">Sign in to continue</h1>
         <label class="auth-field">
-          <span>Email</span>
-          <input id="authEmail" type="email" name="email" autocomplete="email" required />
+          <span>Username</span>
+          <input id="authUsername" type="text" name="username" autocomplete="username" required />
         </label>
         <label class="auth-field">
           <span>Password</span>
@@ -503,6 +503,8 @@
         signInWithEmailAndPassword,
         createUserWithEmailAndPassword,
         signOut,
+        updateProfile,
+        deleteUser,
       } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
       import {
         getFirestore,
@@ -536,7 +538,7 @@
       const authOverlay = document.getElementById('authOverlay');
       const appContent = document.getElementById('appContent');
       const authForm = document.getElementById('authForm');
-      const authEmail = document.getElementById('authEmail');
+      const authUsername = document.getElementById('authUsername');
       const authPassword = document.getElementById('authPassword');
       const authError = document.getElementById('authError');
       const authTitle = document.getElementById('authTitle');
@@ -547,6 +549,23 @@
       const tooltip = document.getElementById('routeTooltip');
       const infoButton = document.getElementById('infoButton');
       const infoPopover = document.getElementById('infoPopover');
+
+      const SYNTHETIC_EMAIL_DOMAIN = 'users.anuascend.local';
+      const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
+
+      const normalizeUsername = (value) => {
+        if (typeof value !== 'string') {
+          return '';
+        }
+        return value.trim().toLowerCase();
+      };
+
+      const buildSyntheticEmail = (username) => {
+        const normalized = normalizeUsername(username);
+        return normalized ? `${normalized}@${SYNTHETIC_EMAIL_DOMAIN}` : '';
+      };
+
+      const isValidUsername = (value) => USERNAME_PATTERN.test(normalizeUsername(value));
 
       const tooltipColorCanvas = document.createElement('canvas');
       const tooltipColorContext = tooltipColorCanvas.getContext('2d');
@@ -741,6 +760,7 @@
 
       let authMode = 'login';
       let currentUser = null;
+      let currentUsername = '';
       
       function setAuthMode(mode) {
         authMode = mode;
@@ -757,20 +777,146 @@
         setAuthMode(authMode === 'login' ? 'register' : 'login');
       });
 
+      async function lookupUsernameByUid(uid) {
+        if (!uid) {
+          return '';
+        }
+
+        try {
+          const snapshot = await getDocs(
+            query(collection(db, 'usernames'), where('uid', '==', uid), limit(1)),
+          );
+
+          if (snapshot.empty) {
+            return '';
+          }
+
+          const docSnap = snapshot.docs[0];
+          const data = docSnap.data() || {};
+          const fromField = normalizeUsername(data.username);
+          const fromId = normalizeUsername(docSnap.id);
+          return fromField || fromId;
+        } catch (error) {
+          console.error('Failed to look up username by UID:', error);
+          return '';
+        }
+      }
+
+      async function resolveUsernameForUser(user) {
+        if (!user) {
+          return '';
+        }
+
+        const displayName = normalizeUsername(user.displayName);
+        if (isValidUsername(displayName)) {
+          return displayName;
+        }
+
+        const mapped = await lookupUsernameByUid(user.uid);
+        if (isValidUsername(mapped)) {
+          if (!displayName) {
+            try {
+              await updateProfile(user, { displayName: mapped });
+            } catch (error) {
+              console.warn('Unable to synchronise display name with username:', error);
+            }
+          }
+          return mapped;
+        }
+
+        const syntheticEmail = typeof user.email === 'string' ? user.email : '';
+        if (syntheticEmail.endsWith(`@${SYNTHETIC_EMAIL_DOMAIN}`)) {
+          const derived = normalizeUsername(
+            syntheticEmail.slice(0, -(`@${SYNTHETIC_EMAIL_DOMAIN}`.length)),
+          );
+          if (isValidUsername(derived)) {
+            return derived;
+          }
+        }
+
+        return '';
+      }
+
       authForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         authError.textContent = '';
-        const email = authEmail.value.trim();
+
+        const rawUsername = authUsername.value;
+        const normalizedUsername = normalizeUsername(rawUsername);
         const password = authPassword.value;
+
+        if (!normalizedUsername) {
+          authError.textContent = 'Enter your username to continue.';
+          return;
+        }
+
+        if (!isValidUsername(normalizedUsername)) {
+          authError.textContent =
+            'Usernames must be 3-20 characters using only letters, numbers, or underscores.';
+          return;
+        }
+
+        const syntheticEmail = buildSyntheticEmail(normalizedUsername);
 
         try {
           if (authMode === 'login') {
-            await signInWithEmailAndPassword(auth, email, password);
-          } else {
-            await createUserWithEmailAndPassword(auth, email, password);
+            await signInWithEmailAndPassword(auth, syntheticEmail, password);
+            return;
+          }
+
+          const credentials = await createUserWithEmailAndPassword(auth, syntheticEmail, password);
+          const { user } = credentials;
+
+          try {
+            await setDoc(doc(db, 'usernames', normalizedUsername), {
+              uid: user.uid,
+              username: normalizedUsername,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            });
+          } catch (error) {
+            console.error('Failed to reserve username:', error);
+            try {
+              await deleteUser(user);
+            } catch (cleanupError) {
+              console.warn('Unable to clean up user after username failure:', cleanupError);
+            }
+            const usernameError = new Error('Username unavailable');
+            usernameError.code = 'auth/username-unavailable';
+            throw usernameError;
+          }
+
+          try {
+            await updateProfile(user, { displayName: normalizedUsername });
+          } catch (profileError) {
+            console.warn('Failed to update display name:', profileError);
           }
         } catch (error) {
-          authError.textContent = error.message;
+          let message = 'Unable to complete the request. Please try again.';
+
+          switch (error?.code) {
+            case 'auth/user-not-found':
+            case 'auth/wrong-password':
+              message = 'Invalid username or password.';
+              break;
+            case 'auth/email-already-in-use':
+            case 'auth/username-unavailable':
+            case 'permission-denied':
+              message = 'That username is already taken. Choose another one.';
+              break;
+            case 'auth/invalid-email':
+              message = 'Enter a valid username.';
+              break;
+            case 'auth/weak-password':
+              message = 'Choose a stronger password (at least 6 characters).';
+              break;
+            default:
+              if (error?.message) {
+                message = error.message;
+              }
+          }
+
+          authError.textContent = message;
         }
       });
 
@@ -780,16 +926,59 @@
         });
       });
 
-      async function ensureUserRole(user) {
+      async function ensureUserRole(user, username) {
         if (!user) {
           return null;
+        }
+
+        const normalizedUsername = normalizeUsername(username);
+        if (!normalizedUsername) {
+          return { role: 'default' };
         }
 
         const roleRef = doc(db, 'roles', user.uid);
         const existingSnap = await getDoc(roleRef);
 
         if (existingSnap.exists()) {
-          return existingSnap.data();
+          const existingData = existingSnap.data() || {};
+          const storedLowerRaw =
+            typeof existingData.usernameLower === 'string'
+              ? existingData.usernameLower
+              : typeof existingData.username === 'string'
+              ? existingData.username
+              : '';
+          let effectiveLower = normalizeUsername(storedLowerRaw);
+          const trimmedRole =
+            typeof existingData.role === 'string' ? existingData.role.trim() : 'default';
+          const mergedData = {
+            ...existingData,
+            role: trimmedRole,
+          };
+
+          if (effectiveLower !== normalizedUsername || !existingData.username) {
+            try {
+              await setDoc(
+                roleRef,
+                {
+                  username: normalizedUsername,
+                  usernameLower: normalizedUsername,
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: true },
+              );
+              mergedData.username = normalizedUsername;
+              mergedData.usernameLower = normalizedUsername;
+              effectiveLower = normalizedUsername;
+            } catch (error) {
+              console.warn('Failed to synchronise username on role document:', error);
+            }
+          }
+
+          if (effectiveLower !== normalizedUsername) {
+            mergedData.role = 'default';
+          }
+
+          return mergedData;
         }
 
         let role = 'default';
@@ -807,30 +996,29 @@
 
         const roleData = {
           role,
-          email: user.email ?? '',
+          username: normalizedUsername,
+          usernameLower: normalizedUsername,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         };
 
-        await setDoc(roleRef, roleData);
+        await setDoc(roleRef, roleData, { merge: true });
         return roleData;
       }
 
-      async function resolveUserRole(user) {
+      async function resolveUserRole(user, username) {
         if (!user) {
           return null;
         }
 
-        try {
-          const roleRef = doc(db, 'roles', user.uid);
-          const roleSnap = await getDoc(roleRef);
-          if (roleSnap.exists()) {
-            const data = roleSnap.data();
-            return typeof data.role === 'string' ? data.role.trim() : 'default';
-          }
+        const normalizedUsername = normalizeUsername(username);
+        if (!normalizedUsername) {
+          return 'default';
+        }
 
-          const createdRole = await ensureUserRole(user);
-          return createdRole ? createdRole.role : 'default';
+        try {
+          const ensuredRole = await ensureUserRole(user, normalizedUsername);
+          return typeof ensuredRole?.role === 'string' ? ensuredRole.role.trim() : 'default';
         } catch (error) {
           console.error('Failed to fetch user role:', error);
           return 'default';
@@ -846,11 +1034,21 @@
           authOverlay.classList.add('hidden');
 
           currentUser = user;
-          const role = await resolveUserRole(user);
+
+          const resolvedUsername = await resolveUsernameForUser(user);
+          if (!isValidUsername(resolvedUsername)) {
+            authError.textContent =
+              'Unable to resolve your username. Please contact a setter for assistance.';
+            await signOut(auth);
+            return;
+          }
+
+          currentUsername = resolvedUsername;
+          const role = await resolveUserRole(user, resolvedUsername);
 
           updateNavigationForRole(role);
           appContent.classList.remove('hidden');
-          await loadAscents(user.email ?? '');
+          await loadAscents(resolvedUsername);
           await loadRoutes();
         } else {
           authOverlay.classList.remove('hidden');
@@ -860,6 +1058,7 @@
           setAuthMode('login');
           routes = [];
           currentUser = null;
+          currentUsername = '';
           ascendedRoutes.clear();
           routeGrades.clear();
           routeMedianGrades = new Map();
@@ -887,16 +1086,16 @@
       const routeGrades = new Map();
       let routeMedianGrades = new Map();
 
-      async function loadAscents(email) {
+      async function loadAscents(username) {
         ascendedRoutes.clear();
         routeGrades.clear();
 
-        if (!email) {
+        if (!username) {
           return;
         }
 
         try {
-          const ascentRef = doc(db, 'ascents', email);
+          const ascentRef = doc(db, 'ascents', username);
           const ascentSnap = await getDoc(ascentRef);
 
           if (!ascentSnap.exists()) {
@@ -1134,9 +1333,9 @@
           return;
         }
 
-        const email = currentUser.email;
-        if (!email) {
-          console.warn('Unable to save grade: user email missing.');
+        const username = currentUsername;
+        if (!username) {
+          console.warn('Unable to save grade: user username missing.');
           return;
         }
 
@@ -1146,19 +1345,19 @@
           return;
         }
 
-        const ascentRef = doc(db, 'ascents', email);
+        const ascentRef = doc(db, 'ascents', username);
 
         try {
           await setDoc(
             ascentRef,
             {
-              climber_email: email,
+              climber_username: username,
               updatedAt: serverTimestamp(),
               routes: {
                 [route.id]: {
                   grade: sanitizedGrade,
                   route_id: route.id,
-                  climber_email: email,
+                  climber_username: username,
                 },
               },
             },
@@ -1498,14 +1697,14 @@
           return;
         }
 
-        const email = currentUser.email;
-        if (!email) {
-          console.warn('Unable to mark ascent: user email missing.');
+        const username = currentUsername;
+        if (!username) {
+          console.warn('Unable to mark ascent: user username missing.');
           return;
         }
 
         const routeId = route.id;
-        const ascentRef = doc(db, 'ascents', email);
+        const ascentRef = doc(db, 'ascents', username);
         const isAscended = ascendedRoutes.has(routeId);
         let shouldRefreshMedians = false;
 
@@ -1530,7 +1729,7 @@
               await deleteDoc(ascentRef);
             } else {
               await setDoc(ascentRef, {
-                climber_email: email,
+                climber_username: username,
                 updatedAt: serverTimestamp(),
                 routes: remainingRoutes,
               });
@@ -1549,13 +1748,13 @@
             await setDoc(
               ascentRef,
               {
-                climber_email: email,
+                climber_username: username,
                 updatedAt: serverTimestamp(),
                 routes: {
                   [routeId]: {
                     route_id: routeId,
                     date_ascended: new Date().toISOString(),
-                    climber_email: email,
+                    climber_username: username,
                     grade: gradeValue,
                   },
                 },

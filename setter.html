@@ -496,8 +496,8 @@
     <form id="authForm" class="auth-card">
       <h1 id="authTitle">Sign in to continue</h1>
       <label class="auth-field">
-        <span>Email</span>
-        <input id="authEmail" type="email" name="email" autocomplete="email" required />
+        <span>Username</span>
+        <input id="authUsername" type="text" name="username" autocomplete="username" required />
       </label>
       <label class="auth-field">
         <span>Password</span>
@@ -527,7 +527,7 @@
           </label>
           <label class="control-field">
             <span>Setter</span>
-            <input id="routeSetterInput" type="email" placeholder="setter@example.com" autocomplete="off" />
+            <input id="routeSetterInput" type="text" placeholder="setter_username" autocomplete="off" />
           </label>
           <label class="control-field">
             <span>Title</span>
@@ -594,12 +594,7 @@
         <div class="control-section">
           <label class="control-field">
             <span>Grant setter access</span>
-            <input
-              id="roleEmailInput"
-              type="email"
-              placeholder="user@example.com"
-              autocomplete="off"
-            />
+            <input id="roleUsernameInput" type="text" placeholder="username" autocomplete="off" />
           </label>
           <button id="grantSetterButton" type="button">Grant setter role</button>
           <p
@@ -640,6 +635,8 @@
       signInWithEmailAndPassword,
       createUserWithEmailAndPassword,
       signOut,
+      updateProfile,
+      deleteUser,
     } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
     import {
       getFirestore,
@@ -673,7 +670,7 @@
     const authOverlay = document.getElementById('authOverlay');
     const appContent = document.getElementById('appContent');
     const authForm = document.getElementById('authForm');
-    const authEmail = document.getElementById('authEmail');
+    const authUsername = document.getElementById('authUsername');
     const authPassword = document.getElementById('authPassword');
     const authError = document.getElementById('authError');
     const authTitle = document.getElementById('authTitle');
@@ -692,7 +689,7 @@
     const controlPanel = document.querySelector('.control-panel');
     const controlsToggle = document.getElementById('controlsToggle');
     const openPreviewButton = document.getElementById('openPreviewButton');
-    const roleEmailInput = document.getElementById('roleEmailInput');
+    const roleUsernameInput = document.getElementById('roleUsernameInput');
     const grantSetterButton = document.getElementById('grantSetterButton');
     const roleStatusMessage = document.getElementById('roleStatusMessage');
 
@@ -712,8 +709,8 @@
     if (grantSetterButton) {
       grantSetterButton.disabled = true;
     }
-    if (roleEmailInput) {
-      roleEmailInput.disabled = true;
+    if (roleUsernameInput) {
+      roleUsernameInput.disabled = true;
     }
 
     const canvasContainer = document.querySelector('.canvas-container');
@@ -730,6 +727,23 @@
     const clearButton = document.getElementById('clearButton');
     const saveButton = document.getElementById('saveButton');
 
+    const SYNTHETIC_EMAIL_DOMAIN = 'users.anuascend.local';
+    const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
+
+    const normalizeUsername = (value) => {
+      if (typeof value !== 'string') {
+        return '';
+      }
+      return value.trim().toLowerCase();
+    };
+
+    const isValidUsername = (value) => USERNAME_PATTERN.test(normalizeUsername(value));
+
+    const buildSyntheticEmail = (username) => {
+      const normalized = normalizeUsername(username);
+      return normalized ? `${normalized}@${SYNTHETIC_EMAIL_DOMAIN}` : '';
+    };
+
     const points = [];
     let strokeColor = sanitizeColor(colorPicker.value || '#ffde59');
     let wheelHue = 48;
@@ -741,18 +755,11 @@
     let currentRouteKey = '';
     let hasUnsavedChanges = false;
     let isSaving = false;
-    let currentUserEmail = '';
+    let currentUsername = '';
     let currentUserId = null;
     let isCanvasScrollable = false;
 
     const routesCache = new Map();
-    const normalizeEmail = (value) => {
-      if (typeof value !== 'string') {
-        return '';
-      }
-      return value.trim().toLowerCase();
-    };
-
     if (controlsToggle && controlPanel) {
       updatePanelMeasurements();
 
@@ -1135,14 +1142,14 @@
       if (grantSetterButton) {
         grantSetterButton.disabled = !allow;
       }
-      if (roleEmailInput) {
-        roleEmailInput.disabled = !allow;
+      if (roleUsernameInput) {
+        roleUsernameInput.disabled = !allow;
       }
     }
 
     function resetRoleManagementUI(message = '') {
-      if (roleEmailInput) {
-        roleEmailInput.value = '';
+      if (roleUsernameInput) {
+        roleUsernameInput.value = '';
       }
 
       if (message) {
@@ -1152,90 +1159,95 @@
       }
     }
 
-    function isLikelyEmail(value) {
-      if (typeof value !== 'string') {
-        return false;
-      }
-      const trimmed = value.trim();
-      if (!trimmed) {
-        return false;
-      }
+    const isLikelyUsername = (value) => isValidUsername(value);
 
-      return /.+@.+\..+/.test(trimmed);
-    }
-
-    async function findRoleByEmail(normalizedEmail) {
-      try {
-        const snapshot = await getDocs(
-          query(collection(db, 'roles'), where('emailLower', '==', normalizedEmail), limit(1)),
-        );
-
-        if (snapshot.empty) {
-          return null;
-        }
-
-        const match = snapshot.docs[0];
-        return { id: match.id, data: match.data() || {} };
-      } catch (error) {
-        console.error('Failed to search for existing role document:', error);
-        throw error;
-      }
-    }
-
-    if (grantSetterButton && roleEmailInput) {
+    if (grantSetterButton && roleUsernameInput) {
       grantSetterButton.addEventListener('click', async () => {
-        const rawEmail = roleEmailInput.value;
-        const trimmedEmail = typeof rawEmail === 'string' ? rawEmail.trim() : '';
+        const rawUsername = roleUsernameInput.value;
+        const trimmedUsername = typeof rawUsername === 'string' ? rawUsername.trim() : '';
 
-        if (!trimmedEmail) {
-          setRoleStatus('Enter the user\'s email address.', 'info');
+        if (!trimmedUsername) {
+          setRoleStatus('Enter the user\'s username.', 'info');
           return;
         }
 
-        if (!isLikelyEmail(trimmedEmail)) {
-          setRoleStatus('Enter a valid email address.', 'error');
+        if (!isLikelyUsername(trimmedUsername)) {
+          setRoleStatus('Enter a valid username (letters, numbers, underscores).', 'error');
           return;
         }
 
-        const normalizedEmail = normalizeEmail(trimmedEmail);
+        const normalizedUsername = normalizeUsername(trimmedUsername);
 
         try {
           setRoleControlsEnabled(false);
-          setRoleStatus(`Granting setter role to ${trimmedEmail}…`, 'info');
+          setRoleStatus(`Granting setter role to ${trimmedUsername}…`, 'info');
 
-          const existingRole = await findRoleByEmail(normalizedEmail);
-          const roleId = existingRole?.id ?? normalizedEmail;
-          const roleRef = doc(db, 'roles', roleId);
+          const usernameRef = doc(db, 'usernames', normalizedUsername);
+          const usernameSnap = await getDoc(usernameRef);
+
+          if (!usernameSnap.exists()) {
+            setRoleStatus('No user found with that username.', 'error');
+            return;
+          }
+
+          const usernameData = usernameSnap.data() || {};
+          const targetUid = typeof usernameData.uid === 'string' ? usernameData.uid.trim() : '';
+
+          if (!targetUid) {
+            setRoleStatus('Unable to resolve that username to a user account.', 'error');
+            return;
+          }
+
+          const roleRef = doc(db, 'roles', targetUid);
+          const roleSnap = await getDoc(roleRef);
+          const existingData = roleSnap.exists() ? roleSnap.data() || {} : {};
+          const existingRole = typeof existingData.role === 'string' ? existingData.role.trim() : '';
+          const existingLowerRaw =
+            typeof existingData.usernameLower === 'string'
+              ? existingData.usernameLower
+              : typeof existingData.username === 'string'
+              ? existingData.username
+              : '';
+          const existingLower = normalizeUsername(existingLowerRaw);
+
+          if (existingRole === 'setter' && existingLower === normalizedUsername) {
+            setRoleStatus(`${trimmedUsername} is already a setter.`, 'success');
+            if (roleUsernameInput) {
+              roleUsernameInput.value = '';
+            }
+            return;
+          }
+
           const payload = {
             role: 'setter',
-            email: trimmedEmail,
-            emailLower: normalizedEmail,
+            username: normalizedUsername,
+            usernameLower: normalizedUsername,
             updatedAt: serverTimestamp(),
           };
 
-          if (!existingRole?.data?.createdAt) {
+          if (!existingData.createdAt) {
             payload.createdAt = serverTimestamp();
           }
 
           await setDoc(roleRef, payload, { merge: true });
 
-          setRoleStatus(`Setter role granted to ${trimmedEmail}.`, 'success');
-          if (roleEmailInput) {
-            roleEmailInput.value = '';
+          setRoleStatus(`Setter role granted to ${trimmedUsername}.`, 'success');
+          if (roleUsernameInput) {
+            roleUsernameInput.value = '';
           }
         } catch (error) {
           console.error('Failed to grant setter role:', error);
           setRoleStatus('Unable to grant setter role. Please try again.', 'error');
         } finally {
           setRoleControlsEnabled(true);
-          if (roleEmailInput) {
-            roleEmailInput.focus();
+          if (roleUsernameInput) {
+            roleUsernameInput.focus();
           }
         }
       });
     }
 
-    resetRoleManagementUI('Enter the email of the user you want to promote.');
+    resetRoleManagementUI('Enter the username of the user you want to promote.');
 
     function normalizeDateValue(value) {
       if (!value) {
@@ -1301,7 +1313,7 @@
       const { date_removed: _unusedDateRemoved, ...rest } = raw || {};
       return {
         ...rest,
-        setter: typeof rest.setter === 'string' ? rest.setter.trim() : '',
+        setter: normalizeUsername(rest.setter),
         title: typeof rest.title === 'string' ? rest.title.trim() : '',
         description: typeof rest.description === 'string' ? rest.description.trim() : '',
         strokeColor: sanitizeColor(rest.strokeColor),
@@ -1667,7 +1679,7 @@
 
       currentRouteKey = routeKey;
       routeSelector.value = routeKey;
-      routeSetterInput.value = data.setter || currentUserEmail || '';
+      routeSetterInput.value = data.setter || currentUsername || '';
       routeTitleInput.value = data.title;
       routeDescriptionInput.value = data.description;
       routeDateSetInput.value = isoStringToInputValue(data.date_set) || '';
@@ -1688,7 +1700,7 @@
     function prepareNewRoute(statusMessage = '') {
       currentRouteKey = '';
       routeSelector.value = '';
-      routeSetterInput.value = currentUserEmail || '';
+      routeSetterInput.value = currentUsername || '';
       routeTitleInput.value = '';
       routeDescriptionInput.value = '';
       routeDateSetInput.value = getNowInputValue();
@@ -1761,10 +1773,16 @@
       }
 
       const normalizedPoints = convertPointsToNormalized();
-      const setter = routeSetterInput.value.trim();
+      const setter = normalizeUsername(routeSetterInput.value);
       routeSetterInput.value = setter;
       if (!setter) {
-        setStatus('Setter email is required before saving.', 'error');
+        setStatus('Setter username is required before saving.', 'error');
+        routeSetterInput.focus();
+        return;
+      }
+
+      if (!isValidUsername(setter)) {
+        setStatus('Setter username must use letters, numbers, or underscores.', 'error');
         routeSetterInput.focus();
         return;
       }
@@ -1986,20 +2004,143 @@
       setAuthMode(authMode === 'login' ? 'register' : 'login');
     });
 
+    async function lookupUsernameByUid(uid) {
+      if (!uid) {
+        return '';
+      }
+
+      try {
+        const snapshot = await getDocs(query(collection(db, 'usernames'), where('uid', '==', uid), limit(1)));
+
+        if (snapshot.empty) {
+          return '';
+        }
+
+        const docSnap = snapshot.docs[0];
+        const data = docSnap.data() || {};
+        const fromField = normalizeUsername(data.username);
+        const fromId = normalizeUsername(docSnap.id);
+        return fromField || fromId;
+      } catch (error) {
+        console.error('Failed to look up username by UID:', error);
+        return '';
+      }
+    }
+
+    async function resolveUsernameForUser(user) {
+      if (!user) {
+        return '';
+      }
+
+      const displayName = normalizeUsername(user.displayName);
+      if (isValidUsername(displayName)) {
+        return displayName;
+      }
+
+      const mapped = await lookupUsernameByUid(user.uid);
+      if (isValidUsername(mapped)) {
+        if (!displayName) {
+          try {
+            await updateProfile(user, { displayName: mapped });
+          } catch (error) {
+            console.warn('Unable to synchronise display name with username:', error);
+          }
+        }
+        return mapped;
+      }
+
+      const syntheticEmail = typeof user.email === 'string' ? user.email : '';
+      if (syntheticEmail.endsWith(`@${SYNTHETIC_EMAIL_DOMAIN}`)) {
+        const derived = normalizeUsername(
+          syntheticEmail.slice(0, -(`@${SYNTHETIC_EMAIL_DOMAIN}`.length)),
+        );
+        if (isValidUsername(derived)) {
+          return derived;
+        }
+      }
+
+      return '';
+    }
+
     authForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       authError.textContent = '';
-      const email = authEmail.value.trim();
+      const rawUsername = authUsername.value;
+      const normalizedUsername = normalizeUsername(rawUsername);
       const password = authPassword.value;
+
+      if (!normalizedUsername) {
+        authError.textContent = 'Enter your username to continue.';
+        return;
+      }
+
+      if (!isValidUsername(normalizedUsername)) {
+        authError.textContent =
+          'Usernames must be 3-20 characters using only letters, numbers, or underscores.';
+        return;
+      }
+
+      const syntheticEmail = buildSyntheticEmail(normalizedUsername);
 
       try {
         if (authMode === 'login') {
-          await signInWithEmailAndPassword(auth, email, password);
-        } else {
-          await createUserWithEmailAndPassword(auth, email, password);
+          await signInWithEmailAndPassword(auth, syntheticEmail, password);
+          return;
+        }
+
+        const credentials = await createUserWithEmailAndPassword(auth, syntheticEmail, password);
+        const { user } = credentials;
+
+        try {
+          await setDoc(doc(db, 'usernames', normalizedUsername), {
+            uid: user.uid,
+            username: normalizedUsername,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        } catch (error) {
+          console.error('Failed to reserve username:', error);
+          try {
+            await deleteUser(user);
+          } catch (cleanupError) {
+            console.warn('Unable to clean up user after username failure:', cleanupError);
+          }
+          const usernameError = new Error('Username unavailable');
+          usernameError.code = 'auth/username-unavailable';
+          throw usernameError;
+        }
+
+        try {
+          await updateProfile(user, { displayName: normalizedUsername });
+        } catch (profileError) {
+          console.warn('Failed to update display name:', profileError);
         }
       } catch (error) {
-        authError.textContent = error.message;
+        let message = 'Unable to complete the request. Please try again.';
+
+        switch (error?.code) {
+          case 'auth/user-not-found':
+          case 'auth/wrong-password':
+            message = 'Invalid username or password.';
+            break;
+          case 'auth/email-already-in-use':
+          case 'auth/username-unavailable':
+          case 'permission-denied':
+            message = 'That username is already taken. Choose another one.';
+            break;
+          case 'auth/invalid-email':
+            message = 'Enter a valid username.';
+            break;
+          case 'auth/weak-password':
+            message = 'Choose a stronger password (at least 6 characters).';
+            break;
+          default:
+            if (error?.message) {
+              message = error.message;
+            }
+        }
+
+        authError.textContent = message;
       }
     });
 
@@ -2015,72 +2156,104 @@
       });
     });
 
-    async function ensureUserRole(user) {
+    async function ensureUserRole(user, username) {
       if (!user) {
         return null;
       }
 
-      const roleRef = doc(db, 'roles', user.uid);
-      const existingSnap = await getDoc(roleRef);
+      const normalizedUsername = normalizeUsername(username);
 
-      if (existingSnap.exists()) {
-        const existingData = existingSnap.data() || {};
-        if (existingData.email && !existingData.emailLower) {
-          try {
-            await setDoc(
-              roleRef,
-              { emailLower: String(existingData.email).toLowerCase(), updatedAt: serverTimestamp() },
-              { merge: true },
-            );
-          } catch (error) {
-            console.warn('Failed to backfill emailLower field:', error);
-          }
-        }
-        return existingSnap.data();
-      }
-
-      let role = 'default';
-
-      const email = typeof user.email === 'string' ? user.email.trim() : '';
-
-      try {
-        const snapshot = await getDocs(
-          query(collection(db, 'roles'), where('role', '==', 'setter'), limit(1)),
-        );
-        if (snapshot.empty) {
-          role = 'setter';
-        }
-      } catch (error) {
-        console.warn('Unable to inspect existing roles:', error);
-      }
-
-      const roleData = {
-        role,
-        email,
-        emailLower: email.toLowerCase(),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-
-      await setDoc(roleRef, roleData);
-      return roleData;
-    }
-
-    async function resolveUserRole(user) {
-      if (!user) {
-        return null;
+      if (!normalizedUsername) {
+        return { role: 'default' };
       }
 
       try {
         const roleRef = doc(db, 'roles', user.uid);
         const roleSnap = await getDoc(roleRef);
+
         if (roleSnap.exists()) {
-          const data = roleSnap.data();
-          return typeof data.role === 'string' ? data.role.trim() : 'default';
+          const data = roleSnap.data() || {};
+          const storedLowerRaw =
+            typeof data.usernameLower === 'string'
+              ? data.usernameLower
+              : typeof data.username === 'string'
+              ? data.username
+              : '';
+          let effectiveLower = normalizeUsername(storedLowerRaw);
+          const trimmedRole = typeof data.role === 'string' ? data.role.trim() : 'default';
+          const mergedData = {
+            ...data,
+            role: trimmedRole,
+          };
+
+          if (effectiveLower !== normalizedUsername || !data.username) {
+            try {
+              await setDoc(
+                roleRef,
+                {
+                  username: normalizedUsername,
+                  usernameLower: normalizedUsername,
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: true },
+              );
+              mergedData.username = normalizedUsername;
+              mergedData.usernameLower = normalizedUsername;
+              effectiveLower = normalizedUsername;
+            } catch (error) {
+              console.warn('Failed to synchronise username on role document:', error);
+            }
+          }
+
+          if (effectiveLower !== normalizedUsername) {
+            mergedData.role = 'default';
+          }
+
+          return mergedData;
         }
 
-        const createdRole = await ensureUserRole(user);
-        return createdRole ? createdRole.role : 'default';
+        let role = 'default';
+
+        try {
+          const snapshot = await getDocs(
+            query(collection(db, 'roles'), where('role', '==', 'setter'), limit(1)),
+          );
+          if (snapshot.empty) {
+            role = 'setter';
+          }
+        } catch (error) {
+          console.warn('Unable to inspect existing roles:', error);
+        }
+
+        const roleData = {
+          role,
+          username: normalizedUsername,
+          usernameLower: normalizedUsername,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+
+        await setDoc(roleRef, roleData, { merge: true });
+        return roleData;
+      } catch (error) {
+        console.error('Failed to ensure user role:', error);
+        return { role: 'default' };
+      }
+    }
+
+    async function resolveUserRole(user, username) {
+      if (!user) {
+        return null;
+      }
+
+      const normalizedUsername = normalizeUsername(username);
+      if (!isValidUsername(normalizedUsername)) {
+        return 'default';
+      }
+
+      try {
+        const ensuredRole = await ensureUserRole(user, normalizedUsername);
+        return typeof ensuredRole?.role === 'string' ? ensuredRole.role.trim() : 'default';
       } catch (error) {
         console.error('Failed to fetch user role:', error);
         return 'default';
@@ -2108,10 +2281,19 @@
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         currentUserId = user.uid;
-        currentUserEmail = user.email ?? '';
         authOverlay.classList.add('hidden');
 
-        const role = await resolveUserRole(user);
+        const resolvedUsername = await resolveUsernameForUser(user);
+        if (!isValidUsername(resolvedUsername)) {
+          authError.textContent =
+            'Unable to resolve your username. Please contact another setter for assistance.';
+          await signOut(auth);
+          return;
+        }
+
+        currentUsername = resolvedUsername;
+
+        const role = await resolveUserRole(user, resolvedUsername);
 
         if (!role) {
           authError.textContent = 'Unable to determine your role. Please try again later.';
@@ -2137,7 +2319,7 @@
           console.error('Unable to initialise routes:', error);
         }
       } else {
-        currentUserEmail = '';
+        currentUsername = '';
         currentUserId = null;
         authOverlay.classList.remove('hidden');
         appContent.classList.add('hidden');
