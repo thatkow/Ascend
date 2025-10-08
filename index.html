@@ -408,16 +408,17 @@
         align-items: center;
         gap: 0.35rem;
         font-weight: 600;
-        color: var(--tooltip-accent, #7ed957);
+        color: var(--tooltip-foreground, #fff);
       }
 
       .ascend-status::before {
         content: '✔';
         font-size: 0.9rem;
+        color: inherit;
       }
 
       .ascend-status.not-ascended {
-        color: rgba(255, 255, 255, 0.7);
+        opacity: 0.75;
       }
 
       .ascend-status.not-ascended::before {
