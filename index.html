@@ -505,6 +505,7 @@
         signOut,
         updateProfile,
         deleteUser,
+        getIdTokenResult,
       } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
       import {
         getFirestore,
@@ -559,6 +560,58 @@
         }
         return value.trim().toLowerCase();
       };
+
+      function cacheAuthenticatedUsername(username) {
+        const normalized = normalizeUsername(username);
+        authenticatedUsernameClaim = isValidUsername(normalized) ? normalized : '';
+        return authenticatedUsernameClaim;
+      }
+
+      async function resolveAuthenticatedUsername(options = {}) {
+        const { forceRefresh = false } = options;
+
+        if (!currentUser) {
+          authenticatedUsernameClaim = '';
+          return isValidUsername(currentUsername) ? normalizeUsername(currentUsername) : '';
+        }
+
+        if (!forceRefresh) {
+          const cachedClaim = normalizeUsername(authenticatedUsernameClaim);
+          if (isValidUsername(cachedClaim)) {
+            return cachedClaim;
+          }
+        }
+
+        const fallbackUsername = isValidUsername(currentUsername)
+          ? normalizeUsername(currentUsername)
+          : '';
+
+        try {
+          const tokenResult = await getIdTokenResult(currentUser, forceRefresh);
+          const claimUsername = normalizeUsername(tokenResult?.claims?.username);
+
+          if (isValidUsername(claimUsername)) {
+            return cacheAuthenticatedUsername(claimUsername);
+          }
+        } catch (error) {
+          console.warn(
+            forceRefresh
+              ? 'Failed to refresh authenticated username claim:'
+              : 'Failed to read authenticated username claim:',
+            error,
+          );
+        }
+
+        if (!forceRefresh) {
+          return resolveAuthenticatedUsername({ forceRefresh: true });
+        }
+
+        if (fallbackUsername) {
+          return cacheAuthenticatedUsername(fallbackUsername);
+        }
+
+        return '';
+      }
 
       const buildSyntheticEmail = (username) => {
         const normalized = normalizeUsername(username);
@@ -761,6 +814,7 @@
       let authMode = 'login';
       let currentUser = null;
       let currentUsername = '';
+      let authenticatedUsernameClaim = '';
       
       function setAuthMode(mode) {
         authMode = mode;
@@ -1043,12 +1097,18 @@
             return;
           }
 
-          currentUsername = resolvedUsername;
-          const role = await resolveUserRole(user, resolvedUsername);
+          currentUsername = normalizeUsername(resolvedUsername);
+          authenticatedUsernameClaim = '';
+          const canonicalUsername = await resolveAuthenticatedUsername();
+          if (isValidUsername(canonicalUsername)) {
+            currentUsername = canonicalUsername;
+          }
+
+          const role = await resolveUserRole(user, currentUsername);
 
           updateNavigationForRole(role);
           appContent.classList.remove('hidden');
-          await loadAscents(resolvedUsername);
+          await loadAscents(currentUsername);
           await loadRoutes();
         } else {
           authOverlay.classList.remove('hidden');
@@ -1059,6 +1119,7 @@
           routes = [];
           currentUser = null;
           currentUsername = '';
+          authenticatedUsernameClaim = '';
           ascendedRoutes.clear();
           routeGrades.clear();
           routeMedianGrades = new Map();
@@ -1090,12 +1151,13 @@
         ascendedRoutes.clear();
         routeGrades.clear();
 
-        if (!username) {
+        const normalizedUsername = normalizeUsername(username);
+        if (!isValidUsername(normalizedUsername)) {
           return;
         }
 
         try {
-          const ascentRef = doc(db, 'ascents', username);
+          const ascentRef = doc(db, 'ascents', normalizedUsername);
           const ascentSnap = await getDoc(ascentRef);
 
           if (!ascentSnap.exists()) {
@@ -1333,7 +1395,7 @@
           return;
         }
 
-        const username = currentUsername;
+        const username = await resolveAuthenticatedUsername();
         if (!username) {
           console.warn('Unable to save grade: user username missing.');
           return;
@@ -1697,7 +1759,7 @@
           return;
         }
 
-        const username = currentUsername;
+        const username = await resolveAuthenticatedUsername();
         if (!username) {
           console.warn('Unable to mark ascent: user username missing.');
           return;
