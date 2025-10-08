@@ -22,10 +22,24 @@
       display: none !important;
     }
 
-    canvas {
-      display: block;
+    .canvas-container {
+      position: relative;
       width: 100vw;
       height: 100vh;
+      overflow: hidden;
+    }
+
+    .canvas-container.scrollable {
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    canvas {
+      display: block;
+      height: 100%;
+      width: auto;
+      min-width: 100%;
       cursor: crosshair;
     }
 
@@ -369,7 +383,9 @@
   </div>
 
   <div id="appContent" class="hidden">
-    <canvas id="drawingCanvas"></canvas>
+    <div class="canvas-container">
+      <canvas id="drawingCanvas"></canvas>
+    </div>
     <div class="control-panel" data-expanded="true">
       <div id="controlsPanel" class="controls">
         <div class="control-section">
@@ -506,6 +522,7 @@
     deleteButton.disabled = true;
     routeSelector.disabled = true;
 
+    const canvasContainer = document.querySelector('.canvas-container');
     const canvas = document.getElementById('drawingCanvas');
     const ctx = canvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
@@ -520,6 +537,7 @@
     let hasUnsavedChanges = false;
     let isSaving = false;
     let currentUserEmail = '';
+    let isCanvasScrollable = false;
 
     const routesCache = new Map();
 
@@ -690,18 +708,74 @@
     }
 
     const backgroundImage = new Image();
-    backgroundImage.src = 'background.png';
+    const DEFAULT_CANVAS_ASPECT_RATIO = 1536 / 1024;
+    let canvasAspectRatio = DEFAULT_CANVAS_ASPECT_RATIO;
     backgroundImage.onload = () => {
       backgroundReady = true;
+      if (backgroundImage.naturalWidth > 0 && backgroundImage.naturalHeight > 0) {
+        const ratio = backgroundImage.naturalWidth / backgroundImage.naturalHeight;
+        if (Number.isFinite(ratio) && ratio > 0) {
+          canvasAspectRatio = ratio;
+        }
+      }
       resizeCanvas();
     };
+    backgroundImage.onerror = () => {
+      backgroundReady = false;
+      resizeCanvas();
+    };
+    backgroundImage.src = 'background.png';
+
+    function computeCanvasDimensions() {
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const aspectRatio = Number.isFinite(canvasAspectRatio) && canvasAspectRatio > 0
+        ? canvasAspectRatio
+        : DEFAULT_CANVAS_ASPECT_RATIO;
+      const enableScroll = viewportWidth <= 768 && viewportHeight > viewportWidth;
+
+      if (enableScroll) {
+        const height = viewportHeight;
+        const width = Math.max(viewportWidth, Math.round(height * aspectRatio));
+        return { width, height, enableScroll };
+      }
+
+      return {
+        width: viewportWidth,
+        height: viewportHeight,
+        enableScroll: false,
+      };
+    }
 
     function resizeCanvas() {
-      const previousWidth = canvas.width || window.innerWidth;
-      const previousHeight = canvas.height || window.innerHeight;
+      const previousWidth = canvas.width || 0;
+      const previousHeight = canvas.height || 0;
+      const { width, height, enableScroll } = computeCanvasDimensions();
 
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      if (canvasContainer) {
+        canvasContainer.classList.toggle('scrollable', enableScroll);
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+
+      if (canvasContainer) {
+        if (enableScroll) {
+          const maxScrollLeft = Math.max(0, width - window.innerWidth);
+          if (!isCanvasScrollable) {
+            canvasContainer.scrollLeft = Math.max(0, maxScrollLeft / 2);
+          } else if (canvasContainer.scrollLeft > maxScrollLeft) {
+            canvasContainer.scrollLeft = maxScrollLeft;
+          }
+        } else if (isCanvasScrollable) {
+          canvasContainer.scrollLeft = 0;
+        }
+      }
+
+      const safePreviousWidth = previousWidth || width;
+      const safePreviousHeight = previousHeight || height;
 
       if (loadedNormalizedPoints) {
         points.length = 0;
@@ -710,15 +784,16 @@
             points.push({ x: x * canvas.width, y: y * canvas.height });
           }
         });
-      } else if (points.length && previousWidth && previousHeight) {
+      } else if (points.length && safePreviousWidth && safePreviousHeight) {
         const scaledPoints = points.map(({ x, y }) => ({
-          x: (x / previousWidth) * canvas.width,
-          y: (y / previousHeight) * canvas.height,
+          x: (x / safePreviousWidth) * canvas.width,
+          y: (y / safePreviousHeight) * canvas.height,
         }));
         points.length = 0;
         points.push(...scaledPoints);
       }
 
+      isCanvasScrollable = enableScroll;
       redraw();
     }
 
@@ -1179,6 +1254,12 @@
 
     if (backgroundImage.complete) {
       backgroundReady = true;
+      if (backgroundImage.naturalWidth > 0 && backgroundImage.naturalHeight > 0) {
+        const ratio = backgroundImage.naturalWidth / backgroundImage.naturalHeight;
+        if (Number.isFinite(ratio) && ratio > 0) {
+          canvasAspectRatio = ratio;
+        }
+      }
       resizeCanvas();
     } else {
       resizeCanvas();

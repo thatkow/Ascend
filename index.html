@@ -22,10 +22,24 @@
         display: none !important;
       }
 
-      canvas {
-        display: block;
+      .canvas-container {
+        position: relative;
         width: 100vw;
         height: 100vh;
+        overflow: hidden;
+      }
+
+      .canvas-container.scrollable {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      canvas {
+        display: block;
+        height: 100%;
+        width: auto;
+        min-width: 100%;
       }
 
       .auth-overlay {
@@ -292,7 +306,9 @@
         <span id="roleBadge" class="role-badge hidden" aria-live="polite"></span>
         <button id="signOutButton" class="sign-out">Sign out</button>
       </header>
-      <canvas id="previewCanvas" aria-hidden="true"></canvas>
+      <div class="canvas-container">
+        <canvas id="previewCanvas" aria-hidden="true"></canvas>
+      </div>
     </div>
     <div
       id="routeTooltip"
@@ -488,8 +504,13 @@
 
       setAuthMode('login');
 
+      const canvasContainer = document.querySelector('.canvas-container');
       const canvas = document.getElementById('previewCanvas');
       const ctx = canvas.getContext('2d');
+
+      const DEFAULT_CANVAS_ASPECT_RATIO = 1536 / 1024;
+      let canvasAspectRatio = DEFAULT_CANVAS_ASPECT_RATIO;
+      let isHorizontalScrollEnabled = false;
 
       let routes = [];
       let routePaths = [];
@@ -869,17 +890,73 @@
       const backgroundImage = new Image();
       let backgroundReady = false;
 
-      backgroundImage.src = 'background.png';
+      function computeCanvasDimensions() {
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const aspectRatio = Number.isFinite(canvasAspectRatio) && canvasAspectRatio > 0
+          ? canvasAspectRatio
+          : DEFAULT_CANVAS_ASPECT_RATIO;
+        const enableScroll = viewportWidth <= 768 && viewportHeight > viewportWidth;
+
+        if (enableScroll) {
+          const height = viewportHeight;
+          const width = Math.max(viewportWidth, Math.round(height * aspectRatio));
+          return { width, height, enableScroll };
+        }
+
+        return {
+          width: viewportWidth,
+          height: viewportHeight,
+          enableScroll: false,
+        };
+      }
+
+      function resizeCanvas() {
+        const { width, height, enableScroll } = computeCanvasDimensions();
+
+        if (canvasContainer) {
+          canvasContainer.classList.toggle('scrollable', enableScroll);
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+
+        if (canvasContainer) {
+          if (enableScroll) {
+            const maxScrollLeft = Math.max(0, width - window.innerWidth);
+            if (!isHorizontalScrollEnabled) {
+              canvasContainer.scrollLeft = Math.max(0, maxScrollLeft / 2);
+            } else if (canvasContainer.scrollLeft > maxScrollLeft) {
+              canvasContainer.scrollLeft = maxScrollLeft;
+            }
+          } else if (isHorizontalScrollEnabled) {
+            canvasContainer.scrollLeft = 0;
+          }
+        }
+
+        isHorizontalScrollEnabled = enableScroll;
+        redraw();
+      }
+
       backgroundImage.onload = () => {
         backgroundReady = true;
+        if (backgroundImage.naturalWidth > 0 && backgroundImage.naturalHeight > 0) {
+          const ratio = backgroundImage.naturalWidth / backgroundImage.naturalHeight;
+          if (Number.isFinite(ratio) && ratio > 0) {
+            canvasAspectRatio = ratio;
+          }
+        }
         resizeCanvas();
       };
 
-      function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        redraw();
-      }
+      backgroundImage.onerror = () => {
+        backgroundReady = false;
+        resizeCanvas();
+      };
+
+      backgroundImage.src = 'background.png';
 
       function redraw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1095,6 +1172,12 @@
 
       if (backgroundImage.complete) {
         backgroundReady = true;
+        if (backgroundImage.naturalWidth > 0 && backgroundImage.naturalHeight > 0) {
+          const ratio = backgroundImage.naturalWidth / backgroundImage.naturalHeight;
+          if (Number.isFinite(ratio) && ratio > 0) {
+            canvasAspectRatio = ratio;
+          }
+        }
         resizeCanvas();
       } else {
         resizeCanvas();
