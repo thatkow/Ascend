@@ -930,13 +930,31 @@
           return null;
         }
 
+        const normalizedUsername = normalizeUsername(username);
+        if (!normalizedUsername) {
+          return { role: 'default' };
+        }
+
         const roleRef = doc(db, 'roles', user.uid);
         const existingSnap = await getDoc(roleRef);
-        const normalizedUsername = normalizeUsername(username);
 
         if (existingSnap.exists()) {
           const existingData = existingSnap.data() || {};
-          if (normalizedUsername && (!existingData.username || !existingData.usernameLower)) {
+          const storedLowerRaw =
+            typeof existingData.usernameLower === 'string'
+              ? existingData.usernameLower
+              : typeof existingData.username === 'string'
+              ? existingData.username
+              : '';
+          let effectiveLower = normalizeUsername(storedLowerRaw);
+          const trimmedRole =
+            typeof existingData.role === 'string' ? existingData.role.trim() : 'default';
+          const mergedData = {
+            ...existingData,
+            role: trimmedRole,
+          };
+
+          if (effectiveLower !== normalizedUsername || !existingData.username) {
             try {
               await setDoc(
                 roleRef,
@@ -947,11 +965,19 @@
                 },
                 { merge: true },
               );
+              mergedData.username = normalizedUsername;
+              mergedData.usernameLower = normalizedUsername;
+              effectiveLower = normalizedUsername;
             } catch (error) {
-              console.warn('Failed to backfill username fields on role document:', error);
+              console.warn('Failed to synchronise username on role document:', error);
             }
           }
-          return existingSnap.data();
+
+          if (effectiveLower !== normalizedUsername) {
+            mergedData.role = 'default';
+          }
+
+          return mergedData;
         }
 
         let role = 'default';
@@ -975,7 +1001,7 @@
           updatedAt: serverTimestamp(),
         };
 
-        await setDoc(roleRef, roleData);
+        await setDoc(roleRef, roleData, { merge: true });
         return roleData;
       }
 
@@ -984,16 +1010,14 @@
           return null;
         }
 
-        try {
-          const roleRef = doc(db, 'roles', user.uid);
-          const roleSnap = await getDoc(roleRef);
-          if (roleSnap.exists()) {
-            const data = roleSnap.data();
-            return typeof data.role === 'string' ? data.role.trim() : 'default';
-          }
+        const normalizedUsername = normalizeUsername(username);
+        if (!normalizedUsername) {
+          return 'default';
+        }
 
-          const createdRole = await ensureUserRole(user, username);
-          return createdRole ? createdRole.role : 'default';
+        try {
+          const ensuredRole = await ensureUserRole(user, normalizedUsername);
+          return typeof ensuredRole?.role === 'string' ? ensuredRole.role.trim() : 'default';
         } catch (error) {
           console.error('Failed to fetch user role:', error);
           return 'default';
