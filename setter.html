@@ -36,8 +36,11 @@
       height: 100vh;
       display: flex;
       align-items: stretch;
-      gap: 0.25rem;
+      gap: 0;
       z-index: 12;
+      --toggle-visible-width: 52px;
+      transition: transform 0.25s ease;
+      transform: translateX(0);
     }
 
     .panel-toggle {
@@ -46,11 +49,11 @@
       justify-content: center;
       gap: 0.35rem;
       align-self: center;
-      order: 2;
+      order: 1;
       writing-mode: vertical-rl;
       text-orientation: mixed;
       border: none;
-      border-radius: 0 0.85rem 0.85rem 0;
+      border-radius: 0.85rem 0 0 0.85rem;
       background: rgba(0, 0, 0, 0.6);
       color: #fff;
       padding: 1.5rem 0.65rem;
@@ -83,19 +86,15 @@
       border-radius: 1rem 0 0 1rem;
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
       overflow-y: auto;
-      transition: transform 0.25s ease;
-    }
-
-    .control-panel[data-expanded='false'] .controls {
-      transform: translateX(calc(-100% - 0.25rem));
-    }
-
-    .control-panel[data-expanded='true'] .controls {
-      transform: translateX(0);
+      transition: box-shadow 0.25s ease, background 0.25s ease;
     }
 
     .controls {
-      order: 1;
+      order: 2;
+    }
+
+    .control-panel[data-expanded='false'] {
+      transform: translateX(calc(100% - var(--toggle-visible-width)));
     }
 
     .sr-only {
@@ -493,6 +492,17 @@
     const controlsToggle = document.getElementById('controlsToggle');
     const openPreviewButton = document.getElementById('openPreviewButton');
 
+    const updatePanelMeasurements = () => {
+      if (!controlPanel || !controlsToggle) {
+        return;
+      }
+
+      const { width } = controlsToggle.getBoundingClientRect();
+      if (Number.isFinite(width) && width > 0) {
+        controlPanel.style.setProperty('--toggle-visible-width', `${Math.ceil(width)}px`);
+      }
+    };
+
     deleteButton.disabled = true;
     routeSelector.disabled = true;
 
@@ -514,12 +524,22 @@
     const routesCache = new Map();
 
     if (controlsToggle && controlPanel) {
+      updatePanelMeasurements();
+
       controlsToggle.addEventListener('click', () => {
         const expanded = controlPanel.getAttribute('data-expanded') === 'true';
         const next = !expanded;
         controlPanel.setAttribute('data-expanded', String(next));
         controlsToggle.setAttribute('aria-expanded', String(next));
+        requestAnimationFrame(updatePanelMeasurements);
       });
+
+      window.addEventListener('resize', updatePanelMeasurements);
+
+      if ('ResizeObserver' in window) {
+        const resizeObserver = new ResizeObserver(updatePanelMeasurements);
+        resizeObserver.observe(controlsToggle);
+      }
     }
 
     if (openPreviewButton) {
