@@ -13,7 +13,7 @@
 
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: url("./background.jpg") center / cover no-repeat fixed;
+      background: #000 url("./background.jpg") center / contain no-repeat fixed;
       color: #fff;
       overflow: hidden;
     }
@@ -1743,15 +1743,17 @@
         let offsetY = 0;
 
         if (canvasRatio > imageRatio) {
-          drawWidth = canvas.width;
-          drawHeight = drawWidth / imageRatio;
-          offsetY = (canvas.height - drawHeight) / 2;
-        } else {
           drawHeight = canvas.height;
           drawWidth = drawHeight * imageRatio;
           offsetX = (canvas.width - drawWidth) / 2;
+        } else {
+          drawWidth = canvas.width;
+          drawHeight = drawWidth / imageRatio;
+          offsetY = (canvas.height - drawHeight) / 2;
         }
 
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(backgroundImage, offsetX, offsetY, drawWidth, drawHeight);
       } else {
         ctx.fillStyle = '#000';
