@@ -2030,9 +2030,24 @@
           return fallback ? { ...fallback } : null;
         }
 
+        const startPoint = scaledPoints[0];
+        const endPoint = scaledPoints[scaledPoints.length - 1];
+
+        if (!startPoint || !endPoint) {
+          return fallback ? { ...fallback } : null;
+        }
+
+        const minAnchorY = Math.min(startPoint.y, endPoint.y);
+        const maxAnchorY = Math.max(startPoint.y, endPoint.y);
+        const anchorSpan = maxAnchorY - minAnchorY;
+
+        if (anchorSpan <= 0) {
+          return fallback ? { ...fallback } : null;
+        }
+
         const normalized = (routeMedian - gradeMin) / gradeRange;
         const clamped = Math.min(1, Math.max(0, normalized));
-        const targetY = canvasHeight - clamped * canvasHeight;
+        const targetY = maxAnchorY - clamped * anchorSpan;
 
         let anchorPoint = null;
 
