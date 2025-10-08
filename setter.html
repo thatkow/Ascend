@@ -94,7 +94,7 @@
       width: min(320px, 92vw);
       max-width: 360px;
       height: 100vh;
-      padding: 1.25rem;
+      padding: 2rem 1.25rem;
       background: rgba(0, 0, 0, 0.55);
       backdrop-filter: blur(8px);
       border-radius: 1rem 0 0 1rem;
@@ -395,7 +395,6 @@
               <option value="">Create new route…</option>
             </select>
           </label>
-          <button id="newRouteButton" type="button">New route</button>
           <label class="control-field">
             <span>Setter</span>
             <input id="routeSetterInput" type="email" placeholder="setter@example.com" autocomplete="off" />
@@ -501,7 +500,6 @@
     const routeTitleInput = document.getElementById('routeTitleInput');
     const routeDescriptionInput = document.getElementById('routeDescriptionInput');
     const routeDateSetInput = document.getElementById('routeDateSetInput');
-    const newRouteButton = document.getElementById('newRouteButton');
     const deleteButton = document.getElementById('deleteButton');
     const routeStatus = document.getElementById('routeStatus');
     const controlPanel = document.querySelector('.control-panel');
@@ -1213,10 +1211,6 @@
     clearButton.addEventListener('click', clearCanvas);
     saveButton.addEventListener('click', saveRoute);
     deleteButton.addEventListener('click', deleteCurrentRoute);
-    newRouteButton.addEventListener('click', () => {
-      prepareNewRoute('Creating a new route.');
-    });
-
     routeSelector.addEventListener('change', async (event) => {
       const selectedKey = event.target.value;
       if (!selectedKey) {
