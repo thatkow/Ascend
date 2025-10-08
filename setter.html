@@ -2145,53 +2145,111 @@
         return null;
       }
 
-      const roleRef = doc(db, 'roles', user.uid);
-      const existingSnap = await getDoc(roleRef);
       const normalizedUsername = normalizeUsername(username);
 
-      if (existingSnap.exists()) {
-        const existingData = existingSnap.data() || {};
-        if (normalizedUsername && (!existingData.username || !existingData.usernameLower)) {
-          try {
-            await setDoc(
-              roleRef,
-              {
-                username: normalizedUsername,
-                usernameLower: normalizedUsername,
-                updatedAt: serverTimestamp(),
-              },
-              { merge: true },
-            );
-          } catch (error) {
-            console.warn('Failed to backfill username fields on role document:', error);
-          }
-        }
-        return existingSnap.data();
+      if (!normalizedUsername) {
+        return { role: 'default' };
       }
-
-      let role = 'default';
 
       try {
-        const snapshot = await getDocs(
-          query(collection(db, 'roles'), where('role', '==', 'setter'), limit(1)),
-        );
-        if (snapshot.empty) {
-          role = 'setter';
+        let matchedRole = null;
+
+        try {
+          const directSnap = await getDoc(doc(db, 'roles', normalizedUsername));
+          if (directSnap.exists()) {
+            matchedRole = { id: normalizedUsername, data: directSnap.data() || {} };
+          }
+        } catch (error) {
+          console.warn('Failed to check role document keyed by username:', error);
         }
+
+        if (!matchedRole) {
+          matchedRole = await findRoleByUsername(normalizedUsername);
+        }
+
+        if (matchedRole?.data) {
+          const data = matchedRole.data || {};
+          const trimmedRole = typeof data.role === 'string' ? data.role.trim() : 'default';
+
+          if (matchedRole.id !== normalizedUsername || !data.username || !data.usernameLower) {
+            try {
+              await setDoc(
+                doc(db, 'roles', normalizedUsername),
+                {
+                  ...data,
+                  role: trimmedRole,
+                  username: normalizedUsername,
+                  usernameLower: normalizedUsername,
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: true },
+              );
+            } catch (error) {
+              console.warn('Failed to synchronise role document to username key:', error);
+            }
+          }
+
+          return { ...data, role: trimmedRole };
+        }
+
+        try {
+          const legacyRef = doc(db, 'roles', user.uid);
+          const legacySnap = await getDoc(legacyRef);
+          if (legacySnap.exists()) {
+            const legacyData = legacySnap.data() || {};
+            const trimmedRole =
+              typeof legacyData.role === 'string' ? legacyData.role.trim() : 'default';
+
+            try {
+              await setDoc(
+                doc(db, 'roles', normalizedUsername),
+                {
+                  ...legacyData,
+                  role: trimmedRole,
+                  username: normalizedUsername,
+                  usernameLower: normalizedUsername,
+                  updatedAt: serverTimestamp(),
+                  createdAt: legacyData.createdAt ?? serverTimestamp(),
+                },
+                { merge: true },
+              );
+            } catch (error) {
+              console.warn('Failed to migrate legacy UID role document:', error);
+            }
+
+            return { ...legacyData, role: trimmedRole };
+          }
+        } catch (error) {
+          console.warn('Unable to look up legacy role by UID:', error);
+        }
+
+        let role = 'default';
+
+        try {
+          const snapshot = await getDocs(
+            query(collection(db, 'roles'), where('role', '==', 'setter'), limit(1)),
+          );
+          if (snapshot.empty) {
+            role = 'setter';
+          }
+        } catch (error) {
+          console.warn('Unable to inspect existing roles:', error);
+        }
+
+        const roleData = {
+          role,
+          username: normalizedUsername,
+          usernameLower: normalizedUsername,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+
+        await setDoc(doc(db, 'roles', normalizedUsername), roleData, { merge: true });
+        return roleData;
       } catch (error) {
-        console.warn('Unable to inspect existing roles:', error);
+        console.error('Failed to ensure user role:', error);
+        return { role: 'default' };
       }
-
-      const roleData = {
-        role,
-        username: normalizedUsername,
-        usernameLower: normalizedUsername,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-
-      await setDoc(roleRef, roleData);
-      return roleData;
     }
 
     async function resolveUserRole(user, username) {
@@ -2199,16 +2257,14 @@
         return null;
       }
 
-      try {
-        const roleRef = doc(db, 'roles', user.uid);
-        const roleSnap = await getDoc(roleRef);
-        if (roleSnap.exists()) {
-          const data = roleSnap.data();
-          return typeof data.role === 'string' ? data.role.trim() : 'default';
-        }
+      const normalizedUsername = normalizeUsername(username);
+      if (!isValidUsername(normalizedUsername)) {
+        return 'default';
+      }
 
-        const createdRole = await ensureUserRole(user, username);
-        return createdRole ? createdRole.role : 'default';
+      try {
+        const ensuredRole = await ensureUserRole(user, normalizedUsername);
+        return typeof ensuredRole?.role === 'string' ? ensuredRole.role.trim() : 'default';
       } catch (error) {
         console.error('Failed to fetch user role:', error);
         return 'default';
