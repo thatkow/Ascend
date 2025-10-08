@@ -970,10 +970,10 @@
           lineWidth,
         });
 
-        if (ascendedRoutes.has(route.id)) {
-          const anchor = scaledPoints[Math.floor(scaledPoints.length / 2)];
-          const radius = Math.max(12, canvas.width * 0.01);
+        const anchor = scaledPoints[Math.floor(scaledPoints.length / 2)];
+        const radius = Math.max(12, canvas.width * 0.01);
 
+        if (ascendedRoutes.has(route.id)) {
           ctx.save();
           ctx.fillStyle = strokeColor;
           ctx.globalAlpha = 0.92;
@@ -989,6 +989,15 @@
           ctx.moveTo(anchor.x - radius * 0.45, anchor.y + radius * 0.1);
           ctx.lineTo(anchor.x - radius * 0.15, anchor.y + radius * 0.45);
           ctx.lineTo(anchor.x + radius * 0.5, anchor.y - radius * 0.35);
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          ctx.save();
+          ctx.lineWidth = Math.max(2, radius * 0.18);
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+          ctx.globalAlpha = 0.9;
+          ctx.beginPath();
+          ctx.arc(anchor.x, anchor.y, radius, 0, Math.PI * 2);
           ctx.stroke();
           ctx.restore();
         }
