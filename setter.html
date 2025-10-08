@@ -527,7 +527,7 @@
           </label>
           <label class="control-field">
             <span>Setter</span>
-            <input id="routeSetterInput" type="text" placeholder="setter_username" autocomplete="off" />
+            <input id="routeSetterInput" type="text" placeholder="setter name" autocomplete="off" />
           </label>
           <label class="control-field">
             <span>Title</span>
@@ -729,6 +729,7 @@
 
     const SYNTHETIC_EMAIL_DOMAIN = 'users.anuascend.local';
     const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
+    const SETTER_NAME_PATTERN = /^[a-z0-9_ ]{3,40}$/;
 
     const normalizeUsername = (value) => {
       if (typeof value !== 'string') {
@@ -737,7 +738,18 @@
       return value.trim().toLowerCase();
     };
 
+    const normalizeSetterName = (value) => {
+      if (typeof value !== 'string') {
+        return '';
+      }
+      return value
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+    };
+
     const isValidUsername = (value) => USERNAME_PATTERN.test(normalizeUsername(value));
+    const isValidSetterName = (value) => SETTER_NAME_PATTERN.test(normalizeSetterName(value));
 
     const buildSyntheticEmail = (username) => {
       const normalized = normalizeUsername(username);
@@ -1313,7 +1325,7 @@
       const { date_removed: _unusedDateRemoved, ...rest } = raw || {};
       return {
         ...rest,
-        setter: normalizeUsername(rest.setter),
+        setter: normalizeSetterName(rest.setter),
         title: typeof rest.title === 'string' ? rest.title.trim() : '',
         description: typeof rest.description === 'string' ? rest.description.trim() : '',
         strokeColor: sanitizeColor(rest.strokeColor),
@@ -1773,16 +1785,16 @@
       }
 
       const normalizedPoints = convertPointsToNormalized();
-      const setter = normalizeUsername(routeSetterInput.value);
+      const setter = normalizeSetterName(routeSetterInput.value);
       routeSetterInput.value = setter;
       if (!setter) {
-        setStatus('Setter username is required before saving.', 'error');
+        setStatus('Setter name is required before saving.', 'error');
         routeSetterInput.focus();
         return;
       }
 
-      if (!isValidUsername(setter)) {
-        setStatus('Setter username must use letters, numbers, or underscores.', 'error');
+      if (!isValidSetterName(setter)) {
+        setStatus('Setter name must use letters, numbers, underscores, or spaces.', 'error');
         routeSetterInput.focus();
         return;
       }
