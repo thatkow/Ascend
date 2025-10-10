@@ -15,7 +15,8 @@
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background-color: #000;
-      background-image: url("./background.jpg");
+      --wall-background: url('./location/New Wall.png');
+      background-image: var(--wall-background);
       background-position: center;
       background-size: 100% 100%;
       background-repeat: no-repeat;
@@ -314,6 +315,140 @@
       text-align: center;
     }
 
+    .location-button {
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 0.85rem;
+      padding: 0.65rem 1rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      background: linear-gradient(135deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.2));
+      color: #fff;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      width: 100%;
+      text-align: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .location-button:hover,
+    .location-button:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
+      outline: none;
+    }
+
+    .location-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(3px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      z-index: 30;
+    }
+
+    .location-modal.hidden {
+      display: none !important;
+    }
+
+    .location-modal-content {
+      background: rgba(18, 18, 18, 0.95);
+      border-radius: 1.25rem;
+      width: min(720px, 92vw);
+      max-height: 90vh;
+      padding: 1.5rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .location-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .location-modal-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+
+    .location-modal-close {
+      border: none;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.4rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .location-modal-close:hover,
+    .location-modal-close:focus-visible {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.25);
+      outline: none;
+    }
+
+    .location-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+
+    .location-option {
+      border: none;
+      border-radius: 1rem;
+      padding: 0;
+      background: rgba(255, 255, 255, 0.1);
+      color: inherit;
+      cursor: pointer;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      text-align: left;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .location-option:hover,
+    .location-option:focus-visible {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 30px rgba(0, 0, 0, 0.4);
+      outline: none;
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .location-option[aria-current='true'] {
+      box-shadow: 0 0 0 3px rgba(126, 217, 87, 0.75);
+      background: rgba(126, 217, 87, 0.18);
+    }
+
+    .location-option-preview {
+      position: relative;
+      width: 100%;
+      padding-top: 66%;
+      background-size: cover;
+      background-position: center;
+    }
+
+    .location-option-label {
+      padding: 0.9rem 1rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
     #clearButton {
       background: rgba(255, 116, 116, 0.9);
       color: #111;
@@ -516,9 +651,12 @@
     <div class="canvas-container">
       <canvas id="drawingCanvas"></canvas>
     </div>
-    <div class="control-panel" data-expanded="true">
+      <div class="control-panel" data-expanded="true">
       <div id="controlsPanel" class="controls">
         <div class="control-section">
+          <button id="locationButton" class="location-button" type="button" aria-haspopup="dialog" aria-expanded="false">
+            Select wall
+          </button>
           <label class="control-field">
             <span>Saved routes</span>
             <select id="routeSelector">
@@ -627,6 +765,25 @@
 
   <p id="routeStatus" class="status-message hidden" role="status" aria-live="polite"></p>
 
+  <div
+    id="locationModal"
+    class="location-modal hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+    aria-labelledby="locationModalTitle"
+  >
+    <div class="location-modal-content">
+      <div class="location-modal-header">
+        <h2 id="locationModalTitle" class="location-modal-title">Select a wall</h2>
+        <button id="locationModalClose" class="location-modal-close" type="button" aria-label="Close wall selector">
+          ×
+        </button>
+      </div>
+      <div id="locationOptions" class="location-options" role="listbox"></div>
+    </div>
+  </div>
+
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import {
@@ -683,6 +840,202 @@
     const roleUsernameInput = document.getElementById('roleUsernameInput');
     const grantSetterButton = document.getElementById('grantSetterButton');
     const roleStatusMessage = document.getElementById('roleStatusMessage');
+    const locationButton = document.getElementById('locationButton');
+    const locationModal = document.getElementById('locationModal');
+    const locationOptions = document.getElementById('locationOptions');
+    const locationModalClose = document.getElementById('locationModalClose');
+
+    const LOCATIONS = [
+      { key: 'new-wall', name: 'New Wall', image: './location/New Wall.png' },
+      { key: 'old-wall', name: 'Old Wall', image: './location/Old Wall.png' },
+    ];
+
+    const LOCATION_STORAGE_KEY = 'ascend.setter.selectedLocation';
+
+    const normalizeLocationName = (value) => {
+      if (typeof value !== 'string') {
+        return '';
+      }
+      return value.trim().toLowerCase();
+    };
+
+    const findLocationByKey = (key) => LOCATIONS.find((location) => location.key === key);
+
+    const findLocationByName = (name) => {
+      const normalized = normalizeLocationName(name);
+      return (
+        LOCATIONS.find((location) => normalizeLocationName(location.name) === normalized) || null
+      );
+    };
+
+    const DEFAULT_LOCATION = LOCATIONS[0];
+
+    let currentLocation = DEFAULT_LOCATION;
+    let backgroundImageSource = '';
+    let backgroundReady = false;
+
+    const backgroundImage = new Image();
+
+    const updateLocationButtonLabel = () => {
+      if (!locationButton) {
+        return;
+      }
+
+      locationButton.textContent = currentLocation?.name || 'Select wall';
+    };
+
+    const updateLocationOptionsState = () => {
+      if (!locationOptions) {
+        return;
+      }
+
+      const buttons = locationOptions.querySelectorAll('[data-location-key]');
+      buttons.forEach((button) => {
+        const key = button?.dataset?.locationKey;
+        if (key && currentLocation && key === currentLocation.key) {
+          button.setAttribute('aria-current', 'true');
+        } else {
+          button.removeAttribute('aria-current');
+        }
+      });
+    };
+
+    const applyBodyBackground = (imagePath) => {
+      if (!document.body) {
+        return;
+      }
+
+      if (imagePath) {
+        document.body.style.setProperty('--wall-background', `url('${imagePath}')`);
+      } else {
+        document.body.style.removeProperty('--wall-background');
+      }
+    };
+
+    const updateBackgroundForCurrentLocation = () => {
+      const imagePath = currentLocation?.image || '';
+      applyBodyBackground(imagePath);
+
+      if (imagePath && imagePath !== backgroundImageSource) {
+        backgroundImageSource = imagePath;
+        backgroundReady = false;
+        backgroundImage.src = imagePath;
+      } else if (!imagePath) {
+        backgroundImageSource = '';
+        backgroundReady = false;
+      }
+    };
+
+    const closeLocationModal = () => {
+      if (!locationModal) {
+        return;
+      }
+
+      if (!locationModal.classList.contains('hidden')) {
+        locationModal.classList.add('hidden');
+        locationModal.setAttribute('aria-hidden', 'true');
+        locationButton?.setAttribute('aria-expanded', 'false');
+      }
+    };
+
+    const openLocationModal = () => {
+      if (!locationModal) {
+        return;
+      }
+
+      locationModal.classList.remove('hidden');
+      locationModal.setAttribute('aria-hidden', 'false');
+      locationButton?.setAttribute('aria-expanded', 'true');
+      updateLocationOptionsState();
+    };
+
+    const setLocation = (location, { persist = true, refreshRoutes = true } = {}) => {
+      const targetLocation = location || DEFAULT_LOCATION;
+      if (!targetLocation) {
+        return;
+      }
+
+      const changed = !currentLocation || currentLocation.key !== targetLocation.key;
+      currentLocation = targetLocation;
+      updateLocationButtonLabel();
+      updateLocationOptionsState();
+      updateBackgroundForCurrentLocation();
+      redraw();
+
+      if (persist) {
+        try {
+          window.localStorage?.setItem(LOCATION_STORAGE_KEY, targetLocation.key);
+        } catch (error) {
+          console.warn('Unable to persist setter location preference:', error);
+        }
+      }
+
+      if (changed && refreshRoutes) {
+        loadRoutesList(currentRouteKey).catch((error) => {
+          console.error('Failed to refresh routes for the selected location:', error);
+        });
+      }
+    };
+
+    const handleLocationSelection = (locationKey) => {
+      const nextLocation = findLocationByKey(locationKey);
+      if (!nextLocation) {
+        return;
+      }
+
+      setLocation(nextLocation);
+      closeLocationModal();
+    };
+
+    const renderLocationOptions = () => {
+      if (!locationOptions) {
+        return;
+      }
+
+      locationOptions.replaceChildren();
+
+      LOCATIONS.forEach((location) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'location-option';
+        button.dataset.locationKey = location.key;
+        button.setAttribute('role', 'option');
+
+        const preview = document.createElement('div');
+        preview.className = 'location-option-preview';
+        preview.style.backgroundImage = `url('${location.image}')`;
+        button.appendChild(preview);
+
+        const label = document.createElement('span');
+        label.className = 'location-option-label';
+        label.textContent = location.name;
+        button.appendChild(label);
+
+        button.addEventListener('click', () => {
+          handleLocationSelection(location.key);
+        });
+
+        locationOptions.appendChild(button);
+      });
+
+      updateLocationOptionsState();
+    };
+
+    backgroundImage.onload = () => {
+      backgroundReady = true;
+      if (backgroundImage.naturalWidth > 0 && backgroundImage.naturalHeight > 0) {
+        const ratio = backgroundImage.naturalWidth / backgroundImage.naturalHeight;
+        if (Number.isFinite(ratio) && ratio > 0) {
+          canvasAspectRatio = ratio;
+        }
+      }
+      resizeCanvas();
+    };
+
+    backgroundImage.onerror = () => {
+      backgroundReady = false;
+      resizeCanvas();
+    };
 
     const updatePanelMeasurements = () => {
       if (!controlPanel || !controlsToggle) {
@@ -753,7 +1106,6 @@
     let wheelSaturation = 1;
     let wheelLightness = 0.5;
     let isWheelPointerActive = false;
-    let backgroundReady = false;
     let loadedNormalizedPoints = null;
     let currentRouteKey = '';
     let hasUnsavedChanges = false;
@@ -781,6 +1133,54 @@
         resizeObserver.observe(controlsToggle);
       }
     }
+
+    renderLocationOptions();
+
+    let storedLocationKey = null;
+    try {
+      storedLocationKey = window.localStorage?.getItem(LOCATION_STORAGE_KEY) || null;
+    } catch (error) {
+      console.warn('Unable to read setter location preference:', error);
+    }
+
+    const storedLocation = storedLocationKey ? findLocationByKey(storedLocationKey) : null;
+    if (storedLocation) {
+      setLocation(storedLocation, { persist: false, refreshRoutes: false });
+    } else {
+      setLocation(DEFAULT_LOCATION, { persist: false, refreshRoutes: false });
+    }
+
+    if (locationButton) {
+      locationButton.setAttribute('aria-expanded', 'false');
+    }
+
+    if (locationButton) {
+      locationButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        openLocationModal();
+      });
+    }
+
+    if (locationModalClose) {
+      locationModalClose.addEventListener('click', (event) => {
+        event.preventDefault();
+        closeLocationModal();
+      });
+    }
+
+    if (locationModal) {
+      locationModal.addEventListener('click', (event) => {
+        if (event.target === locationModal) {
+          closeLocationModal();
+        }
+      });
+    }
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        closeLocationModal();
+      }
+    });
 
     const wheelCtx = colorWheelCanvas ? colorWheelCanvas.getContext('2d') : null;
 
@@ -1314,6 +1714,9 @@
 
     function normalizeRouteData(raw = {}) {
       const { date_removed: _unusedDateRemoved, ...rest } = raw || {};
+      const rawLocation = typeof rest.location === 'string' ? rest.location.trim() : '';
+      const locationName = rawLocation || DEFAULT_LOCATION?.name || '';
+      const locationKey = normalizeLocationName(locationName);
       return {
         ...rest,
         setter: normalizeSetterName(rest.setter),
@@ -1322,6 +1725,8 @@
         strokeColor: sanitizeColor(rest.strokeColor),
         points: Array.isArray(rest.points) ? rest.points : [],
         date_set: normalizeDateValue(rest.date_set),
+        location: locationName,
+        locationKey,
       };
     }
 
@@ -1425,24 +1830,8 @@
       hasUnsavedChanges = false;
     }
 
-    const backgroundImage = new Image();
     const DEFAULT_CANVAS_ASPECT_RATIO = 1536 / 1024;
     let canvasAspectRatio = DEFAULT_CANVAS_ASPECT_RATIO;
-    backgroundImage.onload = () => {
-      backgroundReady = true;
-      if (backgroundImage.naturalWidth > 0 && backgroundImage.naturalHeight > 0) {
-        const ratio = backgroundImage.naturalWidth / backgroundImage.naturalHeight;
-        if (Number.isFinite(ratio) && ratio > 0) {
-          canvasAspectRatio = ratio;
-        }
-      }
-      resizeCanvas();
-    };
-    backgroundImage.onerror = () => {
-      backgroundReady = false;
-      resizeCanvas();
-    };
-    backgroundImage.src = 'background.jpg';
 
     function computeCanvasDimensions() {
       const viewportWidth = window.innerWidth;
@@ -1601,6 +1990,15 @@
           return;
         }
 
+        const routeLocationKey =
+          typeof data?.locationKey === 'string'
+            ? data.locationKey
+            : normalizeLocationName(data?.location);
+        const activeLocationKey = normalizeLocationName(currentLocation?.name);
+        if (activeLocationKey && routeLocationKey !== activeLocationKey) {
+          return;
+        }
+
         const canvasPoints = convertNormalizedToCanvasPoints(data.points);
         if (!canvasPoints.length) {
           return;
@@ -1680,6 +2078,9 @@
     function applyRouteToCanvas(routeKey, rawData = {}) {
       const data = normalizeRouteData(rawData);
 
+      const targetLocation = findLocationByName(data.location) || DEFAULT_LOCATION;
+      setLocation(targetLocation, { persist: false, refreshRoutes: false });
+
       currentRouteKey = routeKey;
       routeSelector.value = routeKey;
       routeSetterInput.value = data.setter || currentUsername || '';
@@ -1737,21 +2138,35 @@
           return labelA.localeCompare(labelB);
         });
 
+        const currentLocationKey = normalizeLocationName(currentLocation?.name);
+        const filteredEntries = sortedEntries.filter(([_, data]) => {
+          const routeLocationKey =
+            typeof data?.locationKey === 'string'
+              ? data.locationKey
+              : normalizeLocationName(data?.location);
+          if (!currentLocationKey) {
+            return true;
+          }
+          return routeLocationKey === currentLocationKey;
+        });
+
         routeSelector.innerHTML = '';
         const defaultOption = document.createElement('option');
         defaultOption.value = '';
         defaultOption.textContent = 'Create new route…';
         routeSelector.appendChild(defaultOption);
 
-        sortedEntries.forEach(([id, data]) => {
+        filteredEntries.forEach(([id, data]) => {
           const option = document.createElement('option');
           option.value = id;
           option.textContent = data?.title || id;
           routeSelector.appendChild(option);
         });
 
-        if (selectedRouteKey && routesCache.has(selectedRouteKey)) {
+        if (selectedRouteKey && filteredEntries.some(([id]) => id === selectedRouteKey)) {
           routeSelector.value = selectedRouteKey;
+        } else {
+          routeSelector.value = '';
         }
       } catch (error) {
         console.error('Failed to load routes:', error);
@@ -1837,6 +2252,7 @@
         points: normalizedPoints,
         date_set: dateSetIso,
         date_removed: deleteField(),
+        location: currentLocation?.name || DEFAULT_LOCATION?.name || null,
         updatedAt: serverTimestamp(),
       };
 
