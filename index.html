@@ -15,7 +15,8 @@
       body {
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         background-color: #000;
-        background-image: url("./background.jpg");
+        --wall-background: url('./location/New Wall.jpg');
+        background-image: var(--wall-background);
         background-position: center;
         background-size: 100% 100%;
         background-repeat: no-repeat;
@@ -143,6 +144,137 @@
         display: flex;
         gap: 0.75rem;
         align-items: center;
+      }
+
+      .location-button {
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 999px;
+        padding: 0.6rem 1.25rem;
+        font-size: 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
+        background: linear-gradient(135deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.2));
+        color: #fff;
+        backdrop-filter: blur(6px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .location-button:hover,
+      .location-button:focus-visible {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
+        outline: none;
+      }
+
+      .location-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(3px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+        z-index: 20;
+      }
+
+      .location-modal.hidden {
+        display: none !important;
+      }
+
+      .location-modal-content {
+        background: rgba(18, 18, 18, 0.95);
+        border-radius: 1.25rem;
+        width: min(720px, 92vw);
+        max-height: 90vh;
+        padding: 1.5rem;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+
+      .location-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .location-modal-title {
+        font-size: 1.35rem;
+        font-weight: 700;
+      }
+
+      .location-modal-close {
+        border: none;
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 1.4rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s ease, background 0.2s ease;
+      }
+
+      .location-modal-close:hover,
+      .location-modal-close:focus-visible {
+        transform: translateY(-1px);
+        background: rgba(255, 255, 255, 0.25);
+        outline: none;
+      }
+
+      .location-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+      }
+
+      .location-option {
+        border: none;
+        border-radius: 1rem;
+        padding: 0;
+        background: rgba(255, 255, 255, 0.1);
+        color: inherit;
+        cursor: pointer;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        text-align: left;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      }
+
+      .location-option:hover,
+      .location-option:focus-visible {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 30px rgba(0, 0, 0, 0.4);
+        outline: none;
+        background: rgba(255, 255, 255, 0.18);
+      }
+
+      .location-option[aria-current='true'] {
+        box-shadow: 0 0 0 3px rgba(126, 217, 87, 0.75);
+        background: rgba(126, 217, 87, 0.18);
+      }
+
+      .location-option-preview {
+        position: relative;
+        width: 100%;
+        padding-top: 66%;
+        background-size: cover;
+        background-position: center;
+      }
+
+      .location-option-label {
+        padding: 0.9rem 1rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
       }
 
       .info-wrapper {
@@ -455,6 +587,9 @@
     </div>
     <div id="appContent" class="app hidden" aria-live="polite">
       <header class="app-header">
+        <button id="locationButton" class="location-button" type="button" aria-haspopup="dialog">
+          Select wall
+        </button>
         <nav id="navLinks" class="nav-links" aria-label="Available pages">
           <a id="setterLink" class="hidden" href="setter.html">Setter Tools</a>
         </nav>
@@ -495,6 +630,24 @@
       aria-live="polite"
       aria-hidden="true"
     ></div>
+    <div
+      id="locationModal"
+      class="location-modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-hidden="true"
+      aria-labelledby="locationModalTitle"
+    >
+      <div class="location-modal-content">
+        <div class="location-modal-header">
+          <h2 id="locationModalTitle" class="location-modal-title">Select a wall</h2>
+          <button id="locationModalClose" class="location-modal-close" type="button" aria-label="Close wall selector">
+            ×
+          </button>
+        </div>
+        <div id="locationOptions" class="location-options" role="listbox"></div>
+      </div>
+    </div>
     <script type="module">
       import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
       import {
@@ -541,6 +694,191 @@
       const tooltip = document.getElementById('routeTooltip');
       const infoButton = document.getElementById('infoButton');
       const infoPopover = document.getElementById('infoPopover');
+      const locationButton = document.getElementById('locationButton');
+      const locationModal = document.getElementById('locationModal');
+      const locationOptions = document.getElementById('locationOptions');
+      const locationModalClose = document.getElementById('locationModalClose');
+
+      const LOCATIONS = [
+        { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg' },
+        { key: 'old-wall', name: 'Old Wall', image: './location/Old Wall.jpg' },
+      ];
+
+      const LOCATION_STORAGE_KEY = 'ascend.selectedLocation';
+
+      const normalizeLocationName = (value) => {
+        if (typeof value !== 'string') {
+          return '';
+        }
+        return value.trim().toLowerCase();
+      };
+
+      const findLocationByKey = (key) => LOCATIONS.find((location) => location.key === key);
+
+      const findLocationByName = (name) => {
+        const normalized = normalizeLocationName(name);
+        return (
+          LOCATIONS.find((location) => normalizeLocationName(location.name) === normalized) ||
+          null
+        );
+      };
+
+      const DEFAULT_LOCATION = LOCATIONS[0];
+
+      let currentLocation = DEFAULT_LOCATION;
+
+      let backgroundReady = false;
+      let backgroundImageSource = '';
+
+      const backgroundImage = new Image();
+
+      function updateLocationButtonLabel() {
+        if (!locationButton) {
+          return;
+        }
+
+        locationButton.textContent = currentLocation?.name || 'Select wall';
+      }
+
+      function updateLocationOptionsState() {
+        if (!locationOptions) {
+          return;
+        }
+
+        const buttons = locationOptions.querySelectorAll('[data-location-key]');
+        buttons.forEach((button) => {
+          const key = button?.dataset?.locationKey;
+          if (key && currentLocation && key === currentLocation.key) {
+            button.setAttribute('aria-current', 'true');
+          } else {
+            button.removeAttribute('aria-current');
+          }
+        });
+      }
+
+      function applyBodyBackground(imagePath) {
+        if (!document.body) {
+          return;
+        }
+
+        if (imagePath) {
+          document.body.style.setProperty('--wall-background', `url('${imagePath}')`);
+        } else {
+          document.body.style.removeProperty('--wall-background');
+        }
+      }
+
+      function updateBackgroundForCurrentLocation() {
+        const imagePath = currentLocation?.image || '';
+        applyBodyBackground(imagePath);
+
+        if (imagePath && imagePath !== backgroundImageSource) {
+          backgroundImageSource = imagePath;
+          backgroundReady = false;
+          backgroundImage.src = imagePath;
+        } else if (!imagePath) {
+          backgroundImageSource = '';
+          backgroundReady = false;
+        }
+      }
+
+      backgroundImage.onload = () => {
+        backgroundReady = true;
+        if (backgroundImage.naturalWidth > 0 && backgroundImage.naturalHeight > 0) {
+          const ratio = backgroundImage.naturalWidth / backgroundImage.naturalHeight;
+          if (Number.isFinite(ratio) && ratio > 0) {
+            canvasAspectRatio = ratio;
+          }
+        }
+        resizeCanvas();
+      };
+
+      backgroundImage.onerror = () => {
+        backgroundReady = false;
+        resizeCanvas();
+      };
+
+      function closeLocationModal() {
+        if (!locationModal) {
+          return;
+        }
+
+        if (!locationModal.classList.contains('hidden')) {
+          locationModal.classList.add('hidden');
+          locationModal.setAttribute('aria-hidden', 'true');
+          locationButton?.setAttribute('aria-expanded', 'false');
+        }
+      }
+
+      function openLocationModal() {
+        if (!locationModal) {
+          return;
+        }
+
+        locationModal.classList.remove('hidden');
+        locationModal.setAttribute('aria-hidden', 'false');
+        locationButton?.setAttribute('aria-expanded', 'true');
+        updateLocationOptionsState();
+      }
+
+      function handleLocationSelection(locationKey) {
+        const location = findLocationByKey(locationKey);
+        if (!location) {
+          return;
+        }
+
+        const changed = !currentLocation || currentLocation.key !== location.key;
+        currentLocation = location;
+        updateLocationButtonLabel();
+        updateLocationOptionsState();
+        updateBackgroundForCurrentLocation();
+
+        try {
+          window.localStorage?.setItem(LOCATION_STORAGE_KEY, location.key);
+        } catch (error) {
+          console.warn('Unable to persist location preference:', error);
+        }
+
+        if (changed) {
+          applyLocationFilter();
+        }
+
+        closeLocationModal();
+      }
+
+      function renderLocationOptions() {
+        if (!locationOptions) {
+          return;
+        }
+
+        locationOptions.replaceChildren();
+
+        LOCATIONS.forEach((location) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'location-option';
+          button.dataset.locationKey = location.key;
+          button.setAttribute('role', 'option');
+
+          const preview = document.createElement('div');
+          preview.className = 'location-option-preview';
+          preview.style.backgroundImage = `url('${location.image}')`;
+          button.appendChild(preview);
+
+          const label = document.createElement('span');
+          label.className = 'location-option-label';
+          label.textContent = location.name;
+          button.appendChild(label);
+
+          button.addEventListener('click', () => {
+            handleLocationSelection(location.key);
+          });
+
+          locationOptions.appendChild(button);
+        });
+
+        updateLocationOptionsState();
+      }
 
       const SYNTHETIC_EMAIL_DOMAIN = 'users.anuascend.local';
       const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
@@ -801,6 +1139,55 @@
           }
         });
       }
+
+      renderLocationOptions();
+
+      let storedLocationKey = null;
+      try {
+        storedLocationKey = window.localStorage?.getItem(LOCATION_STORAGE_KEY) || null;
+      } catch (error) {
+        console.warn('Unable to read location preference:', error);
+      }
+
+      const storedLocation = storedLocationKey ? findLocationByKey(storedLocationKey) : null;
+      if (storedLocation) {
+        currentLocation = storedLocation;
+      }
+
+      updateLocationButtonLabel();
+      updateLocationOptionsState();
+      if (locationButton) {
+        locationButton.setAttribute('aria-expanded', 'false');
+      }
+      updateBackgroundForCurrentLocation();
+
+      if (locationButton) {
+        locationButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          openLocationModal();
+        });
+      }
+
+      if (locationModalClose) {
+        locationModalClose.addEventListener('click', (event) => {
+          event.preventDefault();
+          closeLocationModal();
+        });
+      }
+
+      if (locationModal) {
+        locationModal.addEventListener('click', (event) => {
+          if (event.target === locationModal) {
+            closeLocationModal();
+          }
+        });
+      }
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closeLocationModal();
+        }
+      });
 
       let authMode = 'login';
       let currentUser = null;
@@ -1129,6 +1516,7 @@
       let canvasAspectRatio = DEFAULT_CANVAS_ASPECT_RATIO;
       let isHorizontalScrollEnabled = false;
 
+      let allRoutes = [];
       let routes = [];
       let routePaths = [];
       let activeRouteId = null;
@@ -1136,11 +1524,46 @@
       let pinnedPosition = null;
       const ascendedRoutes = new Set();
       const routeGrades = new Map();
+      let userAscentDetails = new Map();
       let routeMedianGrades = new Map();
+
+      function synchroniseAscentsWithRoutes(options = {}) {
+        const { shouldRedraw = true } = options;
+        ascendedRoutes.clear();
+        routeGrades.clear();
+
+        if (!Array.isArray(routes) || routes.length === 0) {
+          if (shouldRedraw) {
+            redraw();
+          }
+          return;
+        }
+
+        routes.forEach((route) => {
+          if (!route?.id) {
+            return;
+          }
+
+          const ascent = userAscentDetails.get(route.id);
+          if (!ascent || !ascent.ascended) {
+            return;
+          }
+
+          ascendedRoutes.add(route.id);
+          if (typeof ascent.grade === 'number' && Number.isFinite(ascent.grade)) {
+            routeGrades.set(route.id, ascent.grade);
+          }
+        });
+
+        if (shouldRedraw) {
+          redraw();
+        }
+      }
 
       async function loadAscents({ userId, username }) {
         ascendedRoutes.clear();
         routeGrades.clear();
+        userAscentDetails = new Map();
 
         const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
         const normalizedUsername = normalizeUsername(username);
@@ -1204,27 +1627,32 @@
 
           if (routesData && typeof routesData === 'object') {
             Object.entries(routesData).forEach(([routeId, details]) => {
-              if (!details) {
+              if (!routeId || !details) {
                 return;
               }
 
-              ascendedRoutes.add(routeId);
-
               const gradeValue = normalizeGradeValue(details?.grade);
-              if (gradeValue !== null) {
-                routeGrades.set(routeId, gradeValue);
-              }
+              userAscentDetails.set(routeId, {
+                ascended: true,
+                grade: gradeValue,
+              });
             });
+
+            synchroniseAscentsWithRoutes();
             return;
           }
 
           const singleRouteId = typeof ascentData.route_id === 'string' ? ascentData.route_id : null;
           if (singleRouteId) {
-            ascendedRoutes.add(singleRouteId);
+            userAscentDetails.set(singleRouteId, { ascended: true, grade: null });
+            synchroniseAscentsWithRoutes();
+            return;
           }
         } catch (error) {
           console.error('Failed to load ascents:', error);
         }
+
+        synchroniseAscentsWithRoutes();
       }
 
       function normalizeDate(value) {
@@ -1471,10 +1899,14 @@
 
           if (sanitizedGrade === null) {
             routeGrades.delete(route.id);
+            const existingEntry = userAscentDetails.get(route.id) || {};
+            userAscentDetails.set(route.id, { ...existingEntry, ascended: true, grade: null });
           } else {
             routeGrades.set(route.id, sanitizedGrade);
+            userAscentDetails.set(route.id, { ascended: true, grade: sanitizedGrade });
           }
 
+          synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
           await refreshMedianGrades();
         } catch (error) {
@@ -1539,8 +1971,8 @@
       async function refreshMedianGrades() {
         routeMedianGrades = await fetchMedianGrades();
 
-        if (Array.isArray(routes)) {
-          routes.forEach((route) => {
+        if (Array.isArray(allRoutes)) {
+          allRoutes.forEach((route) => {
             const median = routeMedianGrades.get(route.id);
             route.medianGrade = typeof median === 'number' && Number.isFinite(median) ? median : null;
           });
@@ -1742,6 +2174,27 @@
         return null;
       }
 
+      function applyLocationFilter() {
+        const desiredLocation = normalizeLocationName(currentLocation?.name);
+        const fallbackLocation = normalizeLocationName(DEFAULT_LOCATION?.name);
+        const targetLocation = desiredLocation || fallbackLocation;
+
+        if (!targetLocation) {
+          routes = [...allRoutes];
+        } else {
+          routes = allRoutes.filter((route) => {
+            const routeLocation =
+              typeof route?.locationKey === 'string'
+                ? route.locationKey
+                : normalizeLocationName(route?.location);
+            return routeLocation === targetLocation;
+          });
+        }
+
+        synchroniseAscentsWithRoutes({ shouldRedraw: false });
+        redraw();
+      }
+
       async function loadRoutes() {
         try {
           const [routesSnapshot, medianMap] = await Promise.all([
@@ -1751,7 +2204,7 @@
 
           routeMedianGrades = medianMap instanceof Map ? medianMap : new Map();
 
-          routes = routesSnapshot.docs
+          allRoutes = routesSnapshot.docs
             .map((docSnap) => {
               const data = docSnap.data();
               const normalizedPoints = Array.isArray(data.points)
@@ -1769,6 +2222,10 @@
 
               const median = routeMedianGrades.get(docSnap.id);
               const medianGrade = typeof median === 'number' && Number.isFinite(median) ? median : null;
+              const rawLocationValue = typeof data.location === 'string' ? data.location.trim() : '';
+              const normalizedLocation =
+                normalizeLocationName(rawLocationValue) || normalizeLocationName(DEFAULT_LOCATION?.name);
+              const displayLocation = rawLocationValue || DEFAULT_LOCATION?.name || '';
 
               return {
                 id: docSnap.id,
@@ -1779,6 +2236,8 @@
                 description: typeof data.description === 'string' ? data.description : '',
                 date_set: normalizeDate(data.date_set),
                 date_removed: normalizeDate(data.date_removed),
+                location: displayLocation,
+                locationKey: normalizedLocation,
                 medianGrade,
               };
             })
@@ -1788,9 +2247,10 @@
               return nameA.localeCompare(nameB);
             });
 
-          redraw();
+          applyLocationFilter();
         } catch (error) {
           console.error('Failed to load routes:', error);
+          allRoutes = [];
           routes = [];
           routeMedianGrades = new Map();
           redraw();
@@ -1825,6 +2285,7 @@
 
         try {
           if (isAscended) {
+            const previousEntry = userAscentDetails.get(routeId);
             let remainingRoutes = {};
 
             try {
@@ -1850,9 +2311,8 @@
                 routes: remainingRoutes,
               });
             }
-            ascendedRoutes.delete(routeId);
-            if (routeGrades.has(routeId)) {
-              routeGrades.delete(routeId);
+            userAscentDetails.delete(routeId);
+            if (previousEntry && typeof previousEntry.grade === 'number') {
               shouldRefreshMedians = true;
             }
           } else {
@@ -1874,14 +2334,18 @@
                     climber_uid: userId,
                     climber_username: username,
                     grade: gradeValue,
-                  },
                 },
               },
-              { merge: true },
+            },
+            { merge: true },
             );
-            ascendedRoutes.add(routeId);
+            userAscentDetails.set(routeId, {
+              ascended: true,
+              grade: gradeValue,
+            });
           }
 
+          synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
           if (shouldRefreshMedians) {
             await refreshMedianGrades();
@@ -1892,9 +2356,6 @@
           console.error('Failed to update ascent:', error);
         }
       }
-
-      const backgroundImage = new Image();
-      let backgroundReady = false;
 
       function computeCanvasDimensions() {
         const viewportWidth = window.innerWidth;
@@ -1945,24 +2406,6 @@
         isHorizontalScrollEnabled = enableScroll;
         redraw();
       }
-
-      backgroundImage.onload = () => {
-        backgroundReady = true;
-        if (backgroundImage.naturalWidth > 0 && backgroundImage.naturalHeight > 0) {
-          const ratio = backgroundImage.naturalWidth / backgroundImage.naturalHeight;
-          if (Number.isFinite(ratio) && ratio > 0) {
-            canvasAspectRatio = ratio;
-          }
-        }
-        resizeCanvas();
-      };
-
-      backgroundImage.onerror = () => {
-        backgroundReady = false;
-        resizeCanvas();
-      };
-
-      backgroundImage.src = 'background.jpg';
 
       function redraw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
