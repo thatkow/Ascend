@@ -685,6 +685,27 @@
             <span>Stroke colour</span>
             <input type="color" id="colorPicker" value="#ffde59" />
           </label>
+          <label class="control-field">
+            <span>Path</span>
+            <select id="pathTypeSelect">
+              <option value="brezer">Brezer</option>
+              <option value="point">Point</option>
+            </select>
+          </label>
+          <label id="pointDiameterField" class="control-field hidden">
+            <span>
+              Point diameter
+              <span id="pointDiameterValue"></span>
+            </span>
+            <input
+              id="pointDiameterSlider"
+              type="range"
+              min="12"
+              max="160"
+              step="1"
+              value="48"
+            />
+          </label>
           <button
             id="advancedColorToggle"
             class="color-wheel-toggle"
@@ -851,6 +872,13 @@
     ];
 
     const LOCATION_STORAGE_KEY = 'ascend.setter.selectedLocation';
+
+    const PATH_TYPE_BREZER = 'brezer';
+    const PATH_TYPE_POINT = 'point';
+    const DEFAULT_PATH_TYPE = PATH_TYPE_BREZER;
+    const MIN_POINT_DIAMETER = 12;
+    const MAX_POINT_DIAMETER = 160;
+    const DEFAULT_POINT_DIAMETER = 48;
 
     const normalizeLocationName = (value) => {
       if (typeof value !== 'string') {
@@ -1061,6 +1089,10 @@
     const canvas = document.getElementById('drawingCanvas');
     const ctx = canvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
+    const pathTypeSelect = document.getElementById('pathTypeSelect');
+    const pointDiameterField = document.getElementById('pointDiameterField');
+    const pointDiameterSlider = document.getElementById('pointDiameterSlider');
+    const pointDiameterValue = document.getElementById('pointDiameterValue');
     const advancedColorToggle = document.getElementById('advancedColorToggle');
     const advancedColorPicker = document.getElementById('advancedColorPicker');
     const colorWheelCanvas = document.getElementById('colorWheelCanvas');
@@ -1092,6 +1124,25 @@
         .replace(/\s+/g, ' ');
     };
 
+    function normalizePathType(value) {
+      if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (normalized === PATH_TYPE_POINT) {
+          return PATH_TYPE_POINT;
+        }
+      }
+      return DEFAULT_PATH_TYPE;
+    }
+
+    function normalizePointDiameter(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return DEFAULT_POINT_DIAMETER;
+      }
+      const clamped = Math.min(Math.max(Math.round(numeric), MIN_POINT_DIAMETER), MAX_POINT_DIAMETER);
+      return clamped;
+    }
+
     const isValidUsername = (value) => USERNAME_PATTERN.test(normalizeUsername(value));
     const isValidSetterName = (value) => SETTER_NAME_PATTERN.test(normalizeSetterName(value));
 
@@ -1102,6 +1153,8 @@
 
     const points = [];
     let strokeColor = sanitizeColor(colorPicker.value || '#ffde59');
+    let pathType = DEFAULT_PATH_TYPE;
+    let pointDiameter = DEFAULT_POINT_DIAMETER;
     let wheelHue = 48;
     let wheelSaturation = 1;
     let wheelLightness = 0.5;
@@ -1723,6 +1776,8 @@
         title: typeof rest.title === 'string' ? rest.title.trim() : '',
         description: typeof rest.description === 'string' ? rest.description.trim() : '',
         strokeColor: sanitizeColor(rest.strokeColor),
+        pathType: normalizePathType(rest.pathType),
+        pointDiameter: normalizePointDiameter(rest.pointDiameter),
         points: Array.isArray(rest.points) ? rest.points : [],
         date_set: normalizeDateValue(rest.date_set),
         location: locationName,
@@ -1830,6 +1885,21 @@
       hasUnsavedChanges = false;
     }
 
+    function updatePathControls() {
+      if (pathTypeSelect) {
+        pathTypeSelect.value = pathType;
+      }
+      if (pointDiameterField) {
+        pointDiameterField.classList.toggle('hidden', pathType !== PATH_TYPE_POINT);
+      }
+      if (pointDiameterSlider) {
+        pointDiameterSlider.value = String(pointDiameter);
+      }
+      if (pointDiameterValue) {
+        pointDiameterValue.textContent = `${pointDiameter}px`;
+      }
+    }
+
     const DEFAULT_CANVAS_ASPECT_RATIO = 1536 / 1024;
     let canvasAspectRatio = DEFAULT_CANVAS_ASPECT_RATIO;
 
@@ -1917,10 +1987,16 @@
       }
 
       drawExistingRoutesOverlay();
-      drawRouteFromCanvasPoints(points, strokeColor, 1);
+      drawRouteFromCanvasPoints(points, strokeColor, 1, pathType, pointDiameter);
     }
 
-    function drawRouteFromCanvasPoints(routePoints = [], color = '#ffde59', alpha = 1) {
+    function drawRouteFromCanvasPoints(
+      routePoints = [],
+      color = '#ffde59',
+      alpha = 1,
+      routePathType = DEFAULT_PATH_TYPE,
+      routePointDiameter = DEFAULT_POINT_DIAMETER,
+    ) {
       if (!Array.isArray(routePoints) || !routePoints.length) {
         return;
       }
@@ -1928,7 +2004,10 @@
       ctx.save();
       ctx.globalAlpha = alpha;
 
-      if (routePoints.length >= 2) {
+      const effectivePathType = normalizePathType(routePathType);
+      const effectivePointDiameter = normalizePointDiameter(routePointDiameter);
+
+      if (effectivePathType === PATH_TYPE_BREZER && routePoints.length >= 2) {
         ctx.lineWidth = 10;
         ctx.strokeStyle = color;
         ctx.lineJoin = 'round';
@@ -1953,12 +2032,24 @@
         ctx.stroke();
       }
 
-      ctx.fillStyle = color;
-      routePoints.forEach((point) => {
-        ctx.beginPath();
-        ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
-        ctx.fill();
-      });
+      if (effectivePathType === PATH_TYPE_POINT) {
+        const radius = Math.max(1, effectivePointDiameter / 2);
+        const strokeWidth = Math.max(2, Math.round(effectivePointDiameter / 10));
+        ctx.lineWidth = strokeWidth;
+        ctx.strokeStyle = color;
+        routePoints.forEach((point) => {
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+          ctx.stroke();
+        });
+      } else {
+        ctx.fillStyle = color;
+        routePoints.forEach((point) => {
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
 
       ctx.restore();
     }
@@ -2005,7 +2096,13 @@
         }
 
         const color = sanitizeColor(data.strokeColor);
-        drawRouteFromCanvasPoints(canvasPoints, color, 0.25);
+        drawRouteFromCanvasPoints(
+          canvasPoints,
+          color,
+          0.25,
+          data.pathType,
+          data.pointDiameter,
+        );
       });
     }
 
@@ -2090,6 +2187,9 @@
       strokeColor = data.strokeColor;
       colorPicker.value = strokeColor;
       syncAdvancedColorPicker(strokeColor);
+      pathType = data.pathType;
+      pointDiameter = data.pointDiameter;
+      updatePathControls();
       applyNormalizedPoints(data.points);
       deleteButton.disabled = !routeKey;
       resetUnsavedState();
@@ -2111,6 +2211,9 @@
       strokeColor = '#ffde59';
       colorPicker.value = strokeColor;
       syncAdvancedColorPicker(strokeColor);
+      pathType = DEFAULT_PATH_TYPE;
+      pointDiameter = DEFAULT_POINT_DIAMETER;
+      updatePathControls();
       loadedNormalizedPoints = null;
       points.length = 0;
       redraw();
@@ -2244,11 +2347,19 @@
         return;
       }
 
+      const normalizedPathType = normalizePathType(pathType);
+      const normalizedPointDiameter = normalizePointDiameter(pointDiameter);
+      pathType = normalizedPathType;
+      pointDiameter = normalizedPointDiameter;
+      updatePathControls();
+
       const payload = {
         setter,
         title,
         description: description || null,
         strokeColor,
+        pathType: normalizedPathType,
+        pointDiameter: normalizedPointDiameter,
         points: normalizedPoints,
         date_set: dateSetIso,
         date_removed: deleteField(),
@@ -2392,6 +2503,37 @@
       markUnsavedChange();
       syncAdvancedColorPicker(strokeColor);
     });
+
+    if (pathTypeSelect) {
+      pathTypeSelect.addEventListener('change', (event) => {
+        const selectedType = normalizePathType(event.target.value);
+        if (pathType !== selectedType) {
+          pathType = selectedType;
+          updatePathControls();
+          redraw();
+          markUnsavedChange();
+        } else {
+          updatePathControls();
+        }
+      });
+    }
+
+    const handlePointDiameterChange = (event) => {
+      const nextValue = normalizePointDiameter(event.target.value);
+      if (pointDiameter !== nextValue) {
+        pointDiameter = nextValue;
+        updatePathControls();
+        redraw();
+        markUnsavedChange();
+      } else {
+        updatePathControls();
+      }
+    };
+
+    if (pointDiameterSlider) {
+      pointDiameterSlider.addEventListener('input', handlePointDiameterChange);
+      pointDiameterSlider.addEventListener('change', handlePointDiameterChange);
+    }
 
     if (backgroundImage.complete) {
       backgroundReady = true;
