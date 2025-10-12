@@ -754,6 +754,9 @@
       const MAX_GRADE_BAR_WIDTH = 160;
       const DEFAULT_GRADE_BAR_WIDTH = 24;
       const DEFAULT_GRADE_BAR_TRANSPARENCY = 0.85;
+      const MIN_UNFOCUSED_TRANSPARENCY = 0;
+      const MAX_UNFOCUSED_TRANSPARENCY = 1;
+      const DEFAULT_UNFOCUSED_TRANSPARENCY = 0.25;
       const WALL_COLLECTION = 'walls';
 
       function normalizePathType(value) {
@@ -826,6 +829,18 @@
         return Math.round(clamped * 1000) / 1000;
       }
 
+      function normalizeUnfocusedTransparency(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return DEFAULT_UNFOCUSED_TRANSPARENCY;
+        }
+        const clamped = Math.min(
+          Math.max(numeric, MIN_UNFOCUSED_TRANSPARENCY),
+          MAX_UNFOCUSED_TRANSPARENCY,
+        );
+        return Math.round(clamped * 1000) / 1000;
+      }
+
       function normalizeWallSettings(raw = {}) {
         if (!raw || typeof raw !== 'object') {
           return {
@@ -836,6 +851,7 @@
             gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
             gradeBarWidth: DEFAULT_GRADE_BAR_WIDTH,
             gradeBarTransparency: DEFAULT_GRADE_BAR_TRANSPARENCY,
+            unfocusedTransparency: DEFAULT_UNFOCUSED_TRANSPARENCY,
           };
         }
 
@@ -860,6 +876,9 @@
         const gradeBarTransparency = normalizeGradeBarTransparency(
           raw.gradeBarTransparency ?? raw.transparency,
         );
+        const unfocusedTransparency = normalizeUnfocusedTransparency(
+          raw.unfocusedTransparency ?? raw.unfocused_transparency,
+        );
 
         return {
           pointDiameter,
@@ -869,6 +888,7 @@
           gradeBarMaxHeight,
           gradeBarWidth,
           gradeBarTransparency,
+          unfocusedTransparency,
         };
       }
 
@@ -908,6 +928,7 @@
           gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
           gradeBarWidth: DEFAULT_GRADE_BAR_WIDTH,
           gradeBarTransparency: DEFAULT_GRADE_BAR_TRANSPARENCY,
+          unfocusedTransparency: DEFAULT_UNFOCUSED_TRANSPARENCY,
         };
       }
 
@@ -2563,6 +2584,7 @@
                 gradeBarMaxHeight: data.gradeBarMaxHeight,
                 gradeBarWidth: data.gradeBarWidth,
                 transparency: data.transparency ?? data.gradeBarTransparency,
+                unfocusedTransparency: data.unfocusedTransparency,
               };
               const wallSettings = resolveWallSettings(normalizedLocation, fallbackWallSettings);
 
@@ -2586,6 +2608,7 @@
                 gradeBarMaxHeight: wallSettings.gradeBarMaxHeight,
                 gradeBarWidth: wallSettings.gradeBarWidth,
                 gradeBarTransparency: wallSettings.gradeBarTransparency,
+                unfocusedTransparency: wallSettings.unfocusedTransparency,
               };
             })
             .sort((a, b) => {
@@ -2769,13 +2792,11 @@
 
         gradeBarEntries = [];
         queuedGradeBarOverlays = [];
-        let visibleRoutes = routes;
         let isFocusActive = false;
 
         if (focusedRouteId) {
-          const focusedRoutes = routes.filter((route) => route.id === focusedRouteId);
-          if (focusedRoutes.length) {
-            visibleRoutes = focusedRoutes;
+          const resolvedFocusRoute = routes.find((route) => route.id === focusedRouteId) || null;
+          if (resolvedFocusRoute) {
             isFocusActive = true;
           } else {
             focusedRouteId = null;
@@ -2788,7 +2809,7 @@
             (!isFocusActive || pinnedRouteId === focusedRouteId),
         );
         const pinnedRoute = shouldPreservePinned
-          ? visibleRoutes.find((route) => route.id === pinnedRouteId)
+          ? routes.find((route) => route.id === pinnedRouteId)
           : null;
 
         if (!shouldPreservePinned) {
@@ -2797,7 +2818,15 @@
           hideTooltip({ force: true });
         }
 
-        visibleRoutes.forEach(drawRoute);
+        routes.forEach((route) => {
+          const isFocused = isFocusActive && route.id === focusedRouteId;
+          const routeAlpha = isFocused
+            ? 1
+            : isFocusActive
+              ? normalizeUnfocusedTransparency(route.unfocusedTransparency)
+              : 1;
+          drawRoute(route, { alpha: routeAlpha });
+        });
         renderQueuedGradeBarOverlays();
 
         if (pinnedRoute && tooltip) {
@@ -2908,7 +2937,7 @@
         });
       }
 
-      function drawGradeBar(route, scaledPoints, strokeColor) {
+      function drawGradeBar(route, scaledPoints, strokeColor, alpha = 1) {
         if (!route || !Array.isArray(scaledPoints) || !scaledPoints.length) {
           return;
         }
@@ -2917,7 +2946,7 @@
           route,
           routePoints: scaledPoints,
           color: strokeColor,
-          alpha: 1,
+          alpha,
           medianGrade: route.medianGrade,
           baseHeight: route.gradeBarBaseHeight,
           maxHeight: route.gradeBarMaxHeight,
@@ -2927,9 +2956,14 @@
         });
       }
 
-      function drawRoute(route) {
+      function drawRoute(route, options = {}) {
         const strokeColor = typeof route.strokeColor === 'string' ? route.strokeColor : '#ffde59';
         const points = Array.isArray(route.points) ? route.points : [];
+
+        const alphaValue = Number(options.alpha);
+        const routeAlpha = Number.isFinite(alphaValue)
+          ? Math.min(Math.max(alphaValue, 0), 1)
+          : 1;
 
         if (!points.length) {
           return;
@@ -2963,6 +2997,9 @@
           route.rectangleHeight,
           DEFAULT_RECTANGLE_HEIGHT,
         );
+
+        ctx.save();
+        ctx.globalAlpha = routeAlpha;
         if (pathType === PATH_TYPE_POINT) {
           const circleRadius = Math.max(1, pointDiameter / 2);
           const strokeWidth = Math.max(2, Math.round(pointDiameter / 10));
@@ -3025,8 +3062,9 @@
           ctx.stroke(path);
           ctx.restore();
         }
+        ctx.restore();
 
-        drawGradeBar(route, scaledPoints, strokeColor);
+        drawGradeBar(route, scaledPoints, strokeColor, routeAlpha);
       }
 
       function renderQueuedGradeBarOverlays() {

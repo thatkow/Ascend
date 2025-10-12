@@ -3841,10 +3841,6 @@
         return;
       }
 
-      if (currentRouteKey) {
-        return;
-      }
-
       const activeLocationKey = getCurrentLocationKey();
       const wallSettings = getWallSettingsForLocation(activeLocationKey);
       const overlayAlpha = normalizeUnfocusedTransparency(wallSettings.unfocusedTransparency);
