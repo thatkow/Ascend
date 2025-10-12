@@ -12,6 +12,18 @@
         padding: 0;
       }
 
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
       body {
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         background-color: #000;
@@ -334,6 +346,34 @@
         color: rgba(255, 255, 255, 0.85);
       }
 
+      .info-popover .grade-bar-demo {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.55rem;
+        margin-top: 0.2rem;
+      }
+
+      .info-popover .grade-bar-demo-bar {
+        position: relative;
+        --grade-value: 10;
+        width: 0.65rem;
+        height: calc(0.8rem + var(--grade-value) * 0.08rem);
+        border-radius: 0.35rem 0.35rem 0 0;
+        background: linear-gradient(180deg, rgba(126, 217, 87, 0.9), rgba(126, 217, 87, 0.35));
+        border: 1px solid rgba(126, 217, 87, 0.9);
+      }
+
+      .info-popover .grade-bar-demo-bar::after {
+        content: attr(data-grade);
+        position: absolute;
+        top: calc(100% + 0.25rem);
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.85);
+      }
+
       .nav-links {
         display: flex;
         gap: 0.5rem;
@@ -389,14 +429,16 @@
         --tooltip-on-accent: #000;
         --tooltip-foreground: #fff;
         --tooltip-soft-foreground: #000;
+        --tooltip-muted-foreground: #d1d5db;
+        --tooltip-surface: #0e150f;
+        --tooltip-border-color: #7ed957;
+        --tooltip-grade-size: 7.5rem;
         position: fixed;
         pointer-events: none;
-        background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.72);
         color: var(--tooltip-foreground, #fff);
         padding: 0.75rem 1rem;
+        padding-right: calc(1rem + var(--tooltip-grade-size, 7.5rem) * 0.7);
         border-radius: 0.75rem;
-        border: 1px solid rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.45);
-        box-shadow: 0 12px 30px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.25);
         font-size: 0.85rem;
         line-height: 1.4;
         max-width: min(280px, 80vw);
@@ -407,6 +449,11 @@
         display: flex;
         flex-direction: column;
         gap: 0.35rem;
+        overflow: visible;
+        background-color: var(--tooltip-surface, #0e150f);
+        background: var(--tooltip-surface, #0e150f);
+        border: 1px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
+        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
       }
 
       .route-tooltip.pinned {
@@ -435,29 +482,102 @@
         display: block;
       }
 
-      .ascend-toggle {
-        margin-top: 0.75rem;
-        width: 100%;
-        border: none;
-        border-radius: 999px;
-        padding: 0.6rem 1rem;
-        font-size: 0.85rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-        background: var(--tooltip-accent-soft, rgba(126, 217, 87, 0.18));
-        color: var(--tooltip-soft-foreground, var(--tooltip-accent, #7ed957));
+      .route-tooltip .tooltip-grade-cluster {
+        position: absolute;
+        top: 0;
+        right: 0;
+        transform: translate(50%, -50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.55rem;
+        min-width: var(--tooltip-grade-size, 7.5rem);
+        z-index: 1;
       }
 
-      .ascend-toggle:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 10px 18px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.25);
-      }
-
-      .ascend-toggle.ascended {
-        background: var(--tooltip-accent-strong, rgba(126, 217, 87, 0.85));
+      .route-tooltip .tooltip-grade-badge {
+        width: var(--tooltip-grade-size, 7.5rem);
+        height: var(--tooltip-grade-size, 7.5rem);
+        border-radius: 50%;
+        border: var(--tooltip-grade-stroke-width, 2px) solid var(--tooltip-accent, #7ed957);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: calc(var(--tooltip-grade-size, 7.5rem) * 0.32);
+        line-height: 1;
         color: var(--tooltip-on-accent, #000);
-        box-shadow: 0 10px 18px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.25);
+        background: rgb(var(--tooltip-accent-rgb, 126, 217, 87));
+        pointer-events: none;
+        overflow: hidden;
+      }
+
+      .route-tooltip .tooltip-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        margin-top: 0.5rem;
+        width: 100%;
+        pointer-events: auto;
+      }
+
+      .route-tooltip .tooltip-action-button {
+        width: 100%;
+        border-radius: 999px;
+        padding: 0.6rem 0.9rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        border: 2px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
+        background: var(--tooltip-accent, #7ed957);
+        color: var(--tooltip-on-accent, #000);
+        text-align: center;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease,
+          color 0.15s ease, border-color 0.15s ease;
+      }
+
+      .route-tooltip .tooltip-action-button:hover,
+      .route-tooltip .tooltip-action-button:focus-visible {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+        outline: none;
+      }
+
+      .route-tooltip .tooltip-action-button.is-quiet {
+        background: var(--tooltip-surface, #0e150f);
+        color: var(--tooltip-foreground, #fff);
+      }
+
+      .route-tooltip .tooltip-action-button.is-quiet:hover,
+      .route-tooltip .tooltip-action-button.is-quiet:focus-visible {
+        border-color: var(--tooltip-accent, #7ed957);
+      }
+
+      .route-tooltip .tooltip-action-button[aria-pressed='true'] {
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+      }
+
+      .route-tooltip .ascend-toggle[aria-pressed='true'] {
+        background: var(--tooltip-on-accent, #000);
+        color: var(--tooltip-accent, #7ed957);
+      }
+
+      .route-tooltip .focus-toggle {
+        text-align: center;
+      }
+
+      .route-tooltip .focus-toggle[aria-pressed='true'] {
+        background: var(--tooltip-accent, #7ed957);
+        color: var(--tooltip-on-accent, #000);
+      }
+
+      .route-tooltip .tooltip-grade-value {
+        position: relative;
+        z-index: 1;
+      }
+
+      .route-tooltip .tooltip-grade-badge.ascended {
+        box-shadow: 0 0 0 0.35rem rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.35);
       }
 
       .grade-section {
@@ -483,86 +603,22 @@
 
       .grade-form input[type='number'] {
         border-radius: 0.65rem;
-        border: 1px solid rgba(255, 255, 255, 0.25);
-        background: rgba(255, 255, 255, 0.08);
-        color: inherit;
+        border: 1px solid #fff;
+        background: #fff;
+        color: #111;
         padding: 0.45rem 0.6rem;
         font-size: 0.85rem;
       }
 
       .grade-form input[type='number']:disabled {
-        opacity: 0.45;
         cursor: not-allowed;
-      }
-
-      .grade-form-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-      }
-
-      .grade-form button {
-        border: none;
-        border-radius: 999px;
-        padding: 0.45rem 0.9rem;
-        font-size: 0.8rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-      }
-
-      .grade-form button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
-      .grade-submit {
-        background: var(--tooltip-accent-strong, rgba(126, 217, 87, 0.85));
-        color: var(--tooltip-on-accent, #111);
-      }
-
-      .grade-submit:not(:disabled):hover {
-        transform: translateY(-1px);
-        box-shadow: 0 10px 18px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.25);
-      }
-
-      .grade-clear {
-        background: rgba(255, 255, 255, 0.15);
-        color: var(--tooltip-foreground, #fff);
-      }
-
-      .grade-clear:not(:disabled):hover {
-        transform: translateY(-1px);
-        box-shadow: 0 10px 18px rgba(255, 255, 255, 0.2);
       }
 
       .grade-note {
         font-size: 0.75rem;
-        color: var(--tooltip-foreground, rgba(255, 255, 255, 0.7));
-      }
-
-      .ascend-status {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        font-weight: 600;
         color: var(--tooltip-foreground, #fff);
       }
 
-      .ascend-status::before {
-        content: '✔';
-        font-size: 0.9rem;
-        color: inherit;
-      }
-
-      .ascend-status.not-ascended {
-        opacity: 0.75;
-      }
-
-      .ascend-status.not-ascended::before {
-        content: '○';
-        font-size: 0.9rem;
-      }
     </style>
   </head>
   <body>
@@ -614,7 +670,15 @@
             aria-label="About Ascend"
           >
             <p>Track which climbs you have completed.</p>
-            <p>The height of each bar shows its difficulty based on community scoring.</p>
+            <p>
+              Grade bars grow taller for harder climbs. Here's how grades compare:
+            </p>
+            <div class="grade-bar-demo" aria-hidden="true">
+              <div class="grade-bar-demo-bar" data-grade="7" style="--grade-value: 7"></div>
+              <div class="grade-bar-demo-bar" data-grade="13" style="--grade-value: 13"></div>
+              <div class="grade-bar-demo-bar" data-grade="25" style="--grade-value: 25"></div>
+            </div>
+            <p class="sr-only">Example grade bars: grade 7 is shortest, grade 13 is taller, and grade 25 is tallest.</p>
           </div>
         </div>
         <button id="signOutButton" class="sign-out">Sign out</button>
@@ -665,7 +729,6 @@
         doc,
         getDoc,
         setDoc,
-        deleteDoc,
         serverTimestamp,
         collection,
         getDocs,
@@ -691,6 +754,7 @@
       const toggleAuthModeButton = document.getElementById('toggleAuthMode');
       const signOutButton = document.getElementById('signOutButton');
       const setterLink = document.getElementById('setterLink');
+      const setterLinkBaseHref = setterLink?.getAttribute('href') || 'setter.html';
       const tooltip = document.getElementById('routeTooltip');
       const infoButton = document.getElementById('infoButton');
       const infoPopover = document.getElementById('infoPopover');
@@ -704,7 +768,8 @@
         { key: 'old-wall', name: 'Old Wall', image: './location/Old Wall.jpg' },
       ];
 
-      const LOCATION_STORAGE_KEY = 'ascend.selectedLocation';
+      const LOCATION_STORAGE_KEY = 'ascend.selectedWall';
+      const WALL_QUERY_PARAM = 'wall';
 
       const PATH_TYPE_BREZER = 'brezer';
       const PATH_TYPE_POINT = 'point';
@@ -717,8 +782,8 @@
       const MAX_RECTANGLE_SIZE = 200;
       const DEFAULT_RECTANGLE_WIDTH = 80;
       const DEFAULT_RECTANGLE_HEIGHT = 60;
-      const MIN_GRADE_VALUE = 1;
-      const MAX_GRADE_VALUE = 25;
+      const MIN_GRADE_VALUE = 5;
+      const MAX_GRADE_VALUE = 30;
       const MIN_GRADE_BAR_BASE_HEIGHT = 0;
       const MAX_GRADE_BAR_HEIGHT = 1000;
       const DEFAULT_GRADE_BAR_BASE_HEIGHT = 40;
@@ -727,6 +792,9 @@
       const MAX_GRADE_BAR_WIDTH = 160;
       const DEFAULT_GRADE_BAR_WIDTH = 24;
       const DEFAULT_GRADE_BAR_TRANSPARENCY = 0.85;
+      const MIN_UNFOCUSED_TRANSPARENCY = 0;
+      const MAX_UNFOCUSED_TRANSPARENCY = 1;
+      const DEFAULT_UNFOCUSED_TRANSPARENCY = 0.25;
       const WALL_COLLECTION = 'walls';
 
       function normalizePathType(value) {
@@ -799,6 +867,18 @@
         return Math.round(clamped * 1000) / 1000;
       }
 
+      function normalizeUnfocusedTransparency(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return DEFAULT_UNFOCUSED_TRANSPARENCY;
+        }
+        const clamped = Math.min(
+          Math.max(numeric, MIN_UNFOCUSED_TRANSPARENCY),
+          MAX_UNFOCUSED_TRANSPARENCY,
+        );
+        return Math.round(clamped * 1000) / 1000;
+      }
+
       function normalizeWallSettings(raw = {}) {
         if (!raw || typeof raw !== 'object') {
           return {
@@ -809,6 +889,7 @@
             gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
             gradeBarWidth: DEFAULT_GRADE_BAR_WIDTH,
             gradeBarTransparency: DEFAULT_GRADE_BAR_TRANSPARENCY,
+            unfocusedTransparency: DEFAULT_UNFOCUSED_TRANSPARENCY,
           };
         }
 
@@ -833,6 +914,9 @@
         const gradeBarTransparency = normalizeGradeBarTransparency(
           raw.gradeBarTransparency ?? raw.transparency,
         );
+        const unfocusedTransparency = normalizeUnfocusedTransparency(
+          raw.unfocusedTransparency ?? raw.unfocused_transparency,
+        );
 
         return {
           pointDiameter,
@@ -842,6 +926,7 @@
           gradeBarMaxHeight,
           gradeBarWidth,
           gradeBarTransparency,
+          unfocusedTransparency,
         };
       }
 
@@ -881,6 +966,7 @@
           gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
           gradeBarWidth: DEFAULT_GRADE_BAR_WIDTH,
           gradeBarTransparency: DEFAULT_GRADE_BAR_TRANSPARENCY,
+          unfocusedTransparency: DEFAULT_UNFOCUSED_TRANSPARENCY,
         };
       }
 
@@ -893,6 +979,75 @@
           null
         );
       };
+
+      function buildWallAwareHref(baseHref, wallKey) {
+        const normalizedKey = normalizeWallKey(wallKey);
+        if (typeof baseHref !== 'string' || !baseHref) {
+          return '';
+        }
+
+        try {
+          const url = new URL(baseHref, window.location.origin);
+          if (normalizedKey) {
+            url.searchParams.set(WALL_QUERY_PARAM, normalizedKey);
+          } else {
+            url.searchParams.delete(WALL_QUERY_PARAM);
+          }
+          url.hash = '';
+          const relativePath = `${url.pathname.replace(/^\//, '')}${url.search}`;
+          return relativePath || baseHref;
+        } catch (error) {
+          if (!normalizedKey) {
+            return baseHref;
+          }
+
+          const separator = baseHref.includes('?') ? '&' : '?';
+          return `${baseHref}${separator}${encodeURIComponent(WALL_QUERY_PARAM)}=${encodeURIComponent(normalizedKey)}`;
+        }
+      }
+
+      function getWallKeyFromQuery() {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const raw = params.get(WALL_QUERY_PARAM);
+          return normalizeWallKey(raw);
+        } catch (error) {
+          console.warn('Unable to read wall from query string:', error);
+          return '';
+        }
+      }
+
+      function updateWallQueryParam(wallKey) {
+        try {
+          const normalizedKey = normalizeWallKey(wallKey);
+          const url = new URL(window.location.href);
+          if (normalizedKey) {
+            url.searchParams.set(WALL_QUERY_PARAM, normalizedKey);
+          } else {
+            url.searchParams.delete(WALL_QUERY_PARAM);
+          }
+          url.hash = '';
+          const next = url.toString();
+          if (next !== window.location.href) {
+            window.history.replaceState({}, '', next);
+          }
+        } catch (error) {
+          console.warn('Unable to update wall query parameter:', error);
+        }
+      }
+
+      function persistSelectedWall(wallKey) {
+        const normalizedKey = normalizeWallKey(wallKey);
+        try {
+          if (normalizedKey) {
+            window.localStorage?.setItem(LOCATION_STORAGE_KEY, normalizedKey);
+          } else {
+            window.localStorage?.removeItem(LOCATION_STORAGE_KEY);
+          }
+        } catch (error) {
+          console.warn('Unable to persist location preference:', error);
+        }
+      }
 
       function upsertLocation({ key = '', name = '', image = '', fallbackName = '' } = {}) {
         const trimmedName = typeof name === 'string' && name.trim() ? name.trim() : '';
@@ -950,12 +1105,31 @@
           updateLocationButtonLabel();
           updateLocationOptionsState();
           updateBackgroundForCurrentLocation();
+          const refreshedKey = getCurrentLocationKey();
+          if (refreshedKey) {
+            persistSelectedWall(refreshedKey);
+          }
+          updateWallQueryParam(refreshedKey);
+          updateSetterLinkHref();
         }
       }
 
       const DEFAULT_LOCATION = LOCATIONS[0];
 
       let currentLocation = DEFAULT_LOCATION;
+
+      function getCurrentLocationKey() {
+        return normalizeWallKey(currentLocation?.key || currentLocation?.name);
+      }
+
+      function updateSetterLinkHref() {
+        if (!setterLink) {
+          return;
+        }
+
+        const wallKey = getCurrentLocationKey();
+        setterLink.href = buildWallAwareHref(setterLinkBaseHref, wallKey);
+      }
 
       let backgroundReady = false;
       let backgroundImageSource = '';
@@ -1063,11 +1237,12 @@
         updateLocationOptionsState();
         updateBackgroundForCurrentLocation();
 
-        try {
-          window.localStorage?.setItem(LOCATION_STORAGE_KEY, location.key);
-        } catch (error) {
-          console.warn('Unable to persist location preference:', error);
+        const nextLocationKey = getCurrentLocationKey();
+        if (nextLocationKey) {
+          persistSelectedWall(nextLocationKey);
         }
+        updateWallQueryParam(nextLocationKey);
+        updateSetterLinkHref();
 
         if (changed) {
           applyLocationFilter();
@@ -1259,10 +1434,14 @@
         const accent = parsed.hex ? parsed.hex : `rgb(${rgbString})`;
         const soft = `rgba(${rgbString}, 0.18)`;
         const strong = `rgba(${rgbString}, 0.85)`;
-        const tooltipBackground = `rgba(${rgbString}, 0.72)`;
+        const surfaceFactor = 0.22;
+        const surfaceOffset = 18;
+        const mixChannel = (channel) => clamp(Math.round(channel * surfaceFactor + surfaceOffset));
+        const surface = `rgb(${mixChannel(r)}, ${mixChannel(g)}, ${mixChannel(b)})`;
         const onAccent = getTextColor(strong);
-        const foreground = getTextColor(tooltipBackground);
-        const softForeground = getTextColor(soft);
+        const foreground = getTextColor(surface);
+        const softForeground = foreground;
+        const mutedForeground = foreground === '#000' ? '#333333' : '#d1d5db';
 
         return {
           accent,
@@ -1272,6 +1451,9 @@
           onAccent,
           foreground,
           softForeground,
+          mutedForeground,
+          surface,
+          border: accent,
         };
       }
 
@@ -1279,7 +1461,8 @@
         const defaultRgb = '126, 217, 87';
         const soft = 'rgba(126, 217, 87, 0.18)';
         const strong = 'rgba(126, 217, 87, 0.85)';
-        const tooltipBackground = 'rgba(126, 217, 87, 0.72)';
+        const surface = 'rgb(43, 71, 47)';
+        const foreground = getTextColor(surface);
 
         return {
           accent: '#7ed957',
@@ -1287,8 +1470,11 @@
           soft,
           strong,
           onAccent: getTextColor(strong),
-          foreground: getTextColor(tooltipBackground),
-          softForeground: getTextColor(soft),
+          foreground,
+          softForeground: foreground,
+          mutedForeground: foreground === '#000' ? '#333333' : '#d1d5db',
+          surface,
+          border: '#7ed957',
         };
       })();
 
@@ -1310,6 +1496,9 @@
         const onAccent = scheme.onAccent ?? base.onAccent;
         const foreground = scheme.foreground ?? base.foreground;
         const softForeground = scheme.softForeground ?? base.softForeground;
+        const mutedForeground = scheme.mutedForeground ?? base.mutedForeground;
+        const surface = scheme.surface ?? base.surface;
+        const border = scheme.border ?? base.border ?? accent;
 
         tooltip.style.setProperty('--tooltip-accent', accent);
         tooltip.style.setProperty('--tooltip-accent-rgb', rgb);
@@ -1318,6 +1507,9 @@
         tooltip.style.setProperty('--tooltip-on-accent', onAccent);
         tooltip.style.setProperty('--tooltip-foreground', foreground);
         tooltip.style.setProperty('--tooltip-soft-foreground', softForeground);
+        tooltip.style.setProperty('--tooltip-muted-foreground', mutedForeground);
+        tooltip.style.setProperty('--tooltip-surface', surface);
+        tooltip.style.setProperty('--tooltip-border-color', border);
       }
 
       function closeInfoPopover() {
@@ -1372,17 +1564,36 @@
 
       renderLocationOptions();
 
+      const wallKeyFromQuery = getWallKeyFromQuery();
+      let initialLocation = wallKeyFromQuery
+        ? findLocationByKey(wallKeyFromQuery) || findLocationByName(wallKeyFromQuery)
+        : null;
+
       let storedLocationKey = null;
-      try {
-        storedLocationKey = window.localStorage?.getItem(LOCATION_STORAGE_KEY) || null;
-      } catch (error) {
-        console.warn('Unable to read location preference:', error);
+      if (!initialLocation) {
+        try {
+          storedLocationKey = window.localStorage?.getItem(LOCATION_STORAGE_KEY) || null;
+        } catch (error) {
+          console.warn('Unable to read location preference:', error);
+        }
+
+        if (storedLocationKey) {
+          const normalizedStoredKey = normalizeWallKey(storedLocationKey);
+          initialLocation =
+            findLocationByKey(normalizedStoredKey) || findLocationByName(normalizedStoredKey);
+        }
       }
 
-      const storedLocation = storedLocationKey ? findLocationByKey(storedLocationKey) : null;
-      if (storedLocation) {
-        currentLocation = storedLocation;
+      if (initialLocation) {
+        currentLocation = initialLocation;
       }
+
+      const currentLocationKey = getCurrentLocationKey();
+      if (currentLocationKey) {
+        persistSelectedWall(currentLocationKey);
+      }
+      updateWallQueryParam(currentLocationKey);
+      updateSetterLinkHref();
 
       updateLocationButtonLabel();
       updateLocationOptionsState();
@@ -1688,6 +1899,7 @@
       }
 
       function updateNavigationForRole(role) {
+        updateSetterLinkHref();
         setterLink.classList.toggle('hidden', role !== 'setter');
       }
 
@@ -1725,6 +1937,7 @@
           authForm.reset();
           setAuthMode('login');
           routes = [];
+          focusedRouteId = null;
           currentUser = null;
           currentUsername = '';
           authenticatedUsernameClaim = '';
@@ -1748,7 +1961,9 @@
 
       let allRoutes = [];
       let routes = [];
+      let focusedRouteId = null;
       let gradeBarEntries = [];
+      let queuedGradeBarOverlays = [];
       let activeRouteId = null;
       let pinnedRouteId = null;
       let pinnedPosition = null;
@@ -1953,7 +2168,7 @@
           return null;
         }
 
-        if (numeric < 1 || numeric > 25) {
+        if (numeric < MIN_GRADE_VALUE || numeric > MAX_GRADE_VALUE) {
           return null;
         }
 
@@ -1991,13 +2206,13 @@
 
         const gradeLabel = document.createElement('label');
         const labelText = document.createElement('span');
-        labelText.textContent = 'Your grade (1-25)';
+        labelText.textContent = `Your grade (${MIN_GRADE_VALUE}-${MAX_GRADE_VALUE})`;
         gradeLabel.appendChild(labelText);
 
         const gradeInput = document.createElement('input');
         gradeInput.type = 'number';
-        gradeInput.min = '1';
-        gradeInput.max = '25';
+        gradeInput.min = String(MIN_GRADE_VALUE);
+        gradeInput.max = String(MAX_GRADE_VALUE);
         gradeInput.step = '1';
         gradeInput.inputMode = 'numeric';
         const existingGrade = getUserGradeForRoute(route.id);
@@ -2007,55 +2222,67 @@
 
         gradeForm.appendChild(gradeLabel);
 
-        const actions = document.createElement('div');
-        actions.className = 'grade-form-actions';
+        let isSubmittingGrade = false;
+        let lastSubmittedValue = gradeInput.value.trim();
 
-        const saveButton = document.createElement('button');
-        saveButton.type = 'submit';
-        saveButton.className = 'grade-submit';
-        saveButton.textContent = 'Save grade';
+        const commitGradeFromInput = async () => {
+          if (isSubmittingGrade) {
+            return;
+          }
 
-        const clearButton = document.createElement('button');
-        clearButton.type = 'button';
-        clearButton.className = 'grade-clear';
-        clearButton.textContent = 'Clear grade';
-        const hasExistingGrade = typeof existingGrade === 'number' && Number.isFinite(existingGrade);
-        clearButton.disabled = !hasExistingGrade;
+          const rawValue = gradeInput.value.trim();
+          if (rawValue === lastSubmittedValue) {
+            return;
+          }
 
-        actions.appendChild(saveButton);
-        actions.appendChild(clearButton);
-        gradeForm.appendChild(actions);
+          isSubmittingGrade = true;
+
+          try {
+            if (!rawValue) {
+              gradeInput.setCustomValidity('');
+              await applyUserRouteGrade(route, null);
+              lastSubmittedValue = '';
+              gradeInput.value = '';
+              return;
+            }
+
+            const parsed = normalizeGradeValue(rawValue);
+            if (parsed === null) {
+              gradeInput.setCustomValidity(
+                `Enter a whole number between ${MIN_GRADE_VALUE} and ${MAX_GRADE_VALUE}.`,
+              );
+              gradeInput.reportValidity();
+              return;
+            }
+
+            gradeInput.setCustomValidity('');
+            await applyUserRouteGrade(route, parsed);
+            lastSubmittedValue = String(parsed);
+            gradeInput.value = String(parsed);
+          } finally {
+            isSubmittingGrade = false;
+          }
+        };
+
+        gradeInput.addEventListener('input', () => {
+          gradeInput.setCustomValidity('');
+        });
+
+        gradeInput.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            gradeForm.requestSubmit();
+          }
+        });
+
+        gradeInput.addEventListener('blur', () => {
+          void commitGradeFromInput();
+        });
 
         gradeForm.addEventListener('submit', async (event) => {
           event.preventDefault();
           event.stopPropagation();
-
-          const rawValue = gradeInput.value.trim();
-          if (!rawValue) {
-            gradeInput.setCustomValidity('');
-            await applyUserRouteGrade(route, null);
-            gradeInput.value = '';
-            return;
-          }
-
-          const parsed = normalizeGradeValue(rawValue);
-          if (parsed === null) {
-            gradeInput.setCustomValidity('Enter a whole number between 1 and 25.');
-            gradeInput.reportValidity();
-            return;
-          }
-
-          gradeInput.setCustomValidity('');
-          await applyUserRouteGrade(route, parsed);
-        });
-
-        clearButton.addEventListener('click', async (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-
-          gradeInput.value = '';
-          gradeInput.setCustomValidity('');
-          await applyUserRouteGrade(route, null);
+          await commitGradeFromInput();
         });
 
         container.appendChild(gradeForm);
@@ -2223,6 +2450,76 @@
           ariaLines.push(displayTitle);
         }
 
+        const medianGrade =
+          route && typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)
+            ? route.medianGrade
+            : null;
+        const gradeDisplay = formatGradeDisplay(medianGrade);
+        const gradeBadge = document.createElement('div');
+        gradeBadge.className = 'tooltip-grade-badge';
+        gradeBadge.setAttribute('aria-hidden', 'true');
+        gradeBadge.setAttribute('data-grade', gradeDisplay);
+        const gradeValue = document.createElement('span');
+        gradeValue.className = 'tooltip-grade-value';
+        gradeValue.textContent = gradeDisplay;
+        gradeBadge.appendChild(gradeValue);
+        const isAscended = Boolean(route && ascendedRoutes.has(route.id));
+        if (isAscended) {
+          gradeBadge.classList.add('ascended');
+        }
+        const gradeStrokeWidth = Math.max(2, Math.round(calculateRouteStrokeWidth(route)) || 2);
+        gradeBadge.style.setProperty('--tooltip-grade-stroke-width', `${gradeStrokeWidth}px`);
+        tooltip.style.setProperty('--tooltip-grade-stroke-width', `${gradeStrokeWidth}px`);
+        const gradeCluster = document.createElement('div');
+        gradeCluster.className = 'tooltip-grade-cluster';
+        gradeCluster.appendChild(gradeBadge);
+
+        let actionsContainer = null;
+        const ensureActionsContainer = () => {
+          if (!actionsContainer) {
+            actionsContainer = document.createElement('div');
+            actionsContainer.className = 'tooltip-actions';
+          }
+          return actionsContainer;
+        };
+
+        if (currentUser) {
+          const actionButton = document.createElement('button');
+          actionButton.type = 'button';
+          actionButton.className = 'tooltip-action-button ascend-toggle';
+          actionButton.setAttribute('aria-pressed', isAscended ? 'true' : 'false');
+          actionButton.textContent = isAscended ? 'Ascended' : 'Not ascended';
+          actionButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleRouteAscent(route);
+          });
+          ensureActionsContainer().appendChild(actionButton);
+        }
+
+        const focusButton = document.createElement('button');
+        focusButton.type = 'button';
+        focusButton.className = 'tooltip-action-button focus-toggle';
+        const isFocused = focusedRouteId === route.id;
+        if (!isFocused) {
+          focusButton.classList.add('is-quiet');
+        }
+        focusButton.textContent = isFocused ? 'Show all routes' : 'Focus';
+        focusButton.setAttribute('aria-pressed', isFocused ? 'true' : 'false');
+        focusButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          toggleRouteFocus(route);
+        });
+        ensureActionsContainer().appendChild(focusButton);
+
+        fragment.appendChild(gradeCluster);
+        if (actionsContainer) {
+          fragment.appendChild(actionsContainer);
+        }
+        ariaLines.push(`Grade: ${gradeDisplay}`);
+        ariaLines.push(isAscended ? 'Ascended' : 'Not ascended');
+
         const infoContainer = document.createElement('div');
         infoContainer.className = 'tooltip-lines';
         fragment.appendChild(infoContainer);
@@ -2247,34 +2544,7 @@
 
         appendInfoLine(`Date set: ${formatDisplayDate(route.date_set)}`);
 
-        const medianGrade = route && typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)
-          ? route.medianGrade
-          : null;
-        appendInfoLine(`Median grade: ${formatGradeDisplay(medianGrade)}`);
-
-        if (ascendedRoutes.has(route.id)) {
-          appendInfoLine('Ascended', 'ascend-status');
-        } else {
-          appendInfoLine('Not ascended', 'ascend-status not-ascended');
-        }
-
         if (currentUser) {
-          const userGrade = getUserGradeForRoute(route.id);
-          appendInfoLine(`Your grade: ${formatGradeDisplay(userGrade)}`);
-        }
-
-        if (currentUser) {
-          const actionButton = document.createElement('button');
-          actionButton.type = 'button';
-          actionButton.className = `ascend-toggle${ascendedRoutes.has(route.id) ? ' ascended' : ''}`;
-          actionButton.textContent = ascendedRoutes.has(route.id) ? 'Unmark as ascended' : 'Mark as ascended';
-          actionButton.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            toggleRouteAscent(route);
-          });
-          fragment.appendChild(actionButton);
-
           const gradeControls = buildGradeControls(route);
           if (gradeControls) {
             fragment.appendChild(gradeControls);
@@ -2360,6 +2630,21 @@
         pinnedPosition = null;
       }
 
+      function toggleRouteFocus(route) {
+        if (!route || typeof route.id !== 'string') {
+          return;
+        }
+
+        const shouldFocus = focusedRouteId !== route.id;
+        focusedRouteId = shouldFocus ? route.id : null;
+
+        redraw();
+
+        if (tooltip && tooltip.classList.contains('visible') && activeRouteId === route.id) {
+          updateTooltipContent(route);
+        }
+      }
+
       function getGradeBarEntryAtClientPoint(clientX, clientY) {
         if (!gradeBarEntries.length) {
           return null;
@@ -2417,6 +2702,14 @@
                 : normalizeLocationName(route?.location);
             return routeLocation === targetLocation;
           });
+        }
+
+        if (focusedRouteId) {
+          const hasFocusedRoute = routes.some((route) => route.id === focusedRouteId);
+          if (!hasFocusedRoute) {
+            focusedRouteId = null;
+            hideTooltip({ force: true });
+          }
         }
 
         synchroniseAscentsWithRoutes({ shouldRedraw: false });
@@ -2497,6 +2790,7 @@
                 gradeBarMaxHeight: data.gradeBarMaxHeight,
                 gradeBarWidth: data.gradeBarWidth,
                 transparency: data.transparency ?? data.gradeBarTransparency,
+                unfocusedTransparency: data.unfocusedTransparency,
               };
               const wallSettings = resolveWallSettings(normalizedLocation, fallbackWallSettings);
 
@@ -2520,6 +2814,7 @@
                 gradeBarMaxHeight: wallSettings.gradeBarMaxHeight,
                 gradeBarWidth: wallSettings.gradeBarWidth,
                 gradeBarTransparency: wallSettings.gradeBarTransparency,
+                unfocusedTransparency: wallSettings.unfocusedTransparency,
               };
             })
             .sort((a, b) => {
@@ -2533,6 +2828,7 @@
           console.error('Failed to load routes:', error);
           allRoutes = [];
           routes = [];
+          focusedRouteId = null;
           routeMedianGrades = new Map();
           redraw();
         }
@@ -2562,46 +2858,18 @@
         }
         const ascentRef = doc(db, 'ascents', userId);
         const isAscended = ascendedRoutes.has(routeId);
-        let shouldRefreshMedians = false;
+        const previousEntry = userAscentDetails.get(routeId) || {};
+        const persistedGrade =
+          typeof previousEntry.grade === 'number' && Number.isFinite(previousEntry.grade)
+            ? previousEntry.grade
+            : getUserGradeForRoute(routeId);
+        const normalizedGrade =
+          typeof persistedGrade === 'number' && Number.isFinite(persistedGrade)
+            ? persistedGrade
+            : null;
 
         try {
           if (isAscended) {
-            const previousEntry = userAscentDetails.get(routeId);
-            let remainingRoutes = {};
-
-            try {
-              const ascentSnap = await getDoc(ascentRef);
-              if (ascentSnap.exists()) {
-                const ascentData = ascentSnap.data() ?? {};
-                const currentRoutes =
-                  ascentData.routes && typeof ascentData.routes === 'object' ? { ...ascentData.routes } : {};
-                delete currentRoutes[routeId];
-                remainingRoutes = currentRoutes;
-              }
-            } catch (loadError) {
-              console.warn('Unable to load existing ascents before removal:', loadError);
-            }
-
-            if (Object.keys(remainingRoutes).length === 0) {
-              await deleteDoc(ascentRef);
-            } else {
-              await setDoc(ascentRef, {
-                climber_uid: userId,
-                climber_username: username,
-                updatedAt: serverTimestamp(),
-                routes: remainingRoutes,
-              });
-            }
-            userAscentDetails.delete(routeId);
-            if (previousEntry && typeof previousEntry.grade === 'number') {
-              shouldRefreshMedians = true;
-            }
-          } else {
-            const existingGrade = routeGrades.get(routeId);
-            const gradeValue = typeof existingGrade === 'number' && Number.isFinite(existingGrade)
-              ? existingGrade
-              : null;
-
             await setDoc(
               ascentRef,
               {
@@ -2611,28 +2879,52 @@
                 routes: {
                   [routeId]: {
                     route_id: routeId,
-                    date_ascended: new Date().toISOString(),
                     climber_uid: userId,
                     climber_username: username,
-                    grade: gradeValue,
+                    grade: normalizedGrade,
+                    ascended: false,
+                    date_ascended: null,
+                  },
                 },
               },
-            },
-            { merge: true },
+              { merge: true },
+            );
+
+            userAscentDetails.set(routeId, {
+              ascended: false,
+              grade: normalizedGrade,
+            });
+          } else {
+            const now = new Date().toISOString();
+            await setDoc(
+              ascentRef,
+              {
+                climber_uid: userId,
+                climber_username: username,
+                updatedAt: serverTimestamp(),
+                routes: {
+                  [routeId]: {
+                    route_id: routeId,
+                    date_ascended: now,
+                    climber_uid: userId,
+                    climber_username: username,
+                    grade: normalizedGrade,
+                    ascended: true,
+                  },
+                },
+              },
+              { merge: true },
             );
             userAscentDetails.set(routeId, {
               ascended: true,
-              grade: gradeValue,
+              grade: normalizedGrade,
+              dateAscended: now,
             });
           }
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
-          if (shouldRefreshMedians) {
-            await refreshMedianGrades();
-          } else {
-            redraw();
-          }
+          redraw();
         } catch (error) {
           console.error('Failed to update ascent:', error);
         }
@@ -2701,7 +2993,26 @@
         }
 
         gradeBarEntries = [];
-        const shouldPreservePinned = Boolean(pinnedRouteId && pinnedPosition);
+        queuedGradeBarOverlays = [];
+        let isFocusActive = false;
+        let resolvedFocusRoute = null;
+        let focusedRoutePointKeys = null;
+
+        if (focusedRouteId) {
+          resolvedFocusRoute = routes.find((route) => route.id === focusedRouteId) || null;
+          if (resolvedFocusRoute) {
+            isFocusActive = true;
+            focusedRoutePointKeys = buildNormalizedPointKeySet(resolvedFocusRoute.points);
+          } else {
+            focusedRouteId = null;
+          }
+        }
+
+        const shouldPreservePinned = Boolean(
+          pinnedRouteId &&
+            pinnedPosition &&
+            (!isFocusActive || pinnedRouteId === focusedRouteId),
+        );
         const pinnedRoute = shouldPreservePinned
           ? routes.find((route) => route.id === pinnedRouteId)
           : null;
@@ -2712,7 +3023,38 @@
           hideTooltip({ force: true });
         }
 
-        routes.forEach(drawRoute);
+        const overlapGroups = buildOverlappingShapeGroups(routes);
+        const routeAlphaMap = new Map();
+
+        routes.forEach((route) => {
+          if (!route || typeof route.id !== 'string') {
+            return;
+          }
+          const isFocused = isFocusActive && route.id === focusedRouteId;
+          const routeAlpha = isFocused
+            ? 1
+            : isFocusActive
+              ? normalizeUnfocusedTransparency(route.unfocusedTransparency)
+              : 1;
+          routeAlphaMap.set(route.id, routeAlpha);
+        });
+
+        const handledOverlapKeys = new Set();
+
+        routes.forEach((route) => {
+          const isFocused = isFocusActive && route.id === focusedRouteId;
+          const routeAlpha = routeAlphaMap.get(route?.id) ?? 1;
+          const omitOverlaps = !isFocused && focusedRoutePointKeys?.size ? focusedRoutePointKeys : null;
+          drawRoute(route, {
+            alpha: routeAlpha,
+            omitOverlappingPointKeys: omitOverlaps,
+            overlapGroups,
+            handledOverlapKeys,
+            routeAlphaMap,
+            isFocused,
+          });
+        });
+        renderQueuedGradeBarOverlays();
 
         if (pinnedRoute && tooltip) {
           updateTooltipContent(pinnedRoute);
@@ -2736,247 +3078,507 @@
         return value;
       }
 
-      function calculateMedianX(points = []) {
-        if (!Array.isArray(points) || points.length === 0) {
+      function createNormalizedPointKey(x, y) {
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
           return null;
         }
 
-        const sorted = points
-          .map((point) => ({
-            x: Number(point?.x),
-          }))
-          .filter((point) => Number.isFinite(point.x))
-          .sort((a, b) => a.x - b.x);
-
-        if (!sorted.length) {
-          return null;
-        }
-
-        const midIndex = Math.floor(sorted.length / 2);
-        if (sorted.length % 2 === 0 && sorted[midIndex - 1]) {
-          return (sorted[midIndex - 1].x + sorted[midIndex].x) / 2;
-        }
-        return sorted[midIndex].x;
+        const clampedX = Math.min(Math.max(x, 0), 1);
+        const clampedY = Math.min(Math.max(y, 0), 1);
+        const scaledX = Math.round(clampedX * 10000);
+        const scaledY = Math.round(clampedY * 10000);
+        return `${scaledX}:${scaledY}`;
       }
 
-      const GRADE_BAR_SPACING = 0;
-      const GRADE_BAR_OFFSET_ATTEMPTS = 24;
-
-      function resolveGradeBarPosition(centerX, width) {
-        if (!Number.isFinite(centerX) || !Number.isFinite(width) || width <= 0) {
-          return {
-            x: 0,
-            left: 0,
-            right: 0,
-          };
+      function buildNormalizedPointKeySet(points = []) {
+        const keys = new Set();
+        if (!Array.isArray(points) || !points.length) {
+          return keys;
         }
 
-        const halfWidth = width / 2;
-        const clampedHalfWidth = Math.min(halfWidth, canvas.width / 2);
-        const availableHalfWidth = Math.max(clampedHalfWidth, 1);
-        const spacing = GRADE_BAR_SPACING;
+        points.forEach((point) => {
+          const x = Number(point?.x);
+          const y = Number(point?.y);
+          const key = createNormalizedPointKey(x, y);
+          if (key) {
+            keys.add(key);
+          }
+        });
 
-        const offsets = [0];
-        for (let step = 1; offsets.length < GRADE_BAR_OFFSET_ATTEMPTS; step += 1) {
-          offsets.push(step, -step);
+        return keys;
+      }
+
+      function getRouteStrokeColor(route) {
+        const rawColor = route?.strokeColor;
+        if (typeof rawColor === 'string' && rawColor.trim()) {
+          return rawColor;
+        }
+        return '#ffde59';
+      }
+
+      function createOverlapGroupKey(pathType, pointKey) {
+        if (!pathType || !pointKey) {
+          return null;
+        }
+        return `${pathType}::${pointKey}`;
+      }
+
+      function buildOverlappingShapeGroups(routeList = []) {
+        const groups = new Map();
+
+        if (!Array.isArray(routeList) || !routeList.length) {
+          return groups;
         }
 
-        for (const offset of offsets) {
-          const shift = offset * (width + spacing);
-          const candidateX = clamp(
-            centerX + shift,
-            availableHalfWidth,
-            canvas.width - availableHalfWidth,
+        routeList.forEach((route) => {
+          if (!route) {
+            return;
+          }
+
+          const pathType = normalizePathType(route.pathType);
+          if (pathType !== PATH_TYPE_POINT && pathType !== PATH_TYPE_RECTANGLE) {
+            return;
+          }
+
+          const points = Array.isArray(route.points) ? route.points : [];
+          if (!points.length) {
+            return;
+          }
+
+          const strokeColor = getRouteStrokeColor(route);
+          const normalizedPointDiameter = normalizePointDiameter(route.pointDiameter);
+          const normalizedRectangleWidth = normalizeRectangleSize(
+            route.rectangleWidth,
+            DEFAULT_RECTANGLE_WIDTH,
           );
-          const left = candidateX - availableHalfWidth;
-          const right = candidateX + availableHalfWidth;
+          const normalizedRectangleHeight = normalizeRectangleSize(
+            route.rectangleHeight,
+            DEFAULT_RECTANGLE_HEIGHT,
+          );
 
-          const overlaps = gradeBarEntries.some((entry) => {
-            if (!entry) {
-              return false;
+          points.forEach((point) => {
+            const normalizedX = Number(point?.x);
+            const normalizedY = Number(point?.y);
+            const pointKey = createNormalizedPointKey(normalizedX, normalizedY);
+            if (!pointKey) {
+              return;
             }
-            if (right + spacing <= entry.left) {
-              return false;
+
+            const groupKey = createOverlapGroupKey(pathType, pointKey);
+            if (!groupKey) {
+              return;
             }
-            if (left - spacing >= entry.right) {
-              return false;
+
+            if (!groups.has(groupKey)) {
+              groups.set(groupKey, {
+                pathType,
+                entries: [],
+              });
             }
-            return true;
+
+            const group = groups.get(groupKey);
+            group.entries.push({
+              routeId: route.id,
+              color: strokeColor,
+              pointDiameter: normalizedPointDiameter,
+              rectangleWidth: normalizedRectangleWidth,
+              rectangleHeight: normalizedRectangleHeight,
+            });
           });
+        });
 
-          if (!overlaps) {
-            return { x: candidateX, left, right };
+        for (const [key, group] of groups) {
+          if (!group || !Array.isArray(group.entries) || group.entries.length <= 1) {
+            groups.delete(key);
           }
         }
 
-        const clampedX = clamp(centerX, availableHalfWidth, canvas.width - availableHalfWidth);
-        return {
-          x: clampedX,
-          left: clampedX - availableHalfWidth,
-          right: clampedX + availableHalfWidth,
-        };
+        return groups;
       }
 
-      function drawGradeBar(route, scaledPoints, strokeColor) {
+      function drawOverlappingPointGroup(ctx, center, entries) {
+        if (!ctx || !center || !entries || entries.length <= 1) {
+          return;
+        }
+
+        const total = entries.length;
+        const radii = entries.map((entry) => Math.max(1, Number(entry.pointDiameter) / 2));
+        const radius = Math.max(...radii, 4);
+        const step = (Math.PI * 2) / total;
+        const startAngle = -Math.PI / 2;
+
+        ctx.save();
+        ctx.setLineDash([]);
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
+
+        entries.forEach((entry, index) => {
+          const strokeWidth = Math.max(2, Math.round(Number(entry.pointDiameter) / 10) || 2);
+          const angleStart = startAngle + step * index;
+          const angleEnd = angleStart + step;
+
+          ctx.globalAlpha = Number.isFinite(entry.alpha) ? entry.alpha : 1;
+          ctx.lineWidth = strokeWidth;
+          ctx.strokeStyle = entry.color || '#ffde59';
+          ctx.beginPath();
+          ctx.arc(center.x, center.y, radius, angleStart, angleEnd);
+          ctx.stroke();
+        });
+
+        ctx.restore();
+      }
+
+      function drawOverlappingRectangleGroup(ctx, center, entries) {
+        if (!ctx || !center || !entries || entries.length <= 1) {
+          return;
+        }
+
+        const widths = entries.map((entry) => Math.max(1, Number(entry.rectangleWidth) || 0));
+        const heights = entries.map((entry) => Math.max(1, Number(entry.rectangleHeight) || 0));
+        const width = Math.max(...widths, 4);
+        const height = Math.max(...heights, 4);
+        const halfWidth = width / 2;
+        const halfHeight = height / 2;
+        const perimeter = 2 * (width + height);
+
+        if (!Number.isFinite(perimeter) || perimeter <= 0) {
+          return;
+        }
+
+        const segmentLength = perimeter / entries.length;
+        const edges = [
+          { length: width, startX: center.x - halfWidth, startY: center.y - halfHeight, dx: 1, dy: 0 },
+          { length: height, startX: center.x + halfWidth, startY: center.y - halfHeight, dx: 0, dy: 1 },
+          { length: width, startX: center.x + halfWidth, startY: center.y + halfHeight, dx: -1, dy: 0 },
+          { length: height, startX: center.x - halfWidth, startY: center.y + halfHeight, dx: 0, dy: -1 },
+        ];
+        const edgeCount = edges.length;
+
+        let offset = 0;
+
+        entries.forEach((entry) => {
+          let localOffset = offset % perimeter;
+          if (localOffset < 0) {
+            localOffset += perimeter;
+          }
+
+          let edgeIndex = 0;
+          while (localOffset >= edges[edgeIndex].length && edgeIndex < edgeCount - 1) {
+            localOffset -= edges[edgeIndex].length;
+            edgeIndex += 1;
+          }
+
+          let currentX = edges[edgeIndex].startX + edges[edgeIndex].dx * localOffset;
+          let currentY = edges[edgeIndex].startY + edges[edgeIndex].dy * localOffset;
+          let remaining = segmentLength;
+
+          ctx.save();
+          ctx.setLineDash([]);
+          ctx.lineCap = 'butt';
+          ctx.lineJoin = 'miter';
+          ctx.lineWidth = Math.max(
+            2,
+            Math.round(Math.max(Number(entry.rectangleWidth) || 0, Number(entry.rectangleHeight) || 0) / 10) || 2,
+          );
+          ctx.strokeStyle = entry.color || '#ffde59';
+          ctx.globalAlpha = Number.isFinite(entry.alpha) ? entry.alpha : 1;
+
+          while (remaining > 0) {
+            const edge = edges[edgeIndex];
+            const available = edge.length - localOffset;
+            const step = Math.min(remaining, available);
+            const nextOffset = localOffset + step;
+            const nextX = edge.startX + edge.dx * nextOffset;
+            const nextY = edge.startY + edge.dy * nextOffset;
+
+            ctx.beginPath();
+            ctx.moveTo(currentX, currentY);
+            ctx.lineTo(nextX, nextY);
+            ctx.stroke();
+
+            remaining -= step;
+            currentX = nextX;
+            currentY = nextY;
+            localOffset = 0;
+            edgeIndex = (edgeIndex + 1) % edgeCount;
+          }
+
+          ctx.restore();
+
+          offset += segmentLength;
+          if (offset >= perimeter) {
+            offset -= perimeter;
+          }
+        });
+      }
+
+      function calculateRouteStrokeWidth(route) {
+        const pathType = normalizePathType(route?.pathType);
+        if (pathType === PATH_TYPE_POINT) {
+          const diameter = normalizePointDiameter(route?.pointDiameter);
+          return Math.max(2, Math.round(diameter / 10));
+        }
+        if (pathType === PATH_TYPE_RECTANGLE) {
+          const width = normalizeRectangleSize(route?.rectangleWidth, DEFAULT_RECTANGLE_WIDTH);
+          const height = normalizeRectangleSize(route?.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT);
+          return Math.max(2, Math.round(Math.max(width, height) / 10));
+        }
+        return 10;
+      }
+
+      function calculateAverageXFromCanvasPoints(routePoints = []) {
+        if (!Array.isArray(routePoints) || !routePoints.length) {
+          return null;
+        }
+
+        const valid = routePoints
+          .map((point) => Number(point?.x))
+          .filter((x) => Number.isFinite(x));
+
+        if (!valid.length) {
+          return null;
+        }
+
+        const sum = valid.reduce((total, x) => total + x, 0);
+        return sum / valid.length;
+      }
+
+      function queueGradeBarOverlay({
+        route = null,
+        routePoints = [],
+        color = '#ffde59',
+        alpha = 1,
+        medianGrade = null,
+        baseHeight = DEFAULT_GRADE_BAR_BASE_HEIGHT,
+        maxHeight = DEFAULT_GRADE_BAR_MAX_HEIGHT,
+        width = DEFAULT_GRADE_BAR_WIDTH,
+        transparency = DEFAULT_GRADE_BAR_TRANSPARENCY,
+        isAscended = false,
+      } = {}) {
+        if (!Array.isArray(routePoints) || !routePoints.length) {
+          return;
+        }
+
+        const averageX = calculateAverageXFromCanvasPoints(routePoints);
+        if (!Number.isFinite(averageX)) {
+          return;
+        }
+
+        const normalizedBaseHeight = normalizeGradeBarHeight(
+          baseHeight,
+          DEFAULT_GRADE_BAR_BASE_HEIGHT,
+        );
+        const normalizedMaxHeight = Math.max(
+          normalizedBaseHeight,
+          normalizeGradeBarHeight(maxHeight, DEFAULT_GRADE_BAR_MAX_HEIGHT),
+        );
+        const normalizedWidth = Math.min(
+          Math.max(normalizeGradeBarWidth(width), MIN_GRADE_BAR_WIDTH),
+          canvas.width,
+        );
+        const normalizedTransparency = normalizeGradeBarTransparency(transparency);
+        const gradeValue =
+          typeof medianGrade === 'number' && Number.isFinite(medianGrade)
+            ? clamp(medianGrade, MIN_GRADE_VALUE, MAX_GRADE_VALUE)
+            : null;
+        const gradeRatio =
+          gradeValue === null ? 0 : clamp(gradeValue / MAX_GRADE_VALUE, 0, 1);
+        const targetHeight =
+          gradeValue === null
+            ? normalizedBaseHeight
+            : normalizedBaseHeight +
+              (normalizedMaxHeight - normalizedBaseHeight) * gradeRatio;
+        const height = Math.min(
+          Math.max(targetHeight, normalizedBaseHeight),
+          normalizedMaxHeight,
+        );
+        const bottom = canvas.height;
+        const top = Math.max(0, bottom - height);
+        const resolvedAlpha = Math.max(
+          0,
+          Math.min(1, alpha * normalizedTransparency),
+        );
+
+        queuedGradeBarOverlays.push({
+          route,
+          desiredCenter: averageX,
+          width: normalizedWidth,
+          top,
+          bottom,
+          color,
+          alpha: resolvedAlpha,
+          gradeValue,
+          isAscended: Boolean(gradeValue !== null && isAscended),
+        });
+      }
+
+      function drawGradeBar(route, scaledPoints, strokeColor, alpha = 1) {
         if (!route || !Array.isArray(scaledPoints) || !scaledPoints.length) {
           return;
         }
 
-        if (!canvas || !Number.isFinite(canvas.height) || canvas.height <= 0) {
-          return;
-        }
-
-        const medianX = calculateMedianX(scaledPoints);
-        if (!Number.isFinite(medianX)) {
-          return;
-        }
-
-        const baseHeight = normalizeGradeBarHeight(
-          route.gradeBarBaseHeight,
-          DEFAULT_GRADE_BAR_BASE_HEIGHT,
-        );
-        const maxHeight = Math.max(
-          baseHeight,
-          normalizeGradeBarHeight(route.gradeBarMaxHeight, DEFAULT_GRADE_BAR_MAX_HEIGHT),
-        );
-        const rawWidth = normalizeGradeBarWidth(route.gradeBarWidth);
-        const barWidth = Math.min(Math.max(rawWidth, MIN_GRADE_BAR_WIDTH), canvas.width);
-        const transparency = normalizeGradeBarTransparency(route.gradeBarTransparency);
-        const gradeValue = typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)
-          ? clamp(route.medianGrade, 0, MAX_GRADE_VALUE)
-          : null;
-
-        const gradeRatio =
-          gradeValue === null
-            ? 0
-            : clamp(gradeValue / MAX_GRADE_VALUE, 0, 1);
-
-        const height = gradeValue === null
-          ? baseHeight
-          : baseHeight + (maxHeight - baseHeight) * gradeRatio;
-        const effectiveHeight = Math.min(Math.max(height, baseHeight), maxHeight);
-        const bottom = canvas.height;
-        const top = Math.max(0, bottom - effectiveHeight);
-        const resolvedPosition = resolveGradeBarPosition(medianX, barWidth);
-        const left = Math.max(0, resolvedPosition.left);
-        const right = Math.min(canvas.width, resolvedPosition.right);
-        const actualWidth = Math.max(1, right - left);
-        const isAscended = ascendedRoutes.has(route.id);
-        const isGraded = gradeValue !== null;
-
-        ctx.save();
-        ctx.globalAlpha = transparency;
-        ctx.lineWidth = Math.max(2, Math.round(actualWidth * 0.18));
-        ctx.lineCap = 'butt';
-        ctx.strokeStyle = strokeColor;
-        if (!isGraded) {
-          const dashLength = Math.max(12, actualWidth * 1.5);
-          ctx.setLineDash([dashLength, dashLength * 0.5]);
-        } else {
-          ctx.setLineDash([]);
-        }
-
-        if (isGraded && isAscended) {
-          ctx.fillStyle = strokeColor;
-          ctx.fillRect(left, top, actualWidth, bottom - top);
-        }
-
-        ctx.strokeRect(left, top, actualWidth, bottom - top);
-        ctx.restore();
-
-        gradeBarEntries.push({
+        queueGradeBarOverlay({
           route,
-          x: resolvedPosition.x,
-          left,
-          right: left + actualWidth,
-          top,
-          bottom,
-          width: actualWidth,
-          height: bottom - top,
+          routePoints: scaledPoints,
+          color: strokeColor,
+          alpha,
+          medianGrade: route.medianGrade,
+          baseHeight: route.gradeBarBaseHeight,
+          maxHeight: route.gradeBarMaxHeight,
+          width: route.gradeBarWidth,
+          transparency: route.gradeBarTransparency,
+          isAscended: ascendedRoutes.has(route.id),
         });
       }
 
-      function drawRoute(route) {
-        const strokeColor = typeof route.strokeColor === 'string' ? route.strokeColor : '#ffde59';
+      function drawRoute(route, options = {}) {
+        const strokeColor = getRouteStrokeColor(route);
         const points = Array.isArray(route.points) ? route.points : [];
+
+        const alphaValue = Number(options.alpha);
+        const routeAlpha = Number.isFinite(alphaValue)
+          ? Math.min(Math.max(alphaValue, 0), 1)
+          : 1;
+
+        const omitOverlapKeys =
+          options?.omitOverlappingPointKeys instanceof Set ? options.omitOverlappingPointKeys : null;
+        const overlapGroups =
+          options?.overlapGroups instanceof Map ? options.overlapGroups : null;
+        const handledOverlapKeys =
+          options?.handledOverlapKeys instanceof Set ? options.handledOverlapKeys : null;
+        const routeAlphaMap =
+          options?.routeAlphaMap instanceof Map ? options.routeAlphaMap : null;
+        const isFocusedRoute = Boolean(options?.isFocused);
 
         if (!points.length) {
           return;
         }
 
-        const scaledPoints = points
-          .map((point) => {
-            const x = Number(point?.x);
-            const y = Number(point?.y);
-            if (!Number.isFinite(x) || !Number.isFinite(y)) {
-              return null;
-            }
-            return {
-              x: x * canvas.width,
-              y: y * canvas.height,
-            };
-          })
-          .filter(Boolean);
+        const pathType = normalizePathType(route.pathType);
+        const supportsOverlapPattern =
+          pathType === PATH_TYPE_POINT || pathType === PATH_TYPE_RECTANGLE;
+        const shouldFilterOverlaps =
+          omitOverlapKeys && omitOverlapKeys.size > 0 && supportsOverlapPattern;
 
-        if (!scaledPoints.length) {
+        const gradeBarPoints = [];
+        const visiblePoints = [];
+
+        points.forEach((point) => {
+          const normalizedX = Number(point?.x);
+          const normalizedY = Number(point?.y);
+          if (!Number.isFinite(normalizedX) || !Number.isFinite(normalizedY)) {
+            return;
+          }
+
+          const scaledPoint = {
+            x: normalizedX * canvas.width,
+            y: normalizedY * canvas.height,
+          };
+          gradeBarPoints.push(scaledPoint);
+
+          const pointKey = supportsOverlapPattern
+            ? createNormalizedPointKey(normalizedX, normalizedY)
+            : null;
+
+          if (shouldFilterOverlaps && pointKey && omitOverlapKeys.has(pointKey)) {
+            return;
+          }
+
+          const overlapKey =
+            pointKey && overlapGroups ? createOverlapGroupKey(pathType, pointKey) : null;
+          const overlapGroup =
+            overlapKey && overlapGroups ? overlapGroups.get(overlapKey) : null;
+
+          if (
+            overlapGroup &&
+            Array.isArray(overlapGroup.entries) &&
+            overlapGroup.entries.length > 1 &&
+            !isFocusedRoute
+          ) {
+            if (handledOverlapKeys && handledOverlapKeys.has(overlapKey)) {
+              return;
+            }
+
+            const entriesWithAlpha = overlapGroup.entries.map((entry) => {
+              const mappedAlpha = routeAlphaMap?.get(entry.routeId);
+              const entryAlpha = Number.isFinite(mappedAlpha) ? mappedAlpha : 1;
+              return { ...entry, alpha: entryAlpha };
+            });
+
+            if (handledOverlapKeys) {
+              handledOverlapKeys.add(overlapKey);
+            }
+
+            if (pathType === PATH_TYPE_POINT) {
+              drawOverlappingPointGroup(ctx, scaledPoint, entriesWithAlpha);
+            } else if (pathType === PATH_TYPE_RECTANGLE) {
+              drawOverlappingRectangleGroup(ctx, scaledPoint, entriesWithAlpha);
+            }
+            return;
+          }
+
+          visiblePoints.push(scaledPoint);
+        });
+
+        if (!gradeBarPoints.length) {
           return;
         }
 
-        const pathType = normalizePathType(route.pathType);
         const pointDiameter = normalizePointDiameter(route.pointDiameter);
-        const rectangleWidth = normalizeRectangleSize(
-          route.rectangleWidth,
-          DEFAULT_RECTANGLE_WIDTH,
-        );
-        const rectangleHeight = normalizeRectangleSize(
-          route.rectangleHeight,
-          DEFAULT_RECTANGLE_HEIGHT,
-        );
+        const rectangleWidth = normalizeRectangleSize(route.rectangleWidth, DEFAULT_RECTANGLE_WIDTH);
+        const rectangleHeight = normalizeRectangleSize(route.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT);
+
+        ctx.save();
+        ctx.globalAlpha = routeAlpha;
         if (pathType === PATH_TYPE_POINT) {
           const circleRadius = Math.max(1, pointDiameter / 2);
           const strokeWidth = Math.max(2, Math.round(pointDiameter / 10));
-          const path = new Path2D();
+          if (visiblePoints.length) {
+            const path = new Path2D();
 
-          scaledPoints.forEach((point) => {
-            path.moveTo(point.x + circleRadius, point.y);
-            path.arc(point.x, point.y, circleRadius, 0, Math.PI * 2);
-          });
+            visiblePoints.forEach((point) => {
+              path.moveTo(point.x + circleRadius, point.y);
+              path.arc(point.x, point.y, circleRadius, 0, Math.PI * 2);
+            });
 
-          ctx.save();
-          ctx.lineWidth = strokeWidth;
-          ctx.strokeStyle = strokeColor;
-          ctx.lineJoin = 'round';
-          ctx.lineCap = 'round';
-          ctx.stroke(path);
-          ctx.restore();
+            ctx.save();
+            ctx.lineWidth = strokeWidth;
+            ctx.strokeStyle = strokeColor;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.stroke(path);
+            ctx.restore();
+          }
         } else if (pathType === PATH_TYPE_RECTANGLE) {
           const rectWidth = Math.max(1, rectangleWidth);
           const rectHeight = Math.max(1, rectangleHeight);
           const halfWidth = Math.max(1, rectWidth / 2);
           const halfHeight = Math.max(1, rectHeight / 2);
           const strokeWidth = Math.max(2, Math.round(Math.max(rectWidth, rectHeight) / 10));
+          if (visiblePoints.length) {
+            const path = new Path2D();
+
+            visiblePoints.forEach((point) => {
+              path.rect(point.x - halfWidth, point.y - halfHeight, rectWidth, rectHeight);
+            });
+
+            ctx.save();
+            ctx.lineWidth = strokeWidth;
+            ctx.strokeStyle = strokeColor;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.stroke(path);
+            ctx.restore();
+          }
+        } else if (gradeBarPoints.length >= 2) {
           const path = new Path2D();
+          path.moveTo(gradeBarPoints[0].x, gradeBarPoints[0].y);
 
-          scaledPoints.forEach((point) => {
-            path.rect(point.x - halfWidth, point.y - halfHeight, rectWidth, rectHeight);
-          });
-
-          ctx.save();
-          ctx.lineWidth = strokeWidth;
-          ctx.strokeStyle = strokeColor;
-          ctx.lineJoin = 'round';
-          ctx.lineCap = 'round';
-          ctx.stroke(path);
-          ctx.restore();
-        } else if (scaledPoints.length >= 2) {
-          const path = new Path2D();
-          path.moveTo(scaledPoints[0].x, scaledPoints[0].y);
-
-          for (let i = 0; i < scaledPoints.length - 1; i++) {
-            const p0 = i === 0 ? scaledPoints[0] : scaledPoints[i - 1];
-            const p1 = scaledPoints[i];
-            const p2 = scaledPoints[i + 1];
-            const p3 = i + 2 < scaledPoints.length ? scaledPoints[i + 2] : scaledPoints[i + 1];
+          for (let i = 0; i < gradeBarPoints.length - 1; i++) {
+            const p0 = i === 0 ? gradeBarPoints[0] : gradeBarPoints[i - 1];
+            const p1 = gradeBarPoints[i];
+            const p2 = gradeBarPoints[i + 1];
+            const p3 = i + 2 < gradeBarPoints.length ? gradeBarPoints[i + 2] : gradeBarPoints[i + 1];
 
             const cp1x = p1.x + (p2.x - p0.x) / 6;
             const cp1y = p1.y + (p2.y - p0.y) / 6;
@@ -2994,8 +3596,185 @@
           ctx.stroke(path);
           ctx.restore();
         }
+        ctx.restore();
 
-        drawGradeBar(route, scaledPoints, strokeColor);
+        drawGradeBar(route, gradeBarPoints, strokeColor, routeAlpha);
+      }
+
+      function renderQueuedGradeBarOverlays() {
+        if (!Array.isArray(queuedGradeBarOverlays) || !queuedGradeBarOverlays.length) {
+          queuedGradeBarOverlays = [];
+          return;
+        }
+
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        if (canvasWidth <= 0 || canvasHeight <= 0) {
+          queuedGradeBarOverlays = [];
+          return;
+        }
+
+        const centerX = canvasWidth / 2;
+        const entries = queuedGradeBarOverlays
+          .map((entry, index) => {
+            const width = Math.max(1, Math.min(Number(entry?.width) || 0, canvasWidth));
+            if (!Number.isFinite(width) || width <= 0) {
+              return null;
+            }
+
+            const desiredCenter = Number(entry?.desiredCenter);
+            if (!Number.isFinite(desiredCenter)) {
+              return null;
+            }
+
+            const halfWidth = width / 2;
+            const clampedCenter = clamp(
+              desiredCenter,
+              halfWidth,
+              Math.max(halfWidth, canvasWidth - halfWidth),
+            );
+
+            return {
+              index,
+              original: entry,
+              width,
+              halfWidth,
+              clampedCenter,
+            };
+          })
+          .filter(Boolean);
+
+        if (!entries.length) {
+          queuedGradeBarOverlays = [];
+          return;
+        }
+
+        const leftEntries = entries
+          .filter((entry) => entry.clampedCenter <= centerX)
+          .sort((a, b) => b.clampedCenter - a.clampedCenter);
+        const rightEntries = entries
+          .filter((entry) => entry.clampedCenter > centerX)
+          .sort((a, b) => a.clampedCenter - b.clampedCenter);
+
+        const placements = new Map();
+
+        let leftBoundary = centerX;
+        for (const entry of leftEntries) {
+          let rightEdge = Math.min(leftBoundary, entry.clampedCenter + entry.halfWidth);
+          let leftEdge = rightEdge - entry.width;
+
+          if (leftEdge < 0) {
+            leftEdge = 0;
+            rightEdge = entry.width;
+          }
+
+          if (rightEdge > leftBoundary) {
+            rightEdge = leftBoundary;
+            leftEdge = rightEdge - entry.width;
+            if (leftEdge < 0) {
+              leftEdge = 0;
+              rightEdge = entry.width;
+            }
+          }
+
+          leftBoundary = Math.max(0, leftEdge);
+          placements.set(entry.index, {
+            ...entry,
+            left: leftEdge,
+            right: rightEdge,
+          });
+        }
+
+        let rightBoundary = centerX;
+        for (const entry of rightEntries) {
+          let leftEdge = Math.max(rightBoundary, entry.clampedCenter - entry.halfWidth);
+          let rightEdge = leftEdge + entry.width;
+
+          if (rightEdge > canvasWidth) {
+            rightEdge = canvasWidth;
+            leftEdge = rightEdge - entry.width;
+          }
+
+          if (leftEdge < rightBoundary) {
+            leftEdge = rightBoundary;
+            rightEdge = leftEdge + entry.width;
+            if (rightEdge > canvasWidth) {
+              rightEdge = canvasWidth;
+              leftEdge = rightEdge - entry.width;
+            }
+          }
+
+          rightBoundary = Math.min(canvasWidth, rightEdge);
+          placements.set(entry.index, {
+            ...entry,
+            left: leftEdge,
+            right: rightEdge,
+          });
+        }
+
+        const nextGradeBarEntries = [];
+
+        for (let i = 0; i < queuedGradeBarOverlays.length; i += 1) {
+          const placement = placements.get(i);
+          if (!placement) {
+            continue;
+          }
+
+          const { original, left, right } = placement;
+          const actualLeft = Math.max(0, Math.min(canvasWidth, left));
+          const actualRight = Math.max(actualLeft, Math.min(canvasWidth, right));
+          const actualWidth = Math.max(1, actualRight - actualLeft);
+          const actualTop = Math.max(0, Math.min(canvasHeight, original.top));
+          const actualBottom = Math.max(actualTop, Math.min(canvasHeight, original.bottom));
+          const height = Math.max(0, actualBottom - actualTop);
+          if (height <= 0) {
+            continue;
+          }
+
+          ctx.save();
+          ctx.globalAlpha = original.alpha;
+
+          const strokeWidth = Math.max(2, Math.round(actualWidth * 0.18));
+          ctx.lineWidth = strokeWidth;
+          ctx.lineJoin = 'miter';
+          ctx.lineCap = 'butt';
+          ctx.strokeStyle = original.color;
+
+          if (original.gradeValue === null) {
+            const dashLength = Math.max(4, actualWidth * 0.6);
+            ctx.setLineDash([dashLength, dashLength]);
+          } else {
+            ctx.setLineDash([]);
+          }
+
+          if (original.isAscended) {
+            ctx.fillStyle = original.color;
+            ctx.fillRect(actualLeft, actualTop, actualWidth, height);
+          }
+
+          const halfStroke = strokeWidth / 2;
+          const insetLeft = actualLeft + halfStroke;
+          const insetTop = actualTop + halfStroke;
+          const insetWidth = Math.max(1, actualWidth - strokeWidth);
+          const insetHeight = Math.max(1, height - strokeWidth);
+
+          ctx.strokeRect(insetLeft, insetTop, insetWidth, insetHeight);
+          ctx.restore();
+
+          nextGradeBarEntries.push({
+            route: original.route,
+            x: actualLeft + actualWidth / 2,
+            left: actualLeft,
+            right: actualRight,
+            top: actualTop,
+            bottom: actualTop + height,
+            width: actualWidth,
+            height,
+          });
+        }
+
+        gradeBarEntries = nextGradeBarEntries;
+        queuedGradeBarOverlays = [];
       }
 
       function handlePointerMove(event) {

@@ -944,10 +944,7 @@
                 />
               </label>
               <label id="unfocusedTransparencyField" class="control-field">
-                <span>
-                  Unfocused transparency
-                  <span id="unfocusedTransparencyValue"></span>
-                </span>
+                <span>Unfocused transparency</span>
                 <input
                   id="unfocusedTransparencySlider"
                   type="range"
@@ -1096,7 +1093,7 @@
 
   <div id="unauthorizedNotice" class="unauthorized hidden" role="alert">
     <p><strong>Access denied.</strong> Your account does not have permission to use the setter tools.</p>
-    <p>You can return to the <a href="index.html">preview page</a> or contact a setter for help.</p>
+    <p>You can return to the <a id="previewLink" href="index.html">preview page</a> or contact a setter for help.</p>
     <button id="unauthorizedSignOut" class="auth-submit" type="button">Sign Out</button>
   </div>
 
@@ -1174,6 +1171,10 @@
     const controlPanel = document.querySelector('.control-panel');
     const panelSidebar = document.getElementById('panelSidebar');
     const climberViewButton = document.getElementById('climberViewButton');
+    const previewLink = document.getElementById('previewLink');
+    const previewLinkBaseHref = previewLink?.getAttribute('href') || 'index.html';
+    const climberViewBaseHref = 'index.html';
+    let climberViewTargetHref = climberViewBaseHref;
     const roleUsernameInput = document.getElementById('roleUsernameInput');
     const grantSetterButton = document.getElementById('grantSetterButton');
     const roleStatusMessage = document.getElementById('roleStatusMessage');
@@ -1201,7 +1202,8 @@
       { key: 'old-wall', name: 'Old Wall', image: './location/Old Wall.jpg' },
     ];
 
-    const LOCATION_STORAGE_KEY = 'ascend.setter.selectedLocation';
+    const LOCATION_STORAGE_KEY = 'ascend.selectedWall';
+    const WALL_QUERY_PARAM = 'wall';
 
     const PATH_TYPE_BREZER = 'brezer';
     const PATH_TYPE_POINT = 'point';
@@ -1217,8 +1219,8 @@
     const MIN_UNFOCUSED_TRANSPARENCY = 0;
     const MAX_UNFOCUSED_TRANSPARENCY = 1;
     const DEFAULT_UNFOCUSED_TRANSPARENCY = 0.25;
-    const MIN_GRADE_VALUE = 1;
-    const MAX_GRADE_VALUE = 25;
+    const MIN_GRADE_VALUE = 5;
+    const MAX_GRADE_VALUE = 30;
     const MIN_GRADE_BAR_BASE_HEIGHT = 0;
     const MAX_GRADE_BAR_HEIGHT = 1000;
     const DEFAULT_GRADE_BAR_BASE_HEIGHT = 40;
@@ -1227,8 +1229,6 @@
     const MAX_GRADE_BAR_WIDTH = 160;
     const DEFAULT_GRADE_BAR_WIDTH = 24;
     const DEFAULT_GRADE_BAR_TRANSPARENCY = 0.85;
-    const GRADE_BAR_SPACING = 6;
-    const GRADE_BAR_OFFSET_ATTEMPTS = 24;
     const WALL_COLLECTION = 'walls';
 
     const normalizeLocationName = (value) => {
@@ -1248,6 +1248,88 @@
         LOCATIONS.find((location) => normalizeLocationName(location.name) === normalized) || null
       );
     };
+
+    function buildWallAwareHref(baseHref, wallKey) {
+      const normalizedKey = normalizeWallKey(wallKey);
+      if (typeof baseHref !== 'string' || !baseHref) {
+        return '';
+      }
+
+      try {
+        const url = new URL(baseHref, window.location.origin);
+        if (normalizedKey) {
+          url.searchParams.set(WALL_QUERY_PARAM, normalizedKey);
+        } else {
+          url.searchParams.delete(WALL_QUERY_PARAM);
+        }
+        url.hash = '';
+        const relativePath = `${url.pathname.replace(/^\//, '')}${url.search}`;
+        return relativePath || baseHref;
+      } catch (error) {
+        if (!normalizedKey) {
+          return baseHref;
+        }
+
+        const separator = baseHref.includes('?') ? '&' : '?';
+        return `${baseHref}${separator}${encodeURIComponent(WALL_QUERY_PARAM)}=${encodeURIComponent(normalizedKey)}`;
+      }
+    }
+
+    function getWallKeyFromQuery() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const raw = params.get(WALL_QUERY_PARAM);
+        return normalizeWallKey(raw);
+      } catch (error) {
+        console.warn('Unable to read wall from query string:', error);
+        return '';
+      }
+    }
+
+    function updateWallQueryParam(wallKey) {
+      try {
+        const normalizedKey = normalizeWallKey(wallKey);
+        const url = new URL(window.location.href);
+        if (normalizedKey) {
+          url.searchParams.set(WALL_QUERY_PARAM, normalizedKey);
+        } else {
+          url.searchParams.delete(WALL_QUERY_PARAM);
+        }
+        url.hash = '';
+        const next = url.toString();
+        if (next !== window.location.href) {
+          window.history.replaceState({}, '', next);
+        }
+      } catch (error) {
+        console.warn('Unable to update wall query parameter:', error);
+      }
+    }
+
+    function persistSelectedWall(wallKey) {
+      const normalizedKey = normalizeWallKey(wallKey);
+      try {
+        if (normalizedKey) {
+          window.localStorage?.setItem(LOCATION_STORAGE_KEY, normalizedKey);
+        } else {
+          window.localStorage?.removeItem(LOCATION_STORAGE_KEY);
+        }
+      } catch (error) {
+        console.warn('Unable to persist setter location preference:', error);
+      }
+    }
+
+    function updateWallNavigationTargets(wallKey) {
+      const normalizedKey = normalizeWallKey(wallKey);
+      if (previewLink) {
+        previewLink.href = buildWallAwareHref(previewLinkBaseHref, normalizedKey);
+      }
+
+      const computedClimberHref = buildWallAwareHref(climberViewBaseHref, normalizedKey);
+      climberViewTargetHref = computedClimberHref;
+      if (climberViewButton) {
+        climberViewButton.setAttribute('data-target-href', computedClimberHref);
+      }
+    }
 
     function upsertLocation({ key = '', name = '', image = '', fallbackName = '' } = {}) {
       const trimmedName = typeof name === 'string' && name.trim() ? name.trim() : '';
@@ -1307,6 +1389,10 @@
         updateLocationButtonLabel();
         updateLocationOptionsState();
         updateBackgroundForCurrentLocation();
+        const activeKey = getCurrentLocationKey();
+        updateWallNavigationTargets(activeKey);
+        updateWallQueryParam(activeKey);
+        persistSelectedWall(activeKey);
       }
     }
 
@@ -1481,12 +1567,11 @@
       applyWallSettingsToStateForLocationKey(nextKey, wallFallback);
       redraw();
 
-      if (persist && canonicalLocation?.key) {
-        try {
-          window.localStorage?.setItem(LOCATION_STORAGE_KEY, canonicalLocation.key);
-        } catch (error) {
-          console.warn('Unable to persist setter location preference:', error);
-        }
+      updateWallNavigationTargets(nextKey);
+      updateWallQueryParam(nextKey);
+
+      if (persist) {
+        persistSelectedWall(nextKey);
       }
 
       if (changed) {
@@ -1617,7 +1702,6 @@
     const rectangleHeightValue = document.getElementById('rectangleHeightValue');
     const unfocusedTransparencyField = document.getElementById('unfocusedTransparencyField');
     const unfocusedTransparencySlider = document.getElementById('unfocusedTransparencySlider');
-    const unfocusedTransparencyValue = document.getElementById('unfocusedTransparencyValue');
     const appearancePointDiameterInput = document.getElementById('appearancePointDiameterInput');
     const gradeBarBaseHeightInput = document.getElementById('gradeBarBaseHeightInput');
     const gradeBarMaxHeightInput = document.getElementById('gradeBarMaxHeightInput');
@@ -2434,7 +2518,7 @@
 
     const routesCache = new Map();
     let routeMedianGrades = new Map();
-    let overlayGradeBars = [];
+    let queuedGradeBarOverlays = [];
 
     const setPanelExpanded = (value) => {
       if (!controlPanel) {
@@ -2492,19 +2576,31 @@
 
     activateTab('routesTab');
 
+    const wallKeyFromQuery = getWallKeyFromQuery();
+    let initialLocation = wallKeyFromQuery
+      ? findLocationByKey(wallKeyFromQuery) || findLocationByName(wallKeyFromQuery)
+      : null;
+
     let storedLocationKey = null;
-    try {
-      storedLocationKey = window.localStorage?.getItem(LOCATION_STORAGE_KEY) || null;
-    } catch (error) {
-      console.warn('Unable to read setter location preference:', error);
+    if (!initialLocation) {
+      try {
+        storedLocationKey = window.localStorage?.getItem(LOCATION_STORAGE_KEY) || null;
+      } catch (error) {
+        console.warn('Unable to read setter location preference:', error);
+      }
+
+      if (storedLocationKey) {
+        const normalizedStoredKey = normalizeWallKey(storedLocationKey);
+        initialLocation =
+          findLocationByKey(normalizedStoredKey) || findLocationByName(normalizedStoredKey);
+      }
     }
 
-    const storedLocation = storedLocationKey ? findLocationByKey(storedLocationKey) : null;
-    if (storedLocation) {
-      setLocation(storedLocation, { persist: false, refreshRoutes: false });
-    } else {
-      setLocation(DEFAULT_LOCATION, { persist: false, refreshRoutes: false });
+    if (!initialLocation) {
+      initialLocation = DEFAULT_LOCATION;
     }
+
+    setLocation(initialLocation, { persist: true, refreshRoutes: false });
 
     if (locationButton) {
       locationButton.setAttribute('aria-expanded', 'false');
@@ -2892,7 +2988,10 @@
 
     if (climberViewButton) {
       climberViewButton.addEventListener('click', () => {
-        window.location.href = 'index.html';
+        const activeKey = getCurrentLocationKey();
+        const targetHref = buildWallAwareHref(climberViewBaseHref, activeKey);
+        const destination = targetHref || climberViewTargetHref || climberViewBaseHref;
+        window.location.href = destination;
       });
     }
 
@@ -3356,10 +3455,6 @@
           convertUnfocusedTransparencyToSliderValue(unfocusedTransparency),
         );
       }
-      if (unfocusedTransparencyValue) {
-        const percentage = Math.round(normalizeUnfocusedTransparency(unfocusedTransparency) * 100);
-        unfocusedTransparencyValue.textContent = `${percentage}%`;
-      }
     }
 
     function updateAppearanceControls() {
@@ -3466,7 +3561,7 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      overlayGradeBars = [];
+      queuedGradeBarOverlays = [];
       drawExistingRoutesOverlay();
       drawRouteFromCanvasPoints(
         points,
@@ -3478,7 +3573,7 @@
         rectangleHeight,
       );
       if (points.length) {
-        drawGradeBarOverlay({
+        queueGradeBarOverlay({
           routePoints: points,
           color: strokeColor,
           alpha: 1,
@@ -3490,6 +3585,7 @@
           isAscended: false,
         });
       }
+      renderQueuedGradeBarOverlays();
     }
 
     function clamp(value, min, max) {
@@ -3505,79 +3601,24 @@
       return value;
     }
 
-    function calculateMedianXFromCanvasPoints(routePoints = []) {
+    function calculateAverageXFromCanvasPoints(routePoints = []) {
       if (!Array.isArray(routePoints) || !routePoints.length) {
         return null;
       }
 
-      const sorted = routePoints
-        .map((point) => ({ x: Number(point?.x) }))
-        .filter((point) => Number.isFinite(point.x))
-        .sort((a, b) => a.x - b.x);
+      const valid = routePoints
+        .map((point) => Number(point?.x))
+        .filter((x) => Number.isFinite(x));
 
-      if (!sorted.length) {
+      if (!valid.length) {
         return null;
       }
 
-      const midIndex = Math.floor(sorted.length / 2);
-      if (sorted.length % 2 === 0 && sorted[midIndex - 1]) {
-        return (sorted[midIndex - 1].x + sorted[midIndex].x) / 2;
-      }
-      return sorted[midIndex].x;
+      const sum = valid.reduce((total, x) => total + x, 0);
+      return sum / valid.length;
     }
 
-    function resolveOverlayGradeBarPosition(centerX, width) {
-      if (!Number.isFinite(centerX) || !Number.isFinite(width) || width <= 0) {
-        return { x: 0, left: 0, right: 0 };
-      }
-
-      const halfWidth = width / 2;
-      const clampedHalfWidth = Math.min(halfWidth, canvas.width / 2);
-      const availableHalfWidth = Math.max(clampedHalfWidth, 1);
-      const spacing = Math.max(GRADE_BAR_SPACING, width * 0.2);
-
-      const offsets = [0];
-      for (let step = 1; offsets.length < GRADE_BAR_OFFSET_ATTEMPTS; step += 1) {
-        offsets.push(step, -step);
-      }
-
-      for (const offset of offsets) {
-        const shift = offset * (width + spacing);
-        const candidateX = clamp(
-          centerX + shift,
-          availableHalfWidth,
-          canvas.width - availableHalfWidth,
-        );
-        const left = candidateX - availableHalfWidth;
-        const right = candidateX + availableHalfWidth;
-
-        const overlaps = overlayGradeBars.some((entry) => {
-          if (!entry) {
-            return false;
-          }
-          if (right + spacing <= entry.left) {
-            return false;
-          }
-          if (left - spacing >= entry.right) {
-            return false;
-          }
-          return true;
-        });
-
-        if (!overlaps) {
-          return { x: candidateX, left, right };
-        }
-      }
-
-      const clampedX = clamp(centerX, availableHalfWidth, canvas.width - availableHalfWidth);
-      return {
-        x: clampedX,
-        left: clampedX - availableHalfWidth,
-        right: clampedX + availableHalfWidth,
-      };
-    }
-
-    function drawGradeBarOverlay({
+    function queueGradeBarOverlay({
       routePoints = [],
       color = '#ffde59',
       alpha = 1,
@@ -3592,8 +3633,8 @@
         return;
       }
 
-      const medianX = calculateMedianXFromCanvasPoints(routePoints);
-      if (!Number.isFinite(medianX)) {
+      const averageX = calculateAverageXFromCanvasPoints(routePoints);
+      if (!Number.isFinite(averageX)) {
         return;
       }
 
@@ -3609,7 +3650,7 @@
       const normalizedTransparency = normalizeGradeBarTransparency(transparency);
       const gradeValue =
         typeof medianGrade === 'number' && Number.isFinite(medianGrade)
-          ? clamp(medianGrade, 0, MAX_GRADE_VALUE)
+          ? clamp(medianGrade, MIN_GRADE_VALUE, MAX_GRADE_VALUE)
           : null;
       const gradeRatio =
         gradeValue === null
@@ -3622,35 +3663,174 @@
       const height = Math.min(Math.max(targetHeight, normalizedBaseHeight), normalizedMaxHeight);
       const bottom = canvas.height;
       const top = Math.max(0, bottom - height);
-      const position = resolveOverlayGradeBarPosition(medianX, normalizedWidth);
-      const left = Math.max(0, position.left);
-      const right = Math.min(canvas.width, position.right);
-      const actualWidth = Math.max(1, right - left);
+      const resolvedAlpha = Math.max(0, Math.min(1, alpha * normalizedTransparency));
 
-      ctx.save();
-      ctx.globalAlpha = Math.max(0, Math.min(1, alpha * normalizedTransparency));
-      ctx.lineWidth = Math.max(2, Math.round(actualWidth * 0.18));
-      ctx.strokeStyle = color;
-
-      if (gradeValue === null) {
-        const dashLength = Math.max(4, actualWidth * 0.6);
-        ctx.setLineDash([dashLength, dashLength]);
-      } else {
-        ctx.setLineDash([]);
-      }
-
-      if (gradeValue !== null && isAscended) {
-        ctx.fillStyle = color;
-        ctx.fillRect(left, top, actualWidth, bottom - top);
-      }
-
-      ctx.strokeRect(left, top, actualWidth, bottom - top);
-      ctx.restore();
-
-      overlayGradeBars.push({
-        left,
-        right: left + actualWidth,
+      queuedGradeBarOverlays.push({
+        desiredCenter: averageX,
+        width: normalizedWidth,
+        top,
+        bottom,
+        color,
+        alpha: resolvedAlpha,
+        gradeValue,
+        isAscended: Boolean(gradeValue !== null && isAscended),
       });
+    }
+
+    function renderQueuedGradeBarOverlays() {
+      if (!Array.isArray(queuedGradeBarOverlays) || !queuedGradeBarOverlays.length) {
+        queuedGradeBarOverlays = [];
+        return;
+      }
+
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      if (canvasWidth <= 0 || canvasHeight <= 0) {
+        queuedGradeBarOverlays = [];
+        return;
+      }
+
+      const centerX = canvasWidth / 2;
+      const entries = queuedGradeBarOverlays
+        .map((entry, index) => {
+          const width = Math.max(1, Math.min(Number(entry?.width) || 0, canvasWidth));
+          if (!Number.isFinite(width) || width <= 0) {
+            return null;
+          }
+
+          const desiredCenter = Number(entry?.desiredCenter);
+          if (!Number.isFinite(desiredCenter)) {
+            return null;
+          }
+
+          const halfWidth = width / 2;
+          const clampedCenter = clamp(desiredCenter, halfWidth, Math.max(halfWidth, canvasWidth - halfWidth));
+
+          return {
+            index,
+            original: entry,
+            width,
+            halfWidth,
+            clampedCenter,
+          };
+        })
+        .filter(Boolean);
+
+      if (!entries.length) {
+        queuedGradeBarOverlays = [];
+        return;
+      }
+
+      const leftEntries = entries
+        .filter((entry) => entry.clampedCenter <= centerX)
+        .sort((a, b) => b.clampedCenter - a.clampedCenter);
+      const rightEntries = entries
+        .filter((entry) => entry.clampedCenter > centerX)
+        .sort((a, b) => a.clampedCenter - b.clampedCenter);
+
+      const placements = new Map();
+
+      let leftBoundary = centerX;
+      for (const entry of leftEntries) {
+        let rightEdge = Math.min(leftBoundary, entry.clampedCenter + entry.halfWidth);
+        let leftEdge = rightEdge - entry.width;
+
+        if (leftEdge < 0) {
+          leftEdge = 0;
+          rightEdge = entry.width;
+        }
+
+        if (rightEdge > leftBoundary) {
+          rightEdge = leftBoundary;
+          leftEdge = rightEdge - entry.width;
+          if (leftEdge < 0) {
+            leftEdge = 0;
+            rightEdge = entry.width;
+          }
+        }
+
+        leftBoundary = Math.max(0, leftEdge);
+        placements.set(entry.index, {
+          ...entry,
+          left: leftEdge,
+          right: rightEdge,
+        });
+      }
+
+      let rightBoundary = centerX;
+      for (const entry of rightEntries) {
+        let leftEdge = Math.max(rightBoundary, entry.clampedCenter - entry.halfWidth);
+        let rightEdge = leftEdge + entry.width;
+
+        if (rightEdge > canvasWidth) {
+          rightEdge = canvasWidth;
+          leftEdge = rightEdge - entry.width;
+        }
+
+        if (leftEdge < rightBoundary) {
+          leftEdge = rightBoundary;
+          rightEdge = leftEdge + entry.width;
+          if (rightEdge > canvasWidth) {
+            rightEdge = canvasWidth;
+            leftEdge = rightEdge - entry.width;
+          }
+        }
+
+        rightBoundary = Math.min(canvasWidth, rightEdge);
+        placements.set(entry.index, {
+          ...entry,
+          left: leftEdge,
+          right: rightEdge,
+        });
+      }
+
+      for (let i = 0; i < queuedGradeBarOverlays.length; i += 1) {
+        const placement = placements.get(i);
+        if (!placement) {
+          continue;
+        }
+
+        const { original, left, right } = placement;
+        const actualLeft = Math.max(0, Math.min(canvasWidth, left));
+        const actualRight = Math.max(actualLeft, Math.min(canvasWidth, right));
+        const actualWidth = Math.max(1, actualRight - actualLeft);
+        const height = Math.max(0, Math.min(canvasHeight, original.bottom) - Math.max(0, original.top));
+        if (height <= 0) {
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = original.alpha;
+
+        const strokeWidth = Math.max(2, Math.round(actualWidth * 0.18));
+        ctx.lineWidth = strokeWidth;
+        ctx.lineJoin = 'miter';
+        ctx.lineCap = 'butt';
+        ctx.strokeStyle = original.color;
+
+        if (original.gradeValue === null) {
+          const dashLength = Math.max(4, actualWidth * 0.6);
+          ctx.setLineDash([dashLength, dashLength]);
+        } else {
+          ctx.setLineDash([]);
+        }
+
+        if (original.isAscended) {
+          ctx.fillStyle = original.color;
+          ctx.fillRect(actualLeft, original.top, actualWidth, height);
+        }
+
+        const halfStroke = strokeWidth / 2;
+        const insetLeft = actualLeft + halfStroke;
+        const insetTop = original.top + halfStroke;
+        const insetWidth = Math.max(1, actualWidth - strokeWidth);
+        const insetHeight = Math.max(1, height - strokeWidth);
+
+        ctx.strokeRect(insetLeft, insetTop, insetWidth, insetHeight);
+        ctx.restore();
+      }
+
+      queuedGradeBarOverlays = [];
     }
 
     function drawRouteFromCanvasPoints(
@@ -3744,6 +3924,43 @@
       ctx.restore();
     }
 
+    function createNormalizedPointKey(x, y) {
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return null;
+      }
+
+      const clampedX = Math.min(Math.max(x, 0), 1);
+      const clampedY = Math.min(Math.max(y, 0), 1);
+      const scaledX = Math.round(clampedX * 10000);
+      const scaledY = Math.round(clampedY * 10000);
+      return `${scaledX}:${scaledY}`;
+    }
+
+    function buildNormalizedPointKeySetFromCanvasPoints(canvasPoints = []) {
+      const keys = new Set();
+      if (!Array.isArray(canvasPoints) || !canvasPoints.length || !canvas.width || !canvas.height) {
+        return keys;
+      }
+
+      const width = canvas.width;
+      const height = canvas.height;
+
+      canvasPoints.forEach((point) => {
+        if (!point) {
+          return;
+        }
+
+        const normalizedX = Number(point.x) / width;
+        const normalizedY = Number(point.y) / height;
+        const key = createNormalizedPointKey(normalizedX, normalizedY);
+        if (key) {
+          keys.add(key);
+        }
+      });
+
+      return keys;
+    }
+
     function convertNormalizedToCanvasPoints(normalizedPoints = []) {
       if (!Array.isArray(normalizedPoints) || !canvas.width || !canvas.height) {
         return [];
@@ -3761,6 +3978,192 @@
         .filter(Boolean);
     }
 
+    function createOverlapGroupKey(pathTypeValue, pointKey) {
+      if (!pathTypeValue || !pointKey) {
+        return null;
+      }
+      return `${pathTypeValue}::${pointKey}`;
+    }
+
+    function buildOverlayOverlapGroups(routeEntries = []) {
+      const groups = new Map();
+
+      routeEntries.forEach((entry) => {
+        if (!entry) {
+          return;
+        }
+
+        const { pathType: pathTypeValue, normalizedPoints } = entry;
+        if (
+          (pathTypeValue !== PATH_TYPE_POINT && pathTypeValue !== PATH_TYPE_RECTANGLE) ||
+          !Array.isArray(normalizedPoints) ||
+          !normalizedPoints.length
+        ) {
+          return;
+        }
+
+        normalizedPoints.forEach((point) => {
+          const normalizedX = Number(point?.x);
+          const normalizedY = Number(point?.y);
+          const key = createNormalizedPointKey(normalizedX, normalizedY);
+          if (!key) {
+            return;
+          }
+
+          const groupKey = createOverlapGroupKey(pathTypeValue, key);
+          if (!groupKey) {
+            return;
+          }
+
+          if (!groups.has(groupKey)) {
+            groups.set(groupKey, {
+              pathType: pathTypeValue,
+              entries: [],
+            });
+          }
+
+          const group = groups.get(groupKey);
+          group.entries.push({
+            routeId: entry.id,
+            color: entry.color,
+            pointDiameter: entry.pointDiameter,
+            rectangleWidth: entry.rectangleWidth,
+            rectangleHeight: entry.rectangleHeight,
+            alpha: entry.alpha,
+          });
+        });
+      });
+
+      for (const [key, group] of groups) {
+        if (!group || !Array.isArray(group.entries) || group.entries.length <= 1) {
+          groups.delete(key);
+        }
+      }
+
+      return groups;
+    }
+
+    function drawOverlayPointGroup(center, entries) {
+      if (!center || !Array.isArray(entries) || entries.length <= 1) {
+        return;
+      }
+
+      const total = entries.length;
+      const radii = entries.map((entry) => Math.max(1, Number(entry.pointDiameter) / 2));
+      const radius = Math.max(...radii, 4);
+      const step = (Math.PI * 2) / total;
+      const startAngle = -Math.PI / 2;
+
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.lineCap = 'butt';
+      ctx.lineJoin = 'miter';
+
+      entries.forEach((entry, index) => {
+        const strokeWidth = Math.max(2, Math.round(Number(entry.pointDiameter) / 10) || 2);
+        const angleStart = startAngle + step * index;
+        const angleEnd = angleStart + step;
+
+        ctx.globalAlpha = Number.isFinite(entry.alpha) ? entry.alpha : 1;
+        ctx.lineWidth = strokeWidth;
+        ctx.strokeStyle = entry.color || '#ffde59';
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, radius, angleStart, angleEnd);
+        ctx.stroke();
+      });
+
+      ctx.restore();
+    }
+
+    function drawOverlayRectangleGroup(center, width, height, entries) {
+      if (!center || !Array.isArray(entries) || entries.length <= 1) {
+        return;
+      }
+
+      const normalizedWidth = Math.max(...entries.map((entry) => Number(entry.rectangleWidth) || 0), width);
+      const normalizedHeight = Math.max(
+        ...entries.map((entry) => Number(entry.rectangleHeight) || 0),
+        height,
+      );
+      const finalWidth = Math.max(1, normalizedWidth);
+      const finalHeight = Math.max(1, normalizedHeight);
+      const halfWidth = finalWidth / 2;
+      const halfHeight = finalHeight / 2;
+      const perimeter = 2 * (finalWidth + finalHeight);
+
+      if (!Number.isFinite(perimeter) || perimeter <= 0) {
+        return;
+      }
+
+      const segmentLength = perimeter / entries.length;
+      const edges = [
+        { length: finalWidth, startX: center.x - halfWidth, startY: center.y - halfHeight, dx: 1, dy: 0 },
+        { length: finalHeight, startX: center.x + halfWidth, startY: center.y - halfHeight, dx: 0, dy: 1 },
+        { length: finalWidth, startX: center.x + halfWidth, startY: center.y + halfHeight, dx: -1, dy: 0 },
+        { length: finalHeight, startX: center.x - halfWidth, startY: center.y + halfHeight, dx: 0, dy: -1 },
+      ];
+      const edgeCount = edges.length;
+
+      let offset = 0;
+
+      entries.forEach((entry) => {
+        let localOffset = offset % perimeter;
+        if (localOffset < 0) {
+          localOffset += perimeter;
+        }
+
+        let edgeIndex = 0;
+        while (localOffset >= edges[edgeIndex].length && edgeIndex < edgeCount - 1) {
+          localOffset -= edges[edgeIndex].length;
+          edgeIndex += 1;
+        }
+
+        let currentX = edges[edgeIndex].startX + edges[edgeIndex].dx * localOffset;
+        let currentY = edges[edgeIndex].startY + edges[edgeIndex].dy * localOffset;
+        let remaining = segmentLength;
+
+        ctx.save();
+        ctx.setLineDash([]);
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
+        ctx.lineWidth = Math.max(
+          2,
+          Math.round(
+            Math.max(Number(entry.rectangleWidth) || 0, Number(entry.rectangleHeight) || 0) / 10,
+          ) || 2,
+        );
+        ctx.strokeStyle = entry.color || '#ffde59';
+        ctx.globalAlpha = Number.isFinite(entry.alpha) ? entry.alpha : 1;
+
+        while (remaining > 0) {
+          const edge = edges[edgeIndex];
+          const available = edge.length - localOffset;
+          const step = Math.min(remaining, available);
+          const nextOffset = localOffset + step;
+          const nextX = edge.startX + edge.dx * nextOffset;
+          const nextY = edge.startY + edge.dy * nextOffset;
+
+          ctx.beginPath();
+          ctx.moveTo(currentX, currentY);
+          ctx.lineTo(nextX, nextY);
+          ctx.stroke();
+
+          remaining -= step;
+          currentX = nextX;
+          currentY = nextY;
+          localOffset = 0;
+          edgeIndex = (edgeIndex + 1) % edgeCount;
+        }
+
+        ctx.restore();
+
+        offset += segmentLength;
+        if (offset >= perimeter) {
+          offset -= perimeter;
+        }
+      });
+    }
+
     function drawExistingRoutesOverlay() {
       if (!routesCache.size) {
         return;
@@ -3769,6 +4172,11 @@
       const activeLocationKey = getCurrentLocationKey();
       const wallSettings = getWallSettingsForLocation(activeLocationKey);
       const overlayAlpha = normalizeUnfocusedTransparency(wallSettings.unfocusedTransparency);
+      const focusPointKeys = points.length
+        ? buildNormalizedPointKeySetFromCanvasPoints(points)
+        : null;
+
+      const overlayEntries = [];
 
       routesCache.forEach((data, key) => {
         if (!data || key === currentRouteKey) {
@@ -3783,30 +4191,127 @@
           return;
         }
 
-        const canvasPoints = convertNormalizedToCanvasPoints(data.points);
+        const normalizedPoints = Array.isArray(data.points) ? data.points : [];
+        const canvasPoints = convertNormalizedToCanvasPoints(normalizedPoints);
         if (!canvasPoints.length) {
           return;
         }
 
         const color = sanitizeColor(data.strokeColor);
-        drawRouteFromCanvasPoints(
+        overlayEntries.push({
+          id: key,
+          color,
+          pathType: normalizePathType(data.pathType),
           canvasPoints,
-          color,
-          overlayAlpha,
-          data.pathType,
-          data.pointDiameter,
-          data.rectangleWidth,
-          data.rectangleHeight,
-        );
-        drawGradeBarOverlay({
-          routePoints: canvasPoints,
-          color,
+          normalizedPoints,
+          pointDiameter: normalizePointDiameter(data.pointDiameter),
+          rectangleWidth: normalizeRectangleSize(data.rectangleWidth, DEFAULT_RECTANGLE_WIDTH),
+          rectangleHeight: normalizeRectangleSize(data.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT),
           alpha: overlayAlpha,
           medianGrade: data.medianGrade,
-          baseHeight: data.gradeBarBaseHeight,
-          maxHeight: data.gradeBarMaxHeight,
-          width: data.gradeBarWidth,
-          transparency: data.gradeBarTransparency,
+          gradeBarBaseHeight: data.gradeBarBaseHeight,
+          gradeBarMaxHeight: data.gradeBarMaxHeight,
+          gradeBarWidth: data.gradeBarWidth,
+          gradeBarTransparency: data.gradeBarTransparency,
+        });
+      });
+
+      if (!overlayEntries.length) {
+        return;
+      }
+
+      const overlapGroups = buildOverlayOverlapGroups(overlayEntries);
+      const handledOverlapKeys = new Set();
+
+      overlayEntries.forEach((entry) => {
+        const {
+          color,
+          pathType: routePathType,
+          canvasPoints,
+          normalizedPoints,
+          pointDiameter: entryPointDiameter,
+          rectangleWidth: entryRectangleWidth,
+          rectangleHeight: entryRectangleHeight,
+          alpha,
+          medianGrade,
+          gradeBarBaseHeight,
+          gradeBarMaxHeight,
+          gradeBarWidth,
+          gradeBarTransparency,
+        } = entry;
+
+        const supportsPattern =
+          routePathType === PATH_TYPE_POINT || routePathType === PATH_TYPE_RECTANGLE;
+        const visiblePoints = [];
+
+        canvasPoints.forEach((point, index) => {
+          const normalized = Array.isArray(normalizedPoints) ? normalizedPoints[index] : null;
+          const normalizedX = Number(normalized?.x);
+          const normalizedY = Number(normalized?.y);
+          const pointKey =
+            supportsPattern && Number.isFinite(normalizedX) && Number.isFinite(normalizedY)
+              ? createNormalizedPointKey(normalizedX, normalizedY)
+              : null;
+
+          if (
+            supportsPattern &&
+            focusPointKeys &&
+            focusPointKeys.size > 0 &&
+            pointKey &&
+            focusPointKeys.has(pointKey)
+          ) {
+            return;
+          }
+
+          const overlapKey =
+            pointKey && overlapGroups ? createOverlapGroupKey(routePathType, pointKey) : null;
+          const overlapGroup =
+            overlapKey && overlapGroups ? overlapGroups.get(overlapKey) : null;
+
+          if (
+            overlapGroup &&
+            Array.isArray(overlapGroup.entries) &&
+            overlapGroup.entries.length > 1 &&
+            !focusPointKeys
+          ) {
+            if (handledOverlapKeys.has(overlapKey)) {
+              return;
+            }
+
+            handledOverlapKeys.add(overlapKey);
+
+            if (routePathType === PATH_TYPE_POINT) {
+              drawOverlayPointGroup(point, overlapGroup.entries);
+            } else if (routePathType === PATH_TYPE_RECTANGLE) {
+              drawOverlayRectangleGroup(point, entryRectangleWidth, entryRectangleHeight, overlapGroup.entries);
+            }
+            return;
+          }
+
+          visiblePoints.push(point);
+        });
+
+        if (visiblePoints.length) {
+          drawRouteFromCanvasPoints(
+            visiblePoints,
+            color,
+            alpha,
+            routePathType,
+            entryPointDiameter,
+            entryRectangleWidth,
+            entryRectangleHeight,
+          );
+        }
+
+        queueGradeBarOverlay({
+          routePoints: canvasPoints,
+          color,
+          alpha,
+          medianGrade,
+          baseHeight: gradeBarBaseHeight,
+          maxHeight: gradeBarMaxHeight,
+          width: gradeBarWidth,
+          transparency: gradeBarTransparency,
           isAscended: false,
         });
       });
@@ -4331,11 +4836,9 @@
 
         resetUnsavedState();
 
-        await loadRoutesList(routeKey);
-        routeSelector.value = routeKey;
-        deleteButton.disabled = false;
-
         const label = title || routeKey;
+        await loadRoutesList(routeKey);
+        prepareNewRoute();
         setStatus(`Route “${label}” saved successfully.`, 'success');
       } catch (error) {
         console.error('Failed to save route:', error);
