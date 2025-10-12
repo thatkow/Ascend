@@ -708,10 +708,15 @@
 
       const PATH_TYPE_BREZER = 'brezer';
       const PATH_TYPE_POINT = 'point';
+      const PATH_TYPE_RECTANGLE = 'rectangle';
       const DEFAULT_PATH_TYPE = PATH_TYPE_BREZER;
       const MIN_POINT_DIAMETER = 12;
       const MAX_POINT_DIAMETER = 160;
       const DEFAULT_POINT_DIAMETER = 48;
+      const MIN_RECTANGLE_SIZE = 12;
+      const MAX_RECTANGLE_SIZE = 200;
+      const DEFAULT_RECTANGLE_WIDTH = 80;
+      const DEFAULT_RECTANGLE_HEIGHT = 60;
       const WALL_COLLECTION = 'walls';
 
       function normalizePathType(value) {
@@ -719,6 +724,9 @@
           const normalized = value.trim().toLowerCase();
           if (normalized === PATH_TYPE_POINT) {
             return PATH_TYPE_POINT;
+          }
+          if (normalized === PATH_TYPE_RECTANGLE) {
+            return PATH_TYPE_RECTANGLE;
           }
         }
         return DEFAULT_PATH_TYPE;
@@ -736,15 +744,37 @@
         return clamped;
       }
 
+      function normalizeRectangleSize(value, fallback = DEFAULT_RECTANGLE_WIDTH) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return fallback;
+        }
+        const clamped = Math.min(
+          Math.max(Math.round(numeric), MIN_RECTANGLE_SIZE),
+          MAX_RECTANGLE_SIZE,
+        );
+        return clamped;
+      }
+
       function normalizeWallSettings(raw = {}) {
         if (!raw || typeof raw !== 'object') {
           return {
             pointDiameter: DEFAULT_POINT_DIAMETER,
+            rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
+            rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
           };
         }
 
         return {
           pointDiameter: normalizePointDiameter(raw.pointDiameter),
+          rectangleWidth: normalizeRectangleSize(
+            raw.rectangleWidth,
+            DEFAULT_RECTANGLE_WIDTH,
+          ),
+          rectangleHeight: normalizeRectangleSize(
+            raw.rectangleHeight,
+            DEFAULT_RECTANGLE_HEIGHT,
+          ),
         };
       }
 
@@ -778,6 +808,8 @@
 
         return {
           pointDiameter: DEFAULT_POINT_DIAMETER,
+          rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
+          rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
         };
       }
 
@@ -2390,6 +2422,8 @@
 
               const fallbackWallSettings = {
                 pointDiameter: data.pointDiameter,
+                rectangleWidth: data.rectangleWidth,
+                rectangleHeight: data.rectangleHeight,
               };
               const wallSettings = resolveWallSettings(normalizedLocation, fallbackWallSettings);
 
@@ -2407,6 +2441,8 @@
                 medianGrade,
                 pathType: normalizePathType(data.pathType),
                 pointDiameter: wallSettings.pointDiameter,
+                rectangleWidth: wallSettings.rectangleWidth,
+                rectangleHeight: wallSettings.rectangleHeight,
               };
             })
             .sort((a, b) => {
@@ -2729,6 +2765,14 @@
 
         const pathType = normalizePathType(route.pathType);
         const pointDiameter = normalizePointDiameter(route.pointDiameter);
+        const rectangleWidth = normalizeRectangleSize(
+          route.rectangleWidth,
+          DEFAULT_RECTANGLE_WIDTH,
+        );
+        const rectangleHeight = normalizeRectangleSize(
+          route.rectangleHeight,
+          DEFAULT_RECTANGLE_HEIGHT,
+        );
 
         function drawAnchorCircle(anchor, radius, strokeWidth) {
           if (!anchor) {
@@ -2786,6 +2830,45 @@
           const anchorIndex = Math.floor(scaledPoints.length / 2);
           const anchor = scaledPoints[anchorIndex] || scaledPoints[0] || null;
           const anchorRadius = Math.max(circleRadius, Math.max(12, canvas.width * 0.01));
+
+          routePaths.push({
+            route,
+            path,
+            lineWidth: strokeWidth,
+            anchor,
+            anchorRadius,
+          });
+
+          drawAnchorCircle(anchor, anchorRadius, strokeWidth);
+          return;
+        }
+
+        if (pathType === PATH_TYPE_RECTANGLE) {
+          const rectWidth = Math.max(1, rectangleWidth);
+          const rectHeight = Math.max(1, rectangleHeight);
+          const halfWidth = Math.max(1, rectWidth / 2);
+          const halfHeight = Math.max(1, rectHeight / 2);
+          const strokeWidth = Math.max(2, Math.round(Math.max(rectWidth, rectHeight) / 10));
+          const path = new Path2D();
+
+          scaledPoints.forEach((point) => {
+            path.rect(point.x - halfWidth, point.y - halfHeight, rectWidth, rectHeight);
+          });
+
+          ctx.save();
+          ctx.lineWidth = strokeWidth;
+          ctx.strokeStyle = strokeColor;
+          ctx.lineJoin = 'round';
+          ctx.lineCap = 'round';
+          ctx.stroke(path);
+          ctx.restore();
+
+          const anchorIndex = Math.floor(scaledPoints.length / 2);
+          const anchor = scaledPoints[anchorIndex] || scaledPoints[0] || null;
+          const anchorRadius = Math.max(
+            Math.max(halfWidth, halfHeight),
+            Math.max(12, canvas.width * 0.01),
+          );
 
           routePaths.push({
             route,
