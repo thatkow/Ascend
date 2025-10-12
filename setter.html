@@ -392,6 +392,11 @@
       color: #0d2600;
     }
 
+    .delete-wall-button {
+      background: rgba(255, 116, 116, 0.9);
+      color: #1a0b0b;
+    }
+
     .location-button:hover,
     .location-button:focus-visible {
       transform: translateY(-1px);
@@ -979,6 +984,13 @@
                 />
               </label>
               <button id="createWallButton" class="location-button" type="button">Create wall</button>
+              <button
+                id="deleteWallButton"
+                class="location-button delete-wall-button"
+                type="button"
+              >
+                Delete Wall
+              </button>
               <p
                 id="createWallStatus"
                 class="status-message hidden"
@@ -1092,6 +1104,7 @@
     const newWallNameInput = document.getElementById('newWallNameInput');
     const newWallImageInput = document.getElementById('newWallImageInput');
     const createWallButton = document.getElementById('createWallButton');
+    const deleteWallButton = document.getElementById('deleteWallButton');
     const createWallStatus = document.getElementById('createWallStatus');
 
     const LOCATIONS = [
@@ -1226,6 +1239,29 @@
       });
     };
 
+    const updateDeleteWallButtonState = () => {
+      if (!deleteWallButton) {
+        return;
+      }
+
+      if (isDeletingWall) {
+        deleteWallButton.disabled = true;
+        return;
+      }
+
+      const activeKey = getCurrentLocationKey();
+      const normalizedActiveKey = normalizeWallKey(activeKey);
+      const hasAlternativeWall = LOCATIONS.some((location) => {
+        if (!location) {
+          return false;
+        }
+        const candidateKey = normalizeWallKey(location.key || location.name);
+        return candidateKey && candidateKey !== normalizedActiveKey;
+      });
+
+      deleteWallButton.disabled = !normalizedActiveKey || !hasAlternativeWall;
+    };
+
     const applyBodyBackground = (imagePath) => {
       if (!document.body) {
         return;
@@ -1330,6 +1366,7 @@
       updateLocationButtonLabel();
       updateLocationOptionsState();
       updateBackgroundForCurrentLocation();
+      updateDeleteWallButtonState();
 
       if (locationEntryChanged) {
         synchronizeCurrentLocationReference();
@@ -1414,6 +1451,7 @@
       });
 
       updateLocationOptionsState();
+      updateDeleteWallButtonState();
     };
 
     backgroundImage.onload = () => {
@@ -1939,6 +1977,166 @@
       }
     }
 
+    async function handleDeleteWall() {
+      if (isDeletingWall) {
+        return;
+      }
+
+      clearCreateWallStatusMessage();
+
+      const activeLocation = currentLocation || null;
+      const locationKey = getCurrentLocationKey();
+      const locationName = activeLocation?.name || '';
+
+      if (!locationKey) {
+        setCreateWallStatusMessage('Select a wall before deleting it.', 'error');
+        return;
+      }
+
+      if (LOCATIONS.length <= 1) {
+        setCreateWallStatusMessage(
+          'At least one wall must remain. Create another wall before deleting this one.',
+          'error',
+        );
+        return;
+      }
+
+      const confirmationLabel = locationName || locationKey;
+      const confirmed = window.confirm(
+        `Delete wall “${confirmationLabel}”? This will remove all associated routes.`,
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      const normalizedCurrentKey = normalizeWallKey(locationKey);
+      const docId = wallDocumentIdMap.get(normalizedCurrentKey) || locationKey;
+      const wallRef = doc(db, WALL_COLLECTION, docId);
+
+      isDeletingWall = true;
+      if (deleteWallButton) {
+        deleteWallButton.disabled = true;
+      }
+
+      setCreateWallStatusMessage('Deleting wall…');
+      updateDeleteWallButtonState();
+
+      try {
+        let wallSnapshot = null;
+        try {
+          wallSnapshot = await getDoc(wallRef);
+        } catch (snapshotError) {
+          console.warn('Unable to load wall before deletion:', snapshotError);
+        }
+
+        const wallData = wallSnapshot?.exists?.() ? wallSnapshot.data() : null;
+
+        const normalizedTargets = new Set(
+          [
+            normalizedCurrentKey,
+            normalizeWallKey(docId),
+            normalizeWallKey(wallData?.key),
+            normalizeLocationName(wallData?.name),
+            normalizeLocationName(locationName),
+          ].filter(Boolean),
+        );
+
+        const routesSnapshot = await getDocs(collection(db, 'routes'));
+        const routeIdsToDelete = [];
+        routesSnapshot.forEach((routeSnap) => {
+          const data = routeSnap.data();
+          const normalizedRouteLocation = normalizeWallKey(
+            typeof data?.locationKey === 'string' && data.locationKey
+              ? data.locationKey
+              : normalizeLocationName(data?.location),
+          );
+          if (normalizedRouteLocation && normalizedTargets.has(normalizedRouteLocation)) {
+            routeIdsToDelete.push(routeSnap.id);
+          }
+        });
+
+        for (const routeId of routeIdsToDelete) {
+          await deleteDoc(doc(db, 'routes', routeId));
+          routesCache.delete(routeId);
+        }
+
+        await deleteDoc(wallRef);
+
+        const keysToRemove = new Set(normalizedTargets);
+
+        for (const [key, value] of [...wallDocumentIdMap.entries()]) {
+          if (keysToRemove.has(key) || value === docId) {
+            wallDocumentIdMap.delete(key);
+          }
+        }
+
+        for (const key of keysToRemove) {
+          wallSettingsCache.delete(key);
+        }
+
+        for (let index = LOCATIONS.length - 1; index >= 0; index -= 1) {
+          const entry = LOCATIONS[index];
+          if (!entry) {
+            continue;
+          }
+          const entryKey = normalizeWallKey(entry.key);
+          const entryName = normalizeLocationName(entry.name);
+          if (keysToRemove.has(entryKey) || keysToRemove.has(entryName)) {
+            LOCATIONS.splice(index, 1);
+          }
+        }
+
+        renderLocationOptions();
+
+        const fallbackLocation = LOCATIONS.find((location) => {
+          const entryKey = normalizeWallKey(location?.key || location?.name);
+          return entryKey && !keysToRemove.has(entryKey);
+        });
+
+        if (fallbackLocation) {
+          setLocation(fallbackLocation, { persist: true, refreshRoutes: false });
+        } else {
+          currentLocation = null;
+          updateLocationButtonLabel();
+          updateLocationOptionsState();
+          applyBodyBackground('');
+        }
+
+        updateDeleteWallButtonState();
+
+        const cacheRouteKeysToDelete = [];
+        routesCache.forEach((data, routeKey) => {
+          const normalizedRouteLocation = normalizeWallKey(
+            typeof data?.locationKey === 'string' && data.locationKey
+              ? data.locationKey
+              : normalizeLocationName(data?.location),
+          );
+          if (normalizedRouteLocation && keysToRemove.has(normalizedRouteLocation)) {
+            cacheRouteKeysToDelete.push(routeKey);
+          }
+        });
+
+        cacheRouteKeysToDelete.forEach((routeKey) => {
+          routesCache.delete(routeKey);
+        });
+
+        await loadRoutesList('');
+        prepareNewRoute('Wall deleted. You can select another wall.');
+
+        setCreateWallStatusMessage(`Deleted wall “${confirmationLabel}”.`, 'success');
+      } catch (error) {
+        console.error('Failed to delete wall:', error);
+        setCreateWallStatusMessage('Failed to delete wall. Please try again.', 'error');
+      } finally {
+        isDeletingWall = false;
+        if (deleteWallButton) {
+          deleteWallButton.disabled = false;
+        }
+        updateDeleteWallButtonState();
+      }
+    }
+
     const isValidUsername = (value) => USERNAME_PATTERN.test(normalizeUsername(value));
     const isValidSetterName = (value) => SETTER_NAME_PATTERN.test(normalizeSetterName(value));
 
@@ -1964,6 +2162,7 @@
     let currentUserId = null;
     let isCanvasScrollable = false;
     let isCreatingWall = false;
+    let isDeletingWall = false;
 
     const routesCache = new Map();
 
@@ -3628,6 +3827,12 @@
     if (createWallButton) {
       createWallButton.addEventListener('click', () => {
         void handleCreateWall();
+      });
+    }
+
+    if (deleteWallButton) {
+      deleteWallButton.addEventListener('click', () => {
+        void handleDeleteWall();
       });
     }
 
