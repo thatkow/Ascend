@@ -2766,7 +2766,7 @@
         return sorted[midIndex].x;
       }
 
-      const GRADE_BAR_SPACING = 6;
+      const GRADE_BAR_SPACING = 0;
       const GRADE_BAR_OFFSET_ATTEMPTS = 24;
 
       function resolveGradeBarPosition(centerX, width) {
@@ -2781,7 +2781,7 @@
         const halfWidth = width / 2;
         const clampedHalfWidth = Math.min(halfWidth, canvas.width / 2);
         const availableHalfWidth = Math.max(clampedHalfWidth, 1);
-        const spacing = Math.max(GRADE_BAR_SPACING, width * 0.2);
+        const spacing = GRADE_BAR_SPACING;
 
         const offsets = [0];
         for (let step = 1; offsets.length < GRADE_BAR_OFFSET_ATTEMPTS; step += 1) {
@@ -2874,10 +2874,11 @@
         ctx.save();
         ctx.globalAlpha = transparency;
         ctx.lineWidth = Math.max(2, Math.round(actualWidth * 0.18));
+        ctx.lineCap = 'butt';
         ctx.strokeStyle = strokeColor;
         if (!isGraded) {
-          const dashLength = Math.max(4, actualWidth * 0.6);
-          ctx.setLineDash([dashLength, dashLength]);
+          const dashLength = Math.max(12, actualWidth * 1.5);
+          ctx.setLineDash([dashLength, dashLength * 0.5]);
         } else {
           ctx.setLineDash([]);
         }
