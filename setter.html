@@ -843,6 +843,7 @@
                 <select id="pathTypeSelect">
                   <option value="brezer">Brezer</option>
                   <option value="point">Point</option>
+                  <option value="rectangle">Rectangle</option>
                 </select>
               </label>
               <button
@@ -908,6 +909,34 @@
                   max="160"
                   step="1"
                   value="48"
+                />
+              </label>
+              <label id="rectangleWidthField" class="control-field">
+                <span>
+                  Rectangle width
+                  <span id="rectangleWidthValue"></span>
+                </span>
+                <input
+                  id="rectangleWidthSlider"
+                  type="range"
+                  min="12"
+                  max="200"
+                  step="1"
+                  value="80"
+                />
+              </label>
+              <label id="rectangleHeightField" class="control-field">
+                <span>
+                  Rectangle height
+                  <span id="rectangleHeightValue"></span>
+                </span>
+                <input
+                  id="rectangleHeightSlider"
+                  type="range"
+                  min="12"
+                  max="200"
+                  step="1"
+                  value="60"
                 />
               </label>
               <label id="unfocusedTransparencyField" class="control-field">
@@ -1116,10 +1145,15 @@
 
     const PATH_TYPE_BREZER = 'brezer';
     const PATH_TYPE_POINT = 'point';
+    const PATH_TYPE_RECTANGLE = 'rectangle';
     const DEFAULT_PATH_TYPE = PATH_TYPE_BREZER;
     const MIN_POINT_DIAMETER = 12;
     const MAX_POINT_DIAMETER = 160;
     const DEFAULT_POINT_DIAMETER = 48;
+    const MIN_RECTANGLE_SIZE = 12;
+    const MAX_RECTANGLE_SIZE = 200;
+    const DEFAULT_RECTANGLE_WIDTH = 80;
+    const DEFAULT_RECTANGLE_HEIGHT = 60;
     const MIN_UNFOCUSED_TRANSPARENCY = 0;
     const MAX_UNFOCUSED_TRANSPARENCY = 1;
     const DEFAULT_UNFOCUSED_TRANSPARENCY = 0.25;
@@ -1498,6 +1532,12 @@
     const pointDiameterField = document.getElementById('pointDiameterField');
     const pointDiameterSlider = document.getElementById('pointDiameterSlider');
     const pointDiameterValue = document.getElementById('pointDiameterValue');
+    const rectangleWidthField = document.getElementById('rectangleWidthField');
+    const rectangleWidthSlider = document.getElementById('rectangleWidthSlider');
+    const rectangleWidthValue = document.getElementById('rectangleWidthValue');
+    const rectangleHeightField = document.getElementById('rectangleHeightField');
+    const rectangleHeightSlider = document.getElementById('rectangleHeightSlider');
+    const rectangleHeightValue = document.getElementById('rectangleHeightValue');
     const unfocusedTransparencyField = document.getElementById('unfocusedTransparencyField');
     const unfocusedTransparencySlider = document.getElementById('unfocusedTransparencySlider');
     const unfocusedTransparencyValue = document.getElementById('unfocusedTransparencyValue');
@@ -1538,6 +1578,9 @@
         if (normalized === PATH_TYPE_POINT) {
           return PATH_TYPE_POINT;
         }
+        if (normalized === PATH_TYPE_RECTANGLE) {
+          return PATH_TYPE_RECTANGLE;
+        }
       }
       return DEFAULT_PATH_TYPE;
     }
@@ -1548,6 +1591,18 @@
         return DEFAULT_POINT_DIAMETER;
       }
       const clamped = Math.min(Math.max(Math.round(numeric), MIN_POINT_DIAMETER), MAX_POINT_DIAMETER);
+      return clamped;
+    }
+
+    function normalizeRectangleSize(value, fallback = DEFAULT_RECTANGLE_WIDTH) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return fallback;
+      }
+      const clamped = Math.min(
+        Math.max(Math.round(numeric), MIN_RECTANGLE_SIZE),
+        MAX_RECTANGLE_SIZE,
+      );
       return clamped;
     }
 
@@ -1578,6 +1633,8 @@
     function createDefaultWallSettings() {
       return {
         pointDiameter: DEFAULT_POINT_DIAMETER,
+        rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
+        rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
         unfocusedTransparency: DEFAULT_UNFOCUSED_TRANSPARENCY,
       };
     }
@@ -1589,6 +1646,14 @@
 
       return {
         pointDiameter: normalizePointDiameter(raw.pointDiameter),
+        rectangleWidth: normalizeRectangleSize(
+          raw.rectangleWidth,
+          DEFAULT_RECTANGLE_WIDTH,
+        ),
+        rectangleHeight: normalizeRectangleSize(
+          raw.rectangleHeight,
+          DEFAULT_RECTANGLE_HEIGHT,
+        ),
         unfocusedTransparency: normalizeUnfocusedTransparency(raw.unfocusedTransparency),
       };
     }
@@ -1620,6 +1685,8 @@
     function applyWallSettingsToStateForLocationKey(locationKey, fallback = null) {
       const settings = getWallSettingsWithFallback(locationKey, fallback);
       pointDiameter = settings.pointDiameter;
+      rectangleWidth = settings.rectangleWidth;
+      rectangleHeight = settings.rectangleHeight;
       unfocusedTransparency = settings.unfocusedTransparency;
       updatePathControls();
     }
@@ -1770,6 +1837,8 @@
           routesCache.set(routeKey, {
             ...data,
             pointDiameter: settings.pointDiameter,
+            rectangleWidth: settings.rectangleWidth,
+            rectangleHeight: settings.rectangleHeight,
           });
         }
       });
@@ -1786,6 +1855,8 @@
         routesCache.set(key, {
           ...data,
           pointDiameter: settings.pointDiameter,
+          rectangleWidth: settings.rectangleWidth,
+          rectangleHeight: settings.rectangleHeight,
         });
       });
     }
@@ -1823,6 +1894,8 @@
 
         const wallPayload = {
           pointDiameter: merged.pointDiameter,
+          rectangleWidth: merged.rectangleWidth,
+          rectangleHeight: merged.rectangleHeight,
           unfocusedTransparency: merged.unfocusedTransparency,
           updatedAt: serverTimestamp(),
           key: normalizedKey,
@@ -1922,6 +1995,8 @@
           name: trimmedName,
           background_url: trimmedImage,
           pointDiameter: wallSettings.pointDiameter,
+          rectangleWidth: wallSettings.rectangleWidth,
+          rectangleHeight: wallSettings.rectangleHeight,
           unfocusedTransparency: wallSettings.unfocusedTransparency,
           key: normalizedKey,
           createdAt: serverTimestamp(),
@@ -2149,6 +2224,8 @@
     let strokeColor = sanitizeColor(colorPicker.value || '#ffde59');
     let pathType = DEFAULT_PATH_TYPE;
     let pointDiameter = DEFAULT_POINT_DIAMETER;
+    let rectangleWidth = DEFAULT_RECTANGLE_WIDTH;
+    let rectangleHeight = DEFAULT_RECTANGLE_HEIGHT;
     let unfocusedTransparency = DEFAULT_UNFOCUSED_TRANSPARENCY;
     let wheelHue = 48;
     let wheelSaturation = 1;
@@ -2805,8 +2882,18 @@
       const locationKey = normalizeLocationName(locationName);
       const normalizedPathType = normalizePathType(rest.pathType);
       const fallbackPointDiameter = normalizePointDiameter(rest.pointDiameter);
+      const fallbackRectangleWidth = normalizeRectangleSize(
+        rest.rectangleWidth,
+        DEFAULT_RECTANGLE_WIDTH,
+      );
+      const fallbackRectangleHeight = normalizeRectangleSize(
+        rest.rectangleHeight,
+        DEFAULT_RECTANGLE_HEIGHT,
+      );
       const wallSettings = getWallSettingsWithFallback(locationKey, {
         pointDiameter: fallbackPointDiameter,
+        rectangleWidth: fallbackRectangleWidth,
+        rectangleHeight: fallbackRectangleHeight,
       });
       return {
         ...rest,
@@ -2816,6 +2903,8 @@
         strokeColor: sanitizeColor(rest.strokeColor),
         pathType: normalizedPathType,
         pointDiameter: wallSettings.pointDiameter,
+        rectangleWidth: wallSettings.rectangleWidth,
+        rectangleHeight: wallSettings.rectangleHeight,
         points: Array.isArray(rest.points) ? rest.points : [],
         date_set: normalizeDateValue(rest.date_set),
         location: locationName,
@@ -2959,6 +3048,18 @@
       if (pointDiameterValue) {
         pointDiameterValue.textContent = `${pointDiameter}px`;
       }
+      if (rectangleWidthSlider) {
+        rectangleWidthSlider.value = String(rectangleWidth);
+      }
+      if (rectangleWidthValue) {
+        rectangleWidthValue.textContent = `${rectangleWidth}px`;
+      }
+      if (rectangleHeightSlider) {
+        rectangleHeightSlider.value = String(rectangleHeight);
+      }
+      if (rectangleHeightValue) {
+        rectangleHeightValue.textContent = `${rectangleHeight}px`;
+      }
       if (unfocusedTransparencySlider) {
         unfocusedTransparencySlider.value = String(
           convertUnfocusedTransparencyToSliderValue(unfocusedTransparency),
@@ -3057,7 +3158,15 @@
       }
 
       drawExistingRoutesOverlay();
-      drawRouteFromCanvasPoints(points, strokeColor, 1, pathType, pointDiameter);
+      drawRouteFromCanvasPoints(
+        points,
+        strokeColor,
+        1,
+        pathType,
+        pointDiameter,
+        rectangleWidth,
+        rectangleHeight,
+      );
     }
 
     function drawRouteFromCanvasPoints(
@@ -3066,6 +3175,8 @@
       alpha = 1,
       routePathType = DEFAULT_PATH_TYPE,
       routePointDiameter = DEFAULT_POINT_DIAMETER,
+      routeRectangleWidth = DEFAULT_RECTANGLE_WIDTH,
+      routeRectangleHeight = DEFAULT_RECTANGLE_HEIGHT,
     ) {
       if (!Array.isArray(routePoints) || !routePoints.length) {
         return;
@@ -3076,6 +3187,14 @@
 
       const effectivePathType = normalizePathType(routePathType);
       const effectivePointDiameter = normalizePointDiameter(routePointDiameter);
+      const effectiveRectangleWidth = normalizeRectangleSize(
+        routeRectangleWidth,
+        DEFAULT_RECTANGLE_WIDTH,
+      );
+      const effectiveRectangleHeight = normalizeRectangleSize(
+        routeRectangleHeight,
+        DEFAULT_RECTANGLE_HEIGHT,
+      );
 
       if (effectivePathType === PATH_TYPE_BREZER && routePoints.length >= 2) {
         ctx.lineWidth = 10;
@@ -3111,6 +3230,23 @@
           ctx.beginPath();
           ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
           ctx.stroke();
+        });
+      } else if (effectivePathType === PATH_TYPE_RECTANGLE) {
+        const halfWidth = Math.max(1, effectiveRectangleWidth / 2);
+        const halfHeight = Math.max(1, effectiveRectangleHeight / 2);
+        const strokeWidth = Math.max(
+          2,
+          Math.round(Math.max(effectiveRectangleWidth, effectiveRectangleHeight) / 10),
+        );
+        ctx.lineWidth = strokeWidth;
+        ctx.strokeStyle = color;
+        routePoints.forEach((point) => {
+          ctx.strokeRect(
+            point.x - halfWidth,
+            point.y - halfHeight,
+            effectiveRectangleWidth,
+            effectiveRectangleHeight,
+          );
         });
       } else {
         ctx.fillStyle = color;
@@ -3175,6 +3311,8 @@
           overlayAlpha,
           data.pathType,
           data.pointDiameter,
+          data.rectangleWidth,
+          data.rectangleHeight,
         );
       });
     }
@@ -3223,6 +3361,15 @@
       return Math.max(6, normalizedDiameter / 2);
     }
 
+    function getRectangleDetectionRadius(width, height) {
+      const normalizedWidth = normalizeRectangleSize(width, DEFAULT_RECTANGLE_WIDTH);
+      const normalizedHeight = normalizeRectangleSize(height, DEFAULT_RECTANGLE_HEIGHT);
+      const halfWidth = Math.max(1, normalizedWidth / 2);
+      const halfHeight = Math.max(1, normalizedHeight / 2);
+      const diagonal = Math.sqrt(halfWidth * halfWidth + halfHeight * halfHeight);
+      return Math.max(6, diagonal);
+    }
+
     function findPointIndexNear(x, y, targetPoints = [], radius = 0) {
       if (!Array.isArray(targetPoints) || !targetPoints.length || radius <= 0) {
         return -1;
@@ -3250,10 +3397,18 @@
         return null;
       }
 
+      const activePathType = normalizePathType(pathType);
+      if (activePathType !== PATH_TYPE_POINT && activePathType !== PATH_TYPE_RECTANGLE) {
+        return null;
+      }
+
       const activeLocationKey = getCurrentLocationKey();
       let closestPoint = null;
       let closestDistanceSq = Number.POSITIVE_INFINITY;
-      const activeDetectionRadius = getPointDetectionRadius(pointDiameter);
+      const activeDetectionRadius =
+        activePathType === PATH_TYPE_RECTANGLE
+          ? getRectangleDetectionRadius(rectangleWidth, rectangleHeight)
+          : getPointDetectionRadius(pointDiameter);
 
       routesCache.forEach((data, routeKey) => {
         if (!data || routeKey === currentRouteKey) {
@@ -3270,14 +3425,32 @@
           return;
         }
 
-        if (normalizePathType(data.pathType) !== PATH_TYPE_POINT) {
+        if (normalizePathType(data.pathType) !== activePathType) {
           return;
         }
 
-        const routeDiameter = normalizePointDiameter(
-          typeof data?.pointDiameter === 'number' ? data.pointDiameter : pointDiameter,
-        );
-        const detectionRadius = Math.max(activeDetectionRadius, getPointDetectionRadius(routeDiameter));
+        let detectionRadius = activeDetectionRadius;
+
+        if (activePathType === PATH_TYPE_POINT) {
+          const routeDiameter = normalizePointDiameter(
+            typeof data?.pointDiameter === 'number' ? data.pointDiameter : pointDiameter,
+          );
+          detectionRadius = Math.max(activeDetectionRadius, getPointDetectionRadius(routeDiameter));
+        } else {
+          const routeWidth = normalizeRectangleSize(
+            typeof data?.rectangleWidth === 'number' ? data.rectangleWidth : rectangleWidth,
+            DEFAULT_RECTANGLE_WIDTH,
+          );
+          const routeHeight = normalizeRectangleSize(
+            typeof data?.rectangleHeight === 'number' ? data.rectangleHeight : rectangleHeight,
+            DEFAULT_RECTANGLE_HEIGHT,
+          );
+          detectionRadius = Math.max(
+            activeDetectionRadius,
+            getRectangleDetectionRadius(routeWidth, routeHeight),
+          );
+        }
+
         const detectionRadiusSq = detectionRadius * detectionRadius;
         const routePoints = convertNormalizedToCanvasPoints(data.points);
 
@@ -3300,13 +3473,7 @@
         return null;
       }
 
-      const existingIndex = findPointIndexNear(
-        closestPoint.x,
-        closestPoint.y,
-        points,
-        activeDetectionRadius,
-      );
-
+      const existingIndex = findPointIndexNear(closestPoint.x, closestPoint.y, points, activeDetectionRadius);
       if (existingIndex >= 0) {
         return null;
       }
@@ -3318,8 +3485,12 @@
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
-      if (normalizePathType(pathType) === PATH_TYPE_POINT) {
-        const detectionRadius = getPointDetectionRadius(pointDiameter);
+      const currentPathType = normalizePathType(pathType);
+      if (currentPathType === PATH_TYPE_POINT || currentPathType === PATH_TYPE_RECTANGLE) {
+        const detectionRadius =
+          currentPathType === PATH_TYPE_RECTANGLE
+            ? getRectangleDetectionRadius(rectangleWidth, rectangleHeight)
+            : getPointDetectionRadius(pointDiameter);
         const existingIndex = findPointIndexNear(x, y, points, detectionRadius);
         if (existingIndex >= 0) {
           points.splice(existingIndex, 1);
@@ -3369,7 +3540,11 @@
       setLocation(targetLocation, {
         persist: false,
         refreshRoutes: false,
-        wallFallback: { pointDiameter: data.pointDiameter },
+        wallFallback: {
+          pointDiameter: data.pointDiameter,
+          rectangleWidth: data.rectangleWidth,
+          rectangleHeight: data.rectangleHeight,
+        },
       });
 
       pathType = data.pathType || DEFAULT_PATH_TYPE;
@@ -3408,6 +3583,8 @@
       const wallSettings = getWallSettingsForLocation(getCurrentLocationKey());
       pathType = DEFAULT_PATH_TYPE;
       pointDiameter = wallSettings.pointDiameter;
+      rectangleWidth = wallSettings.rectangleWidth;
+      rectangleHeight = wallSettings.rectangleHeight;
       unfocusedTransparency = wallSettings.unfocusedTransparency;
       updatePathControls();
       loadedNormalizedPoints = null;
@@ -3429,8 +3606,14 @@
         const previousSettings = getWallSettingsForLocation(currentLocationKey);
         await refreshWallSettingsCache();
         const resolvedSettings = getWallSettingsForLocation(currentLocationKey);
-        if (resolvedSettings.pointDiameter !== previousSettings.pointDiameter) {
+        if (
+          resolvedSettings.pointDiameter !== previousSettings.pointDiameter ||
+          resolvedSettings.rectangleWidth !== previousSettings.rectangleWidth ||
+          resolvedSettings.rectangleHeight !== previousSettings.rectangleHeight
+        ) {
           pointDiameter = resolvedSettings.pointDiameter;
+          rectangleWidth = resolvedSettings.rectangleWidth;
+          rectangleHeight = resolvedSettings.rectangleHeight;
           updatePathControls();
         }
 
@@ -3558,9 +3741,13 @@
       const wallSettings = getWallSettingsForLocation(currentLocationKey);
       const normalizedPathType = normalizePathType(pathType);
       const normalizedPointDiameter = wallSettings.pointDiameter;
+      const normalizedRectangleWidth = wallSettings.rectangleWidth;
+      const normalizedRectangleHeight = wallSettings.rectangleHeight;
       const normalizedUnfocusedTransparency = wallSettings.unfocusedTransparency;
       pathType = normalizedPathType;
       pointDiameter = normalizedPointDiameter;
+      rectangleWidth = normalizedRectangleWidth;
+      rectangleHeight = normalizedRectangleHeight;
       unfocusedTransparency = normalizedUnfocusedTransparency;
       updatePathControls();
 
@@ -3597,7 +3784,12 @@
         currentRouteKey = routeKey;
         routesCache.set(
           routeKey,
-          normalizeRouteData({ ...payload, pointDiameter: normalizedPointDiameter }),
+          normalizeRouteData({
+            ...payload,
+            pointDiameter: normalizedPointDiameter,
+            rectangleWidth: normalizedRectangleWidth,
+            rectangleHeight: normalizedRectangleHeight,
+          }),
         );
 
         if (isRenaming) {
@@ -3754,6 +3946,8 @@
         if (normalizedKey) {
           const previewSettings = normalizeWallSettings({
             pointDiameter: nextValue,
+            rectangleWidth,
+            rectangleHeight,
             unfocusedTransparency,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
@@ -3781,6 +3975,96 @@
       });
     }
 
+    if (rectangleWidthSlider) {
+      rectangleWidthSlider.addEventListener('input', (event) => {
+        const nextValue = normalizeRectangleSize(event.target.value, DEFAULT_RECTANGLE_WIDTH);
+        if (rectangleWidth === nextValue) {
+          updatePathControls();
+          return;
+        }
+
+        rectangleWidth = nextValue;
+        updatePathControls();
+
+        const locationKey = getCurrentLocationKey();
+        const normalizedKey = normalizeWallKey(locationKey);
+        if (normalizedKey) {
+          const previewSettings = normalizeWallSettings({
+            pointDiameter,
+            rectangleWidth: nextValue,
+            rectangleHeight,
+            unfocusedTransparency,
+          });
+          wallSettingsCache.set(normalizedKey, previewSettings);
+          updateRoutesForWall(normalizedKey, previewSettings);
+        }
+
+        redraw();
+      });
+
+      rectangleWidthSlider.addEventListener('change', async (event) => {
+        const nextValue = normalizeRectangleSize(event.target.value, DEFAULT_RECTANGLE_WIDTH);
+        if (rectangleWidth !== nextValue) {
+          rectangleWidth = nextValue;
+          updatePathControls();
+        }
+
+        const locationKey = getCurrentLocationKey();
+        if (locationKey) {
+          try {
+            await persistWallSettings(locationKey, { rectangleWidth: nextValue });
+          } catch (error) {
+            console.error('Failed to persist rectangle width:', error);
+          }
+        }
+      });
+    }
+
+    if (rectangleHeightSlider) {
+      rectangleHeightSlider.addEventListener('input', (event) => {
+        const nextValue = normalizeRectangleSize(event.target.value, DEFAULT_RECTANGLE_HEIGHT);
+        if (rectangleHeight === nextValue) {
+          updatePathControls();
+          return;
+        }
+
+        rectangleHeight = nextValue;
+        updatePathControls();
+
+        const locationKey = getCurrentLocationKey();
+        const normalizedKey = normalizeWallKey(locationKey);
+        if (normalizedKey) {
+          const previewSettings = normalizeWallSettings({
+            pointDiameter,
+            rectangleWidth,
+            rectangleHeight: nextValue,
+            unfocusedTransparency,
+          });
+          wallSettingsCache.set(normalizedKey, previewSettings);
+          updateRoutesForWall(normalizedKey, previewSettings);
+        }
+
+        redraw();
+      });
+
+      rectangleHeightSlider.addEventListener('change', async (event) => {
+        const nextValue = normalizeRectangleSize(event.target.value, DEFAULT_RECTANGLE_HEIGHT);
+        if (rectangleHeight !== nextValue) {
+          rectangleHeight = nextValue;
+          updatePathControls();
+        }
+
+        const locationKey = getCurrentLocationKey();
+        if (locationKey) {
+          try {
+            await persistWallSettings(locationKey, { rectangleHeight: nextValue });
+          } catch (error) {
+            console.error('Failed to persist rectangle height:', error);
+          }
+        }
+      });
+    }
+
     if (unfocusedTransparencySlider) {
       unfocusedTransparencySlider.addEventListener('input', (event) => {
         const nextValue = sliderValueToUnfocusedTransparency(event.target.value);
@@ -3797,6 +4081,8 @@
         if (normalizedKey) {
           const previewSettings = normalizeWallSettings({
             pointDiameter,
+            rectangleWidth,
+            rectangleHeight,
             unfocusedTransparency: nextValue,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
