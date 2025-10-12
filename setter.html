@@ -999,7 +999,8 @@
       }
 
       if (changed && refreshRoutes) {
-        loadRoutesList(currentRouteKey).catch((error) => {
+        prepareNewRoute();
+        loadRoutesList('').catch((error) => {
           console.error('Failed to refresh routes for the selected location:', error);
         });
       }
