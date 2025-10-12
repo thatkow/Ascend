@@ -947,6 +947,20 @@
                   value="28"
                 />
               </label>
+              <label id="gradeBarTransparencyField" class="control-field">
+                <span>
+                  Grade bar transparency
+                  <span id="gradeBarTransparencyValue"></span>
+                </span>
+                <input
+                  id="gradeBarTransparencySlider"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value="0"
+                />
+              </label>
               <label id="gradeBarMaxField" class="control-field">
                 <span>Grade bar max height (px)</span>
                 <input
@@ -1165,6 +1179,9 @@
     const MIN_GRADE_BAR_WIDTH = 8;
     const MAX_GRADE_BAR_WIDTH = 160;
     const DEFAULT_GRADE_BAR_WIDTH = 28;
+    const MIN_GRADE_BAR_TRANSPARENCY = 0;
+    const MAX_GRADE_BAR_TRANSPARENCY = 1;
+    const DEFAULT_GRADE_BAR_TRANSPARENCY = 0;
     const GRADE_SCALE_MAX = 25;
     const WALL_COLLECTION = 'walls';
 
@@ -1521,6 +1538,8 @@
     const unfocusedTransparencyValue = document.getElementById('unfocusedTransparencyValue');
     const gradeBarBaseInput = document.getElementById('gradeBarBaseInput');
     const gradeBarWidthInput = document.getElementById('gradeBarWidthInput');
+    const gradeBarTransparencySlider = document.getElementById('gradeBarTransparencySlider');
+    const gradeBarTransparencyValue = document.getElementById('gradeBarTransparencyValue');
     const gradeBarMaxInput = document.getElementById('gradeBarMaxInput');
     const saveAppearanceButton = document.getElementById('saveAppearanceButton');
     const appearanceStatusMessage = document.getElementById('appearanceStatusMessage');
@@ -1642,6 +1661,40 @@
       return clampGradeBarWidth(numeric);
     }
 
+    function clampGradeBarTransparency(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return DEFAULT_GRADE_BAR_TRANSPARENCY;
+      }
+      return Math.min(
+        Math.max(numeric, MIN_GRADE_BAR_TRANSPARENCY),
+        MAX_GRADE_BAR_TRANSPARENCY,
+      );
+    }
+
+    function normalizeGradeBarTransparency(value, fallback) {
+      const fallbackValue = Number.isFinite(fallback)
+        ? clampGradeBarTransparency(fallback)
+        : clampGradeBarTransparency(DEFAULT_GRADE_BAR_TRANSPARENCY);
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return fallbackValue;
+      }
+      return clampGradeBarTransparency(numeric);
+    }
+
+    function convertGradeBarTransparencyToSliderValue(value) {
+      return Math.round(normalizeGradeBarTransparency(value) * 100);
+    }
+
+    function sliderValueToGradeBarTransparency(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return DEFAULT_GRADE_BAR_TRANSPARENCY;
+      }
+      return normalizeGradeBarTransparency(numeric / 100);
+    }
+
     function normalizeGradeBarSettings(baseValue, maxValue) {
       const baseHeight = normalizeGradeBarHeight(
         baseValue,
@@ -1699,6 +1752,19 @@
         }
       }
 
+      const normalizedTransparency = Number(normalized.gradeBarTransparency);
+      if (Number.isFinite(normalizedTransparency)) {
+        const persistedTransparencyValue = source?.gradeBarTransparency;
+        const persistedTransparency = Number(persistedTransparencyValue);
+        if (
+          !Number.isFinite(persistedTransparency) ||
+          persistedTransparency !== normalizedTransparency ||
+          typeof persistedTransparencyValue !== 'number'
+        ) {
+          updates.gradeBarTransparency = normalizedTransparency;
+        }
+      }
+
       return updates;
     }
 
@@ -1709,6 +1775,7 @@
         gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
         gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
         gradeBarWidth: DEFAULT_GRADE_BAR_WIDTH,
+        gradeBarTransparency: DEFAULT_GRADE_BAR_TRANSPARENCY,
       };
     }
 
@@ -1728,6 +1795,10 @@
         gradeBarBaseHeight: gradeBarHeights.baseHeight,
         gradeBarMaxHeight: gradeBarHeights.maxHeight,
         gradeBarWidth: normalizeGradeBarWidth(raw.gradeBarWidth, DEFAULT_GRADE_BAR_WIDTH),
+        gradeBarTransparency: normalizeGradeBarTransparency(
+          raw.gradeBarTransparency,
+          DEFAULT_GRADE_BAR_TRANSPARENCY,
+        ),
       };
     }
 
@@ -1762,6 +1833,7 @@
       gradeBarBaseHeight = settings.gradeBarBaseHeight;
       gradeBarMaxHeight = settings.gradeBarMaxHeight;
       gradeBarWidth = settings.gradeBarWidth;
+      gradeBarTransparency = settings.gradeBarTransparency;
       updatePathControls();
       resetAppearanceUnsavedState({ clearStatus: true });
     }
@@ -1953,6 +2025,7 @@
             gradeBarBaseHeight: settings.gradeBarBaseHeight,
             gradeBarMaxHeight: settings.gradeBarMaxHeight,
             gradeBarWidth: settings.gradeBarWidth,
+            gradeBarTransparency: settings.gradeBarTransparency,
           });
         }
       });
@@ -1972,6 +2045,7 @@
           gradeBarBaseHeight: settings.gradeBarBaseHeight,
           gradeBarMaxHeight: settings.gradeBarMaxHeight,
           gradeBarWidth: settings.gradeBarWidth,
+          gradeBarTransparency: settings.gradeBarTransparency,
         });
       });
     }
@@ -1996,6 +2070,7 @@
         gradeBarBaseHeight = merged.gradeBarBaseHeight;
         gradeBarMaxHeight = merged.gradeBarMaxHeight;
         gradeBarWidth = merged.gradeBarWidth;
+        gradeBarTransparency = merged.gradeBarTransparency;
         updatePathControls();
         redraw();
       } else {
@@ -2016,6 +2091,7 @@
           gradeBarBaseHeight: merged.gradeBarBaseHeight,
           gradeBarMaxHeight: merged.gradeBarMaxHeight,
           gradeBarWidth: merged.gradeBarWidth,
+          gradeBarTransparency: merged.gradeBarTransparency,
           updatedAt: serverTimestamp(),
           key: normalizedKey,
         };
@@ -2188,6 +2264,7 @@
     let gradeBarBaseHeight = DEFAULT_GRADE_BAR_BASE_HEIGHT;
     let gradeBarMaxHeight = DEFAULT_GRADE_BAR_MAX_HEIGHT;
     let gradeBarWidth = DEFAULT_GRADE_BAR_WIDTH;
+    let gradeBarTransparency = DEFAULT_GRADE_BAR_TRANSPARENCY;
     let wheelHue = 48;
     let wheelSaturation = 1;
     let wheelLightness = 0.5;
@@ -2852,11 +2929,16 @@
         rest.gradeBarWidth,
         DEFAULT_GRADE_BAR_WIDTH,
       );
+      const fallbackGradeBarTransparency = normalizeGradeBarTransparency(
+        rest.gradeBarTransparency,
+        DEFAULT_GRADE_BAR_TRANSPARENCY,
+      );
       const wallSettings = getWallSettingsWithFallback(locationKey, {
         pointDiameter: fallbackPointDiameter,
         gradeBarBaseHeight: fallbackGradeBars.baseHeight,
         gradeBarMaxHeight: fallbackGradeBars.maxHeight,
         gradeBarWidth: fallbackGradeBarWidth,
+        gradeBarTransparency: fallbackGradeBarTransparency,
       });
       return {
         ...rest,
@@ -2869,6 +2951,7 @@
         gradeBarBaseHeight: wallSettings.gradeBarBaseHeight,
         gradeBarMaxHeight: wallSettings.gradeBarMaxHeight,
         gradeBarWidth: wallSettings.gradeBarWidth,
+        gradeBarTransparency: wallSettings.gradeBarTransparency,
         points: Array.isArray(rest.points) ? rest.points : [],
         date_set: normalizeDateValue(rest.date_set),
         location: locationName,
@@ -3082,6 +3165,17 @@
         gradeBarWidthInput.max = String(MAX_GRADE_BAR_WIDTH);
         gradeBarWidthInput.value = String(gradeBarWidth);
       }
+      if (gradeBarTransparencySlider) {
+        gradeBarTransparencySlider.value = String(
+          convertGradeBarTransparencyToSliderValue(gradeBarTransparency),
+        );
+      }
+      if (gradeBarTransparencyValue) {
+        const percentage = Math.round(
+          normalizeGradeBarTransparency(gradeBarTransparency) * 100,
+        );
+        gradeBarTransparencyValue.textContent = `${percentage}%`;
+      }
       if (gradeBarMaxInput) {
         gradeBarMaxInput.min = String(gradeBarBaseHeight);
         gradeBarMaxInput.max = String(MAX_GRADE_BAR_HEIGHT);
@@ -3206,6 +3300,7 @@
           gradeBarBaseHeight,
           gradeBarMaxHeight,
           gradeBarWidth,
+          gradeBarTransparency,
           medianGrade: null,
         };
       const isAscended = Boolean(
@@ -3351,6 +3446,10 @@
           : baseHeight + (maxHeight - baseHeight) * (clampedGrade / GRADE_SCALE_MAX);
 
       const barWidth = normalizeGradeBarWidth(route?.gradeBarWidth, DEFAULT_GRADE_BAR_WIDTH);
+      const barTransparency = normalizeGradeBarTransparency(
+        route?.gradeBarTransparency,
+        DEFAULT_GRADE_BAR_TRANSPARENCY,
+      );
 
       const xValues = routePoints
         .map((point) => (point && Number.isFinite(point.x) ? point.x : null))
@@ -3376,9 +3475,10 @@
       const topY = Math.max(0, canvas.height - bottomMargin - finalHeight);
 
       const safeAlpha = Math.max(0, Math.min(1, alpha));
+      const opacity = Math.max(0, Math.min(1, safeAlpha * (1 - barTransparency)));
 
       ctx.save();
-      ctx.globalAlpha = safeAlpha;
+      ctx.globalAlpha = opacity;
       ctx.beginPath();
       ctx.rect(barLeft, topY, barWidth, finalHeight);
 
@@ -3386,9 +3486,9 @@
 
       if (hasGrade && isAscended) {
         ctx.fillStyle = color;
-        ctx.globalAlpha = Math.max(0, Math.min(1, safeAlpha * 0.9));
+        ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
         ctx.fill();
-        ctx.globalAlpha = safeAlpha;
+        ctx.globalAlpha = opacity;
       }
 
       ctx.lineJoin = 'round';
@@ -3638,6 +3738,7 @@
           gradeBarBaseHeight: data.gradeBarBaseHeight,
           gradeBarMaxHeight: data.gradeBarMaxHeight,
           gradeBarWidth: data.gradeBarWidth,
+          gradeBarTransparency: data.gradeBarTransparency,
         },
       });
 
@@ -3681,6 +3782,7 @@
       gradeBarBaseHeight = wallSettings.gradeBarBaseHeight;
       gradeBarMaxHeight = wallSettings.gradeBarMaxHeight;
       gradeBarWidth = wallSettings.gradeBarWidth;
+      gradeBarTransparency = wallSettings.gradeBarTransparency;
       updatePathControls();
       loadedNormalizedPoints = null;
       points.length = 0;
@@ -3718,6 +3820,10 @@
           gradeBarBaseHeight = resolvedSettings.gradeBarBaseHeight;
           gradeBarMaxHeight = resolvedSettings.gradeBarMaxHeight;
           gradeBarWidth = resolvedSettings.gradeBarWidth;
+          shouldUpdateControls = true;
+        }
+        if (resolvedSettings.gradeBarTransparency !== previousSettings.gradeBarTransparency) {
+          gradeBarTransparency = resolvedSettings.gradeBarTransparency;
           shouldUpdateControls = true;
         }
         if (shouldUpdateControls) {
@@ -4052,6 +4158,7 @@
             gradeBarBaseHeight,
             gradeBarMaxHeight,
             gradeBarWidth,
+            gradeBarTransparency,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
           updateRoutesForWall(normalizedKey, previewSettings);
@@ -4082,6 +4189,7 @@
             gradeBarBaseHeight,
             gradeBarMaxHeight,
             gradeBarWidth,
+            gradeBarTransparency,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
           updateRoutesForWall(normalizedKey, previewSettings);
@@ -4114,6 +4222,7 @@
             gradeBarBaseHeight,
             gradeBarMaxHeight,
             gradeBarWidth,
+            gradeBarTransparency,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
           updateRoutesForWall(normalizedKey, previewSettings);
@@ -4144,6 +4253,38 @@
             gradeBarBaseHeight,
             gradeBarMaxHeight,
             gradeBarWidth: nextValue,
+            gradeBarTransparency,
+          });
+          wallSettingsCache.set(normalizedKey, previewSettings);
+          updateRoutesForWall(normalizedKey, previewSettings);
+        }
+
+        redraw();
+        markAppearanceUnsavedChange();
+      });
+    }
+
+    if (gradeBarTransparencySlider) {
+      gradeBarTransparencySlider.addEventListener('input', (event) => {
+        const nextValue = sliderValueToGradeBarTransparency(event.target.value);
+        if (gradeBarTransparency === nextValue) {
+          updatePathControls();
+          return;
+        }
+
+        gradeBarTransparency = nextValue;
+        updatePathControls();
+
+        const locationKey = getCurrentLocationKey();
+        const normalizedKey = normalizeWallKey(locationKey);
+        if (normalizedKey) {
+          const previewSettings = normalizeWallSettings({
+            pointDiameter,
+            unfocusedTransparency,
+            gradeBarBaseHeight,
+            gradeBarMaxHeight,
+            gradeBarWidth,
+            gradeBarTransparency: nextValue,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
           updateRoutesForWall(normalizedKey, previewSettings);
@@ -4180,6 +4321,7 @@
             gradeBarBaseHeight,
             gradeBarMaxHeight,
             gradeBarWidth,
+            gradeBarTransparency,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
           updateRoutesForWall(normalizedKey, previewSettings);
@@ -4212,6 +4354,7 @@
             gradeBarBaseHeight,
             gradeBarMaxHeight,
             gradeBarWidth,
+            gradeBarTransparency,
           });
           resetAppearanceUnsavedState();
           setAppearanceStatus('Appearance saved successfully.', 'success');

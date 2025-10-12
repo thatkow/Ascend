@@ -719,6 +719,9 @@
       const MIN_GRADE_BAR_WIDTH = 8;
       const MAX_GRADE_BAR_WIDTH = 160;
       const DEFAULT_GRADE_BAR_WIDTH = 28;
+      const MIN_GRADE_BAR_TRANSPARENCY = 0;
+      const MAX_GRADE_BAR_TRANSPARENCY = 1;
+      const DEFAULT_GRADE_BAR_TRANSPARENCY = 0;
       const GRADE_SCALE_MIN = 1;
       const GRADE_SCALE_MAX = 25;
       const WALL_COLLECTION = 'walls';
@@ -789,6 +792,28 @@
         return clampGradeBarWidth(numeric);
       }
 
+      function clampGradeBarTransparency(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return DEFAULT_GRADE_BAR_TRANSPARENCY;
+        }
+        return Math.min(
+          Math.max(numeric, MIN_GRADE_BAR_TRANSPARENCY),
+          MAX_GRADE_BAR_TRANSPARENCY,
+        );
+      }
+
+      function normalizeGradeBarTransparency(value, fallback) {
+        const fallbackValue = Number.isFinite(fallback)
+          ? clampGradeBarTransparency(fallback)
+          : clampGradeBarTransparency(DEFAULT_GRADE_BAR_TRANSPARENCY);
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return fallbackValue;
+        }
+        return clampGradeBarTransparency(numeric);
+      }
+
       function normalizeWallSettings(raw = {}) {
         if (!raw || typeof raw !== 'object') {
           return {
@@ -796,6 +821,7 @@
             gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
             gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
             gradeBarWidth: DEFAULT_GRADE_BAR_WIDTH,
+            gradeBarTransparency: DEFAULT_GRADE_BAR_TRANSPARENCY,
           };
         }
 
@@ -812,6 +838,10 @@
           gradeBarBaseHeight,
           gradeBarMaxHeight: Math.max(gradeBarBaseHeight, gradeBarMaxHeightCandidate),
           gradeBarWidth: normalizeGradeBarWidth(raw.gradeBarWidth, DEFAULT_GRADE_BAR_WIDTH),
+          gradeBarTransparency: normalizeGradeBarTransparency(
+            raw.gradeBarTransparency,
+            DEFAULT_GRADE_BAR_TRANSPARENCY,
+          ),
         };
       }
 
@@ -848,6 +878,7 @@
           gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
           gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
           gradeBarWidth: DEFAULT_GRADE_BAR_WIDTH,
+          gradeBarTransparency: DEFAULT_GRADE_BAR_TRANSPARENCY,
         };
       }
 
@@ -2539,6 +2570,7 @@
                 gradeBarBaseHeight: data.gradeBarBaseHeight,
                 gradeBarMaxHeight: data.gradeBarMaxHeight,
                 gradeBarWidth: data.gradeBarWidth,
+                gradeBarTransparency: data.gradeBarTransparency,
               };
               const wallSettings = resolveWallSettings(normalizedLocation, fallbackWallSettings);
 
@@ -2559,6 +2591,7 @@
                 gradeBarBaseHeight: wallSettings.gradeBarBaseHeight,
                 gradeBarMaxHeight: wallSettings.gradeBarMaxHeight,
                 gradeBarWidth: wallSettings.gradeBarWidth,
+                gradeBarTransparency: wallSettings.gradeBarTransparency,
               };
             })
             .sort((a, b) => {
@@ -2908,6 +2941,10 @@
               : baseHeight + (maxHeight - baseHeight) * (clampedGrade / GRADE_SCALE_MAX);
 
           const barWidth = normalizeGradeBarWidth(route.gradeBarWidth, DEFAULT_GRADE_BAR_WIDTH);
+          const barTransparency = normalizeGradeBarTransparency(
+            route.gradeBarTransparency,
+            DEFAULT_GRADE_BAR_TRANSPARENCY,
+          );
 
           const xValues = scaledPoints
             .map((point) => point?.x)
@@ -2932,16 +2969,17 @@
           const finalHeight = Math.max(2, Math.min(Math.round(gradeHeight), availableHeight));
           const topY = Math.max(0, canvas.height - bottomMargin - finalHeight);
 
+          const opacity = Math.max(0, Math.min(1, 1 - barTransparency));
+
           ctx.save();
+          ctx.globalAlpha = opacity;
           ctx.beginPath();
           ctx.rect(barLeft, topY, barWidth, finalHeight);
 
           const hasGrade = clampedGrade !== null;
           if (hasGrade && ascendedRoutes.has(route.id)) {
             ctx.fillStyle = strokeColor;
-            ctx.globalAlpha = 0.9;
             ctx.fill();
-            ctx.globalAlpha = 1;
           }
 
           ctx.lineJoin = 'round';
