@@ -1448,14 +1448,26 @@
       }
 
       try {
-        await setDoc(
-          doc(db, WALL_COLLECTION, locationKey),
-          {
-            pointDiameter: merged.pointDiameter,
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true },
-        );
+        const locationDetails =
+          findLocationByName(locationKey) || findLocationByKey(locationKey) || null;
+
+        const wallPayload = {
+          pointDiameter: merged.pointDiameter,
+          updatedAt: serverTimestamp(),
+        };
+
+        if (locationDetails) {
+          const { name, image } = locationDetails;
+          if (typeof name === 'string' && name.trim()) {
+            wallPayload.name = name.trim();
+          }
+
+          if (typeof image === 'string' && image.trim()) {
+            wallPayload.background_url = image.trim();
+          }
+        }
+
+        await setDoc(doc(db, WALL_COLLECTION, locationKey), wallPayload, { merge: true });
       } catch (error) {
         console.error('Failed to save wall settings:', error);
         setStatus('Failed to save wall settings. Please try again.', 'error');
