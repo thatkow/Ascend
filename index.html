@@ -712,6 +712,7 @@
       const MIN_POINT_DIAMETER = 12;
       const MAX_POINT_DIAMETER = 160;
       const DEFAULT_POINT_DIAMETER = 48;
+      const WALL_COLLECTION = 'wall';
 
       function normalizePathType(value) {
         if (typeof value === 'string') {
@@ -733,6 +734,45 @@
           MAX_POINT_DIAMETER,
         );
         return clamped;
+      }
+
+      function normalizeWallSettings(raw = {}) {
+        if (!raw || typeof raw !== 'object') {
+          return {
+            pathType: DEFAULT_PATH_TYPE,
+            pointDiameter: DEFAULT_POINT_DIAMETER,
+          };
+        }
+
+        return {
+          pathType: normalizePathType(raw.pathType),
+          pointDiameter: normalizePointDiameter(raw.pointDiameter),
+        };
+      }
+
+      const wallSettingsCache = new Map();
+
+      function resolveWallSettings(locationKey, fallback = null) {
+        const key = typeof locationKey === 'string' ? locationKey : '';
+        if (key) {
+          const cached = wallSettingsCache.get(key);
+          if (cached) {
+            return { ...cached };
+          }
+        }
+
+        if (fallback) {
+          const normalized = normalizeWallSettings(fallback);
+          if (key) {
+            wallSettingsCache.set(key, normalized);
+          }
+          return normalized;
+        }
+
+        return {
+          pathType: DEFAULT_PATH_TYPE,
+          pointDiameter: DEFAULT_POINT_DIAMETER,
+        };
       }
 
       const normalizeLocationName = (value) => {
@@ -2226,12 +2266,18 @@
 
       async function loadRoutes() {
         try {
-          const [routesSnapshot, medianMap] = await Promise.all([
+          const [routesSnapshot, medianMap, wallSnapshot] = await Promise.all([
             getDocs(collection(db, 'routes')),
             fetchMedianGrades(),
+            getDocs(collection(db, WALL_COLLECTION)),
           ]);
 
           routeMedianGrades = medianMap instanceof Map ? medianMap : new Map();
+
+          wallSettingsCache.clear();
+          wallSnapshot.forEach((docSnap) => {
+            wallSettingsCache.set(docSnap.id, normalizeWallSettings(docSnap.data()));
+          });
 
           allRoutes = routesSnapshot.docs
             .map((docSnap) => {
@@ -2256,6 +2302,12 @@
                 normalizeLocationName(rawLocationValue) || normalizeLocationName(DEFAULT_LOCATION?.name);
               const displayLocation = rawLocationValue || DEFAULT_LOCATION?.name || '';
 
+              const fallbackWallSettings = {
+                pathType: data.pathType,
+                pointDiameter: data.pointDiameter,
+              };
+              const wallSettings = resolveWallSettings(normalizedLocation, fallbackWallSettings);
+
               return {
                 id: docSnap.id,
                 strokeColor: typeof data.strokeColor === 'string' ? data.strokeColor : '#ffde59',
@@ -2268,8 +2320,8 @@
                 location: displayLocation,
                 locationKey: normalizedLocation,
                 medianGrade,
-                pathType: normalizePathType(data.pathType),
-                pointDiameter: normalizePointDiameter(data.pointDiameter),
+                pathType: wallSettings.pathType,
+                pointDiameter: wallSettings.pointDiameter,
               };
             })
             .sort((a, b) => {

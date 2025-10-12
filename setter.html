@@ -879,6 +879,7 @@
     const MIN_POINT_DIAMETER = 12;
     const MAX_POINT_DIAMETER = 160;
     const DEFAULT_POINT_DIAMETER = 48;
+    const WALL_COLLECTION = 'wall';
 
     const normalizeLocationName = (value) => {
       if (typeof value !== 'string') {
@@ -901,6 +902,8 @@
     let currentLocation = DEFAULT_LOCATION;
     let backgroundImageSource = '';
     let backgroundReady = false;
+
+    const wallSettingsCache = new Map();
 
     const backgroundImage = new Image();
 
@@ -977,7 +980,10 @@
       updateLocationOptionsState();
     };
 
-    const setLocation = (location, { persist = true, refreshRoutes = true } = {}) => {
+    const setLocation = (
+      location,
+      { persist = true, refreshRoutes = true, wallFallback = null } = {},
+    ) => {
       const targetLocation = location || DEFAULT_LOCATION;
       if (!targetLocation) {
         return;
@@ -988,6 +994,9 @@
       updateLocationButtonLabel();
       updateLocationOptionsState();
       updateBackgroundForCurrentLocation();
+
+      const locationKey = normalizeLocationName(targetLocation?.name);
+      applyWallSettingsToStateForLocationKey(locationKey, wallFallback);
       redraw();
 
       if (persist) {
@@ -996,6 +1005,24 @@
         } catch (error) {
           console.warn('Unable to persist setter location preference:', error);
         }
+      }
+
+      if (changed) {
+        ensureWallSettings(locationKey)
+          .then(() => {
+            if (normalizeLocationName(currentLocation?.name) !== locationKey) {
+              return;
+            }
+            const wallSettings = getWallSettingsForLocation(locationKey);
+            updateRoutesForWall(locationKey, wallSettings);
+            pathType = wallSettings.pathType;
+            pointDiameter = wallSettings.pointDiameter;
+            updatePathControls();
+            redraw();
+          })
+          .catch((error) => {
+            console.warn('Failed to load wall settings:', error);
+          });
       }
 
       if (changed && refreshRoutes) {
@@ -1142,6 +1169,175 @@
       }
       const clamped = Math.min(Math.max(Math.round(numeric), MIN_POINT_DIAMETER), MAX_POINT_DIAMETER);
       return clamped;
+    }
+
+    function createDefaultWallSettings() {
+      return { pathType: DEFAULT_PATH_TYPE, pointDiameter: DEFAULT_POINT_DIAMETER };
+    }
+
+    function normalizeWallSettings(raw = {}) {
+      if (!raw || typeof raw !== 'object') {
+        return createDefaultWallSettings();
+      }
+
+      return {
+        pathType: normalizePathType(raw.pathType),
+        pointDiameter: normalizePointDiameter(raw.pointDiameter),
+      };
+    }
+
+    function getWallSettingsWithFallback(locationKey, fallback = null) {
+      const key = typeof locationKey === 'string' ? locationKey : '';
+      if (key) {
+        const cached = wallSettingsCache.get(key);
+        if (cached) {
+          return { ...cached };
+        }
+      }
+
+      if (fallback) {
+        const normalized = normalizeWallSettings(fallback);
+        if (key) {
+          wallSettingsCache.set(key, normalized);
+        }
+        return normalized;
+      }
+
+      return createDefaultWallSettings();
+    }
+
+    function getWallSettingsForLocation(locationKey) {
+      return getWallSettingsWithFallback(locationKey);
+    }
+
+    function applyWallSettingsToStateForLocationKey(locationKey, fallback = null) {
+      const settings = getWallSettingsWithFallback(locationKey, fallback);
+      pathType = settings.pathType;
+      pointDiameter = settings.pointDiameter;
+      updatePathControls();
+    }
+
+    function getCurrentLocationKey() {
+      return normalizeLocationName(currentLocation?.name);
+    }
+
+    async function ensureWallSettings(locationKey) {
+      if (!locationKey) {
+        return createDefaultWallSettings();
+      }
+
+      if (wallSettingsCache.has(locationKey)) {
+        return { ...wallSettingsCache.get(locationKey) };
+      }
+
+      try {
+        const wallRef = doc(db, WALL_COLLECTION, locationKey);
+        const snap = await getDoc(wallRef);
+        if (snap.exists()) {
+          const settings = normalizeWallSettings(snap.data());
+          wallSettingsCache.set(locationKey, settings);
+          return { ...settings };
+        }
+      } catch (error) {
+        console.warn(`Failed to load wall settings for ${locationKey}:`, error);
+      }
+
+      return createDefaultWallSettings();
+    }
+
+    async function refreshWallSettingsCache() {
+      try {
+        const snapshot = await getDocs(collection(db, WALL_COLLECTION));
+        const fetchedKeys = new Set();
+        snapshot.forEach((docSnap) => {
+          const key = docSnap.id;
+          const settings = normalizeWallSettings(docSnap.data());
+          wallSettingsCache.set(key, settings);
+          fetchedKeys.add(key);
+        });
+
+        wallSettingsCache.forEach((value, key) => {
+          if (!fetchedKeys.has(key)) {
+            wallSettingsCache.delete(key);
+          }
+        });
+      } catch (error) {
+        console.warn('Failed to refresh wall settings:', error);
+      }
+    }
+
+    function updateRoutesForWall(locationKey, settings) {
+      if (!locationKey || !settings) {
+        return;
+      }
+
+      routesCache.forEach((data, key) => {
+        const routeLocationKey =
+          typeof data?.locationKey === 'string'
+            ? data.locationKey
+            : normalizeLocationName(data?.location);
+        if (routeLocationKey === locationKey) {
+          routesCache.set(key, {
+            ...data,
+            pathType: settings.pathType,
+            pointDiameter: settings.pointDiameter,
+          });
+        }
+      });
+    }
+
+    function updateRoutesForAllWalls() {
+      routesCache.forEach((data, key) => {
+        const routeLocationKey =
+          typeof data?.locationKey === 'string'
+            ? data.locationKey
+            : normalizeLocationName(data?.location);
+        const settings = getWallSettingsForLocation(routeLocationKey);
+        routesCache.set(key, {
+          ...data,
+          pathType: settings.pathType,
+          pointDiameter: settings.pointDiameter,
+        });
+      });
+    }
+
+    async function persistWallSettings(locationKey, updates = {}) {
+      if (!locationKey) {
+        return;
+      }
+
+      const merged = normalizeWallSettings({
+        ...getWallSettingsForLocation(locationKey),
+        ...updates,
+      });
+
+      wallSettingsCache.set(locationKey, merged);
+      updateRoutesForWall(locationKey, merged);
+
+      if (getCurrentLocationKey() === locationKey) {
+        pathType = merged.pathType;
+        pointDiameter = merged.pointDiameter;
+        updatePathControls();
+        redraw();
+      } else {
+        redraw();
+      }
+
+      try {
+        await setDoc(
+          doc(db, WALL_COLLECTION, locationKey),
+          {
+            pathType: merged.pathType,
+            pointDiameter: merged.pointDiameter,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true },
+        );
+      } catch (error) {
+        console.error('Failed to save wall settings:', error);
+        setStatus('Failed to save wall settings. Please try again.', 'error');
+        throw error;
+      }
     }
 
     const isValidUsername = (value) => USERNAME_PATTERN.test(normalizeUsername(value));
@@ -1771,14 +1967,20 @@
       const rawLocation = typeof rest.location === 'string' ? rest.location.trim() : '';
       const locationName = rawLocation || DEFAULT_LOCATION?.name || '';
       const locationKey = normalizeLocationName(locationName);
+      const fallbackPathType = normalizePathType(rest.pathType);
+      const fallbackPointDiameter = normalizePointDiameter(rest.pointDiameter);
+      const wallSettings = getWallSettingsWithFallback(locationKey, {
+        pathType: fallbackPathType,
+        pointDiameter: fallbackPointDiameter,
+      });
       return {
         ...rest,
         setter: normalizeSetterName(rest.setter),
         title: typeof rest.title === 'string' ? rest.title.trim() : '',
         description: typeof rest.description === 'string' ? rest.description.trim() : '',
         strokeColor: sanitizeColor(rest.strokeColor),
-        pathType: normalizePathType(rest.pathType),
-        pointDiameter: normalizePointDiameter(rest.pointDiameter),
+        pathType: wallSettings.pathType,
+        pointDiameter: wallSettings.pointDiameter,
         points: Array.isArray(rest.points) ? rest.points : [],
         date_set: normalizeDateValue(rest.date_set),
         location: locationName,
@@ -2177,7 +2379,11 @@
       const data = normalizeRouteData(rawData);
 
       const targetLocation = findLocationByName(data.location) || DEFAULT_LOCATION;
-      setLocation(targetLocation, { persist: false, refreshRoutes: false });
+      setLocation(targetLocation, {
+        persist: false,
+        refreshRoutes: false,
+        wallFallback: { pathType: data.pathType, pointDiameter: data.pointDiameter },
+      });
 
       currentRouteKey = routeKey;
       routeSelector.value = routeKey;
@@ -2188,9 +2394,6 @@
       strokeColor = data.strokeColor;
       colorPicker.value = strokeColor;
       syncAdvancedColorPicker(strokeColor);
-      pathType = data.pathType;
-      pointDiameter = data.pointDiameter;
-      updatePathControls();
       applyNormalizedPoints(data.points);
       deleteButton.disabled = !routeKey;
       resetUnsavedState();
@@ -2212,8 +2415,9 @@
       strokeColor = '#ffde59';
       colorPicker.value = strokeColor;
       syncAdvancedColorPicker(strokeColor);
-      pathType = DEFAULT_PATH_TYPE;
-      pointDiameter = DEFAULT_POINT_DIAMETER;
+      const wallSettings = getWallSettingsForLocation(getCurrentLocationKey());
+      pathType = wallSettings.pathType;
+      pointDiameter = wallSettings.pointDiameter;
       updatePathControls();
       loadedNormalizedPoints = null;
       points.length = 0;
@@ -2230,11 +2434,26 @@
     async function loadRoutesList(selectedRouteKey = '') {
       try {
         routeSelector.disabled = true;
+        const currentLocationKey = getCurrentLocationKey();
+        const previousSettings = getWallSettingsForLocation(currentLocationKey);
+        await refreshWallSettingsCache();
+        const resolvedSettings = getWallSettingsForLocation(currentLocationKey);
+        if (
+          resolvedSettings.pathType !== previousSettings.pathType ||
+          resolvedSettings.pointDiameter !== previousSettings.pointDiameter
+        ) {
+          pathType = resolvedSettings.pathType;
+          pointDiameter = resolvedSettings.pointDiameter;
+          updatePathControls();
+        }
+
         const snapshot = await getDocs(collection(db, 'routes'));
         routesCache.clear();
         snapshot.forEach((docSnap) => {
           routesCache.set(docSnap.id, normalizeRouteData(docSnap.data()));
         });
+
+        updateRoutesForAllWalls();
 
         const sortedEntries = [...routesCache.entries()].sort((a, b) => {
           const labelA = (a[1]?.title || a[0]).toLowerCase();
@@ -2242,16 +2461,16 @@
           return labelA.localeCompare(labelB);
         });
 
-        const currentLocationKey = normalizeLocationName(currentLocation?.name);
+        const activeLocationKey = normalizeLocationName(currentLocation?.name);
         const filteredEntries = sortedEntries.filter(([_, data]) => {
           const routeLocationKey =
             typeof data?.locationKey === 'string'
               ? data.locationKey
               : normalizeLocationName(data?.location);
-          if (!currentLocationKey) {
+          if (!activeLocationKey) {
             return true;
           }
-          return routeLocationKey === currentLocationKey;
+          return routeLocationKey === activeLocationKey;
         });
 
         routeSelector.innerHTML = '';
@@ -2348,8 +2567,10 @@
         return;
       }
 
-      const normalizedPathType = normalizePathType(pathType);
-      const normalizedPointDiameter = normalizePointDiameter(pointDiameter);
+      const currentLocationKey = getCurrentLocationKey();
+      const wallSettings = getWallSettingsForLocation(currentLocationKey);
+      const normalizedPathType = wallSettings.pathType;
+      const normalizedPointDiameter = wallSettings.pointDiameter;
       pathType = normalizedPathType;
       pointDiameter = normalizedPointDiameter;
       updatePathControls();
@@ -2360,7 +2581,6 @@
         description: description || null,
         strokeColor,
         pathType: normalizedPathType,
-        pointDiameter: normalizedPointDiameter,
         points: normalizedPoints,
         date_set: dateSetIso,
         date_removed: deleteField(),
@@ -2386,7 +2606,10 @@
 
         loadedNormalizedPoints = normalizedPoints;
         currentRouteKey = routeKey;
-        routesCache.set(routeKey, normalizeRouteData(payload));
+        routesCache.set(
+          routeKey,
+          normalizeRouteData({ ...payload, pointDiameter: normalizedPointDiameter }),
+        );
 
         if (isRenaming) {
           try {
@@ -2506,34 +2729,78 @@
     });
 
     if (pathTypeSelect) {
-      pathTypeSelect.addEventListener('change', (event) => {
+      pathTypeSelect.addEventListener('change', async (event) => {
         const selectedType = normalizePathType(event.target.value);
-        if (pathType !== selectedType) {
-          pathType = selectedType;
+        if (pathType === selectedType) {
           updatePathControls();
-          redraw();
-          markUnsavedChange();
-        } else {
-          updatePathControls();
+          return;
+        }
+
+        pathType = selectedType;
+        updatePathControls();
+
+        const locationKey = getCurrentLocationKey();
+        if (locationKey) {
+          const previewSettings = normalizeWallSettings({
+            pathType: selectedType,
+            pointDiameter,
+          });
+          wallSettingsCache.set(locationKey, previewSettings);
+          updateRoutesForWall(locationKey, previewSettings);
+        }
+
+        redraw();
+
+        if (locationKey) {
+          try {
+            await persistWallSettings(locationKey, { pathType: selectedType });
+          } catch (error) {
+            console.error('Failed to persist wall path type:', error);
+          }
         }
       });
     }
 
-    const handlePointDiameterChange = (event) => {
-      const nextValue = normalizePointDiameter(event.target.value);
-      if (pointDiameter !== nextValue) {
+    if (pointDiameterSlider) {
+      pointDiameterSlider.addEventListener('input', (event) => {
+        const nextValue = normalizePointDiameter(event.target.value);
+        if (pointDiameter === nextValue) {
+          updatePathControls();
+          return;
+        }
+
         pointDiameter = nextValue;
         updatePathControls();
-        redraw();
-        markUnsavedChange();
-      } else {
-        updatePathControls();
-      }
-    };
 
-    if (pointDiameterSlider) {
-      pointDiameterSlider.addEventListener('input', handlePointDiameterChange);
-      pointDiameterSlider.addEventListener('change', handlePointDiameterChange);
+        const locationKey = getCurrentLocationKey();
+        if (locationKey) {
+          const previewSettings = normalizeWallSettings({
+            pathType,
+            pointDiameter: nextValue,
+          });
+          wallSettingsCache.set(locationKey, previewSettings);
+          updateRoutesForWall(locationKey, previewSettings);
+        }
+
+        redraw();
+      });
+
+      pointDiameterSlider.addEventListener('change', async (event) => {
+        const nextValue = normalizePointDiameter(event.target.value);
+        if (pointDiameter !== nextValue) {
+          pointDiameter = nextValue;
+          updatePathControls();
+        }
+
+        const locationKey = getCurrentLocationKey();
+        if (locationKey) {
+          try {
+            await persistWallSettings(locationKey, { pointDiameter: nextValue });
+          } catch (error) {
+            console.error('Failed to persist wall point diameter:', error);
+          }
+        }
+      });
     }
 
     if (backgroundImage.complete) {
@@ -2896,6 +3163,20 @@
         setAuthMode('login');
       }
     });
+
+    refreshWallSettingsCache()
+      .then(() => {
+        const locationKey = getCurrentLocationKey();
+        const wallSettings = getWallSettingsForLocation(locationKey);
+        pathType = wallSettings.pathType;
+        pointDiameter = wallSettings.pointDiameter;
+        updatePathControls();
+        updateRoutesForAllWalls();
+        redraw();
+      })
+      .catch((error) => {
+        console.warn('Unable to initialise wall settings cache:', error);
+      });
 
     setAuthMode('login');
 
