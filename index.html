@@ -712,6 +712,12 @@
       const MIN_POINT_DIAMETER = 12;
       const MAX_POINT_DIAMETER = 160;
       const DEFAULT_POINT_DIAMETER = 48;
+      const MIN_GRADE_BAR_HEIGHT = 0;
+      const MAX_GRADE_BAR_HEIGHT = 320;
+      const DEFAULT_GRADE_BAR_BASE_HEIGHT = 16;
+      const DEFAULT_GRADE_BAR_MAX_HEIGHT = 96;
+      const GRADE_SCALE_MIN = 1;
+      const GRADE_SCALE_MAX = 25;
       const WALL_COLLECTION = 'walls';
 
       function normalizePathType(value) {
@@ -736,15 +742,49 @@
         return clamped;
       }
 
+      function clampGradeBarHeight(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return DEFAULT_GRADE_BAR_BASE_HEIGHT;
+        }
+        return Math.min(
+          Math.max(Math.round(numeric), MIN_GRADE_BAR_HEIGHT),
+          MAX_GRADE_BAR_HEIGHT,
+        );
+      }
+
+      function normalizeGradeBarHeight(value, fallback) {
+        const fallbackValue = Number.isFinite(fallback)
+          ? clampGradeBarHeight(fallback)
+          : clampGradeBarHeight(DEFAULT_GRADE_BAR_BASE_HEIGHT);
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return fallbackValue;
+        }
+        return clampGradeBarHeight(numeric);
+      }
+
       function normalizeWallSettings(raw = {}) {
         if (!raw || typeof raw !== 'object') {
           return {
             pointDiameter: DEFAULT_POINT_DIAMETER,
+            gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
+            gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
           };
         }
 
+        const gradeBarBaseHeight = normalizeGradeBarHeight(
+          raw.gradeBarBaseHeight,
+          DEFAULT_GRADE_BAR_BASE_HEIGHT,
+        );
+        const gradeBarMaxHeightCandidate = normalizeGradeBarHeight(
+          raw.gradeBarMaxHeight,
+          DEFAULT_GRADE_BAR_MAX_HEIGHT,
+        );
         return {
           pointDiameter: normalizePointDiameter(raw.pointDiameter),
+          gradeBarBaseHeight,
+          gradeBarMaxHeight: Math.max(gradeBarBaseHeight, gradeBarMaxHeightCandidate),
         };
       }
 
@@ -778,6 +818,8 @@
 
         return {
           pointDiameter: DEFAULT_POINT_DIAMETER,
+          gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
+          gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
         };
       }
 
@@ -2390,6 +2432,8 @@
 
               const fallbackWallSettings = {
                 pointDiameter: data.pointDiameter,
+                gradeBarBaseHeight: data.gradeBarBaseHeight,
+                gradeBarMaxHeight: data.gradeBarMaxHeight,
               };
               const wallSettings = resolveWallSettings(normalizedLocation, fallbackWallSettings);
 
@@ -2407,6 +2451,8 @@
                 medianGrade,
                 pathType: normalizePathType(data.pathType),
                 pointDiameter: wallSettings.pointDiameter,
+                gradeBarBaseHeight: wallSettings.gradeBarBaseHeight,
+                gradeBarMaxHeight: wallSettings.gradeBarMaxHeight,
               };
             })
             .sort((a, b) => {
@@ -2624,8 +2670,8 @@
           return fallback ? { ...fallback } : null;
         }
 
-        const gradeMin = 1;
-        const gradeMax = 25;
+        const gradeMin = GRADE_SCALE_MIN;
+        const gradeMax = GRADE_SCALE_MAX;
         const gradeRange = gradeMax - gradeMin;
 
         if (gradeRange <= 0) {
@@ -2730,37 +2776,63 @@
         const pathType = normalizePathType(route.pathType);
         const pointDiameter = normalizePointDiameter(route.pointDiameter);
 
-        function drawAnchorCircle(anchor, radius, strokeWidth) {
+        function drawGradeBar(anchor, routeThickness) {
           if (!anchor) {
             return;
           }
 
-          if (ascendedRoutes.has(route.id)) {
-            ctx.save();
-            ctx.fillStyle = strokeColor;
-            ctx.globalAlpha = 0.92;
-            ctx.beginPath();
-            ctx.arc(anchor.x, anchor.y, radius, 0, Math.PI * 2);
-            ctx.fill();
+          const baseHeight = normalizeGradeBarHeight(
+            route.gradeBarBaseHeight,
+            DEFAULT_GRADE_BAR_BASE_HEIGHT,
+          );
+          const maxHeightCandidate = normalizeGradeBarHeight(
+            route.gradeBarMaxHeight,
+            DEFAULT_GRADE_BAR_MAX_HEIGHT,
+          );
+          const maxHeight = Math.max(baseHeight, maxHeightCandidate);
 
-            ctx.globalAlpha = 1;
-            ctx.strokeStyle = '#111';
-            ctx.lineWidth = Math.max(2, radius * 0.18);
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(anchor.x - radius * 0.45, anchor.y + radius * 0.1);
-            ctx.lineTo(anchor.x - radius * 0.15, anchor.y + radius * 0.45);
-            ctx.lineTo(anchor.x + radius * 0.5, anchor.y - radius * 0.35);
-            ctx.stroke();
-            ctx.restore();
-            return;
-          }
+          const rawGrade = typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)
+            ? route.medianGrade
+            : null;
+          const clampedGrade = rawGrade === null
+            ? null
+            : Math.min(Math.max(rawGrade, 0), GRADE_SCALE_MAX);
+
+          const gradeHeight =
+            clampedGrade === null
+              ? baseHeight
+              : baseHeight + (maxHeight - baseHeight) * (clampedGrade / GRADE_SCALE_MAX);
+
+          const resolvedThickness = Number.isFinite(routeThickness) ? routeThickness : 10;
+          const offset = Math.max(12, resolvedThickness * 1.25);
+          const referenceDiameter = normalizePointDiameter(route.pointDiameter);
+          const barWidth = Math.max(12, Math.min(64, Math.round(referenceDiameter * 0.75)));
+          const x = Math.max(0, Math.min(canvas.width - barWidth, anchor.x - barWidth / 2));
+          const topY = Math.max(0, Math.min(canvas.height - 2, Math.round(anchor.y + offset)));
+          const availableHeight = Math.max(2, canvas.height - topY);
+          const finalHeight = Math.max(2, Math.min(Math.round(gradeHeight), availableHeight));
 
           ctx.save();
-          ctx.lineWidth = strokeWidth;
-          ctx.strokeStyle = strokeColor;
           ctx.beginPath();
-          ctx.arc(anchor.x, anchor.y, radius, 0, Math.PI * 2);
+          ctx.rect(x, topY, barWidth, finalHeight);
+
+          const hasGrade = clampedGrade !== null;
+          if (hasGrade && ascendedRoutes.has(route.id)) {
+            ctx.fillStyle = strokeColor;
+            ctx.globalAlpha = 0.9;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+          }
+
+          ctx.lineJoin = 'round';
+          ctx.lineCap = 'round';
+          ctx.lineWidth = Math.max(2, Math.min(6, barWidth * 0.18));
+          ctx.strokeStyle = strokeColor;
+
+          if (!hasGrade) {
+            ctx.setLineDash([6, 4]);
+          }
+
           ctx.stroke();
           ctx.restore();
         }
@@ -2785,17 +2857,15 @@
 
           const anchorIndex = Math.floor(scaledPoints.length / 2);
           const anchor = scaledPoints[anchorIndex] || scaledPoints[0] || null;
-          const anchorRadius = Math.max(circleRadius, Math.max(12, canvas.width * 0.01));
 
           routePaths.push({
             route,
             path,
             lineWidth: strokeWidth,
             anchor,
-            anchorRadius,
           });
 
-          drawAnchorCircle(anchor, anchorRadius, strokeWidth);
+          drawGradeBar(anchor, strokeWidth);
           return;
         }
 
@@ -2826,22 +2896,11 @@
         const computedAnchor = findAnchorPointForRoute(route, scaledPoints, canvas.height);
         const anchor = computedAnchor || (fallbackAnchor ? { ...fallbackAnchor } : null);
 
-        const radius = Math.max(12, canvas.width * 0.01);
-        const gapRadius = anchor ? Math.max(0, radius - lineWidth / 2) : 0;
-
         ctx.save();
         ctx.lineWidth = lineWidth;
         ctx.strokeStyle = strokeColor;
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
-
-        if (anchor && gapRadius > 0) {
-          ctx.beginPath();
-          ctx.rect(0, 0, canvas.width, canvas.height);
-          ctx.moveTo(anchor.x + gapRadius, anchor.y);
-          ctx.arc(anchor.x, anchor.y, gapRadius, 0, Math.PI * 2);
-          ctx.clip('evenodd');
-        }
 
         ctx.stroke(path);
         ctx.restore();
@@ -2851,10 +2910,9 @@
           path,
           lineWidth,
           anchor,
-          anchorRadius: radius,
         });
 
-        drawAnchorCircle(anchor, radius, lineWidth);
+        drawGradeBar(anchor, lineWidth);
       }
 
       function handlePointerMove(event) {

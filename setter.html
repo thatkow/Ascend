@@ -919,6 +919,28 @@
                   value="25"
                 />
               </label>
+              <label id="gradeBarBaseField" class="control-field">
+                <span>Grade bar base height (px)</span>
+                <input
+                  id="gradeBarBaseInput"
+                  type="number"
+                  min="0"
+                  max="320"
+                  step="1"
+                  value="16"
+                />
+              </label>
+              <label id="gradeBarMaxField" class="control-field">
+                <span>Grade bar max height (px)</span>
+                <input
+                  id="gradeBarMaxInput"
+                  type="number"
+                  min="0"
+                  max="320"
+                  step="1"
+                  value="96"
+                />
+              </label>
             </div>
             <div class="control-section">
               <label class="control-field">
@@ -1110,6 +1132,10 @@
     const MIN_UNFOCUSED_TRANSPARENCY = 0;
     const MAX_UNFOCUSED_TRANSPARENCY = 1;
     const DEFAULT_UNFOCUSED_TRANSPARENCY = 0.25;
+    const MIN_GRADE_BAR_HEIGHT = 0;
+    const MAX_GRADE_BAR_HEIGHT = 320;
+    const DEFAULT_GRADE_BAR_BASE_HEIGHT = 16;
+    const DEFAULT_GRADE_BAR_MAX_HEIGHT = 96;
     const WALL_COLLECTION = 'walls';
 
     const normalizeLocationName = (value) => {
@@ -1463,6 +1489,8 @@
     const unfocusedTransparencyField = document.getElementById('unfocusedTransparencyField');
     const unfocusedTransparencySlider = document.getElementById('unfocusedTransparencySlider');
     const unfocusedTransparencyValue = document.getElementById('unfocusedTransparencyValue');
+    const gradeBarBaseInput = document.getElementById('gradeBarBaseInput');
+    const gradeBarMaxInput = document.getElementById('gradeBarMaxInput');
     const advancedColorToggle = document.getElementById('advancedColorToggle');
     const advancedColorPicker = document.getElementById('advancedColorPicker');
     const colorWheelCanvas = document.getElementById('colorWheelCanvas');
@@ -1537,10 +1565,49 @@
       return normalizeUnfocusedTransparency(numeric / 100);
     }
 
+    function clampGradeBarHeight(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return DEFAULT_GRADE_BAR_BASE_HEIGHT;
+      }
+      return Math.min(
+        Math.max(Math.round(numeric), MIN_GRADE_BAR_HEIGHT),
+        MAX_GRADE_BAR_HEIGHT,
+      );
+    }
+
+    function normalizeGradeBarHeight(value, fallback) {
+      const fallbackValue = Number.isFinite(fallback)
+        ? clampGradeBarHeight(fallback)
+        : clampGradeBarHeight(DEFAULT_GRADE_BAR_BASE_HEIGHT);
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return fallbackValue;
+      }
+      return clampGradeBarHeight(numeric);
+    }
+
+    function normalizeGradeBarSettings(baseValue, maxValue) {
+      const baseHeight = normalizeGradeBarHeight(
+        baseValue,
+        DEFAULT_GRADE_BAR_BASE_HEIGHT,
+      );
+      const maxHeightCandidate = normalizeGradeBarHeight(
+        maxValue,
+        DEFAULT_GRADE_BAR_MAX_HEIGHT,
+      );
+      return {
+        baseHeight,
+        maxHeight: Math.max(baseHeight, maxHeightCandidate),
+      };
+    }
+
     function createDefaultWallSettings() {
       return {
         pointDiameter: DEFAULT_POINT_DIAMETER,
         unfocusedTransparency: DEFAULT_UNFOCUSED_TRANSPARENCY,
+        gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
+        gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
       };
     }
 
@@ -1549,9 +1616,16 @@
         return createDefaultWallSettings();
       }
 
+      const gradeBarHeights = normalizeGradeBarSettings(
+        raw.gradeBarBaseHeight,
+        raw.gradeBarMaxHeight,
+      );
+
       return {
         pointDiameter: normalizePointDiameter(raw.pointDiameter),
         unfocusedTransparency: normalizeUnfocusedTransparency(raw.unfocusedTransparency),
+        gradeBarBaseHeight: gradeBarHeights.baseHeight,
+        gradeBarMaxHeight: gradeBarHeights.maxHeight,
       };
     }
 
@@ -1583,6 +1657,8 @@
       const settings = getWallSettingsWithFallback(locationKey, fallback);
       pointDiameter = settings.pointDiameter;
       unfocusedTransparency = settings.unfocusedTransparency;
+      gradeBarBaseHeight = settings.gradeBarBaseHeight;
+      gradeBarMaxHeight = settings.gradeBarMaxHeight;
       updatePathControls();
     }
 
@@ -1732,6 +1808,8 @@
           routesCache.set(routeKey, {
             ...data,
             pointDiameter: settings.pointDiameter,
+            gradeBarBaseHeight: settings.gradeBarBaseHeight,
+            gradeBarMaxHeight: settings.gradeBarMaxHeight,
           });
         }
       });
@@ -1748,6 +1826,8 @@
         routesCache.set(key, {
           ...data,
           pointDiameter: settings.pointDiameter,
+          gradeBarBaseHeight: settings.gradeBarBaseHeight,
+          gradeBarMaxHeight: settings.gradeBarMaxHeight,
         });
       });
     }
@@ -1769,6 +1849,8 @@
       if (getCurrentLocationKey() === normalizedKey) {
         pointDiameter = merged.pointDiameter;
         unfocusedTransparency = merged.unfocusedTransparency;
+        gradeBarBaseHeight = merged.gradeBarBaseHeight;
+        gradeBarMaxHeight = merged.gradeBarMaxHeight;
         updatePathControls();
         redraw();
       } else {
@@ -1786,6 +1868,8 @@
         const wallPayload = {
           pointDiameter: merged.pointDiameter,
           unfocusedTransparency: merged.unfocusedTransparency,
+          gradeBarBaseHeight: merged.gradeBarBaseHeight,
+          gradeBarMaxHeight: merged.gradeBarMaxHeight,
           updatedAt: serverTimestamp(),
           key: normalizedKey,
         };
@@ -1952,6 +2036,8 @@
     let pathType = DEFAULT_PATH_TYPE;
     let pointDiameter = DEFAULT_POINT_DIAMETER;
     let unfocusedTransparency = DEFAULT_UNFOCUSED_TRANSPARENCY;
+    let gradeBarBaseHeight = DEFAULT_GRADE_BAR_BASE_HEIGHT;
+    let gradeBarMaxHeight = DEFAULT_GRADE_BAR_MAX_HEIGHT;
     let wheelHue = 48;
     let wheelSaturation = 1;
     let wheelLightness = 0.5;
@@ -2606,8 +2692,14 @@
       const locationKey = normalizeLocationName(locationName);
       const normalizedPathType = normalizePathType(rest.pathType);
       const fallbackPointDiameter = normalizePointDiameter(rest.pointDiameter);
+      const fallbackGradeBars = normalizeGradeBarSettings(
+        rest.gradeBarBaseHeight,
+        rest.gradeBarMaxHeight,
+      );
       const wallSettings = getWallSettingsWithFallback(locationKey, {
         pointDiameter: fallbackPointDiameter,
+        gradeBarBaseHeight: fallbackGradeBars.baseHeight,
+        gradeBarMaxHeight: fallbackGradeBars.maxHeight,
       });
       return {
         ...rest,
@@ -2617,6 +2709,8 @@
         strokeColor: sanitizeColor(rest.strokeColor),
         pathType: normalizedPathType,
         pointDiameter: wallSettings.pointDiameter,
+        gradeBarBaseHeight: wallSettings.gradeBarBaseHeight,
+        gradeBarMaxHeight: wallSettings.gradeBarMaxHeight,
         points: Array.isArray(rest.points) ? rest.points : [],
         date_set: normalizeDateValue(rest.date_set),
         location: locationName,
@@ -2768,6 +2862,16 @@
       if (unfocusedTransparencyValue) {
         const percentage = Math.round(normalizeUnfocusedTransparency(unfocusedTransparency) * 100);
         unfocusedTransparencyValue.textContent = `${percentage}%`;
+      }
+      if (gradeBarBaseInput) {
+        gradeBarBaseInput.min = String(MIN_GRADE_BAR_HEIGHT);
+        gradeBarBaseInput.max = String(MAX_GRADE_BAR_HEIGHT);
+        gradeBarBaseInput.value = String(gradeBarBaseHeight);
+      }
+      if (gradeBarMaxInput) {
+        gradeBarMaxInput.min = String(gradeBarBaseHeight);
+        gradeBarMaxInput.max = String(MAX_GRADE_BAR_HEIGHT);
+        gradeBarMaxInput.value = String(gradeBarMaxHeight);
       }
     }
 
@@ -3170,7 +3274,11 @@
       setLocation(targetLocation, {
         persist: false,
         refreshRoutes: false,
-        wallFallback: { pointDiameter: data.pointDiameter },
+        wallFallback: {
+          pointDiameter: data.pointDiameter,
+          gradeBarBaseHeight: data.gradeBarBaseHeight,
+          gradeBarMaxHeight: data.gradeBarMaxHeight,
+        },
       });
 
       pathType = data.pathType || DEFAULT_PATH_TYPE;
@@ -3556,6 +3664,8 @@
           const previewSettings = normalizeWallSettings({
             pointDiameter: nextValue,
             unfocusedTransparency,
+            gradeBarBaseHeight,
+            gradeBarMaxHeight,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
           updateRoutesForWall(normalizedKey, previewSettings);
@@ -3599,6 +3709,8 @@
           const previewSettings = normalizeWallSettings({
             pointDiameter,
             unfocusedTransparency: nextValue,
+            gradeBarBaseHeight,
+            gradeBarMaxHeight,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
           updateRoutesForWall(normalizedKey, previewSettings);
@@ -3620,6 +3732,127 @@
             await persistWallSettings(locationKey, { unfocusedTransparency: nextValue });
           } catch (error) {
             console.error('Failed to persist unfocused transparency:', error);
+          }
+        }
+      });
+    }
+
+    if (gradeBarBaseInput) {
+      gradeBarBaseInput.addEventListener('input', (event) => {
+        const nextValue = normalizeGradeBarHeight(event.target.value, gradeBarBaseHeight);
+        if (gradeBarBaseHeight === nextValue && gradeBarMaxHeight >= nextValue) {
+          updatePathControls();
+          return;
+        }
+
+        const { baseHeight, maxHeight } = normalizeGradeBarSettings(nextValue, gradeBarMaxHeight);
+        gradeBarBaseHeight = baseHeight;
+        gradeBarMaxHeight = maxHeight;
+        updatePathControls();
+
+        const locationKey = getCurrentLocationKey();
+        const normalizedKey = normalizeWallKey(locationKey);
+        if (normalizedKey) {
+          const previewSettings = normalizeWallSettings({
+            pointDiameter,
+            unfocusedTransparency,
+            gradeBarBaseHeight,
+            gradeBarMaxHeight,
+          });
+          wallSettingsCache.set(normalizedKey, previewSettings);
+          updateRoutesForWall(normalizedKey, previewSettings);
+        }
+
+        redraw();
+      });
+
+      gradeBarBaseInput.addEventListener('change', async (event) => {
+        const nextValue = normalizeGradeBarHeight(event.target.value, gradeBarBaseHeight);
+        const { baseHeight, maxHeight } = normalizeGradeBarSettings(nextValue, gradeBarMaxHeight);
+        const changed =
+          gradeBarBaseHeight !== baseHeight || gradeBarMaxHeight !== maxHeight;
+
+        gradeBarBaseHeight = baseHeight;
+        gradeBarMaxHeight = maxHeight;
+        updatePathControls();
+
+        if (!changed) {
+          return;
+        }
+
+        const locationKey = getCurrentLocationKey();
+        if (locationKey) {
+          try {
+            await persistWallSettings(locationKey, {
+              gradeBarBaseHeight: gradeBarBaseHeight,
+              gradeBarMaxHeight: gradeBarMaxHeight,
+            });
+          } catch (error) {
+            console.error('Failed to persist grade bar base height:', error);
+          }
+        }
+      });
+    }
+
+    if (gradeBarMaxInput) {
+      gradeBarMaxInput.addEventListener('input', (event) => {
+        const nextValue = normalizeGradeBarHeight(event.target.value, gradeBarMaxHeight);
+        const { baseHeight, maxHeight } = normalizeGradeBarSettings(
+          gradeBarBaseHeight,
+          nextValue,
+        );
+
+        if (gradeBarBaseHeight === baseHeight && gradeBarMaxHeight === maxHeight) {
+          updatePathControls();
+          return;
+        }
+
+        gradeBarBaseHeight = baseHeight;
+        gradeBarMaxHeight = maxHeight;
+        updatePathControls();
+
+        const locationKey = getCurrentLocationKey();
+        const normalizedKey = normalizeWallKey(locationKey);
+        if (normalizedKey) {
+          const previewSettings = normalizeWallSettings({
+            pointDiameter,
+            unfocusedTransparency,
+            gradeBarBaseHeight,
+            gradeBarMaxHeight,
+          });
+          wallSettingsCache.set(normalizedKey, previewSettings);
+          updateRoutesForWall(normalizedKey, previewSettings);
+        }
+
+        redraw();
+      });
+
+      gradeBarMaxInput.addEventListener('change', async (event) => {
+        const nextValue = normalizeGradeBarHeight(event.target.value, gradeBarMaxHeight);
+        const { baseHeight, maxHeight } = normalizeGradeBarSettings(
+          gradeBarBaseHeight,
+          nextValue,
+        );
+        const changed =
+          gradeBarBaseHeight !== baseHeight || gradeBarMaxHeight !== maxHeight;
+
+        gradeBarBaseHeight = baseHeight;
+        gradeBarMaxHeight = maxHeight;
+        updatePathControls();
+
+        if (!changed) {
+          return;
+        }
+
+        const locationKey = getCurrentLocationKey();
+        if (locationKey) {
+          try {
+            await persistWallSettings(locationKey, {
+              gradeBarBaseHeight: gradeBarBaseHeight,
+              gradeBarMaxHeight: gradeBarMaxHeight,
+            });
+          } catch (error) {
+            console.error('Failed to persist grade bar max height:', error);
           }
         }
       });
