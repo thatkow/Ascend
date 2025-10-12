@@ -4836,11 +4836,9 @@
 
         resetUnsavedState();
 
-        await loadRoutesList(routeKey);
-        routeSelector.value = routeKey;
-        deleteButton.disabled = false;
-
         const label = title || routeKey;
+        await loadRoutesList(routeKey);
+        prepareNewRoute();
         setStatus(`Route “${label}” saved successfully.`, 'success');
       } catch (error) {
         console.error('Failed to save route:', error);

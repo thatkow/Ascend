@@ -453,42 +453,26 @@
         flex-direction: column;
         gap: 0.35rem;
         overflow: visible;
-        background: none;
-        border: none;
-        box-shadow: none;
+        background-color: var(--tooltip-surface, #0e150f);
+        background: radial-gradient(
+          circle at top right,
+          transparent calc(var(--tooltip-grade-cutout) - 1px),
+          transparent calc(var(--tooltip-grade-cutout) - 1px),
+          var(--tooltip-surface, #0e150f) calc(var(--tooltip-grade-cutout)),
+          var(--tooltip-surface, #0e150f) 100%
+        ),
+        var(--tooltip-surface, #0e150f);
+        background-repeat: no-repeat;
+        border: 1px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
+        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
       }
 
-      .route-tooltip::before,
       .route-tooltip::after {
         content: '';
         position: absolute;
         inset: 0;
         border-radius: inherit;
         pointer-events: none;
-      }
-
-      .route-tooltip::before {
-        background: var(--tooltip-surface, #0e150f);
-        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
-        -webkit-mask-image: radial-gradient(
-          circle at top right,
-          transparent calc(var(--tooltip-grade-cutout) - 1px),
-          transparent calc(var(--tooltip-grade-cutout) - 1px),
-          #000 calc(var(--tooltip-grade-cutout)),
-          #000 100%
-        );
-        -webkit-mask-repeat: no-repeat;
-        mask-image: radial-gradient(
-          circle at top right,
-          transparent calc(var(--tooltip-grade-cutout) - 1px),
-          transparent calc(var(--tooltip-grade-cutout) - 1px),
-          #000 calc(var(--tooltip-grade-cutout)),
-          #000 100%
-        );
-        mask-repeat: no-repeat;
-      }
-
-      .route-tooltip::after {
         border: 1px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
         -webkit-mask-image: radial-gradient(
           circle at top right,
@@ -565,31 +549,13 @@
         overflow: hidden;
       }
 
-      .route-tooltip .tooltip-action-group {
-        position: relative;
+      .route-tooltip .tooltip-actions {
         display: flex;
         flex-direction: column;
         gap: 0.45rem;
-        width: calc(var(--tooltip-grade-size, 7.5rem) * 0.94);
-        margin-top: calc(var(--tooltip-grade-size, 7.5rem) * -0.15);
-        padding: calc(0.85rem + var(--tooltip-grade-size, 7.5rem) * 0.05) 0.9rem 0.85rem;
-        background: var(--tooltip-surface, #0e150f);
-        border: 1px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
-        border-radius: calc(var(--tooltip-grade-size, 7.5rem) * 0.48);
-        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
+        margin-top: 0.5rem;
+        width: 100%;
         pointer-events: auto;
-      }
-
-      .route-tooltip .tooltip-action-group::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 50%;
-        transform: translate(-50%, -55%);
-        width: calc(var(--tooltip-grade-size, 7.5rem) * 0.98);
-        height: calc(var(--tooltip-grade-size, 7.5rem) * 0.2);
-        background: var(--tooltip-surface, #0e150f);
-        pointer-events: none;
       }
 
       .route-tooltip .tooltip-action-button {
@@ -2565,9 +2531,14 @@
         gradeCluster.className = 'tooltip-grade-cluster';
         gradeCluster.appendChild(gradeBadge);
 
-        const actionGroup = document.createElement('div');
-        actionGroup.className = 'tooltip-action-group';
-        let hasActions = false;
+        let actionsContainer = null;
+        const ensureActionsContainer = () => {
+          if (!actionsContainer) {
+            actionsContainer = document.createElement('div');
+            actionsContainer.className = 'tooltip-actions';
+          }
+          return actionsContainer;
+        };
 
         if (currentUser) {
           const actionButton = document.createElement('button');
@@ -2580,8 +2551,7 @@
             event.stopPropagation();
             toggleRouteAscent(route);
           });
-          actionGroup.appendChild(actionButton);
-          hasActions = true;
+          ensureActionsContainer().appendChild(actionButton);
         }
 
         const focusButton = document.createElement('button');
@@ -2598,14 +2568,12 @@
           event.stopPropagation();
           toggleRouteFocus(route);
         });
-        actionGroup.appendChild(focusButton);
-        hasActions = true;
-
-        if (hasActions) {
-          gradeCluster.appendChild(actionGroup);
-        }
+        ensureActionsContainer().appendChild(focusButton);
 
         fragment.appendChild(gradeCluster);
+        if (actionsContainer) {
+          fragment.appendChild(actionsContainer);
+        }
         ariaLines.push(`Grade: ${gradeDisplay}`);
         ariaLines.push(isAscended ? 'Ascended' : 'Not ascended');
 
@@ -2731,27 +2699,6 @@
 
         if (tooltip && tooltip.classList.contains('visible') && activeRouteId === route.id) {
           updateTooltipContent(route);
-        }
-      }
-
-      function clearRouteFocus() {
-        if (!focusedRouteId) {
-          return;
-        }
-
-        const previousFocusedId = focusedRouteId;
-        focusedRouteId = null;
-        redraw();
-
-        if (
-          tooltip &&
-          tooltip.classList.contains('visible') &&
-          activeRouteId === previousFocusedId
-        ) {
-          const route = routes.find((candidate) => candidate.id === previousFocusedId);
-          if (route) {
-            updateTooltipContent(route);
-          }
         }
       }
 
@@ -3929,7 +3876,6 @@
           const tooltipY = rect.top + entry.top;
           showTooltip(entry.route, tooltipX, tooltipY, { pin: true });
         } else {
-          clearRouteFocus();
           hideTooltip({ force: true });
         }
       }
@@ -3947,7 +3893,6 @@
           return;
         }
 
-        clearRouteFocus();
         hideTooltip({ force: true });
       }
 
