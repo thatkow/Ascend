@@ -2560,27 +2560,31 @@
         }
       }
 
-      function positionTooltip(clientX, clientY) {
+      function positionTooltip() {
         if (!tooltip) {
-          return;
+          return null;
         }
 
         const tooltipWidth = tooltip.offsetWidth || 0;
         const tooltipHeight = tooltip.offsetHeight || 0;
         const halfWidth = tooltipWidth / 2;
 
-        const minX = halfWidth + 12;
-        const maxX = window.innerWidth - halfWidth - 12;
-        const desiredLeft = clientX;
-        const clampedLeft = maxX < minX ? window.innerWidth / 2 : Math.min(maxX, Math.max(minX, desiredLeft));
+        const minHorizontalMargin = 12;
+        const minLeft = halfWidth + minHorizontalMargin;
+        const maxLeft = window.innerWidth - halfWidth - minHorizontalMargin;
+        const desiredLeft = window.innerWidth / 2;
+        const clampedLeft = maxLeft < minLeft ? window.innerWidth / 2 : Math.min(maxLeft, Math.max(minLeft, desiredLeft));
 
-        const minTop = 20;
-        const maxTop = window.innerHeight - tooltipHeight + 4;
-        const desiredTop = clientY - 24;
-        const clampedTop = maxTop < minTop ? window.innerHeight / 2 : Math.min(maxTop, Math.max(minTop, desiredTop));
+        const minVerticalMargin = 12;
+        const maxTop = window.innerHeight - tooltipHeight - minVerticalMargin;
+        const safeMaxTop = maxTop < minVerticalMargin ? Math.max(minVerticalMargin, maxTop) : maxTop;
+        const desiredTop = (window.innerHeight - tooltipHeight) / 2;
+        const clampedTop = Math.min(safeMaxTop, Math.max(minVerticalMargin, desiredTop));
 
         tooltip.style.left = `${clampedLeft}px`;
         tooltip.style.top = `${clampedTop}px`;
+
+        return { x: clampedLeft, y: clampedTop };
       }
 
       function showTooltip(route, clientX, clientY, options = {}) {
@@ -2594,15 +2598,14 @@
           updateTooltipContent(route);
         }
 
-        const position = { x: clientX, y: clientY };
-        positionTooltip(position.x, position.y);
+        const position = positionTooltip();
         tooltip.classList.add('visible');
         tooltip.setAttribute('aria-hidden', 'false');
         activeRouteId = route.id;
 
         if (pin) {
           pinnedRouteId = route.id;
-          pinnedPosition = { ...position };
+          pinnedPosition = position;
           tooltip.classList.add('pinned');
         } else {
           pinnedRouteId = null;
@@ -3061,7 +3064,10 @@
           tooltip.classList.add('visible');
           tooltip.classList.add('pinned');
           tooltip.setAttribute('aria-hidden', 'false');
-          positionTooltip(pinnedPosition.x, pinnedPosition.y);
+          const updatedPosition = positionTooltip();
+          if (updatedPosition) {
+            pinnedPosition = updatedPosition;
+          }
         }
       }
 
