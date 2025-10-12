@@ -712,7 +712,7 @@
       const MIN_POINT_DIAMETER = 12;
       const MAX_POINT_DIAMETER = 160;
       const DEFAULT_POINT_DIAMETER = 48;
-      const WALL_COLLECTION = 'wall';
+      const WALL_COLLECTION = 'walls';
 
       function normalizePathType(value) {
         if (typeof value === 'string') {
@@ -739,13 +739,11 @@
       function normalizeWallSettings(raw = {}) {
         if (!raw || typeof raw !== 'object') {
           return {
-            pathType: DEFAULT_PATH_TYPE,
             pointDiameter: DEFAULT_POINT_DIAMETER,
           };
         }
 
         return {
-          pathType: normalizePathType(raw.pathType),
           pointDiameter: normalizePointDiameter(raw.pointDiameter),
         };
       }
@@ -770,7 +768,6 @@
         }
 
         return {
-          pathType: DEFAULT_PATH_TYPE,
           pointDiameter: DEFAULT_POINT_DIAMETER,
         };
       }
@@ -2303,7 +2300,6 @@
               const displayLocation = rawLocationValue || DEFAULT_LOCATION?.name || '';
 
               const fallbackWallSettings = {
-                pathType: data.pathType,
                 pointDiameter: data.pointDiameter,
               };
               const wallSettings = resolveWallSettings(normalizedLocation, fallbackWallSettings);
@@ -2320,7 +2316,7 @@
                 location: displayLocation,
                 locationKey: normalizedLocation,
                 medianGrade,
-                pathType: wallSettings.pathType,
+                pathType: normalizePathType(data.pathType),
                 pointDiameter: wallSettings.pointDiameter,
               };
             })
