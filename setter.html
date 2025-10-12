@@ -387,6 +387,11 @@
       margin-bottom: 0.75rem;
     }
 
+    #createWallButton {
+      background: #7ed957;
+      color: #0d2600;
+    }
+
     .location-button:hover,
     .location-button:focus-visible {
       transform: translateY(-1px);
@@ -900,6 +905,20 @@
                   value="48"
                 />
               </label>
+              <label id="unfocusedTransparencyField" class="control-field">
+                <span>
+                  Unfocused transparency
+                  <span id="unfocusedTransparencyValue"></span>
+                </span>
+                <input
+                  id="unfocusedTransparencySlider"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value="25"
+                />
+              </label>
             </div>
             <div class="control-section">
               <label class="control-field">
@@ -1088,6 +1107,9 @@
     const MIN_POINT_DIAMETER = 12;
     const MAX_POINT_DIAMETER = 160;
     const DEFAULT_POINT_DIAMETER = 48;
+    const MIN_UNFOCUSED_TRANSPARENCY = 0;
+    const MAX_UNFOCUSED_TRANSPARENCY = 1;
+    const DEFAULT_UNFOCUSED_TRANSPARENCY = 0.25;
     const WALL_COLLECTION = 'walls';
 
     const normalizeLocationName = (value) => {
@@ -1333,6 +1355,7 @@
             const wallSettings = getWallSettingsForLocation(nextKey);
             updateRoutesForWall(nextKey, wallSettings);
             pointDiameter = wallSettings.pointDiameter;
+            unfocusedTransparency = wallSettings.unfocusedTransparency;
             updatePathControls();
             redraw();
           })
@@ -1437,6 +1460,9 @@
     const pointDiameterField = document.getElementById('pointDiameterField');
     const pointDiameterSlider = document.getElementById('pointDiameterSlider');
     const pointDiameterValue = document.getElementById('pointDiameterValue');
+    const unfocusedTransparencyField = document.getElementById('unfocusedTransparencyField');
+    const unfocusedTransparencySlider = document.getElementById('unfocusedTransparencySlider');
+    const unfocusedTransparencyValue = document.getElementById('unfocusedTransparencyValue');
     const advancedColorToggle = document.getElementById('advancedColorToggle');
     const advancedColorPicker = document.getElementById('advancedColorPicker');
     const colorWheelCanvas = document.getElementById('colorWheelCanvas');
@@ -1487,8 +1513,35 @@
       return clamped;
     }
 
+    function normalizeUnfocusedTransparency(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return DEFAULT_UNFOCUSED_TRANSPARENCY;
+      }
+      const clamped = Math.min(
+        Math.max(numeric, MIN_UNFOCUSED_TRANSPARENCY),
+        MAX_UNFOCUSED_TRANSPARENCY,
+      );
+      return Math.round(clamped * 1000) / 1000;
+    }
+
+    function convertUnfocusedTransparencyToSliderValue(value) {
+      return Math.round(normalizeUnfocusedTransparency(value) * 100);
+    }
+
+    function sliderValueToUnfocusedTransparency(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return DEFAULT_UNFOCUSED_TRANSPARENCY;
+      }
+      return normalizeUnfocusedTransparency(numeric / 100);
+    }
+
     function createDefaultWallSettings() {
-      return { pointDiameter: DEFAULT_POINT_DIAMETER };
+      return {
+        pointDiameter: DEFAULT_POINT_DIAMETER,
+        unfocusedTransparency: DEFAULT_UNFOCUSED_TRANSPARENCY,
+      };
     }
 
     function normalizeWallSettings(raw = {}) {
@@ -1498,6 +1551,7 @@
 
       return {
         pointDiameter: normalizePointDiameter(raw.pointDiameter),
+        unfocusedTransparency: normalizeUnfocusedTransparency(raw.unfocusedTransparency),
       };
     }
 
@@ -1528,6 +1582,7 @@
     function applyWallSettingsToStateForLocationKey(locationKey, fallback = null) {
       const settings = getWallSettingsWithFallback(locationKey, fallback);
       pointDiameter = settings.pointDiameter;
+      unfocusedTransparency = settings.unfocusedTransparency;
       updatePathControls();
     }
 
@@ -1713,6 +1768,7 @@
 
       if (getCurrentLocationKey() === normalizedKey) {
         pointDiameter = merged.pointDiameter;
+        unfocusedTransparency = merged.unfocusedTransparency;
         updatePathControls();
         redraw();
       } else {
@@ -1729,6 +1785,7 @@
 
         const wallPayload = {
           pointDiameter: merged.pointDiameter,
+          unfocusedTransparency: merged.unfocusedTransparency,
           updatedAt: serverTimestamp(),
           key: normalizedKey,
         };
@@ -1827,6 +1884,7 @@
           name: trimmedName,
           background_url: trimmedImage,
           pointDiameter: wallSettings.pointDiameter,
+          unfocusedTransparency: wallSettings.unfocusedTransparency,
           key: normalizedKey,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -1893,6 +1951,7 @@
     let strokeColor = sanitizeColor(colorPicker.value || '#ffde59');
     let pathType = DEFAULT_PATH_TYPE;
     let pointDiameter = DEFAULT_POINT_DIAMETER;
+    let unfocusedTransparency = DEFAULT_UNFOCUSED_TRANSPARENCY;
     let wheelHue = 48;
     let wheelSaturation = 1;
     let wheelLightness = 0.5;
@@ -2701,6 +2760,15 @@
       if (pointDiameterValue) {
         pointDiameterValue.textContent = `${pointDiameter}px`;
       }
+      if (unfocusedTransparencySlider) {
+        unfocusedTransparencySlider.value = String(
+          convertUnfocusedTransparencyToSliderValue(unfocusedTransparency),
+        );
+      }
+      if (unfocusedTransparencyValue) {
+        const percentage = Math.round(normalizeUnfocusedTransparency(unfocusedTransparency) * 100);
+        unfocusedTransparencyValue.textContent = `${percentage}%`;
+      }
     }
 
     const DEFAULT_CANVAS_ASPECT_RATIO = 1536 / 1024;
@@ -2879,6 +2947,10 @@
         return;
       }
 
+      const activeLocationKey = getCurrentLocationKey();
+      const wallSettings = getWallSettingsForLocation(activeLocationKey);
+      const overlayAlpha = normalizeUnfocusedTransparency(wallSettings.unfocusedTransparency);
+
       routesCache.forEach((data, key) => {
         if (!data || key === currentRouteKey) {
           return;
@@ -2888,7 +2960,6 @@
           typeof data?.locationKey === 'string'
             ? data.locationKey
             : normalizeLocationName(data?.location);
-        const activeLocationKey = getCurrentLocationKey();
         if (activeLocationKey && routeLocationKey !== activeLocationKey) {
           return;
         }
@@ -2902,7 +2973,7 @@
         drawRouteFromCanvasPoints(
           canvasPoints,
           color,
-          0.25,
+          overlayAlpha,
           data.pathType,
           data.pointDiameter,
         );
@@ -3138,6 +3209,7 @@
       const wallSettings = getWallSettingsForLocation(getCurrentLocationKey());
       pathType = DEFAULT_PATH_TYPE;
       pointDiameter = wallSettings.pointDiameter;
+      unfocusedTransparency = wallSettings.unfocusedTransparency;
       updatePathControls();
       loadedNormalizedPoints = null;
       points.length = 0;
@@ -3287,8 +3359,10 @@
       const wallSettings = getWallSettingsForLocation(currentLocationKey);
       const normalizedPathType = normalizePathType(pathType);
       const normalizedPointDiameter = wallSettings.pointDiameter;
+      const normalizedUnfocusedTransparency = wallSettings.unfocusedTransparency;
       pathType = normalizedPathType;
       pointDiameter = normalizedPointDiameter;
+      unfocusedTransparency = normalizedUnfocusedTransparency;
       updatePathControls();
 
       const payload = {
@@ -3481,6 +3555,7 @@
         if (normalizedKey) {
           const previewSettings = normalizeWallSettings({
             pointDiameter: nextValue,
+            unfocusedTransparency,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
           updateRoutesForWall(normalizedKey, previewSettings);
@@ -3502,6 +3577,49 @@
             await persistWallSettings(locationKey, { pointDiameter: nextValue });
           } catch (error) {
             console.error('Failed to persist wall point diameter:', error);
+          }
+        }
+      });
+    }
+
+    if (unfocusedTransparencySlider) {
+      unfocusedTransparencySlider.addEventListener('input', (event) => {
+        const nextValue = sliderValueToUnfocusedTransparency(event.target.value);
+        if (unfocusedTransparency === nextValue) {
+          updatePathControls();
+          return;
+        }
+
+        unfocusedTransparency = nextValue;
+        updatePathControls();
+
+        const locationKey = getCurrentLocationKey();
+        const normalizedKey = normalizeWallKey(locationKey);
+        if (normalizedKey) {
+          const previewSettings = normalizeWallSettings({
+            pointDiameter,
+            unfocusedTransparency: nextValue,
+          });
+          wallSettingsCache.set(normalizedKey, previewSettings);
+          updateRoutesForWall(normalizedKey, previewSettings);
+        }
+
+        redraw();
+      });
+
+      unfocusedTransparencySlider.addEventListener('change', async (event) => {
+        const nextValue = sliderValueToUnfocusedTransparency(event.target.value);
+        if (unfocusedTransparency !== nextValue) {
+          unfocusedTransparency = nextValue;
+          updatePathControls();
+        }
+
+        const locationKey = getCurrentLocationKey();
+        if (locationKey) {
+          try {
+            await persistWallSettings(locationKey, { unfocusedTransparency: nextValue });
+          } catch (error) {
+            console.error('Failed to persist unfocused transparency:', error);
           }
         }
       });
@@ -3891,6 +4009,7 @@
         const locationKey = getCurrentLocationKey();
         const wallSettings = getWallSettingsForLocation(locationKey);
         pointDiameter = wallSettings.pointDiameter;
+        unfocusedTransparency = wallSettings.unfocusedTransparency;
         updatePathControls();
         updateRoutesForAllWalls();
         redraw();
