@@ -1324,7 +1324,11 @@
         previewLink.href = buildWallAwareHref(previewLinkBaseHref, normalizedKey);
       }
 
-      climberViewTargetHref = buildWallAwareHref(climberViewBaseHref, normalizedKey);
+      const computedClimberHref = buildWallAwareHref(climberViewBaseHref, normalizedKey);
+      climberViewTargetHref = computedClimberHref;
+      if (climberViewButton) {
+        climberViewButton.setAttribute('data-target-href', computedClimberHref);
+      }
     }
 
     function upsertLocation({ key = '', name = '', image = '', fallbackName = '' } = {}) {
@@ -2984,7 +2988,10 @@
 
     if (climberViewButton) {
       climberViewButton.addEventListener('click', () => {
-        window.location.href = climberViewTargetHref;
+        const activeKey = getCurrentLocationKey();
+        const targetHref = buildWallAwareHref(climberViewBaseHref, activeKey);
+        const destination = targetHref || climberViewTargetHref || climberViewBaseHref;
+        window.location.href = destination;
       });
     }
 

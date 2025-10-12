@@ -429,14 +429,16 @@
         --tooltip-on-accent: #000;
         --tooltip-foreground: #fff;
         --tooltip-soft-foreground: #000;
+        --tooltip-grade-size: 7.5rem;
+        --tooltip-grade-cutout: calc(
+          var(--tooltip-grade-size) / 2 + 0.35rem + var(--tooltip-grade-stroke-width, 2px)
+        );
         position: fixed;
         pointer-events: none;
-        background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.72);
         color: var(--tooltip-foreground, #fff);
         padding: 0.75rem 1rem;
+        padding-right: calc(1rem + var(--tooltip-grade-size, 7.5rem) * 0.5);
         border-radius: 0.75rem;
-        border: 1px solid rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.45);
-        box-shadow: 0 12px 30px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.25);
         font-size: 0.85rem;
         line-height: 1.4;
         max-width: min(280px, 80vw);
@@ -447,6 +449,60 @@
         display: flex;
         flex-direction: column;
         gap: 0.35rem;
+        overflow: visible;
+        background: none;
+        border: none;
+        box-shadow: none;
+      }
+
+      .route-tooltip::before,
+      .route-tooltip::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+      }
+
+      .route-tooltip::before {
+        background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.72);
+        box-shadow: 0 12px 30px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.25);
+        -webkit-mask-image: radial-gradient(
+          circle at top right,
+          transparent calc(var(--tooltip-grade-cutout) - 1px),
+          transparent calc(var(--tooltip-grade-cutout) - 1px),
+          #000 calc(var(--tooltip-grade-cutout)),
+          #000 100%
+        );
+        -webkit-mask-repeat: no-repeat;
+        mask-image: radial-gradient(
+          circle at top right,
+          transparent calc(var(--tooltip-grade-cutout) - 1px),
+          transparent calc(var(--tooltip-grade-cutout) - 1px),
+          #000 calc(var(--tooltip-grade-cutout)),
+          #000 100%
+        );
+        mask-repeat: no-repeat;
+      }
+
+      .route-tooltip::after {
+        border: 1px solid rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.45);
+        -webkit-mask-image: radial-gradient(
+          circle at top right,
+          transparent calc(var(--tooltip-grade-cutout) - 1px),
+          transparent calc(var(--tooltip-grade-cutout) - 1px),
+          #000 calc(var(--tooltip-grade-cutout)),
+          #000 100%
+        );
+        -webkit-mask-repeat: no-repeat;
+        mask-image: radial-gradient(
+          circle at top right,
+          transparent calc(var(--tooltip-grade-cutout) - 1px),
+          transparent calc(var(--tooltip-grade-cutout) - 1px),
+          #000 calc(var(--tooltip-grade-cutout)),
+          #000 100%
+        );
+        mask-repeat: no-repeat;
       }
 
       .route-tooltip.pinned {
@@ -480,15 +536,16 @@
         top: 0;
         right: 0;
         transform: translate(50%, -50%);
-        width: 2.5rem;
-        height: 2.5rem;
+        width: var(--tooltip-grade-size, 7.5rem);
+        height: var(--tooltip-grade-size, 7.5rem);
         border-radius: 50%;
         border: var(--tooltip-grade-stroke-width, 2px) solid var(--tooltip-accent, #7ed957);
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 700;
-        font-size: 0.95rem;
+        font-size: calc(var(--tooltip-grade-size, 7.5rem) * 0.32);
+        line-height: 1;
         color: var(--tooltip-accent, #7ed957);
         background: transparent;
         pointer-events: none;
@@ -2220,13 +2277,13 @@
 
         const gradeLabel = document.createElement('label');
         const labelText = document.createElement('span');
-        labelText.textContent = 'Your grade (1-25)';
+        labelText.textContent = `Your grade (${MIN_GRADE_VALUE}-${MAX_GRADE_VALUE})`;
         gradeLabel.appendChild(labelText);
 
         const gradeInput = document.createElement('input');
         gradeInput.type = 'number';
-        gradeInput.min = '1';
-        gradeInput.max = '25';
+        gradeInput.min = String(MIN_GRADE_VALUE);
+        gradeInput.max = String(MAX_GRADE_VALUE);
         gradeInput.step = '1';
         gradeInput.inputMode = 'numeric';
         const existingGrade = getUserGradeForRoute(route.id);
@@ -2463,6 +2520,7 @@
         gradeBadge.setAttribute('aria-hidden', 'true');
         const gradeStrokeWidth = Math.max(2, Math.round(calculateRouteStrokeWidth(route)) || 2);
         gradeBadge.style.setProperty('--tooltip-grade-stroke-width', `${gradeStrokeWidth}px`);
+        tooltip.style.setProperty('--tooltip-grade-stroke-width', `${gradeStrokeWidth}px`);
         fragment.appendChild(gradeBadge);
         ariaLines.push(`Grade: ${gradeDisplay}`);
 
