@@ -791,6 +791,65 @@
         );
       };
 
+      function upsertLocation({ key = '', name = '', image = '', fallbackName = '' } = {}) {
+        const trimmedName = typeof name === 'string' && name.trim() ? name.trim() : '';
+        const fallback =
+          trimmedName || (typeof fallbackName === 'string' && fallbackName.trim() ? fallbackName.trim() : '');
+        const keySource = typeof key === 'string' && key.trim() ? key.trim() : fallback;
+        const normalizedKey = normalizeWallKey(keySource);
+        const displayName = fallback;
+        if (!normalizedKey || !displayName) {
+          return { entry: null, changed: false };
+        }
+
+        const normalizedImage = typeof image === 'string' ? image.trim() : '';
+        const existingIndex = LOCATIONS.findIndex((location) => {
+          if (!location) {
+            return false;
+          }
+          if (location.key === normalizedKey) {
+            return true;
+          }
+          return normalizeLocationName(location.name) === normalizeLocationName(displayName);
+        });
+
+        if (existingIndex >= 0) {
+          const existing = LOCATIONS[existingIndex];
+          const needsUpdate =
+            existing.key !== normalizedKey || existing.name !== displayName || existing.image !== normalizedImage;
+
+          if (!needsUpdate) {
+            return { entry: existing, changed: false };
+          }
+
+          const updated = { ...existing, key: normalizedKey, name: displayName, image: normalizedImage };
+          LOCATIONS[existingIndex] = updated;
+          return { entry: updated, changed: true };
+        }
+
+        const created = { key: normalizedKey, name: displayName, image: normalizedImage };
+        LOCATIONS.push(created);
+        return { entry: created, changed: true };
+      }
+
+      function synchronizeCurrentLocationReference() {
+        if (!currentLocation) {
+          return;
+        }
+
+        const normalizedKey = normalizeWallKey(currentLocation.key || currentLocation.name);
+        const refreshed =
+          (normalizedKey && findLocationByKey(normalizedKey)) ||
+          findLocationByName(currentLocation.name);
+
+        if (refreshed && refreshed !== currentLocation) {
+          currentLocation = refreshed;
+          updateLocationButtonLabel();
+          updateLocationOptionsState();
+          updateBackgroundForCurrentLocation();
+        }
+      }
+
       const DEFAULT_LOCATION = LOCATIONS[0];
 
       let currentLocation = DEFAULT_LOCATION;
@@ -2274,6 +2333,7 @@
           routeMedianGrades = medianMap instanceof Map ? medianMap : new Map();
 
           wallSettingsCache.clear();
+          let locationsChanged = false;
           wallSnapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const settings = normalizeWallSettings(data);
@@ -2287,7 +2347,23 @@
             if (normalizedName) {
               wallSettingsCache.set(normalizedName, settings);
             }
+
+            const { changed } = upsertLocation({
+              key: typeof data?.key === 'string' ? data.key : docSnap.id,
+              name: typeof data?.name === 'string' ? data.name : '',
+              image: typeof data?.background_url === 'string' ? data.background_url : '',
+              fallbackName: typeof data?.name === 'string' && data.name ? data.name : docSnap.id,
+            });
+
+            if (changed) {
+              locationsChanged = true;
+            }
           });
+
+          if (locationsChanged) {
+            renderLocationOptions();
+            synchronizeCurrentLocationReference();
+          }
 
           allRoutes = routesSnapshot.docs
             .map((docSnap) => {

@@ -515,16 +515,6 @@
       color: #111;
     }
 
-    #signOutButton {
-      background: rgba(255, 255, 255, 0.25);
-      color: #fff;
-    }
-
-    #openPreviewButton {
-      background: rgba(255, 255, 255, 0.4);
-      color: #111;
-    }
-
     .controls button:hover {
       transform: translateY(-2px);
       box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
@@ -729,6 +719,17 @@
           >
             Global
           </button>
+          <button
+            id="wallsTabButton"
+            class="panel-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="wallsTab"
+            data-target="wallsTab"
+          >
+            Walls
+          </button>
         </div>
       </div>
       <div id="controlsPanel" class="controls">
@@ -852,8 +853,8 @@
               </label>
             </div>
             <div class="control-section">
-              <button id="openPreviewButton" type="button">Open Preview</button>
-              <button id="signOutButton" type="button">Sign Out</button>
+              <button id="climberViewButton" class="location-button" type="button">Climber View</button>
+              <button id="signOutButton" class="location-button" type="button">Sign Out</button>
             </div>
             <div class="control-section">
               <label class="control-field">
@@ -863,6 +864,36 @@
               <button id="grantSetterButton" type="button">Grant setter role</button>
               <p
                 id="roleStatusMessage"
+                class="status-message hidden"
+                role="status"
+                aria-live="polite"
+              ></p>
+            </div>
+          </div>
+          <div
+            id="wallsTab"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="wallsTabButton"
+            aria-hidden="true"
+          >
+            <div class="control-section">
+              <label class="control-field">
+                <span>Wall name</span>
+                <input id="newWallNameInput" type="text" placeholder="e.g. Cave Wall" autocomplete="off" />
+              </label>
+              <label class="control-field">
+                <span>Background image URL</span>
+                <input
+                  id="newWallImageInput"
+                  type="text"
+                  placeholder="./location/cave-wall.jpg"
+                  autocomplete="off"
+                />
+              </label>
+              <button id="createWallButton" class="location-button" type="button">Create wall</button>
+              <p
+                id="createWallStatus"
                 class="status-message hidden"
                 role="status"
                 aria-live="polite"
@@ -954,7 +985,7 @@
     const routeStatus = document.getElementById('routeStatus');
     const controlPanel = document.querySelector('.control-panel');
     const panelSidebar = document.getElementById('panelSidebar');
-    const openPreviewButton = document.getElementById('openPreviewButton');
+    const climberViewButton = document.getElementById('climberViewButton');
     const roleUsernameInput = document.getElementById('roleUsernameInput');
     const grantSetterButton = document.getElementById('grantSetterButton');
     const roleStatusMessage = document.getElementById('roleStatusMessage');
@@ -964,11 +995,17 @@
     const locationModalClose = document.getElementById('locationModalClose');
     const routesTabButton = document.getElementById('routesTabButton');
     const globalTabButton = document.getElementById('globalTabButton');
-    const tabButtons = [routesTabButton, globalTabButton].filter(Boolean);
+    const wallsTabButton = document.getElementById('wallsTabButton');
+    const tabButtons = [routesTabButton, globalTabButton, wallsTabButton].filter(Boolean);
     const tabPanels = {
       routesTab: document.getElementById('routesTab'),
       globalTab: document.getElementById('globalTab'),
+      wallsTab: document.getElementById('wallsTab'),
     };
+    const newWallNameInput = document.getElementById('newWallNameInput');
+    const newWallImageInput = document.getElementById('newWallImageInput');
+    const createWallButton = document.getElementById('createWallButton');
+    const createWallStatus = document.getElementById('createWallStatus');
 
     const LOCATIONS = [
       { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg' },
@@ -1002,6 +1039,67 @@
         LOCATIONS.find((location) => normalizeLocationName(location.name) === normalized) || null
       );
     };
+
+    function upsertLocation({ key = '', name = '', image = '', fallbackName = '' } = {}) {
+      const trimmedName = typeof name === 'string' && name.trim() ? name.trim() : '';
+      const fallback =
+        trimmedName || (typeof fallbackName === 'string' && fallbackName.trim() ? fallbackName.trim() : '');
+      const keySource = typeof key === 'string' && key.trim() ? key.trim() : fallback;
+      const normalizedKey = normalizeWallKey(keySource);
+      const displayName = fallback;
+      if (!normalizedKey || !displayName) {
+        return { entry: null, changed: false };
+      }
+
+      const normalizedImage = typeof image === 'string' ? image.trim() : '';
+      const existingIndex = LOCATIONS.findIndex((location) => {
+        if (!location) {
+          return false;
+        }
+        if (location.key === normalizedKey) {
+          return true;
+        }
+        return normalizeLocationName(location.name) === normalizeLocationName(displayName);
+      });
+
+      if (existingIndex >= 0) {
+        const existing = LOCATIONS[existingIndex];
+        const needsUpdate =
+          existing.key !== normalizedKey ||
+          existing.name !== displayName ||
+          existing.image !== normalizedImage;
+
+        if (!needsUpdate) {
+          return { entry: existing, changed: false };
+        }
+
+        const updated = { ...existing, key: normalizedKey, name: displayName, image: normalizedImage };
+        LOCATIONS[existingIndex] = updated;
+        return { entry: updated, changed: true };
+      }
+
+      const created = { key: normalizedKey, name: displayName, image: normalizedImage };
+      LOCATIONS.push(created);
+      return { entry: created, changed: true };
+    }
+
+    function synchronizeCurrentLocationReference() {
+      if (!currentLocation) {
+        return;
+      }
+
+      const normalizedKey = normalizeWallKey(currentLocation.key || currentLocation.name);
+      const refreshed =
+        (normalizedKey && findLocationByKey(normalizedKey)) ||
+        findLocationByName(currentLocation.name);
+
+      if (refreshed && refreshed !== currentLocation) {
+        currentLocation = refreshed;
+        updateLocationButtonLabel();
+        updateLocationOptionsState();
+        updateBackgroundForCurrentLocation();
+      }
+    }
 
     const DEFAULT_LOCATION = LOCATIONS[0];
 
@@ -1119,32 +1217,53 @@
         return;
       }
 
-      const changed = !currentLocation || currentLocation.key !== targetLocation.key;
-      currentLocation = targetLocation;
+      const { entry: canonicalLocation, changed: locationEntryChanged } = upsertLocation({
+        key: typeof targetLocation?.key === 'string' ? targetLocation.key : '',
+        name: typeof targetLocation?.name === 'string' ? targetLocation.name : '',
+        image: typeof targetLocation?.image === 'string' ? targetLocation.image : '',
+        fallbackName: typeof targetLocation?.name === 'string' ? targetLocation.name : '',
+      });
+
+      if (!canonicalLocation) {
+        return;
+      }
+
+      if (locationEntryChanged) {
+        renderLocationOptions();
+      }
+
+      const previousKey = getCurrentLocationKey();
+      const nextKey = normalizeWallKey(canonicalLocation.key || canonicalLocation.name);
+      const changed = previousKey !== nextKey;
+
+      currentLocation = canonicalLocation;
       updateLocationButtonLabel();
       updateLocationOptionsState();
       updateBackgroundForCurrentLocation();
 
-      const locationKey = normalizeLocationName(targetLocation?.name);
-      applyWallSettingsToStateForLocationKey(locationKey, wallFallback);
+      if (locationEntryChanged) {
+        synchronizeCurrentLocationReference();
+      }
+
+      applyWallSettingsToStateForLocationKey(nextKey, wallFallback);
       redraw();
 
-      if (persist) {
+      if (persist && canonicalLocation?.key) {
         try {
-          window.localStorage?.setItem(LOCATION_STORAGE_KEY, targetLocation.key);
+          window.localStorage?.setItem(LOCATION_STORAGE_KEY, canonicalLocation.key);
         } catch (error) {
           console.warn('Unable to persist setter location preference:', error);
         }
       }
 
       if (changed) {
-        ensureWallSettings(locationKey)
+        ensureWallSettings(nextKey)
           .then(() => {
-            if (normalizeLocationName(currentLocation?.name) !== locationKey) {
+            if (getCurrentLocationKey() !== nextKey) {
               return;
             }
-            const wallSettings = getWallSettingsForLocation(locationKey);
-            updateRoutesForWall(locationKey, wallSettings);
+            const wallSettings = getWallSettingsForLocation(nextKey);
+            updateRoutesForWall(nextKey, wallSettings);
             pointDiameter = wallSettings.pointDiameter;
             updatePathControls();
             redraw();
@@ -1345,6 +1464,9 @@
     }
 
     function getCurrentLocationKey() {
+      if (currentLocation?.key) {
+        return normalizeWallKey(currentLocation.key);
+      }
       return normalizeLocationName(currentLocation?.name);
     }
 
@@ -1390,6 +1512,18 @@
             }
           }
 
+          const { changed: locationChanged } = upsertLocation({
+            key: typeof data?.key === 'string' ? data.key : snap.id,
+            name: typeof data?.name === 'string' ? data.name : '',
+            image: typeof data?.background_url === 'string' ? data.background_url : '',
+            fallbackName: typeof data?.name === 'string' && data.name ? data.name : snap.id,
+          });
+
+          if (locationChanged) {
+            renderLocationOptions();
+            synchronizeCurrentLocationReference();
+          }
+
           return { ...settings };
         }
       } catch (error) {
@@ -1404,6 +1538,7 @@
         const snapshot = await getDocs(collection(db, WALL_COLLECTION));
         const fetchedKeys = new Set();
         wallDocumentIdMap.clear();
+        let locationsChanged = false;
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
           const settings = normalizeWallSettings(data);
@@ -1430,6 +1565,17 @@
               fetchedKeys.add(normalizedLocationKey);
             }
           }
+
+          const { changed } = upsertLocation({
+            key: typeof data?.key === 'string' ? data.key : docSnap.id,
+            name: typeof data?.name === 'string' ? data.name : '',
+            image: typeof data?.background_url === 'string' ? data.background_url : '',
+            fallbackName: typeof data?.name === 'string' && data.name ? data.name : docSnap.id,
+          });
+
+          if (changed) {
+            locationsChanged = true;
+          }
         });
 
         wallSettingsCache.forEach((value, key) => {
@@ -1437,6 +1583,11 @@
             wallSettingsCache.delete(key);
           }
         });
+
+        if (locationsChanged) {
+          renderLocationOptions();
+          synchronizeCurrentLocationReference();
+        }
       } catch (error) {
         console.warn('Failed to refresh wall settings:', error);
       }
@@ -1511,6 +1662,7 @@
         const wallPayload = {
           pointDiameter: merged.pointDiameter,
           updatedAt: serverTimestamp(),
+          key: normalizedKey,
         };
 
         if (locationDetails) {
@@ -1554,6 +1706,113 @@
       }
     }
 
+    async function handleCreateWall() {
+      if (isCreatingWall) {
+        return;
+      }
+
+      clearCreateWallStatusMessage();
+
+      const rawName = newWallNameInput?.value ?? '';
+      const trimmedName = rawName.trim();
+      if (!trimmedName) {
+        setCreateWallStatusMessage('Enter a wall name.', 'error');
+        newWallNameInput?.focus();
+        return;
+      }
+
+      const rawImage = newWallImageInput?.value ?? '';
+      const trimmedImage = rawImage.trim();
+      if (!trimmedImage) {
+        setCreateWallStatusMessage('Enter a background image URL.', 'error');
+        newWallImageInput?.focus();
+        return;
+      }
+
+      const normalizedKey = normalizeWallKey(trimmedName);
+      if (!normalizedKey) {
+        setCreateWallStatusMessage('Enter a valid wall name.', 'error');
+        newWallNameInput?.focus();
+        return;
+      }
+
+      if (findLocationByKey(normalizedKey) || findLocationByName(trimmedName)) {
+        setCreateWallStatusMessage('A wall with this name already exists.', 'error');
+        return;
+      }
+
+      if (wallDocumentIdMap.has(normalizedKey)) {
+        setCreateWallStatusMessage('A wall with this key already exists.', 'error');
+        return;
+      }
+
+      isCreatingWall = true;
+      if (createWallButton) {
+        createWallButton.disabled = true;
+      }
+
+      setCreateWallStatusMessage('Creating wall…');
+
+      try {
+        const wallSettings = createDefaultWallSettings();
+        const payload = {
+          name: trimmedName,
+          background_url: trimmedImage,
+          pointDiameter: wallSettings.pointDiameter,
+          key: normalizedKey,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+
+        const docId = normalizedKey;
+        await setDoc(doc(db, WALL_COLLECTION, docId), payload, { merge: true });
+
+        wallDocumentIdMap.set(normalizedKey, docId);
+        wallSettingsCache.set(normalizedKey, wallSettings);
+
+        const { entry: locationEntry, changed } = upsertLocation({
+          key: normalizedKey,
+          name: trimmedName,
+          image: trimmedImage,
+          fallbackName: trimmedName,
+        });
+
+        if (changed) {
+          renderLocationOptions();
+        }
+
+        synchronizeCurrentLocationReference();
+
+        if (newWallNameInput) {
+          newWallNameInput.value = '';
+        }
+        if (newWallImageInput) {
+          newWallImageInput.value = '';
+        }
+
+        const targetLocation =
+          locationEntry ||
+          findLocationByKey(normalizedKey) ||
+          { key: normalizedKey, name: trimmedName, image: trimmedImage };
+
+        setLocation(targetLocation, {
+          persist: true,
+          refreshRoutes: true,
+          wallFallback: wallSettings,
+        });
+
+        setCreateWallStatusMessage(`Created wall “${trimmedName}”.`, 'success');
+      } catch (error) {
+        console.error('Failed to create wall:', error);
+        setCreateWallStatusMessage('Failed to create wall. Please try again.', 'error');
+      } finally {
+        isCreatingWall = false;
+        if (createWallButton) {
+          createWallButton.disabled = false;
+        }
+      }
+    }
+
     const isValidUsername = (value) => USERNAME_PATTERN.test(normalizeUsername(value));
     const isValidSetterName = (value) => SETTER_NAME_PATTERN.test(normalizeSetterName(value));
 
@@ -1577,6 +1836,7 @@
     let currentUsername = '';
     let currentUserId = null;
     let isCanvasScrollable = false;
+    let isCreatingWall = false;
 
     const routesCache = new Map();
 
@@ -2034,8 +2294,8 @@
 
     syncAdvancedColorPicker(strokeColor);
 
-    if (openPreviewButton) {
-      openPreviewButton.addEventListener('click', () => {
+    if (climberViewButton) {
+      climberViewButton.addEventListener('click', () => {
         window.location.href = 'index.html';
       });
     }
@@ -2300,6 +2560,32 @@
       delete routeStatus.dataset.variant;
     }
 
+    function setCreateWallStatusMessage(message, variant = 'info') {
+      if (!createWallStatus) {
+        return;
+      }
+      if (!message) {
+        clearCreateWallStatusMessage();
+        return;
+      }
+      createWallStatus.textContent = message;
+      createWallStatus.classList.remove('hidden');
+      if (variant) {
+        createWallStatus.dataset.variant = variant;
+      } else {
+        delete createWallStatus.dataset.variant;
+      }
+    }
+
+    function clearCreateWallStatusMessage() {
+      if (!createWallStatus) {
+        return;
+      }
+      createWallStatus.textContent = '';
+      createWallStatus.classList.add('hidden');
+      delete createWallStatus.dataset.variant;
+    }
+
     function setRoleStatus(message, variant = 'info') {
       if (!roleStatusMessage) {
         return;
@@ -2534,7 +2820,7 @@
           typeof data?.locationKey === 'string'
             ? data.locationKey
             : normalizeLocationName(data?.location);
-        const activeLocationKey = normalizeLocationName(currentLocation?.name);
+        const activeLocationKey = getCurrentLocationKey();
         if (activeLocationKey && routeLocationKey !== activeLocationKey) {
           return;
         }
@@ -2594,10 +2880,127 @@
       }));
     }
 
+    function getPointDetectionRadius(diameter) {
+      const normalizedDiameter = normalizePointDiameter(diameter);
+      return Math.max(6, normalizedDiameter / 2);
+    }
+
+    function findPointIndexNear(x, y, targetPoints = [], radius = 0) {
+      if (!Array.isArray(targetPoints) || !targetPoints.length || radius <= 0) {
+        return -1;
+      }
+
+      const radiusSq = radius * radius;
+      for (let index = 0; index < targetPoints.length; index += 1) {
+        const point = targetPoints[index];
+        if (!point) {
+          continue;
+        }
+
+        const dx = point.x - x;
+        const dy = point.y - y;
+        if (dx * dx + dy * dy <= radiusSq) {
+          return index;
+        }
+      }
+
+      return -1;
+    }
+
+    function findSharedPointNear(x, y) {
+      if (!routesCache.size) {
+        return null;
+      }
+
+      const activeLocationKey = getCurrentLocationKey();
+      let closestPoint = null;
+      let closestDistanceSq = Number.POSITIVE_INFINITY;
+      const activeDetectionRadius = getPointDetectionRadius(pointDiameter);
+
+      routesCache.forEach((data, routeKey) => {
+        if (!data || routeKey === currentRouteKey) {
+          return;
+        }
+
+        const routeLocationKey = normalizeWallKey(
+          typeof data?.locationKey === 'string'
+            ? data.locationKey
+            : normalizeLocationName(data?.location),
+        );
+
+        if (activeLocationKey && routeLocationKey !== activeLocationKey) {
+          return;
+        }
+
+        if (normalizePathType(data.pathType) !== PATH_TYPE_POINT) {
+          return;
+        }
+
+        const routeDiameter = normalizePointDiameter(
+          typeof data?.pointDiameter === 'number' ? data.pointDiameter : pointDiameter,
+        );
+        const detectionRadius = Math.max(activeDetectionRadius, getPointDetectionRadius(routeDiameter));
+        const detectionRadiusSq = detectionRadius * detectionRadius;
+        const routePoints = convertNormalizedToCanvasPoints(data.points);
+
+        routePoints.forEach((point) => {
+          if (!point) {
+            return;
+          }
+
+          const dx = point.x - x;
+          const dy = point.y - y;
+          const distanceSq = dx * dx + dy * dy;
+          if (distanceSq <= detectionRadiusSq && distanceSq < closestDistanceSq) {
+            closestDistanceSq = distanceSq;
+            closestPoint = { x: point.x, y: point.y };
+          }
+        });
+      });
+
+      if (!closestPoint) {
+        return null;
+      }
+
+      const existingIndex = findPointIndexNear(
+        closestPoint.x,
+        closestPoint.y,
+        points,
+        activeDetectionRadius,
+      );
+
+      if (existingIndex >= 0) {
+        return null;
+      }
+
+      return closestPoint;
+    }
+
     function addPoint(event) {
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
+      if (normalizePathType(pathType) === PATH_TYPE_POINT) {
+        const detectionRadius = getPointDetectionRadius(pointDiameter);
+        const existingIndex = findPointIndexNear(x, y, points, detectionRadius);
+        if (existingIndex >= 0) {
+          points.splice(existingIndex, 1);
+          loadedNormalizedPoints = null;
+          redraw();
+          markUnsavedChange();
+          return;
+        }
+
+        const sharedPoint = findSharedPointNear(x, y);
+        if (sharedPoint) {
+          points.push(sharedPoint);
+          loadedNormalizedPoints = null;
+          redraw();
+          markUnsavedChange();
+          return;
+        }
+      }
+
       points.push({ x, y });
       loadedNormalizedPoints = null;
       redraw();
@@ -2706,7 +3109,7 @@
           return labelA.localeCompare(labelB);
         });
 
-        const activeLocationKey = normalizeLocationName(currentLocation?.name);
+        const activeLocationKey = getCurrentLocationKey();
         const filteredEntries = sortedEntries.filter(([_, data]) => {
           const routeLocationKey =
             typeof data?.locationKey === 'string'
@@ -3035,6 +3438,24 @@
         }
       });
     }
+
+    if (createWallButton) {
+      createWallButton.addEventListener('click', () => {
+        void handleCreateWall();
+      });
+    }
+
+    [newWallNameInput, newWallImageInput].forEach((input) => {
+      if (!input) {
+        return;
+      }
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          void handleCreateWall();
+        }
+      });
+    });
 
     if (backgroundImage.complete) {
       backgroundReady = true;
