@@ -433,9 +433,6 @@
         --tooltip-surface: #0e150f;
         --tooltip-border-color: #7ed957;
         --tooltip-grade-size: 7.5rem;
-        --tooltip-grade-cutout: calc(
-          var(--tooltip-grade-size) / 2 + 0.35rem + var(--tooltip-grade-stroke-width, 2px)
-        );
         position: fixed;
         pointer-events: none;
         color: var(--tooltip-foreground, #fff);
@@ -454,42 +451,9 @@
         gap: 0.35rem;
         overflow: visible;
         background-color: var(--tooltip-surface, #0e150f);
-        background: radial-gradient(
-          circle at top right,
-          transparent calc(var(--tooltip-grade-cutout) - 1px),
-          transparent calc(var(--tooltip-grade-cutout) - 1px),
-          var(--tooltip-surface, #0e150f) calc(var(--tooltip-grade-cutout)),
-          var(--tooltip-surface, #0e150f) 100%
-        ),
-        var(--tooltip-surface, #0e150f);
-        background-repeat: no-repeat;
+        background: var(--tooltip-surface, #0e150f);
         border: 1px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
         box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
-      }
-
-      .route-tooltip::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: inherit;
-        pointer-events: none;
-        border: 1px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
-        -webkit-mask-image: radial-gradient(
-          circle at top right,
-          transparent calc(var(--tooltip-grade-cutout) - 1px),
-          transparent calc(var(--tooltip-grade-cutout) - 1px),
-          #000 calc(var(--tooltip-grade-cutout)),
-          #000 100%
-        );
-        -webkit-mask-repeat: no-repeat;
-        mask-image: radial-gradient(
-          circle at top right,
-          transparent calc(var(--tooltip-grade-cutout) - 1px),
-          transparent calc(var(--tooltip-grade-cutout) - 1px),
-          #000 calc(var(--tooltip-grade-cutout)),
-          #000 100%
-        );
-        mask-repeat: no-repeat;
       }
 
       .route-tooltip.pinned {
@@ -542,10 +506,9 @@
         font-weight: 700;
         font-size: calc(var(--tooltip-grade-size, 7.5rem) * 0.32);
         line-height: 1;
-        color: var(--tooltip-accent, #7ed957);
-        background: transparent;
+        color: var(--tooltip-on-accent, #000);
+        background: rgb(var(--tooltip-accent-rgb, 126, 217, 87));
         pointer-events: none;
-        isolation: isolate;
         overflow: hidden;
       }
 
@@ -614,27 +577,7 @@
       }
 
       .route-tooltip .tooltip-grade-badge.ascended {
-        background: var(--tooltip-accent, #7ed957);
-        color: transparent;
-      }
-
-      .route-tooltip .tooltip-grade-badge.ascended .tooltip-grade-value {
-        color: transparent;
-      }
-
-      .route-tooltip .tooltip-grade-badge.ascended::after {
-        content: attr(data-grade);
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: inherit;
-        font-size: inherit;
-        line-height: inherit;
-        mix-blend-mode: destination-out;
-        color: var(--tooltip-on-accent, #000);
-        pointer-events: none;
+        box-shadow: 0 0 0 0.35rem rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.35);
       }
 
       .grade-section {
