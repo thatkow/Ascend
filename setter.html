@@ -1219,8 +1219,8 @@
     const MIN_UNFOCUSED_TRANSPARENCY = 0;
     const MAX_UNFOCUSED_TRANSPARENCY = 1;
     const DEFAULT_UNFOCUSED_TRANSPARENCY = 0.25;
-    const MIN_GRADE_VALUE = 1;
-    const MAX_GRADE_VALUE = 25;
+    const MIN_GRADE_VALUE = 5;
+    const MAX_GRADE_VALUE = 30;
     const MIN_GRADE_BAR_BASE_HEIGHT = 0;
     const MAX_GRADE_BAR_HEIGHT = 1000;
     const DEFAULT_GRADE_BAR_BASE_HEIGHT = 40;
@@ -3643,7 +3643,7 @@
       const normalizedTransparency = normalizeGradeBarTransparency(transparency);
       const gradeValue =
         typeof medianGrade === 'number' && Number.isFinite(medianGrade)
-          ? clamp(medianGrade, 0, MAX_GRADE_VALUE)
+          ? clamp(medianGrade, MIN_GRADE_VALUE, MAX_GRADE_VALUE)
           : null;
       const gradeRatio =
         gradeValue === null
@@ -3971,6 +3971,192 @@
         .filter(Boolean);
     }
 
+    function createOverlapGroupKey(pathTypeValue, pointKey) {
+      if (!pathTypeValue || !pointKey) {
+        return null;
+      }
+      return `${pathTypeValue}::${pointKey}`;
+    }
+
+    function buildOverlayOverlapGroups(routeEntries = []) {
+      const groups = new Map();
+
+      routeEntries.forEach((entry) => {
+        if (!entry) {
+          return;
+        }
+
+        const { pathType: pathTypeValue, normalizedPoints } = entry;
+        if (
+          (pathTypeValue !== PATH_TYPE_POINT && pathTypeValue !== PATH_TYPE_RECTANGLE) ||
+          !Array.isArray(normalizedPoints) ||
+          !normalizedPoints.length
+        ) {
+          return;
+        }
+
+        normalizedPoints.forEach((point) => {
+          const normalizedX = Number(point?.x);
+          const normalizedY = Number(point?.y);
+          const key = createNormalizedPointKey(normalizedX, normalizedY);
+          if (!key) {
+            return;
+          }
+
+          const groupKey = createOverlapGroupKey(pathTypeValue, key);
+          if (!groupKey) {
+            return;
+          }
+
+          if (!groups.has(groupKey)) {
+            groups.set(groupKey, {
+              pathType: pathTypeValue,
+              entries: [],
+            });
+          }
+
+          const group = groups.get(groupKey);
+          group.entries.push({
+            routeId: entry.id,
+            color: entry.color,
+            pointDiameter: entry.pointDiameter,
+            rectangleWidth: entry.rectangleWidth,
+            rectangleHeight: entry.rectangleHeight,
+            alpha: entry.alpha,
+          });
+        });
+      });
+
+      for (const [key, group] of groups) {
+        if (!group || !Array.isArray(group.entries) || group.entries.length <= 1) {
+          groups.delete(key);
+        }
+      }
+
+      return groups;
+    }
+
+    function drawOverlayPointGroup(center, entries) {
+      if (!center || !Array.isArray(entries) || entries.length <= 1) {
+        return;
+      }
+
+      const total = entries.length;
+      const radii = entries.map((entry) => Math.max(1, Number(entry.pointDiameter) / 2));
+      const radius = Math.max(...radii, 4);
+      const step = (Math.PI * 2) / total;
+      const startAngle = -Math.PI / 2;
+
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.lineCap = 'butt';
+      ctx.lineJoin = 'miter';
+
+      entries.forEach((entry, index) => {
+        const strokeWidth = Math.max(2, Math.round(Number(entry.pointDiameter) / 10) || 2);
+        const angleStart = startAngle + step * index;
+        const angleEnd = angleStart + step;
+
+        ctx.globalAlpha = Number.isFinite(entry.alpha) ? entry.alpha : 1;
+        ctx.lineWidth = strokeWidth;
+        ctx.strokeStyle = entry.color || '#ffde59';
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, radius, angleStart, angleEnd);
+        ctx.stroke();
+      });
+
+      ctx.restore();
+    }
+
+    function drawOverlayRectangleGroup(center, width, height, entries) {
+      if (!center || !Array.isArray(entries) || entries.length <= 1) {
+        return;
+      }
+
+      const normalizedWidth = Math.max(...entries.map((entry) => Number(entry.rectangleWidth) || 0), width);
+      const normalizedHeight = Math.max(
+        ...entries.map((entry) => Number(entry.rectangleHeight) || 0),
+        height,
+      );
+      const finalWidth = Math.max(1, normalizedWidth);
+      const finalHeight = Math.max(1, normalizedHeight);
+      const halfWidth = finalWidth / 2;
+      const halfHeight = finalHeight / 2;
+      const perimeter = 2 * (finalWidth + finalHeight);
+
+      if (!Number.isFinite(perimeter) || perimeter <= 0) {
+        return;
+      }
+
+      const segmentLength = perimeter / entries.length;
+      const edges = [
+        { length: finalWidth, startX: center.x - halfWidth, startY: center.y - halfHeight, dx: 1, dy: 0 },
+        { length: finalHeight, startX: center.x + halfWidth, startY: center.y - halfHeight, dx: 0, dy: 1 },
+        { length: finalWidth, startX: center.x + halfWidth, startY: center.y + halfHeight, dx: -1, dy: 0 },
+        { length: finalHeight, startX: center.x - halfWidth, startY: center.y + halfHeight, dx: 0, dy: -1 },
+      ];
+      const edgeCount = edges.length;
+
+      let offset = 0;
+
+      entries.forEach((entry) => {
+        let localOffset = offset % perimeter;
+        if (localOffset < 0) {
+          localOffset += perimeter;
+        }
+
+        let edgeIndex = 0;
+        while (localOffset >= edges[edgeIndex].length && edgeIndex < edgeCount - 1) {
+          localOffset -= edges[edgeIndex].length;
+          edgeIndex += 1;
+        }
+
+        let currentX = edges[edgeIndex].startX + edges[edgeIndex].dx * localOffset;
+        let currentY = edges[edgeIndex].startY + edges[edgeIndex].dy * localOffset;
+        let remaining = segmentLength;
+
+        ctx.save();
+        ctx.setLineDash([]);
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
+        ctx.lineWidth = Math.max(
+          2,
+          Math.round(
+            Math.max(Number(entry.rectangleWidth) || 0, Number(entry.rectangleHeight) || 0) / 10,
+          ) || 2,
+        );
+        ctx.strokeStyle = entry.color || '#ffde59';
+        ctx.globalAlpha = Number.isFinite(entry.alpha) ? entry.alpha : 1;
+
+        while (remaining > 0) {
+          const edge = edges[edgeIndex];
+          const available = edge.length - localOffset;
+          const step = Math.min(remaining, available);
+          const nextOffset = localOffset + step;
+          const nextX = edge.startX + edge.dx * nextOffset;
+          const nextY = edge.startY + edge.dy * nextOffset;
+
+          ctx.beginPath();
+          ctx.moveTo(currentX, currentY);
+          ctx.lineTo(nextX, nextY);
+          ctx.stroke();
+
+          remaining -= step;
+          currentX = nextX;
+          currentY = nextY;
+          localOffset = 0;
+          edgeIndex = (edgeIndex + 1) % edgeCount;
+        }
+
+        ctx.restore();
+
+        offset += segmentLength;
+        if (offset >= perimeter) {
+          offset -= perimeter;
+        }
+      });
+    }
+
     function drawExistingRoutesOverlay() {
       if (!routesCache.size) {
         return;
@@ -3982,6 +4168,8 @@
       const focusPointKeys = points.length
         ? buildNormalizedPointKeySetFromCanvasPoints(points)
         : null;
+
+      const overlayEntries = [];
 
       routesCache.forEach((data, key) => {
         if (!data || key === currentRouteKey) {
@@ -3996,52 +4184,127 @@
           return;
         }
 
-        const canvasPoints = convertNormalizedToCanvasPoints(data.points);
+        const normalizedPoints = Array.isArray(data.points) ? data.points : [];
+        const canvasPoints = convertNormalizedToCanvasPoints(normalizedPoints);
         if (!canvasPoints.length) {
           return;
         }
 
         const color = sanitizeColor(data.strokeColor);
-        const routePathType = normalizePathType(data.pathType);
-        let visiblePoints = canvasPoints;
+        overlayEntries.push({
+          id: key,
+          color,
+          pathType: normalizePathType(data.pathType),
+          canvasPoints,
+          normalizedPoints,
+          pointDiameter: normalizePointDiameter(data.pointDiameter),
+          rectangleWidth: normalizeRectangleSize(data.rectangleWidth, DEFAULT_RECTANGLE_WIDTH),
+          rectangleHeight: normalizeRectangleSize(data.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT),
+          alpha: overlayAlpha,
+          medianGrade: data.medianGrade,
+          gradeBarBaseHeight: data.gradeBarBaseHeight,
+          gradeBarMaxHeight: data.gradeBarMaxHeight,
+          gradeBarWidth: data.gradeBarWidth,
+          gradeBarTransparency: data.gradeBarTransparency,
+        });
+      });
 
-        if (
-          focusPointKeys &&
-          focusPointKeys.size > 0 &&
-          (routePathType === PATH_TYPE_POINT || routePathType === PATH_TYPE_RECTANGLE)
-        ) {
-          visiblePoints = canvasPoints.filter((point) => {
-            if (!point || !canvas.width || !canvas.height) {
-              return true;
+      if (!overlayEntries.length) {
+        return;
+      }
+
+      const overlapGroups = buildOverlayOverlapGroups(overlayEntries);
+      const handledOverlapKeys = new Set();
+
+      overlayEntries.forEach((entry) => {
+        const {
+          color,
+          pathType: routePathType,
+          canvasPoints,
+          normalizedPoints,
+          pointDiameter: entryPointDiameter,
+          rectangleWidth: entryRectangleWidth,
+          rectangleHeight: entryRectangleHeight,
+          alpha,
+          medianGrade,
+          gradeBarBaseHeight,
+          gradeBarMaxHeight,
+          gradeBarWidth,
+          gradeBarTransparency,
+        } = entry;
+
+        const supportsPattern =
+          routePathType === PATH_TYPE_POINT || routePathType === PATH_TYPE_RECTANGLE;
+        const visiblePoints = [];
+
+        canvasPoints.forEach((point, index) => {
+          const normalized = Array.isArray(normalizedPoints) ? normalizedPoints[index] : null;
+          const normalizedX = Number(normalized?.x);
+          const normalizedY = Number(normalized?.y);
+          const pointKey =
+            supportsPattern && Number.isFinite(normalizedX) && Number.isFinite(normalizedY)
+              ? createNormalizedPointKey(normalizedX, normalizedY)
+              : null;
+
+          if (
+            supportsPattern &&
+            focusPointKeys &&
+            focusPointKeys.size > 0 &&
+            pointKey &&
+            focusPointKeys.has(pointKey)
+          ) {
+            return;
+          }
+
+          const overlapKey =
+            pointKey && overlapGroups ? createOverlapGroupKey(routePathType, pointKey) : null;
+          const overlapGroup =
+            overlapKey && overlapGroups ? overlapGroups.get(overlapKey) : null;
+
+          if (
+            overlapGroup &&
+            Array.isArray(overlapGroup.entries) &&
+            overlapGroup.entries.length > 1 &&
+            !focusPointKeys
+          ) {
+            if (handledOverlapKeys.has(overlapKey)) {
+              return;
             }
 
-            const normalizedX = Number(point.x) / canvas.width;
-            const normalizedY = Number(point.y) / canvas.height;
-            const key = createNormalizedPointKey(normalizedX, normalizedY);
-            return !key || !focusPointKeys.has(key);
-          });
-        }
+            handledOverlapKeys.add(overlapKey);
+
+            if (routePathType === PATH_TYPE_POINT) {
+              drawOverlayPointGroup(point, overlapGroup.entries);
+            } else if (routePathType === PATH_TYPE_RECTANGLE) {
+              drawOverlayRectangleGroup(point, entryRectangleWidth, entryRectangleHeight, overlapGroup.entries);
+            }
+            return;
+          }
+
+          visiblePoints.push(point);
+        });
 
         if (visiblePoints.length) {
           drawRouteFromCanvasPoints(
             visiblePoints,
             color,
-            overlayAlpha,
+            alpha,
             routePathType,
-            data.pointDiameter,
-            data.rectangleWidth,
-            data.rectangleHeight,
+            entryPointDiameter,
+            entryRectangleWidth,
+            entryRectangleHeight,
           );
         }
+
         queueGradeBarOverlay({
           routePoints: canvasPoints,
           color,
-          alpha: overlayAlpha,
-          medianGrade: data.medianGrade,
-          baseHeight: data.gradeBarBaseHeight,
-          maxHeight: data.gradeBarMaxHeight,
-          width: data.gradeBarWidth,
-          transparency: data.gradeBarTransparency,
+          alpha,
+          medianGrade,
+          baseHeight: gradeBarBaseHeight,
+          maxHeight: gradeBarMaxHeight,
+          width: gradeBarWidth,
+          transparency: gradeBarTransparency,
           isAscended: false,
         });
       });
