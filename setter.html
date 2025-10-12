@@ -167,6 +167,14 @@
       gap: 0.6rem;
     }
 
+    .control-section-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.75);
+    }
+
     .control-field {
       display: flex;
       flex-direction: column;
@@ -417,6 +425,16 @@
       transform: translateY(-1px);
       box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
       outline: none;
+    }
+
+    #climberViewButton {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
+
+    #signOutButton {
+      background: rgba(255, 116, 116, 0.9);
+      color: #111;
     }
 
     .location-modal {
@@ -742,17 +760,6 @@
             Routes
           </button>
           <button
-            id="globalTabButton"
-            class="panel-tab"
-            type="button"
-            role="tab"
-            aria-selected="false"
-            aria-controls="globalTab"
-            data-target="globalTab"
-          >
-            Global
-          </button>
-          <button
             id="wallsTabButton"
             class="panel-tab"
             type="button"
@@ -762,6 +769,17 @@
             data-target="wallsTab"
           >
             Walls
+          </button>
+          <button
+            id="configurationTabButton"
+            class="panel-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="configurationTab"
+            data-target="configurationTab"
+          >
+            Configuration
           </button>
         </div>
       </div>
@@ -854,24 +872,13 @@
             </div>
           </div>
           <div
-            id="globalTab"
+            id="configurationTab"
             class="tab-panel"
             role="tabpanel"
-            aria-labelledby="globalTabButton"
+            aria-labelledby="configurationTabButton"
             aria-hidden="true"
           >
             <div class="control-section">
-              <div class="global-actions">
-                <button
-                  id="locationButton"
-                  class="global-action-button"
-                  type="button"
-                  aria-haspopup="dialog"
-                  aria-expanded="false"
-                >
-                  Select wall
-                </button>
-              </div>
               <label id="pointDiameterField" class="control-field">
                 <span>
                   Point diameter
@@ -888,14 +895,6 @@
               </label>
             </div>
             <div class="control-section">
-              <div class="global-actions">
-                <button id="climberViewButton" class="global-action-button" type="button">
-                  Climber View
-                </button>
-                <button id="signOutButton" class="global-action-button" type="button">Sign Out</button>
-              </div>
-            </div>
-            <div class="control-section">
               <label class="control-field">
                 <span>Grant setter access</span>
                 <input id="roleUsernameInput" type="text" placeholder="username" autocomplete="off" />
@@ -908,6 +907,14 @@
                 aria-live="polite"
               ></p>
             </div>
+            <div class="control-section">
+              <div class="global-actions">
+                <button id="climberViewButton" class="global-action-button" type="button">
+                  Climber View
+                </button>
+                <button id="signOutButton" class="global-action-button" type="button">Sign Out</button>
+              </div>
+            </div>
           </div>
           <div
             id="wallsTab"
@@ -917,6 +924,21 @@
             aria-hidden="true"
           >
             <div class="control-section">
+              <h3 class="control-section-title">Select wall</h3>
+              <div class="global-actions">
+                <button
+                  id="locationButton"
+                  class="global-action-button"
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-expanded="false"
+                >
+                  Select wall
+                </button>
+              </div>
+            </div>
+            <div class="control-section">
+              <h3 class="control-section-title">Create new wall</h3>
               <label class="control-field">
                 <span>Wall name</span>
                 <input id="newWallNameInput" type="text" placeholder="e.g. Cave Wall" autocomplete="off" />
@@ -1033,13 +1055,13 @@
     const locationOptions = document.getElementById('locationOptions');
     const locationModalClose = document.getElementById('locationModalClose');
     const routesTabButton = document.getElementById('routesTabButton');
-    const globalTabButton = document.getElementById('globalTabButton');
     const wallsTabButton = document.getElementById('wallsTabButton');
-    const tabButtons = [routesTabButton, globalTabButton, wallsTabButton].filter(Boolean);
+    const configurationTabButton = document.getElementById('configurationTabButton');
+    const tabButtons = [routesTabButton, wallsTabButton, configurationTabButton].filter(Boolean);
     const tabPanels = {
       routesTab: document.getElementById('routesTab'),
-      globalTab: document.getElementById('globalTab'),
       wallsTab: document.getElementById('wallsTab'),
+      configurationTab: document.getElementById('configurationTab'),
     };
     const newWallNameInput = document.getElementById('newWallNameInput');
     const newWallImageInput = document.getElementById('newWallImageInput');
