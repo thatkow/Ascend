@@ -2803,11 +2803,24 @@
           return;
         }
 
-        const firstPoint = scaledPoints.find((point) => Number.isFinite(point?.x));
-        const firstPointX = Number(firstPoint?.x);
-        if (!Number.isFinite(firstPointX)) {
+        const centerPoint = scaledPoints.reduce(
+          (accumulator, point) => {
+            if (!point || !Number.isFinite(point.x)) {
+              return accumulator;
+            }
+            return {
+              sum: accumulator.sum + point.x,
+              count: accumulator.count + 1,
+            };
+          },
+          { sum: 0, count: 0 },
+        );
+
+        if (!centerPoint.count) {
           return;
         }
+
+        const averageX = centerPoint.sum / centerPoint.count;
 
         const baseHeight = normalizeGradeBarHeight(
           route.gradeBarBaseHeight,
@@ -2835,7 +2848,7 @@
         const effectiveHeight = Math.min(Math.max(height, baseHeight), maxHeight);
         const bottom = canvas.height;
         const top = Math.max(0, bottom - effectiveHeight);
-        const resolvedPosition = resolveGradeBarPosition(firstPointX, barWidth);
+        const resolvedPosition = resolveGradeBarPosition(averageX, barWidth);
         const left = Math.max(0, resolvedPosition.left);
         const right = Math.min(canvas.width, resolvedPosition.right);
         const actualWidth = Math.max(1, right - left);
@@ -2845,11 +2858,12 @@
         ctx.save();
         ctx.globalAlpha = transparency;
         ctx.lineWidth = Math.max(2, Math.round(actualWidth * 0.18));
-        ctx.lineCap = 'butt';
+        ctx.lineCap = isGraded ? 'butt' : 'round';
         ctx.strokeStyle = strokeColor;
         if (!isGraded) {
-          const dashLength = Math.max(12, actualWidth * 1.5);
-          ctx.setLineDash([dashLength, dashLength * 0.5]);
+          const dotSize = Math.max(2, Math.round(ctx.lineWidth * 0.75));
+          const gapSize = Math.max(3, Math.round(dotSize * 1.5));
+          ctx.setLineDash([dotSize, gapSize]);
         } else {
           ctx.setLineDash([]);
         }
