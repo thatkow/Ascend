@@ -716,6 +716,9 @@
       const MAX_GRADE_BAR_HEIGHT = 320;
       const DEFAULT_GRADE_BAR_BASE_HEIGHT = 16;
       const DEFAULT_GRADE_BAR_MAX_HEIGHT = 96;
+      const MIN_GRADE_BAR_WIDTH = 8;
+      const MAX_GRADE_BAR_WIDTH = 160;
+      const DEFAULT_GRADE_BAR_WIDTH = 28;
       const GRADE_SCALE_MIN = 1;
       const GRADE_SCALE_MAX = 25;
       const WALL_COLLECTION = 'walls';
@@ -764,12 +767,35 @@
         return clampGradeBarHeight(numeric);
       }
 
+      function clampGradeBarWidth(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return DEFAULT_GRADE_BAR_WIDTH;
+        }
+        return Math.min(
+          Math.max(Math.round(numeric), MIN_GRADE_BAR_WIDTH),
+          MAX_GRADE_BAR_WIDTH,
+        );
+      }
+
+      function normalizeGradeBarWidth(value, fallback) {
+        const fallbackValue = Number.isFinite(fallback)
+          ? clampGradeBarWidth(fallback)
+          : clampGradeBarWidth(DEFAULT_GRADE_BAR_WIDTH);
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return fallbackValue;
+        }
+        return clampGradeBarWidth(numeric);
+      }
+
       function normalizeWallSettings(raw = {}) {
         if (!raw || typeof raw !== 'object') {
           return {
             pointDiameter: DEFAULT_POINT_DIAMETER,
             gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
             gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
+            gradeBarWidth: DEFAULT_GRADE_BAR_WIDTH,
           };
         }
 
@@ -785,6 +811,7 @@
           pointDiameter: normalizePointDiameter(raw.pointDiameter),
           gradeBarBaseHeight,
           gradeBarMaxHeight: Math.max(gradeBarBaseHeight, gradeBarMaxHeightCandidate),
+          gradeBarWidth: normalizeGradeBarWidth(raw.gradeBarWidth, DEFAULT_GRADE_BAR_WIDTH),
         };
       }
 
@@ -820,6 +847,7 @@
           pointDiameter: DEFAULT_POINT_DIAMETER,
           gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
           gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
+          gradeBarWidth: DEFAULT_GRADE_BAR_WIDTH,
         };
       }
 
@@ -1689,6 +1717,7 @@
       let routes = [];
       let routePaths = [];
       let gradeBarPlacements = [];
+      let gradeBarEntries = [];
       let activeRouteId = null;
       let pinnedRouteId = null;
       let pinnedPosition = null;
@@ -1698,8 +1727,7 @@
       let routeMedianGrades = new Map();
 
       function clampGradeBarLeft(preferredLeft, width) {
-        const numericWidth = Number(width);
-        const resolvedWidth = Number.isFinite(numericWidth) ? Math.max(2, Math.round(numericWidth)) : 2;
+        const resolvedWidth = normalizeGradeBarWidth(width, DEFAULT_GRADE_BAR_WIDTH);
         const maxLeft = Math.max(0, canvas.width - resolvedWidth);
 
         if (!Number.isFinite(preferredLeft)) {
@@ -1711,7 +1739,7 @@
 
       function resolveGradeBarPlacement(preferredLeft, width) {
         const spacing = 6;
-        const sanitizedWidth = Number.isFinite(width) ? Math.max(2, Math.round(width)) : 2;
+        const sanitizedWidth = normalizeGradeBarWidth(width, DEFAULT_GRADE_BAR_WIDTH);
         const baseLeft = clampGradeBarLeft(preferredLeft, sanitizedWidth);
         const step = Math.max(4, sanitizedWidth + spacing);
         const maxShifts = 32;
@@ -2352,6 +2380,36 @@
         pinnedPosition = null;
       }
 
+      function getGradeBarEntryAtClientPoint(clientX, clientY) {
+        if (!gradeBarEntries.length) {
+          return null;
+        }
+
+        const rect = canvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+
+        for (let index = gradeBarEntries.length - 1; index >= 0; index -= 1) {
+          const entry = gradeBarEntries[index];
+          const box = entry?.rect;
+          if (!box) {
+            continue;
+          }
+
+          const padding = Math.min(16, Math.max(4, box.width * 0.15));
+          const left = box.left - padding;
+          const right = box.left + box.width + padding;
+          const top = box.top - padding;
+          const bottom = box.top + box.height + padding;
+
+          if (x >= left && x <= right && y >= top && y <= bottom) {
+            return entry;
+          }
+        }
+
+        return null;
+      }
+
       function getRouteEntryAtClientPoint(clientX, clientY) {
         if (!routePaths.length) {
           return null;
@@ -2480,6 +2538,7 @@
                 pointDiameter: data.pointDiameter,
                 gradeBarBaseHeight: data.gradeBarBaseHeight,
                 gradeBarMaxHeight: data.gradeBarMaxHeight,
+                gradeBarWidth: data.gradeBarWidth,
               };
               const wallSettings = resolveWallSettings(normalizedLocation, fallbackWallSettings);
 
@@ -2499,6 +2558,7 @@
                 pointDiameter: wallSettings.pointDiameter,
                 gradeBarBaseHeight: wallSettings.gradeBarBaseHeight,
                 gradeBarMaxHeight: wallSettings.gradeBarMaxHeight,
+                gradeBarWidth: wallSettings.gradeBarWidth,
               };
             })
             .sort((a, b) => {
@@ -2681,6 +2741,7 @@
 
         routePaths = [];
         gradeBarPlacements = [];
+        gradeBarEntries = [];
         const shouldPreservePinned = Boolean(pinnedRouteId && pinnedPosition);
         const pinnedRoute = shouldPreservePinned
           ? routes.find((route) => route.id === pinnedRouteId)
@@ -2846,8 +2907,7 @@
               ? baseHeight
               : baseHeight + (maxHeight - baseHeight) * (clampedGrade / GRADE_SCALE_MAX);
 
-          const referenceDiameter = normalizePointDiameter(route.pointDiameter);
-          const barWidth = Math.max(12, Math.min(64, Math.round(referenceDiameter * 0.75)));
+          const barWidth = normalizeGradeBarWidth(route.gradeBarWidth, DEFAULT_GRADE_BAR_WIDTH);
 
           const xValues = scaledPoints
             .map((point) => point?.x)
@@ -2895,6 +2955,11 @@
 
           ctx.stroke();
           ctx.restore();
+
+          gradeBarEntries.push({
+            route,
+            rect: { left: barLeft, top: topY, width: barWidth, height: finalHeight },
+          });
         }
 
         if (pathType === PATH_TYPE_POINT) {
@@ -2988,7 +3053,7 @@
           }
         }
 
-        const entry = getRouteEntryAtClientPoint(event.clientX, event.clientY);
+        const entry = getGradeBarEntryAtClientPoint(event.clientX, event.clientY);
 
         if (entry) {
           showTooltip(entry.route, event.clientX, event.clientY);
@@ -3012,7 +3077,7 @@
           return;
         }
 
-        const entry = getRouteEntryAtClientPoint(point.x, point.y);
+        const entry = getGradeBarEntryAtClientPoint(point.x, point.y);
 
         if (entry) {
           showTooltip(entry.route, point.x, point.y, { pin: true });
