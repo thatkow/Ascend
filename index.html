@@ -1688,6 +1688,7 @@
       let allRoutes = [];
       let routes = [];
       let routePaths = [];
+      let gradeBarPlacements = [];
       let activeRouteId = null;
       let pinnedRouteId = null;
       let pinnedPosition = null;
@@ -1695,6 +1696,51 @@
       const routeGrades = new Map();
       let userAscentDetails = new Map();
       let routeMedianGrades = new Map();
+
+      function clampGradeBarLeft(preferredLeft, width) {
+        const numericWidth = Number(width);
+        const resolvedWidth = Number.isFinite(numericWidth) ? Math.max(2, Math.round(numericWidth)) : 2;
+        const maxLeft = Math.max(0, canvas.width - resolvedWidth);
+
+        if (!Number.isFinite(preferredLeft)) {
+          return Math.min(Math.max(0, Math.round(maxLeft / 2)), maxLeft);
+        }
+
+        return Math.min(Math.max(0, Math.round(preferredLeft)), maxLeft);
+      }
+
+      function resolveGradeBarPlacement(preferredLeft, width) {
+        const spacing = 6;
+        const sanitizedWidth = Number.isFinite(width) ? Math.max(2, Math.round(width)) : 2;
+        const baseLeft = clampGradeBarLeft(preferredLeft, sanitizedWidth);
+        const step = Math.max(4, sanitizedWidth + spacing);
+        const maxShifts = 32;
+        const offsets = [0];
+
+        for (let distance = 1; distance <= maxShifts; distance += 1) {
+          offsets.push(distance, -distance);
+        }
+
+        const halfSpacing = spacing / 2;
+
+        for (const offset of offsets) {
+          const candidateLeft = clampGradeBarLeft(baseLeft + offset * step, sanitizedWidth);
+          const candidateRight = candidateLeft + sanitizedWidth;
+          const overlaps = gradeBarPlacements.some((placement) => (
+            candidateRight > placement.left - halfSpacing && candidateLeft < placement.right + halfSpacing
+          ));
+
+          if (!overlaps) {
+            const placement = { left: candidateLeft, right: candidateRight };
+            gradeBarPlacements.push(placement);
+            return placement;
+          }
+        }
+
+        const fallbackPlacement = { left: baseLeft, right: baseLeft + sanitizedWidth };
+        gradeBarPlacements.push(fallbackPlacement);
+        return fallbackPlacement;
+      }
 
       function synchroniseAscentsWithRoutes(options = {}) {
         const { shouldRedraw = true } = options;
@@ -2634,6 +2680,7 @@
         }
 
         routePaths = [];
+        gradeBarPlacements = [];
         const shouldPreservePinned = Boolean(pinnedRouteId && pinnedPosition);
         const pinnedRoute = shouldPreservePinned
           ? routes.find((route) => route.id === pinnedRouteId)
@@ -2776,11 +2823,7 @@
         const pathType = normalizePathType(route.pathType);
         const pointDiameter = normalizePointDiameter(route.pointDiameter);
 
-        function drawGradeBar(anchor, routeThickness) {
-          if (!anchor) {
-            return;
-          }
-
+        function drawGradeBar() {
           const baseHeight = normalizeGradeBarHeight(
             route.gradeBarBaseHeight,
             DEFAULT_GRADE_BAR_BASE_HEIGHT,
@@ -2803,18 +2846,35 @@
               ? baseHeight
               : baseHeight + (maxHeight - baseHeight) * (clampedGrade / GRADE_SCALE_MAX);
 
-          const resolvedThickness = Number.isFinite(routeThickness) ? routeThickness : 10;
-          const offset = Math.max(12, resolvedThickness * 1.25);
           const referenceDiameter = normalizePointDiameter(route.pointDiameter);
           const barWidth = Math.max(12, Math.min(64, Math.round(referenceDiameter * 0.75)));
-          const x = Math.max(0, Math.min(canvas.width - barWidth, anchor.x - barWidth / 2));
-          const topY = Math.max(0, Math.min(canvas.height - 2, Math.round(anchor.y + offset)));
-          const availableHeight = Math.max(2, canvas.height - topY);
+
+          const xValues = scaledPoints
+            .map((point) => point?.x)
+            .filter((value) => Number.isFinite(value))
+            .sort((a, b) => a - b);
+
+          if (!xValues.length) {
+            return;
+          }
+
+          const medianIndex = Math.floor((xValues.length - 1) / 2);
+          const medianX =
+            xValues.length % 2 === 0
+              ? (xValues[medianIndex] + xValues[medianIndex + 1]) / 2
+              : xValues[medianIndex];
+
+          const initialLeft = clampGradeBarLeft(medianX - barWidth / 2, barWidth);
+          const { left: barLeft } = resolveGradeBarPlacement(initialLeft, barWidth);
+
+          const bottomMargin = 16;
+          const availableHeight = Math.max(2, canvas.height - bottomMargin);
           const finalHeight = Math.max(2, Math.min(Math.round(gradeHeight), availableHeight));
+          const topY = Math.max(0, canvas.height - bottomMargin - finalHeight);
 
           ctx.save();
           ctx.beginPath();
-          ctx.rect(x, topY, barWidth, finalHeight);
+          ctx.rect(barLeft, topY, barWidth, finalHeight);
 
           const hasGrade = clampedGrade !== null;
           if (hasGrade && ascendedRoutes.has(route.id)) {
@@ -2865,7 +2925,7 @@
             anchor,
           });
 
-          drawGradeBar(anchor, strokeWidth);
+          drawGradeBar();
           return;
         }
 
@@ -2912,7 +2972,7 @@
           anchor,
         });
 
-        drawGradeBar(anchor, lineWidth);
+        drawGradeBar();
       }
 
       function handlePointerMove(event) {
