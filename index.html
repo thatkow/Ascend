@@ -2739,72 +2739,108 @@
         return value;
       }
 
+      function calculateAverageXFromCanvasPoints(routePoints = []) {
+        if (!Array.isArray(routePoints) || !routePoints.length) {
+          return null;
+        }
+
+        const valid = routePoints
+          .map((point) => Number(point?.x))
+          .filter((x) => Number.isFinite(x));
+
+        if (!valid.length) {
+          return null;
+        }
+
+        const sum = valid.reduce((total, x) => total + x, 0);
+        return sum / valid.length;
+      }
+
+      function queueGradeBarOverlay({
+        route = null,
+        routePoints = [],
+        color = '#ffde59',
+        alpha = 1,
+        medianGrade = null,
+        baseHeight = DEFAULT_GRADE_BAR_BASE_HEIGHT,
+        maxHeight = DEFAULT_GRADE_BAR_MAX_HEIGHT,
+        width = DEFAULT_GRADE_BAR_WIDTH,
+        transparency = DEFAULT_GRADE_BAR_TRANSPARENCY,
+        isAscended = false,
+      } = {}) {
+        if (!Array.isArray(routePoints) || !routePoints.length) {
+          return;
+        }
+
+        const averageX = calculateAverageXFromCanvasPoints(routePoints);
+        if (!Number.isFinite(averageX)) {
+          return;
+        }
+
+        const normalizedBaseHeight = normalizeGradeBarHeight(
+          baseHeight,
+          DEFAULT_GRADE_BAR_BASE_HEIGHT,
+        );
+        const normalizedMaxHeight = Math.max(
+          normalizedBaseHeight,
+          normalizeGradeBarHeight(maxHeight, DEFAULT_GRADE_BAR_MAX_HEIGHT),
+        );
+        const normalizedWidth = Math.min(
+          Math.max(normalizeGradeBarWidth(width), MIN_GRADE_BAR_WIDTH),
+          canvas.width,
+        );
+        const normalizedTransparency = normalizeGradeBarTransparency(transparency);
+        const gradeValue =
+          typeof medianGrade === 'number' && Number.isFinite(medianGrade)
+            ? clamp(medianGrade, 0, MAX_GRADE_VALUE)
+            : null;
+        const gradeRatio =
+          gradeValue === null ? 0 : clamp(gradeValue / MAX_GRADE_VALUE, 0, 1);
+        const targetHeight =
+          gradeValue === null
+            ? normalizedBaseHeight
+            : normalizedBaseHeight +
+              (normalizedMaxHeight - normalizedBaseHeight) * gradeRatio;
+        const height = Math.min(
+          Math.max(targetHeight, normalizedBaseHeight),
+          normalizedMaxHeight,
+        );
+        const bottom = canvas.height;
+        const top = Math.max(0, bottom - height);
+        const resolvedAlpha = Math.max(
+          0,
+          Math.min(1, alpha * normalizedTransparency),
+        );
+
+        queuedGradeBarOverlays.push({
+          route,
+          desiredCenter: averageX,
+          width: normalizedWidth,
+          top,
+          bottom,
+          color,
+          alpha: resolvedAlpha,
+          gradeValue,
+          isAscended: Boolean(gradeValue !== null && isAscended),
+        });
+      }
+
       function drawGradeBar(route, scaledPoints, strokeColor) {
         if (!route || !Array.isArray(scaledPoints) || !scaledPoints.length) {
           return;
         }
 
-        if (!canvas || !Number.isFinite(canvas.height) || canvas.height <= 0) {
-          return;
-        }
-
-        const centerPoint = scaledPoints.reduce(
-          (accumulator, point) => {
-            if (!point || !Number.isFinite(point.x)) {
-              return accumulator;
-            }
-            return {
-              sum: accumulator.sum + point.x,
-              count: accumulator.count + 1,
-            };
-          },
-          { sum: 0, count: 0 },
-        );
-
-        if (!centerPoint.count) {
-          return;
-        }
-
-        const averageX = centerPoint.sum / centerPoint.count;
-
-        const baseHeight = normalizeGradeBarHeight(
-          route.gradeBarBaseHeight,
-          DEFAULT_GRADE_BAR_BASE_HEIGHT,
-        );
-        const maxHeight = Math.max(
-          baseHeight,
-          normalizeGradeBarHeight(route.gradeBarMaxHeight, DEFAULT_GRADE_BAR_MAX_HEIGHT),
-        );
-        const rawWidth = normalizeGradeBarWidth(route.gradeBarWidth);
-        const barWidth = Math.min(Math.max(rawWidth, MIN_GRADE_BAR_WIDTH), canvas.width);
-        const transparency = normalizeGradeBarTransparency(route.gradeBarTransparency);
-        const gradeValue = typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)
-          ? clamp(route.medianGrade, 0, MAX_GRADE_VALUE)
-          : null;
-
-        const gradeRatio =
-          gradeValue === null
-            ? 0
-            : clamp(gradeValue / MAX_GRADE_VALUE, 0, 1);
-
-        const height = gradeValue === null
-          ? baseHeight
-          : baseHeight + (maxHeight - baseHeight) * gradeRatio;
-        const effectiveHeight = Math.min(Math.max(height, baseHeight), maxHeight);
-        const bottom = canvas.height;
-        const top = Math.max(0, bottom - effectiveHeight);
-        const isAscended = ascendedRoutes.has(route.id);
-
-        queuedGradeBarOverlays.push({
+        queueGradeBarOverlay({
           route,
-          desiredCenter: averageX,
-          width: barWidth,
-          top,
-          bottom,
+          routePoints: scaledPoints,
           color: strokeColor,
-          transparency,
-          gradeValue,
-          isAscended,
+          alpha: 1,
+          medianGrade: route.medianGrade,
+          baseHeight: route.gradeBarBaseHeight,
+          maxHeight: route.gradeBarMaxHeight,
+          width: route.gradeBarWidth,
+          transparency: route.gradeBarTransparency,
+          isAscended: ascendedRoutes.has(route.id),
         });
       }
 
@@ -3033,42 +3069,39 @@
           const actualLeft = Math.max(0, Math.min(canvasWidth, left));
           const actualRight = Math.max(actualLeft, Math.min(canvasWidth, right));
           const actualWidth = Math.max(1, actualRight - actualLeft);
-
-          const actualTop = clamp(original.top, 0, canvasHeight);
-          const actualBottom = clamp(original.bottom, 0, canvasHeight);
+          const actualTop = Math.max(0, Math.min(canvasHeight, original.top));
+          const actualBottom = Math.max(actualTop, Math.min(canvasHeight, original.bottom));
           const height = Math.max(0, actualBottom - actualTop);
           if (height <= 0) {
             continue;
           }
 
           ctx.save();
-          ctx.globalAlpha = Math.max(0, Math.min(1, original.transparency));
-          ctx.lineWidth = Math.max(2, Math.round(actualWidth * 0.18));
+          ctx.globalAlpha = original.alpha;
+
+          const strokeWidth = Math.max(2, Math.round(actualWidth * 0.18));
+          ctx.lineWidth = strokeWidth;
           ctx.lineJoin = 'miter';
+          ctx.lineCap = 'butt';
           ctx.strokeStyle = original.color;
 
-          const isGraded = original.gradeValue !== null;
-          if (!isGraded) {
-            const dotSize = Math.max(2, Math.round(ctx.lineWidth * 0.75));
-            const gapSize = Math.max(3, Math.round(dotSize * 1.5));
-            ctx.lineCap = 'round';
-            ctx.setLineDash([dotSize, gapSize]);
+          if (original.gradeValue === null) {
+            const dashLength = Math.max(4, actualWidth * 0.6);
+            ctx.setLineDash([dashLength, dashLength]);
           } else {
-            ctx.lineCap = 'butt';
             ctx.setLineDash([]);
           }
 
-          const shouldFill = Boolean(isGraded && original.isAscended);
-          if (shouldFill) {
+          if (original.isAscended) {
             ctx.fillStyle = original.color;
             ctx.fillRect(actualLeft, actualTop, actualWidth, height);
           }
 
-          const halfStroke = ctx.lineWidth / 2;
+          const halfStroke = strokeWidth / 2;
           const insetLeft = actualLeft + halfStroke;
           const insetTop = actualTop + halfStroke;
-          const insetWidth = Math.max(1, actualWidth - ctx.lineWidth);
-          const insetHeight = Math.max(1, height - ctx.lineWidth);
+          const insetWidth = Math.max(1, actualWidth - strokeWidth);
+          const insetHeight = Math.max(1, height - strokeWidth);
 
           ctx.strokeRect(insetLeft, insetTop, insetWidth, insetHeight);
           ctx.restore();
