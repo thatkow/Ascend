@@ -2736,29 +2736,6 @@
         return value;
       }
 
-      function calculateMedianX(points = []) {
-        if (!Array.isArray(points) || points.length === 0) {
-          return null;
-        }
-
-        const sorted = points
-          .map((point) => ({
-            x: Number(point?.x),
-          }))
-          .filter((point) => Number.isFinite(point.x))
-          .sort((a, b) => a.x - b.x);
-
-        if (!sorted.length) {
-          return null;
-        }
-
-        const midIndex = Math.floor(sorted.length / 2);
-        if (sorted.length % 2 === 0 && sorted[midIndex - 1]) {
-          return (sorted[midIndex - 1].x + sorted[midIndex].x) / 2;
-        }
-        return sorted[midIndex].x;
-      }
-
       const GRADE_BAR_SPACING = 0;
       const GRADE_BAR_OFFSET_ATTEMPTS = 24;
 
@@ -2826,8 +2803,9 @@
           return;
         }
 
-        const medianX = calculateMedianX(scaledPoints);
-        if (!Number.isFinite(medianX)) {
+        const firstPoint = scaledPoints.find((point) => Number.isFinite(point?.x));
+        const firstPointX = Number(firstPoint?.x);
+        if (!Number.isFinite(firstPointX)) {
           return;
         }
 
@@ -2857,7 +2835,7 @@
         const effectiveHeight = Math.min(Math.max(height, baseHeight), maxHeight);
         const bottom = canvas.height;
         const top = Math.max(0, bottom - effectiveHeight);
-        const resolvedPosition = resolveGradeBarPosition(medianX, barWidth);
+        const resolvedPosition = resolveGradeBarPosition(firstPointX, barWidth);
         const left = Math.max(0, resolvedPosition.left);
         const right = Math.min(canvas.width, resolvedPosition.right);
         const actualWidth = Math.max(1, right - left);
