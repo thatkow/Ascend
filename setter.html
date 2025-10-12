@@ -64,31 +64,85 @@
       transform: translateX(0);
     }
 
-    .panel-toggle {
-      display: inline-flex;
+    .panel-sidebar {
+      display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 0.35rem;
+      gap: 0.85rem;
       align-self: center;
       order: 1;
-      writing-mode: vertical-rl;
-      text-orientation: mixed;
-      border: none;
-      border-radius: 0.85rem 0 0 0.85rem;
+      padding: 1.5rem 0.75rem;
       background: rgba(0, 0, 0, 0.6);
-      color: #fff;
-      padding: 1.5rem 0.65rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      cursor: pointer;
-      transition: background 0.2s ease, transform 0.2s ease;
+      border-radius: 0.85rem 0 0 0.85rem;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     }
 
-    .panel-toggle:hover,
-    .panel-toggle:focus-visible {
-      background: rgba(0, 0, 0, 0.8);
+    .panel-tablist {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: center;
+      gap: 0.85rem;
+      width: 100%;
+    }
+
+    .panel-tab {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding: 1.5rem 0.65rem;
+      border-radius: 0.65rem;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease, color 0.2s ease,
+        box-shadow 0.2s ease;
+    }
+
+    .panel-tab:hover,
+    .panel-tab:focus-visible {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateX(-1px);
+      outline: none;
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
+    }
+
+    .panel-tab[aria-selected='true'] {
+      background: rgba(255, 255, 255, 0.85);
+      color: #111;
+      box-shadow: 0 12px 26px rgba(255, 255, 255, 0.45);
+    }
+
+    .panel-collapse {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: rgba(0, 0, 0, 0.35);
+      color: #fff;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding: 1.1rem 0.45rem;
+      border-radius: 0.65rem;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease;
+      width: 100%;
+      margin-top: 0.5rem;
+    }
+
+    .panel-collapse:hover,
+    .panel-collapse:focus-visible {
+      background: rgba(0, 0, 0, 0.7);
       transform: translateX(-1px);
       outline: none;
     }
@@ -159,41 +213,6 @@
     .control-field textarea {
       min-height: 4.5rem;
       resize: vertical;
-    }
-
-    .controls-tabs {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .controls-tab {
-      flex: 1;
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      border-radius: 999px;
-      padding: 0.5rem 0.75rem;
-      background: rgba(0, 0, 0, 0.35);
-      color: #fff;
-      font-weight: 600;
-      font-size: 0.85rem;
-      letter-spacing: 0.04em;
-      cursor: pointer;
-      transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .controls-tab:hover,
-    .controls-tab:focus-visible {
-      background: rgba(0, 0, 0, 0.55);
-      transform: translateY(-1px);
-      outline: none;
-      box-shadow: 0 12px 22px rgba(0, 0, 0, 0.3);
-    }
-
-    .controls-tab[aria-selected='true'] {
-      background: rgba(255, 255, 255, 0.2);
-      color: #111;
-      box-shadow: 0 18px 28px rgba(255, 255, 255, 0.18);
     }
 
     .tab-panels {
@@ -700,11 +719,17 @@
       <canvas id="drawingCanvas"></canvas>
     </div>
     <div class="control-panel" data-expanded="true">
-      <div id="controlsPanel" class="controls">
-        <div class="controls-tabs" role="tablist" aria-label="Setter controls">
+      <div id="panelSidebar" class="panel-sidebar">
+        <div
+          id="panelTablist"
+          class="panel-tablist"
+          role="tablist"
+          aria-orientation="vertical"
+          aria-label="Setter controls"
+        >
           <button
             id="routesTabButton"
-            class="controls-tab"
+            class="panel-tab"
             type="button"
             role="tab"
             aria-selected="true"
@@ -715,7 +740,7 @@
           </button>
           <button
             id="globalTabButton"
-            class="controls-tab"
+            class="panel-tab"
             type="button"
             role="tab"
             aria-selected="false"
@@ -725,6 +750,18 @@
             Global
           </button>
         </div>
+        <button
+          id="panelCollapseButton"
+          class="panel-collapse"
+          type="button"
+          aria-expanded="true"
+          aria-controls="controlsPanel"
+          aria-label="Collapse setter controls"
+        >
+          Hide
+        </button>
+      </div>
+      <div id="controlsPanel" class="controls">
         <div class="tab-panels">
           <div
             id="routesTab"
@@ -864,16 +901,6 @@
           </div>
         </div>
       </div>
-      <button
-        id="controlsToggle"
-        class="panel-toggle"
-        type="button"
-        aria-expanded="true"
-        aria-controls="controlsPanel"
-      >
-        <span class="sr-only">Toggle routes panel</span>
-        Routes
-      </button>
     </div>
 
   </div>
@@ -956,7 +983,8 @@
     const deleteButton = document.getElementById('deleteButton');
     const routeStatus = document.getElementById('routeStatus');
     const controlPanel = document.querySelector('.control-panel');
-    const controlsToggle = document.getElementById('controlsToggle');
+    const panelSidebar = document.getElementById('panelSidebar');
+    const panelCollapseButton = document.getElementById('panelCollapseButton');
     const openPreviewButton = document.getElementById('openPreviewButton');
     const roleUsernameInput = document.getElementById('roleUsernameInput');
     const grantSetterButton = document.getElementById('grantSetterButton');
@@ -1226,11 +1254,11 @@
     };
 
     const updatePanelMeasurements = () => {
-      if (!controlPanel || !controlsToggle) {
+      if (!controlPanel || !panelSidebar) {
         return;
       }
 
-      const { width } = controlsToggle.getBoundingClientRect();
+      const { width } = panelSidebar.getBoundingClientRect();
       if (Number.isFinite(width) && width > 0) {
         controlPanel.style.setProperty('--toggle-visible-width', `${Math.ceil(width)}px`);
       }
@@ -1582,22 +1610,44 @@
     let isCanvasScrollable = false;
 
     const routesCache = new Map();
-    if (controlsToggle && controlPanel) {
-      updatePanelMeasurements();
 
-      controlsToggle.addEventListener('click', () => {
-        const expanded = controlPanel.getAttribute('data-expanded') === 'true';
-        const next = !expanded;
-        controlPanel.setAttribute('data-expanded', String(next));
-        controlsToggle.setAttribute('aria-expanded', String(next));
-        requestAnimationFrame(updatePanelMeasurements);
-      });
+    const setPanelExpanded = (value) => {
+      if (!controlPanel) {
+        return;
+      }
+
+      const expanded = Boolean(value);
+      controlPanel.setAttribute('data-expanded', String(expanded));
+
+      if (panelCollapseButton) {
+        panelCollapseButton.setAttribute('aria-expanded', String(expanded));
+        panelCollapseButton.textContent = expanded ? 'Hide' : 'Show';
+        panelCollapseButton.setAttribute(
+          'aria-label',
+          expanded ? 'Collapse setter controls' : 'Expand setter controls'
+        );
+      }
+    };
+
+    if (controlPanel) {
+      const initialExpanded = controlPanel.getAttribute('data-expanded') !== 'false';
+      setPanelExpanded(initialExpanded);
+      updatePanelMeasurements();
 
       window.addEventListener('resize', updatePanelMeasurements);
 
-      if ('ResizeObserver' in window) {
+      if (panelCollapseButton) {
+        panelCollapseButton.addEventListener('click', () => {
+          const expanded = controlPanel.getAttribute('data-expanded') === 'true';
+          const next = !expanded;
+          setPanelExpanded(next);
+          requestAnimationFrame(updatePanelMeasurements);
+        });
+      }
+
+      if ('ResizeObserver' in window && panelSidebar) {
         const resizeObserver = new ResizeObserver(updatePanelMeasurements);
-        resizeObserver.observe(controlsToggle);
+        resizeObserver.observe(panelSidebar);
       }
     }
 
@@ -1610,6 +1660,10 @@
         }
         button.addEventListener('click', () => {
           const targetId = button.dataset?.target;
+          if (controlPanel && controlPanel.getAttribute('data-expanded') !== 'true') {
+            setPanelExpanded(true);
+            requestAnimationFrame(updatePanelMeasurements);
+          }
           if (targetId) {
             activateTab(targetId);
           }
