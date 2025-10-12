@@ -3704,7 +3704,11 @@
 
         ctx.save();
         ctx.globalAlpha = original.alpha;
-        ctx.lineWidth = Math.max(2, Math.round(actualWidth * 0.18));
+
+        const strokeWidth = Math.max(2, Math.round(actualWidth * 0.18));
+        ctx.lineWidth = strokeWidth;
+        ctx.lineJoin = 'miter';
+        ctx.lineCap = 'butt';
         ctx.strokeStyle = original.color;
 
         if (original.gradeValue === null) {
@@ -3719,7 +3723,13 @@
           ctx.fillRect(actualLeft, original.top, actualWidth, height);
         }
 
-        ctx.strokeRect(actualLeft, original.top, actualWidth, height);
+        const halfStroke = strokeWidth / 2;
+        const insetLeft = actualLeft + halfStroke;
+        const insetTop = original.top + halfStroke;
+        const insetWidth = Math.max(1, actualWidth - strokeWidth);
+        const insetHeight = Math.max(1, height - strokeWidth);
+
+        ctx.strokeRect(insetLeft, insetTop, insetWidth, insetHeight);
         ctx.restore();
       }
 
