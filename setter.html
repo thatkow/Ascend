@@ -386,6 +386,39 @@
       outline: none;
     }
 
+    .global-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .global-action-button {
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 999px;
+      padding: 0.6rem 1.25rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      background: linear-gradient(135deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.2));
+      color: #fff;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+    }
+
+    .global-action-button:hover,
+    .global-action-button:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
+      outline: none;
+    }
+
     .location-modal {
       position: fixed;
       inset: 0;
@@ -828,15 +861,17 @@
             aria-hidden="true"
           >
             <div class="control-section">
-              <button
-                id="locationButton"
-                class="location-button"
-                type="button"
-                aria-haspopup="dialog"
-                aria-expanded="false"
-              >
-                Select wall
-              </button>
+              <div class="global-actions">
+                <button
+                  id="locationButton"
+                  class="global-action-button"
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-expanded="false"
+                >
+                  Select wall
+                </button>
+              </div>
               <label id="pointDiameterField" class="control-field">
                 <span>
                   Point diameter
@@ -853,8 +888,12 @@
               </label>
             </div>
             <div class="control-section">
-              <button id="climberViewButton" class="location-button" type="button">Climber View</button>
-              <button id="signOutButton" class="location-button" type="button">Sign Out</button>
+              <div class="global-actions">
+                <button id="climberViewButton" class="global-action-button" type="button">
+                  Climber View
+                </button>
+                <button id="signOutButton" class="global-action-button" type="button">Sign Out</button>
+              </div>
             </div>
             <div class="control-section">
               <label class="control-field">
