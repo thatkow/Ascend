@@ -1749,6 +1749,7 @@
       let allRoutes = [];
       let routes = [];
       let gradeBarEntries = [];
+      let queuedGradeBarOverlays = [];
       let activeRouteId = null;
       let pinnedRouteId = null;
       let pinnedPosition = null;
@@ -2701,6 +2702,7 @@
         }
 
         gradeBarEntries = [];
+        queuedGradeBarOverlays = [];
         const shouldPreservePinned = Boolean(pinnedRouteId && pinnedPosition);
         const pinnedRoute = shouldPreservePinned
           ? routes.find((route) => route.id === pinnedRouteId)
@@ -2713,6 +2715,7 @@
         }
 
         routes.forEach(drawRoute);
+        renderQueuedGradeBarOverlays();
 
         if (pinnedRoute && tooltip) {
           updateTooltipContent(pinnedRoute);
@@ -2734,64 +2737,6 @@
           return max;
         }
         return value;
-      }
-
-      const GRADE_BAR_SPACING = 0;
-      const GRADE_BAR_OFFSET_ATTEMPTS = 24;
-
-      function resolveGradeBarPosition(centerX, width) {
-        if (!Number.isFinite(centerX) || !Number.isFinite(width) || width <= 0) {
-          return {
-            x: 0,
-            left: 0,
-            right: 0,
-          };
-        }
-
-        const halfWidth = width / 2;
-        const clampedHalfWidth = Math.min(halfWidth, canvas.width / 2);
-        const availableHalfWidth = Math.max(clampedHalfWidth, 1);
-        const spacing = GRADE_BAR_SPACING;
-
-        const offsets = [0];
-        for (let step = 1; offsets.length < GRADE_BAR_OFFSET_ATTEMPTS; step += 1) {
-          offsets.push(step, -step);
-        }
-
-        for (const offset of offsets) {
-          const shift = offset * (width + spacing);
-          const candidateX = clamp(
-            centerX + shift,
-            availableHalfWidth,
-            canvas.width - availableHalfWidth,
-          );
-          const left = candidateX - availableHalfWidth;
-          const right = candidateX + availableHalfWidth;
-
-          const overlaps = gradeBarEntries.some((entry) => {
-            if (!entry) {
-              return false;
-            }
-            if (right + spacing <= entry.left) {
-              return false;
-            }
-            if (left - spacing >= entry.right) {
-              return false;
-            }
-            return true;
-          });
-
-          if (!overlaps) {
-            return { x: candidateX, left, right };
-          }
-        }
-
-        const clampedX = clamp(centerX, availableHalfWidth, canvas.width - availableHalfWidth);
-        return {
-          x: clampedX,
-          left: clampedX - availableHalfWidth,
-          right: clampedX + availableHalfWidth,
-        };
       }
 
       function drawGradeBar(route, scaledPoints, strokeColor) {
@@ -2848,43 +2793,18 @@
         const effectiveHeight = Math.min(Math.max(height, baseHeight), maxHeight);
         const bottom = canvas.height;
         const top = Math.max(0, bottom - effectiveHeight);
-        const resolvedPosition = resolveGradeBarPosition(averageX, barWidth);
-        const left = Math.max(0, resolvedPosition.left);
-        const right = Math.min(canvas.width, resolvedPosition.right);
-        const actualWidth = Math.max(1, right - left);
         const isAscended = ascendedRoutes.has(route.id);
-        const isGraded = gradeValue !== null;
 
-        ctx.save();
-        ctx.globalAlpha = transparency;
-        ctx.lineWidth = Math.max(2, Math.round(actualWidth * 0.18));
-        ctx.lineCap = isGraded ? 'butt' : 'round';
-        ctx.strokeStyle = strokeColor;
-        if (!isGraded) {
-          const dotSize = Math.max(2, Math.round(ctx.lineWidth * 0.75));
-          const gapSize = Math.max(3, Math.round(dotSize * 1.5));
-          ctx.setLineDash([dotSize, gapSize]);
-        } else {
-          ctx.setLineDash([]);
-        }
-
-        if (isGraded && isAscended) {
-          ctx.fillStyle = strokeColor;
-          ctx.fillRect(left, top, actualWidth, bottom - top);
-        }
-
-        ctx.strokeRect(left, top, actualWidth, bottom - top);
-        ctx.restore();
-
-        gradeBarEntries.push({
+        queuedGradeBarOverlays.push({
           route,
-          x: resolvedPosition.x,
-          left,
-          right: left + actualWidth,
+          desiredCenter: averageX,
+          width: barWidth,
           top,
           bottom,
-          width: actualWidth,
-          height: bottom - top,
+          color: strokeColor,
+          transparency,
+          gradeValue,
+          isAscended,
         });
       }
 
@@ -2988,6 +2908,185 @@
         }
 
         drawGradeBar(route, scaledPoints, strokeColor);
+      }
+
+      function renderQueuedGradeBarOverlays() {
+        if (!Array.isArray(queuedGradeBarOverlays) || !queuedGradeBarOverlays.length) {
+          queuedGradeBarOverlays = [];
+          return;
+        }
+
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        if (canvasWidth <= 0 || canvasHeight <= 0) {
+          queuedGradeBarOverlays = [];
+          return;
+        }
+
+        const centerX = canvasWidth / 2;
+        const entries = queuedGradeBarOverlays
+          .map((entry, index) => {
+            const width = Math.max(1, Math.min(Number(entry?.width) || 0, canvasWidth));
+            if (!Number.isFinite(width) || width <= 0) {
+              return null;
+            }
+
+            const desiredCenter = Number(entry?.desiredCenter);
+            if (!Number.isFinite(desiredCenter)) {
+              return null;
+            }
+
+            const halfWidth = width / 2;
+            const clampedCenter = clamp(
+              desiredCenter,
+              halfWidth,
+              Math.max(halfWidth, canvasWidth - halfWidth),
+            );
+
+            return {
+              index,
+              original: entry,
+              width,
+              halfWidth,
+              clampedCenter,
+            };
+          })
+          .filter(Boolean);
+
+        if (!entries.length) {
+          queuedGradeBarOverlays = [];
+          return;
+        }
+
+        const leftEntries = entries
+          .filter((entry) => entry.clampedCenter <= centerX)
+          .sort((a, b) => b.clampedCenter - a.clampedCenter);
+        const rightEntries = entries
+          .filter((entry) => entry.clampedCenter > centerX)
+          .sort((a, b) => a.clampedCenter - b.clampedCenter);
+
+        const placements = new Map();
+
+        let leftBoundary = centerX;
+        for (const entry of leftEntries) {
+          let rightEdge = Math.min(leftBoundary, entry.clampedCenter + entry.halfWidth);
+          let leftEdge = rightEdge - entry.width;
+
+          if (leftEdge < 0) {
+            leftEdge = 0;
+            rightEdge = entry.width;
+          }
+
+          if (rightEdge > leftBoundary) {
+            rightEdge = leftBoundary;
+            leftEdge = rightEdge - entry.width;
+            if (leftEdge < 0) {
+              leftEdge = 0;
+              rightEdge = entry.width;
+            }
+          }
+
+          leftBoundary = Math.max(0, leftEdge);
+          placements.set(entry.index, {
+            ...entry,
+            left: leftEdge,
+            right: rightEdge,
+          });
+        }
+
+        let rightBoundary = centerX;
+        for (const entry of rightEntries) {
+          let leftEdge = Math.max(rightBoundary, entry.clampedCenter - entry.halfWidth);
+          let rightEdge = leftEdge + entry.width;
+
+          if (rightEdge > canvasWidth) {
+            rightEdge = canvasWidth;
+            leftEdge = rightEdge - entry.width;
+          }
+
+          if (leftEdge < rightBoundary) {
+            leftEdge = rightBoundary;
+            rightEdge = leftEdge + entry.width;
+            if (rightEdge > canvasWidth) {
+              rightEdge = canvasWidth;
+              leftEdge = rightEdge - entry.width;
+            }
+          }
+
+          rightBoundary = Math.min(canvasWidth, rightEdge);
+          placements.set(entry.index, {
+            ...entry,
+            left: leftEdge,
+            right: rightEdge,
+          });
+        }
+
+        const nextGradeBarEntries = [];
+
+        for (let i = 0; i < queuedGradeBarOverlays.length; i += 1) {
+          const placement = placements.get(i);
+          if (!placement) {
+            continue;
+          }
+
+          const { original, left, right } = placement;
+          const actualLeft = Math.max(0, Math.min(canvasWidth, left));
+          const actualRight = Math.max(actualLeft, Math.min(canvasWidth, right));
+          const actualWidth = Math.max(1, actualRight - actualLeft);
+
+          const actualTop = clamp(original.top, 0, canvasHeight);
+          const actualBottom = clamp(original.bottom, 0, canvasHeight);
+          const height = Math.max(0, actualBottom - actualTop);
+          if (height <= 0) {
+            continue;
+          }
+
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, Math.min(1, original.transparency));
+          ctx.lineWidth = Math.max(2, Math.round(actualWidth * 0.18));
+          ctx.lineJoin = 'miter';
+          ctx.strokeStyle = original.color;
+
+          const isGraded = original.gradeValue !== null;
+          if (!isGraded) {
+            const dotSize = Math.max(2, Math.round(ctx.lineWidth * 0.75));
+            const gapSize = Math.max(3, Math.round(dotSize * 1.5));
+            ctx.lineCap = 'round';
+            ctx.setLineDash([dotSize, gapSize]);
+          } else {
+            ctx.lineCap = 'butt';
+            ctx.setLineDash([]);
+          }
+
+          const shouldFill = Boolean(isGraded && original.isAscended);
+          if (shouldFill) {
+            ctx.fillStyle = original.color;
+            ctx.fillRect(actualLeft, actualTop, actualWidth, height);
+          }
+
+          const halfStroke = ctx.lineWidth / 2;
+          const insetLeft = actualLeft + halfStroke;
+          const insetTop = actualTop + halfStroke;
+          const insetWidth = Math.max(1, actualWidth - ctx.lineWidth);
+          const insetHeight = Math.max(1, height - ctx.lineWidth);
+
+          ctx.strokeRect(insetLeft, insetTop, insetWidth, insetHeight);
+          ctx.restore();
+
+          nextGradeBarEntries.push({
+            route: original.route,
+            x: actualLeft + actualWidth / 2,
+            left: actualLeft,
+            right: actualRight,
+            top: actualTop,
+            bottom: actualTop + height,
+            width: actualWidth,
+            height,
+          });
+        }
+
+        gradeBarEntries = nextGradeBarEntries;
+        queuedGradeBarOverlays = [];
       }
 
       function handlePointerMove(event) {
