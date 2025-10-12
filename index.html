@@ -750,8 +750,17 @@
 
       const wallSettingsCache = new Map();
 
+      const normalizeLocationName = (value) => {
+        if (typeof value !== 'string') {
+          return '';
+        }
+        return value.trim().toLowerCase();
+      };
+
+      const normalizeWallKey = (value) => normalizeLocationName(value);
+
       function resolveWallSettings(locationKey, fallback = null) {
-        const key = typeof locationKey === 'string' ? locationKey : '';
+        const key = normalizeWallKey(locationKey);
         if (key) {
           const cached = wallSettingsCache.get(key);
           if (cached) {
@@ -771,13 +780,6 @@
           pointDiameter: DEFAULT_POINT_DIAMETER,
         };
       }
-
-      const normalizeLocationName = (value) => {
-        if (typeof value !== 'string') {
-          return '';
-        }
-        return value.trim().toLowerCase();
-      };
 
       const findLocationByKey = (key) => LOCATIONS.find((location) => location.key === key);
 
@@ -2273,7 +2275,18 @@
 
           wallSettingsCache.clear();
           wallSnapshot.forEach((docSnap) => {
-            wallSettingsCache.set(docSnap.id, normalizeWallSettings(docSnap.data()));
+            const data = docSnap.data();
+            const settings = normalizeWallSettings(data);
+            const normalizedId = normalizeWallKey(docSnap.id);
+            const normalizedName = normalizeWallKey(data?.name);
+
+            if (normalizedId) {
+              wallSettingsCache.set(normalizedId, settings);
+            }
+
+            if (normalizedName) {
+              wallSettingsCache.set(normalizedName, settings);
+            }
           });
 
           allRoutes = routesSnapshot.docs

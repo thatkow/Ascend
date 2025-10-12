@@ -995,6 +995,8 @@
       return value.trim().toLowerCase();
     };
 
+    const normalizeWallKey = (value) => normalizeLocationName(value);
+
     const findLocationByKey = (key) => LOCATIONS.find((location) => location.key === key);
 
     const findLocationByName = (name) => {
@@ -1011,6 +1013,7 @@
     let backgroundReady = false;
 
     const wallSettingsCache = new Map();
+    const wallDocumentIdMap = new Map();
 
     const backgroundImage = new Image();
 
@@ -1315,7 +1318,7 @@
     }
 
     function getWallSettingsWithFallback(locationKey, fallback = null) {
-      const key = typeof locationKey === 'string' ? locationKey : '';
+      const key = normalizeWallKey(locationKey);
       if (key) {
         const cached = wallSettingsCache.get(key);
         if (cached) {
@@ -1349,20 +1352,47 @@
     }
 
     async function ensureWallSettings(locationKey) {
-      if (!locationKey) {
+      const key = normalizeWallKey(locationKey);
+      if (!key) {
         return createDefaultWallSettings();
       }
 
-      if (wallSettingsCache.has(locationKey)) {
-        return { ...wallSettingsCache.get(locationKey) };
+      if (wallSettingsCache.has(key)) {
+        return { ...wallSettingsCache.get(key) };
       }
 
       try {
-        const wallRef = doc(db, WALL_COLLECTION, locationKey);
+        const docId = wallDocumentIdMap.get(key) || key;
+        const wallRef = doc(db, WALL_COLLECTION, docId);
         const snap = await getDoc(wallRef);
         if (snap.exists()) {
-          const settings = normalizeWallSettings(snap.data());
-          wallSettingsCache.set(locationKey, settings);
+          const data = snap.data();
+          const settings = normalizeWallSettings(data);
+          const normalizedId = normalizeWallKey(snap.id);
+          const normalizedName = normalizeWallKey(data?.name);
+
+          if (normalizedId) {
+            wallSettingsCache.set(normalizedId, settings);
+            wallDocumentIdMap.set(normalizedId, snap.id);
+          }
+
+          if (normalizedName) {
+            wallDocumentIdMap.set(normalizedName, snap.id);
+            if (!wallSettingsCache.has(normalizedName)) {
+              wallSettingsCache.set(normalizedName, settings);
+            }
+          }
+
+          if (data?.key) {
+            const normalizedLocationKey = normalizeWallKey(data.key);
+            if (normalizedLocationKey) {
+              wallDocumentIdMap.set(normalizedLocationKey, snap.id);
+              if (!wallSettingsCache.has(normalizedLocationKey)) {
+                wallSettingsCache.set(normalizedLocationKey, settings);
+              }
+            }
+          }
+
           return { ...settings };
         }
       } catch (error) {
@@ -1376,11 +1406,33 @@
       try {
         const snapshot = await getDocs(collection(db, WALL_COLLECTION));
         const fetchedKeys = new Set();
+        wallDocumentIdMap.clear();
         snapshot.forEach((docSnap) => {
-          const key = docSnap.id;
-          const settings = normalizeWallSettings(docSnap.data());
-          wallSettingsCache.set(key, settings);
-          fetchedKeys.add(key);
+          const data = docSnap.data();
+          const settings = normalizeWallSettings(data);
+          const normalizedId = normalizeWallKey(docSnap.id);
+          const normalizedName = normalizeWallKey(data?.name);
+
+          if (normalizedId) {
+            wallSettingsCache.set(normalizedId, settings);
+            wallDocumentIdMap.set(normalizedId, docSnap.id);
+            fetchedKeys.add(normalizedId);
+          }
+
+          if (normalizedName) {
+            wallDocumentIdMap.set(normalizedName, docSnap.id);
+            wallSettingsCache.set(normalizedName, settings);
+            fetchedKeys.add(normalizedName);
+          }
+
+          if (data?.key) {
+            const normalizedLocationKey = normalizeWallKey(data.key);
+            if (normalizedLocationKey) {
+              wallDocumentIdMap.set(normalizedLocationKey, docSnap.id);
+              wallSettingsCache.set(normalizedLocationKey, settings);
+              fetchedKeys.add(normalizedLocationKey);
+            }
+          }
         });
 
         wallSettingsCache.forEach((value, key) => {
@@ -1394,17 +1446,19 @@
     }
 
     function updateRoutesForWall(locationKey, settings) {
-      if (!locationKey || !settings) {
+      const normalizedKey = normalizeWallKey(locationKey);
+      if (!normalizedKey || !settings) {
         return;
       }
 
-      routesCache.forEach((data, key) => {
-        const routeLocationKey =
+      routesCache.forEach((data, routeKey) => {
+        const routeLocationKey = normalizeWallKey(
           typeof data?.locationKey === 'string'
             ? data.locationKey
-            : normalizeLocationName(data?.location);
-        if (routeLocationKey === locationKey) {
-          routesCache.set(key, {
+            : normalizeLocationName(data?.location),
+        );
+        if (routeLocationKey === normalizedKey) {
+          routesCache.set(routeKey, {
             ...data,
             pointDiameter: settings.pointDiameter,
           });
@@ -1414,10 +1468,11 @@
 
     function updateRoutesForAllWalls() {
       routesCache.forEach((data, key) => {
-        const routeLocationKey =
+        const routeLocationKey = normalizeWallKey(
           typeof data?.locationKey === 'string'
             ? data.locationKey
-            : normalizeLocationName(data?.location);
+            : normalizeLocationName(data?.location),
+        );
         const settings = getWallSettingsForLocation(routeLocationKey);
         routesCache.set(key, {
           ...data,
@@ -1427,19 +1482,20 @@
     }
 
     async function persistWallSettings(locationKey, updates = {}) {
-      if (!locationKey) {
+      const normalizedKey = normalizeWallKey(locationKey);
+      if (!normalizedKey) {
         return;
       }
 
       const merged = normalizeWallSettings({
-        ...getWallSettingsForLocation(locationKey),
+        ...getWallSettingsForLocation(normalizedKey),
         ...updates,
       });
 
-      wallSettingsCache.set(locationKey, merged);
-      updateRoutesForWall(locationKey, merged);
+      wallSettingsCache.set(normalizedKey, merged);
+      updateRoutesForWall(normalizedKey, merged);
 
-      if (getCurrentLocationKey() === locationKey) {
+      if (getCurrentLocationKey() === normalizedKey) {
         pointDiameter = merged.pointDiameter;
         updatePathControls();
         redraw();
@@ -1449,7 +1505,11 @@
 
       try {
         const locationDetails =
-          findLocationByName(locationKey) || findLocationByKey(locationKey) || null;
+          (currentLocation && normalizeWallKey(currentLocation.name) === normalizedKey
+            ? currentLocation
+            : null) ||
+          findLocationByName(normalizedKey) ||
+          null;
 
         const wallPayload = {
           pointDiameter: merged.pointDiameter,
@@ -1467,7 +1527,29 @@
           }
         }
 
-        await setDoc(doc(db, WALL_COLLECTION, locationKey), wallPayload, { merge: true });
+        const docId = wallDocumentIdMap.get(normalizedKey) || normalizedKey;
+        await setDoc(doc(db, WALL_COLLECTION, docId), wallPayload, { merge: true });
+        wallDocumentIdMap.set(normalizedKey, docId);
+
+        if (typeof wallPayload.name === 'string' && wallPayload.name) {
+          const normalizedName = normalizeWallKey(wallPayload.name);
+          if (normalizedName) {
+            wallDocumentIdMap.set(normalizedName, docId);
+            if (!wallSettingsCache.has(normalizedName)) {
+              wallSettingsCache.set(normalizedName, merged);
+            }
+          }
+        }
+
+        if (locationDetails?.key) {
+          const normalizedLocationKey = normalizeWallKey(locationDetails.key);
+          if (normalizedLocationKey) {
+            wallDocumentIdMap.set(normalizedLocationKey, docId);
+            if (!wallSettingsCache.has(normalizedLocationKey)) {
+              wallSettingsCache.set(normalizedLocationKey, merged);
+            }
+          }
+        }
       } catch (error) {
         console.error('Failed to save wall settings:', error);
         setStatus('Failed to save wall settings. Please try again.', 'error');
@@ -2907,12 +2989,13 @@
         updatePathControls();
 
         const locationKey = getCurrentLocationKey();
-        if (locationKey) {
+        const normalizedKey = normalizeWallKey(locationKey);
+        if (normalizedKey) {
           const previewSettings = normalizeWallSettings({
             pointDiameter: nextValue,
           });
-          wallSettingsCache.set(locationKey, previewSettings);
-          updateRoutesForWall(locationKey, previewSettings);
+          wallSettingsCache.set(normalizedKey, previewSettings);
+          updateRoutesForWall(normalizedKey, previewSettings);
         }
 
         redraw();
