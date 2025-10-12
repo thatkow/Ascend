@@ -435,6 +435,25 @@
         display: block;
       }
 
+      .route-tooltip .tooltip-grade-badge {
+        position: absolute;
+        top: 0;
+        right: 0;
+        transform: translate(50%, -50%);
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 50%;
+        border: 2px solid var(--tooltip-foreground, #fff);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: var(--tooltip-foreground, #fff);
+        background: transparent;
+        pointer-events: none;
+      }
+
       .ascend-toggle {
         margin-top: 0.75rem;
         width: 100%;
@@ -718,6 +737,7 @@
       const toggleAuthModeButton = document.getElementById('toggleAuthMode');
       const signOutButton = document.getElementById('signOutButton');
       const setterLink = document.getElementById('setterLink');
+      const setterLinkBaseHref = setterLink?.getAttribute('href') || 'setter.html';
       const tooltip = document.getElementById('routeTooltip');
       const infoButton = document.getElementById('infoButton');
       const infoPopover = document.getElementById('infoPopover');
@@ -731,7 +751,8 @@
         { key: 'old-wall', name: 'Old Wall', image: './location/Old Wall.jpg' },
       ];
 
-      const LOCATION_STORAGE_KEY = 'ascend.selectedLocation';
+      const LOCATION_STORAGE_KEY = 'ascend.selectedWall';
+      const WALL_QUERY_PARAM = 'wall';
 
       const PATH_TYPE_BREZER = 'brezer';
       const PATH_TYPE_POINT = 'point';
@@ -942,6 +963,75 @@
         );
       };
 
+      function buildWallAwareHref(baseHref, wallKey) {
+        const normalizedKey = normalizeWallKey(wallKey);
+        if (typeof baseHref !== 'string' || !baseHref) {
+          return '';
+        }
+
+        try {
+          const url = new URL(baseHref, window.location.origin);
+          if (normalizedKey) {
+            url.searchParams.set(WALL_QUERY_PARAM, normalizedKey);
+          } else {
+            url.searchParams.delete(WALL_QUERY_PARAM);
+          }
+          url.hash = '';
+          const relativePath = `${url.pathname.replace(/^\//, '')}${url.search}`;
+          return relativePath || baseHref;
+        } catch (error) {
+          if (!normalizedKey) {
+            return baseHref;
+          }
+
+          const separator = baseHref.includes('?') ? '&' : '?';
+          return `${baseHref}${separator}${encodeURIComponent(WALL_QUERY_PARAM)}=${encodeURIComponent(normalizedKey)}`;
+        }
+      }
+
+      function getWallKeyFromQuery() {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const raw = params.get(WALL_QUERY_PARAM);
+          return normalizeWallKey(raw);
+        } catch (error) {
+          console.warn('Unable to read wall from query string:', error);
+          return '';
+        }
+      }
+
+      function updateWallQueryParam(wallKey) {
+        try {
+          const normalizedKey = normalizeWallKey(wallKey);
+          const url = new URL(window.location.href);
+          if (normalizedKey) {
+            url.searchParams.set(WALL_QUERY_PARAM, normalizedKey);
+          } else {
+            url.searchParams.delete(WALL_QUERY_PARAM);
+          }
+          url.hash = '';
+          const next = url.toString();
+          if (next !== window.location.href) {
+            window.history.replaceState({}, '', next);
+          }
+        } catch (error) {
+          console.warn('Unable to update wall query parameter:', error);
+        }
+      }
+
+      function persistSelectedWall(wallKey) {
+        const normalizedKey = normalizeWallKey(wallKey);
+        try {
+          if (normalizedKey) {
+            window.localStorage?.setItem(LOCATION_STORAGE_KEY, normalizedKey);
+          } else {
+            window.localStorage?.removeItem(LOCATION_STORAGE_KEY);
+          }
+        } catch (error) {
+          console.warn('Unable to persist location preference:', error);
+        }
+      }
+
       function upsertLocation({ key = '', name = '', image = '', fallbackName = '' } = {}) {
         const trimmedName = typeof name === 'string' && name.trim() ? name.trim() : '';
         const fallback =
@@ -998,12 +1088,31 @@
           updateLocationButtonLabel();
           updateLocationOptionsState();
           updateBackgroundForCurrentLocation();
+          const refreshedKey = getCurrentLocationKey();
+          if (refreshedKey) {
+            persistSelectedWall(refreshedKey);
+          }
+          updateWallQueryParam(refreshedKey);
+          updateSetterLinkHref();
         }
       }
 
       const DEFAULT_LOCATION = LOCATIONS[0];
 
       let currentLocation = DEFAULT_LOCATION;
+
+      function getCurrentLocationKey() {
+        return normalizeWallKey(currentLocation?.key || currentLocation?.name);
+      }
+
+      function updateSetterLinkHref() {
+        if (!setterLink) {
+          return;
+        }
+
+        const wallKey = getCurrentLocationKey();
+        setterLink.href = buildWallAwareHref(setterLinkBaseHref, wallKey);
+      }
 
       let backgroundReady = false;
       let backgroundImageSource = '';
@@ -1111,11 +1220,12 @@
         updateLocationOptionsState();
         updateBackgroundForCurrentLocation();
 
-        try {
-          window.localStorage?.setItem(LOCATION_STORAGE_KEY, location.key);
-        } catch (error) {
-          console.warn('Unable to persist location preference:', error);
+        const nextLocationKey = getCurrentLocationKey();
+        if (nextLocationKey) {
+          persistSelectedWall(nextLocationKey);
         }
+        updateWallQueryParam(nextLocationKey);
+        updateSetterLinkHref();
 
         if (changed) {
           applyLocationFilter();
@@ -1420,17 +1530,36 @@
 
       renderLocationOptions();
 
+      const wallKeyFromQuery = getWallKeyFromQuery();
+      let initialLocation = wallKeyFromQuery
+        ? findLocationByKey(wallKeyFromQuery) || findLocationByName(wallKeyFromQuery)
+        : null;
+
       let storedLocationKey = null;
-      try {
-        storedLocationKey = window.localStorage?.getItem(LOCATION_STORAGE_KEY) || null;
-      } catch (error) {
-        console.warn('Unable to read location preference:', error);
+      if (!initialLocation) {
+        try {
+          storedLocationKey = window.localStorage?.getItem(LOCATION_STORAGE_KEY) || null;
+        } catch (error) {
+          console.warn('Unable to read location preference:', error);
+        }
+
+        if (storedLocationKey) {
+          const normalizedStoredKey = normalizeWallKey(storedLocationKey);
+          initialLocation =
+            findLocationByKey(normalizedStoredKey) || findLocationByName(normalizedStoredKey);
+        }
       }
 
-      const storedLocation = storedLocationKey ? findLocationByKey(storedLocationKey) : null;
-      if (storedLocation) {
-        currentLocation = storedLocation;
+      if (initialLocation) {
+        currentLocation = initialLocation;
       }
+
+      const currentLocationKey = getCurrentLocationKey();
+      if (currentLocationKey) {
+        persistSelectedWall(currentLocationKey);
+      }
+      updateWallQueryParam(currentLocationKey);
+      updateSetterLinkHref();
 
       updateLocationButtonLabel();
       updateLocationOptionsState();
@@ -1736,6 +1865,7 @@
       }
 
       function updateNavigationForRole(role) {
+        updateSetterLinkHref();
         setterLink.classList.toggle('hidden', role !== 'setter');
       }
 
@@ -2274,6 +2404,18 @@
           ariaLines.push(displayTitle);
         }
 
+        const medianGrade =
+          route && typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)
+            ? route.medianGrade
+            : null;
+        const gradeDisplay = formatGradeDisplay(medianGrade);
+        const gradeBadge = document.createElement('div');
+        gradeBadge.className = 'tooltip-grade-badge';
+        gradeBadge.textContent = gradeDisplay;
+        gradeBadge.setAttribute('aria-hidden', 'true');
+        fragment.appendChild(gradeBadge);
+        ariaLines.push(`Grade: ${gradeDisplay}`);
+
         const infoContainer = document.createElement('div');
         infoContainer.className = 'tooltip-lines';
         fragment.appendChild(infoContainer);
@@ -2297,11 +2439,6 @@
         appendInfoLine(descriptionText ? `Description: ${descriptionText}` : 'Description: —');
 
         appendInfoLine(`Date set: ${formatDisplayDate(route.date_set)}`);
-
-        const medianGrade = route && typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)
-          ? route.medianGrade
-          : null;
-        appendInfoLine(`Median grade: ${formatGradeDisplay(medianGrade)}`);
 
         if (ascendedRoutes.has(route.id)) {
           appendInfoLine('Ascended', 'ascend-status');
@@ -2793,11 +2930,14 @@
         gradeBarEntries = [];
         queuedGradeBarOverlays = [];
         let isFocusActive = false;
+        let resolvedFocusRoute = null;
+        let focusedRoutePointKeys = null;
 
         if (focusedRouteId) {
-          const resolvedFocusRoute = routes.find((route) => route.id === focusedRouteId) || null;
+          resolvedFocusRoute = routes.find((route) => route.id === focusedRouteId) || null;
           if (resolvedFocusRoute) {
             isFocusActive = true;
+            focusedRoutePointKeys = buildNormalizedPointKeySet(resolvedFocusRoute.points);
           } else {
             focusedRouteId = null;
           }
@@ -2825,7 +2965,8 @@
             : isFocusActive
               ? normalizeUnfocusedTransparency(route.unfocusedTransparency)
               : 1;
-          drawRoute(route, { alpha: routeAlpha });
+          const omitOverlaps = !isFocused && focusedRoutePointKeys?.size ? focusedRoutePointKeys : null;
+          drawRoute(route, { alpha: routeAlpha, omitOverlappingPointKeys: omitOverlaps });
         });
         renderQueuedGradeBarOverlays();
 
@@ -2849,6 +2990,36 @@
           return max;
         }
         return value;
+      }
+
+      function createNormalizedPointKey(x, y) {
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          return null;
+        }
+
+        const clampedX = Math.min(Math.max(x, 0), 1);
+        const clampedY = Math.min(Math.max(y, 0), 1);
+        const scaledX = Math.round(clampedX * 10000);
+        const scaledY = Math.round(clampedY * 10000);
+        return `${scaledX}:${scaledY}`;
+      }
+
+      function buildNormalizedPointKeySet(points = []) {
+        const keys = new Set();
+        if (!Array.isArray(points) || !points.length) {
+          return keys;
+        }
+
+        points.forEach((point) => {
+          const x = Number(point?.x);
+          const y = Number(point?.y);
+          const key = createNormalizedPointKey(x, y);
+          if (key) {
+            keys.add(key);
+          }
+        });
+
+        return keys;
       }
 
       function calculateAverageXFromCanvasPoints(routePoints = []) {
@@ -2965,86 +3136,104 @@
           ? Math.min(Math.max(alphaValue, 0), 1)
           : 1;
 
+        const omitOverlapKeys =
+          options?.omitOverlappingPointKeys instanceof Set ? options.omitOverlappingPointKeys : null;
+
         if (!points.length) {
           return;
         }
 
-        const scaledPoints = points
-          .map((point) => {
-            const x = Number(point?.x);
-            const y = Number(point?.y);
-            if (!Number.isFinite(x) || !Number.isFinite(y)) {
-              return null;
-            }
-            return {
-              x: x * canvas.width,
-              y: y * canvas.height,
-            };
-          })
-          .filter(Boolean);
+        const pathType = normalizePathType(route.pathType);
+        const shouldFilterOverlaps =
+          omitOverlapKeys &&
+          omitOverlapKeys.size > 0 &&
+          (pathType === PATH_TYPE_POINT || pathType === PATH_TYPE_RECTANGLE);
 
-        if (!scaledPoints.length) {
+        const gradeBarPoints = [];
+        const visiblePoints = [];
+
+        points.forEach((point) => {
+          const normalizedX = Number(point?.x);
+          const normalizedY = Number(point?.y);
+          if (!Number.isFinite(normalizedX) || !Number.isFinite(normalizedY)) {
+            return;
+          }
+
+          const scaledPoint = {
+            x: normalizedX * canvas.width,
+            y: normalizedY * canvas.height,
+          };
+          gradeBarPoints.push(scaledPoint);
+
+          if (shouldFilterOverlaps) {
+            const key = createNormalizedPointKey(normalizedX, normalizedY);
+            if (key && omitOverlapKeys.has(key)) {
+              return;
+            }
+          }
+
+          visiblePoints.push(scaledPoint);
+        });
+
+        if (!gradeBarPoints.length) {
           return;
         }
 
-        const pathType = normalizePathType(route.pathType);
         const pointDiameter = normalizePointDiameter(route.pointDiameter);
-        const rectangleWidth = normalizeRectangleSize(
-          route.rectangleWidth,
-          DEFAULT_RECTANGLE_WIDTH,
-        );
-        const rectangleHeight = normalizeRectangleSize(
-          route.rectangleHeight,
-          DEFAULT_RECTANGLE_HEIGHT,
-        );
+        const rectangleWidth = normalizeRectangleSize(route.rectangleWidth, DEFAULT_RECTANGLE_WIDTH);
+        const rectangleHeight = normalizeRectangleSize(route.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT);
 
         ctx.save();
         ctx.globalAlpha = routeAlpha;
         if (pathType === PATH_TYPE_POINT) {
           const circleRadius = Math.max(1, pointDiameter / 2);
           const strokeWidth = Math.max(2, Math.round(pointDiameter / 10));
-          const path = new Path2D();
+          if (visiblePoints.length) {
+            const path = new Path2D();
 
-          scaledPoints.forEach((point) => {
-            path.moveTo(point.x + circleRadius, point.y);
-            path.arc(point.x, point.y, circleRadius, 0, Math.PI * 2);
-          });
+            visiblePoints.forEach((point) => {
+              path.moveTo(point.x + circleRadius, point.y);
+              path.arc(point.x, point.y, circleRadius, 0, Math.PI * 2);
+            });
 
-          ctx.save();
-          ctx.lineWidth = strokeWidth;
-          ctx.strokeStyle = strokeColor;
-          ctx.lineJoin = 'round';
-          ctx.lineCap = 'round';
-          ctx.stroke(path);
-          ctx.restore();
+            ctx.save();
+            ctx.lineWidth = strokeWidth;
+            ctx.strokeStyle = strokeColor;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.stroke(path);
+            ctx.restore();
+          }
         } else if (pathType === PATH_TYPE_RECTANGLE) {
           const rectWidth = Math.max(1, rectangleWidth);
           const rectHeight = Math.max(1, rectangleHeight);
           const halfWidth = Math.max(1, rectWidth / 2);
           const halfHeight = Math.max(1, rectHeight / 2);
           const strokeWidth = Math.max(2, Math.round(Math.max(rectWidth, rectHeight) / 10));
+          if (visiblePoints.length) {
+            const path = new Path2D();
+
+            visiblePoints.forEach((point) => {
+              path.rect(point.x - halfWidth, point.y - halfHeight, rectWidth, rectHeight);
+            });
+
+            ctx.save();
+            ctx.lineWidth = strokeWidth;
+            ctx.strokeStyle = strokeColor;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.stroke(path);
+            ctx.restore();
+          }
+        } else if (gradeBarPoints.length >= 2) {
           const path = new Path2D();
+          path.moveTo(gradeBarPoints[0].x, gradeBarPoints[0].y);
 
-          scaledPoints.forEach((point) => {
-            path.rect(point.x - halfWidth, point.y - halfHeight, rectWidth, rectHeight);
-          });
-
-          ctx.save();
-          ctx.lineWidth = strokeWidth;
-          ctx.strokeStyle = strokeColor;
-          ctx.lineJoin = 'round';
-          ctx.lineCap = 'round';
-          ctx.stroke(path);
-          ctx.restore();
-        } else if (scaledPoints.length >= 2) {
-          const path = new Path2D();
-          path.moveTo(scaledPoints[0].x, scaledPoints[0].y);
-
-          for (let i = 0; i < scaledPoints.length - 1; i++) {
-            const p0 = i === 0 ? scaledPoints[0] : scaledPoints[i - 1];
-            const p1 = scaledPoints[i];
-            const p2 = scaledPoints[i + 1];
-            const p3 = i + 2 < scaledPoints.length ? scaledPoints[i + 2] : scaledPoints[i + 1];
+          for (let i = 0; i < gradeBarPoints.length - 1; i++) {
+            const p0 = i === 0 ? gradeBarPoints[0] : gradeBarPoints[i - 1];
+            const p1 = gradeBarPoints[i];
+            const p2 = gradeBarPoints[i + 1];
+            const p3 = i + 2 < gradeBarPoints.length ? gradeBarPoints[i + 2] : gradeBarPoints[i + 1];
 
             const cp1x = p1.x + (p2.x - p0.x) / 6;
             const cp1y = p1.y + (p2.y - p0.y) / 6;
@@ -3064,7 +3253,7 @@
         }
         ctx.restore();
 
-        drawGradeBar(route, scaledPoints, strokeColor, routeAlpha);
+        drawGradeBar(route, gradeBarPoints, strokeColor, routeAlpha);
       }
 
       function renderQueuedGradeBarOverlays() {

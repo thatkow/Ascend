@@ -1093,7 +1093,7 @@
 
   <div id="unauthorizedNotice" class="unauthorized hidden" role="alert">
     <p><strong>Access denied.</strong> Your account does not have permission to use the setter tools.</p>
-    <p>You can return to the <a href="index.html">preview page</a> or contact a setter for help.</p>
+    <p>You can return to the <a id="previewLink" href="index.html">preview page</a> or contact a setter for help.</p>
     <button id="unauthorizedSignOut" class="auth-submit" type="button">Sign Out</button>
   </div>
 
@@ -1171,6 +1171,10 @@
     const controlPanel = document.querySelector('.control-panel');
     const panelSidebar = document.getElementById('panelSidebar');
     const climberViewButton = document.getElementById('climberViewButton');
+    const previewLink = document.getElementById('previewLink');
+    const previewLinkBaseHref = previewLink?.getAttribute('href') || 'index.html';
+    const climberViewBaseHref = 'index.html';
+    let climberViewTargetHref = climberViewBaseHref;
     const roleUsernameInput = document.getElementById('roleUsernameInput');
     const grantSetterButton = document.getElementById('grantSetterButton');
     const roleStatusMessage = document.getElementById('roleStatusMessage');
@@ -1198,7 +1202,8 @@
       { key: 'old-wall', name: 'Old Wall', image: './location/Old Wall.jpg' },
     ];
 
-    const LOCATION_STORAGE_KEY = 'ascend.setter.selectedLocation';
+    const LOCATION_STORAGE_KEY = 'ascend.selectedWall';
+    const WALL_QUERY_PARAM = 'wall';
 
     const PATH_TYPE_BREZER = 'brezer';
     const PATH_TYPE_POINT = 'point';
@@ -1243,6 +1248,84 @@
         LOCATIONS.find((location) => normalizeLocationName(location.name) === normalized) || null
       );
     };
+
+    function buildWallAwareHref(baseHref, wallKey) {
+      const normalizedKey = normalizeWallKey(wallKey);
+      if (typeof baseHref !== 'string' || !baseHref) {
+        return '';
+      }
+
+      try {
+        const url = new URL(baseHref, window.location.origin);
+        if (normalizedKey) {
+          url.searchParams.set(WALL_QUERY_PARAM, normalizedKey);
+        } else {
+          url.searchParams.delete(WALL_QUERY_PARAM);
+        }
+        url.hash = '';
+        const relativePath = `${url.pathname.replace(/^\//, '')}${url.search}`;
+        return relativePath || baseHref;
+      } catch (error) {
+        if (!normalizedKey) {
+          return baseHref;
+        }
+
+        const separator = baseHref.includes('?') ? '&' : '?';
+        return `${baseHref}${separator}${encodeURIComponent(WALL_QUERY_PARAM)}=${encodeURIComponent(normalizedKey)}`;
+      }
+    }
+
+    function getWallKeyFromQuery() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const raw = params.get(WALL_QUERY_PARAM);
+        return normalizeWallKey(raw);
+      } catch (error) {
+        console.warn('Unable to read wall from query string:', error);
+        return '';
+      }
+    }
+
+    function updateWallQueryParam(wallKey) {
+      try {
+        const normalizedKey = normalizeWallKey(wallKey);
+        const url = new URL(window.location.href);
+        if (normalizedKey) {
+          url.searchParams.set(WALL_QUERY_PARAM, normalizedKey);
+        } else {
+          url.searchParams.delete(WALL_QUERY_PARAM);
+        }
+        url.hash = '';
+        const next = url.toString();
+        if (next !== window.location.href) {
+          window.history.replaceState({}, '', next);
+        }
+      } catch (error) {
+        console.warn('Unable to update wall query parameter:', error);
+      }
+    }
+
+    function persistSelectedWall(wallKey) {
+      const normalizedKey = normalizeWallKey(wallKey);
+      try {
+        if (normalizedKey) {
+          window.localStorage?.setItem(LOCATION_STORAGE_KEY, normalizedKey);
+        } else {
+          window.localStorage?.removeItem(LOCATION_STORAGE_KEY);
+        }
+      } catch (error) {
+        console.warn('Unable to persist setter location preference:', error);
+      }
+    }
+
+    function updateWallNavigationTargets(wallKey) {
+      const normalizedKey = normalizeWallKey(wallKey);
+      if (previewLink) {
+        previewLink.href = buildWallAwareHref(previewLinkBaseHref, normalizedKey);
+      }
+
+      climberViewTargetHref = buildWallAwareHref(climberViewBaseHref, normalizedKey);
+    }
 
     function upsertLocation({ key = '', name = '', image = '', fallbackName = '' } = {}) {
       const trimmedName = typeof name === 'string' && name.trim() ? name.trim() : '';
@@ -1302,6 +1385,10 @@
         updateLocationButtonLabel();
         updateLocationOptionsState();
         updateBackgroundForCurrentLocation();
+        const activeKey = getCurrentLocationKey();
+        updateWallNavigationTargets(activeKey);
+        updateWallQueryParam(activeKey);
+        persistSelectedWall(activeKey);
       }
     }
 
@@ -1476,12 +1563,11 @@
       applyWallSettingsToStateForLocationKey(nextKey, wallFallback);
       redraw();
 
-      if (persist && canonicalLocation?.key) {
-        try {
-          window.localStorage?.setItem(LOCATION_STORAGE_KEY, canonicalLocation.key);
-        } catch (error) {
-          console.warn('Unable to persist setter location preference:', error);
-        }
+      updateWallNavigationTargets(nextKey);
+      updateWallQueryParam(nextKey);
+
+      if (persist) {
+        persistSelectedWall(nextKey);
       }
 
       if (changed) {
@@ -2486,19 +2572,31 @@
 
     activateTab('routesTab');
 
+    const wallKeyFromQuery = getWallKeyFromQuery();
+    let initialLocation = wallKeyFromQuery
+      ? findLocationByKey(wallKeyFromQuery) || findLocationByName(wallKeyFromQuery)
+      : null;
+
     let storedLocationKey = null;
-    try {
-      storedLocationKey = window.localStorage?.getItem(LOCATION_STORAGE_KEY) || null;
-    } catch (error) {
-      console.warn('Unable to read setter location preference:', error);
+    if (!initialLocation) {
+      try {
+        storedLocationKey = window.localStorage?.getItem(LOCATION_STORAGE_KEY) || null;
+      } catch (error) {
+        console.warn('Unable to read setter location preference:', error);
+      }
+
+      if (storedLocationKey) {
+        const normalizedStoredKey = normalizeWallKey(storedLocationKey);
+        initialLocation =
+          findLocationByKey(normalizedStoredKey) || findLocationByName(normalizedStoredKey);
+      }
     }
 
-    const storedLocation = storedLocationKey ? findLocationByKey(storedLocationKey) : null;
-    if (storedLocation) {
-      setLocation(storedLocation, { persist: false, refreshRoutes: false });
-    } else {
-      setLocation(DEFAULT_LOCATION, { persist: false, refreshRoutes: false });
+    if (!initialLocation) {
+      initialLocation = DEFAULT_LOCATION;
     }
+
+    setLocation(initialLocation, { persist: true, refreshRoutes: false });
 
     if (locationButton) {
       locationButton.setAttribute('aria-expanded', 'false');
@@ -2886,7 +2984,7 @@
 
     if (climberViewButton) {
       climberViewButton.addEventListener('click', () => {
-        window.location.href = 'index.html';
+        window.location.href = climberViewTargetHref;
       });
     }
 
@@ -3819,6 +3917,43 @@
       ctx.restore();
     }
 
+    function createNormalizedPointKey(x, y) {
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return null;
+      }
+
+      const clampedX = Math.min(Math.max(x, 0), 1);
+      const clampedY = Math.min(Math.max(y, 0), 1);
+      const scaledX = Math.round(clampedX * 10000);
+      const scaledY = Math.round(clampedY * 10000);
+      return `${scaledX}:${scaledY}`;
+    }
+
+    function buildNormalizedPointKeySetFromCanvasPoints(canvasPoints = []) {
+      const keys = new Set();
+      if (!Array.isArray(canvasPoints) || !canvasPoints.length || !canvas.width || !canvas.height) {
+        return keys;
+      }
+
+      const width = canvas.width;
+      const height = canvas.height;
+
+      canvasPoints.forEach((point) => {
+        if (!point) {
+          return;
+        }
+
+        const normalizedX = Number(point.x) / width;
+        const normalizedY = Number(point.y) / height;
+        const key = createNormalizedPointKey(normalizedX, normalizedY);
+        if (key) {
+          keys.add(key);
+        }
+      });
+
+      return keys;
+    }
+
     function convertNormalizedToCanvasPoints(normalizedPoints = []) {
       if (!Array.isArray(normalizedPoints) || !canvas.width || !canvas.height) {
         return [];
@@ -3844,6 +3979,9 @@
       const activeLocationKey = getCurrentLocationKey();
       const wallSettings = getWallSettingsForLocation(activeLocationKey);
       const overlayAlpha = normalizeUnfocusedTransparency(wallSettings.unfocusedTransparency);
+      const focusPointKeys = points.length
+        ? buildNormalizedPointKeySetFromCanvasPoints(points)
+        : null;
 
       routesCache.forEach((data, key) => {
         if (!data || key === currentRouteKey) {
@@ -3864,15 +4002,37 @@
         }
 
         const color = sanitizeColor(data.strokeColor);
-        drawRouteFromCanvasPoints(
-          canvasPoints,
-          color,
-          overlayAlpha,
-          data.pathType,
-          data.pointDiameter,
-          data.rectangleWidth,
-          data.rectangleHeight,
-        );
+        const routePathType = normalizePathType(data.pathType);
+        let visiblePoints = canvasPoints;
+
+        if (
+          focusPointKeys &&
+          focusPointKeys.size > 0 &&
+          (routePathType === PATH_TYPE_POINT || routePathType === PATH_TYPE_RECTANGLE)
+        ) {
+          visiblePoints = canvasPoints.filter((point) => {
+            if (!point || !canvas.width || !canvas.height) {
+              return true;
+            }
+
+            const normalizedX = Number(point.x) / canvas.width;
+            const normalizedY = Number(point.y) / canvas.height;
+            const key = createNormalizedPointKey(normalizedX, normalizedY);
+            return !key || !focusPointKeys.has(key);
+          });
+        }
+
+        if (visiblePoints.length) {
+          drawRouteFromCanvasPoints(
+            visiblePoints,
+            color,
+            overlayAlpha,
+            routePathType,
+            data.pointDiameter,
+            data.rectangleWidth,
+            data.rectangleHeight,
+          );
+        }
         queueGradeBarOverlay({
           routePoints: canvasPoints,
           color,
