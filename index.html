@@ -706,12 +706,80 @@
 
       const LOCATION_STORAGE_KEY = 'ascend.selectedLocation';
 
+      const PATH_TYPE_BREZER = 'brezer';
+      const PATH_TYPE_POINT = 'point';
+      const DEFAULT_PATH_TYPE = PATH_TYPE_BREZER;
+      const MIN_POINT_DIAMETER = 12;
+      const MAX_POINT_DIAMETER = 160;
+      const DEFAULT_POINT_DIAMETER = 48;
+      const WALL_COLLECTION = 'walls';
+
+      function normalizePathType(value) {
+        if (typeof value === 'string') {
+          const normalized = value.trim().toLowerCase();
+          if (normalized === PATH_TYPE_POINT) {
+            return PATH_TYPE_POINT;
+          }
+        }
+        return DEFAULT_PATH_TYPE;
+      }
+
+      function normalizePointDiameter(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return DEFAULT_POINT_DIAMETER;
+        }
+        const clamped = Math.min(
+          Math.max(Math.round(numeric), MIN_POINT_DIAMETER),
+          MAX_POINT_DIAMETER,
+        );
+        return clamped;
+      }
+
+      function normalizeWallSettings(raw = {}) {
+        if (!raw || typeof raw !== 'object') {
+          return {
+            pointDiameter: DEFAULT_POINT_DIAMETER,
+          };
+        }
+
+        return {
+          pointDiameter: normalizePointDiameter(raw.pointDiameter),
+        };
+      }
+
+      const wallSettingsCache = new Map();
+
       const normalizeLocationName = (value) => {
         if (typeof value !== 'string') {
           return '';
         }
         return value.trim().toLowerCase();
       };
+
+      const normalizeWallKey = (value) => normalizeLocationName(value);
+
+      function resolveWallSettings(locationKey, fallback = null) {
+        const key = normalizeWallKey(locationKey);
+        if (key) {
+          const cached = wallSettingsCache.get(key);
+          if (cached) {
+            return { ...cached };
+          }
+        }
+
+        if (fallback) {
+          const normalized = normalizeWallSettings(fallback);
+          if (key) {
+            wallSettingsCache.set(key, normalized);
+          }
+          return normalized;
+        }
+
+        return {
+          pointDiameter: DEFAULT_POINT_DIAMETER,
+        };
+      }
 
       const findLocationByKey = (key) => LOCATIONS.find((location) => location.key === key);
 
@@ -722,6 +790,65 @@
           null
         );
       };
+
+      function upsertLocation({ key = '', name = '', image = '', fallbackName = '' } = {}) {
+        const trimmedName = typeof name === 'string' && name.trim() ? name.trim() : '';
+        const fallback =
+          trimmedName || (typeof fallbackName === 'string' && fallbackName.trim() ? fallbackName.trim() : '');
+        const keySource = typeof key === 'string' && key.trim() ? key.trim() : fallback;
+        const normalizedKey = normalizeWallKey(keySource);
+        const displayName = fallback;
+        if (!normalizedKey || !displayName) {
+          return { entry: null, changed: false };
+        }
+
+        const normalizedImage = typeof image === 'string' ? image.trim() : '';
+        const existingIndex = LOCATIONS.findIndex((location) => {
+          if (!location) {
+            return false;
+          }
+          if (location.key === normalizedKey) {
+            return true;
+          }
+          return normalizeLocationName(location.name) === normalizeLocationName(displayName);
+        });
+
+        if (existingIndex >= 0) {
+          const existing = LOCATIONS[existingIndex];
+          const needsUpdate =
+            existing.key !== normalizedKey || existing.name !== displayName || existing.image !== normalizedImage;
+
+          if (!needsUpdate) {
+            return { entry: existing, changed: false };
+          }
+
+          const updated = { ...existing, key: normalizedKey, name: displayName, image: normalizedImage };
+          LOCATIONS[existingIndex] = updated;
+          return { entry: updated, changed: true };
+        }
+
+        const created = { key: normalizedKey, name: displayName, image: normalizedImage };
+        LOCATIONS.push(created);
+        return { entry: created, changed: true };
+      }
+
+      function synchronizeCurrentLocationReference() {
+        if (!currentLocation) {
+          return;
+        }
+
+        const normalizedKey = normalizeWallKey(currentLocation.key || currentLocation.name);
+        const refreshed =
+          (normalizedKey && findLocationByKey(normalizedKey)) ||
+          findLocationByName(currentLocation.name);
+
+        if (refreshed && refreshed !== currentLocation) {
+          currentLocation = refreshed;
+          updateLocationButtonLabel();
+          updateLocationOptionsState();
+          updateBackgroundForCurrentLocation();
+        }
+      }
 
       const DEFAULT_LOCATION = LOCATIONS[0];
 
@@ -2197,12 +2324,46 @@
 
       async function loadRoutes() {
         try {
-          const [routesSnapshot, medianMap] = await Promise.all([
+          const [routesSnapshot, medianMap, wallSnapshot] = await Promise.all([
             getDocs(collection(db, 'routes')),
             fetchMedianGrades(),
+            getDocs(collection(db, WALL_COLLECTION)),
           ]);
 
           routeMedianGrades = medianMap instanceof Map ? medianMap : new Map();
+
+          wallSettingsCache.clear();
+          let locationsChanged = false;
+          wallSnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const settings = normalizeWallSettings(data);
+            const normalizedId = normalizeWallKey(docSnap.id);
+            const normalizedName = normalizeWallKey(data?.name);
+
+            if (normalizedId) {
+              wallSettingsCache.set(normalizedId, settings);
+            }
+
+            if (normalizedName) {
+              wallSettingsCache.set(normalizedName, settings);
+            }
+
+            const { changed } = upsertLocation({
+              key: typeof data?.key === 'string' ? data.key : docSnap.id,
+              name: typeof data?.name === 'string' ? data.name : '',
+              image: typeof data?.background_url === 'string' ? data.background_url : '',
+              fallbackName: typeof data?.name === 'string' && data.name ? data.name : docSnap.id,
+            });
+
+            if (changed) {
+              locationsChanged = true;
+            }
+          });
+
+          if (locationsChanged) {
+            renderLocationOptions();
+            synchronizeCurrentLocationReference();
+          }
 
           allRoutes = routesSnapshot.docs
             .map((docSnap) => {
@@ -2227,6 +2388,11 @@
                 normalizeLocationName(rawLocationValue) || normalizeLocationName(DEFAULT_LOCATION?.name);
               const displayLocation = rawLocationValue || DEFAULT_LOCATION?.name || '';
 
+              const fallbackWallSettings = {
+                pointDiameter: data.pointDiameter,
+              };
+              const wallSettings = resolveWallSettings(normalizedLocation, fallbackWallSettings);
+
               return {
                 id: docSnap.id,
                 strokeColor: typeof data.strokeColor === 'string' ? data.strokeColor : '#ffde59',
@@ -2239,6 +2405,8 @@
                 location: displayLocation,
                 locationKey: normalizedLocation,
                 medianGrade,
+                pathType: normalizePathType(data.pathType),
+                pointDiameter: wallSettings.pointDiameter,
               };
             })
             .sort((a, b) => {
@@ -2537,7 +2705,7 @@
         const strokeColor = typeof route.strokeColor === 'string' ? route.strokeColor : '#ffde59';
         const points = Array.isArray(route.points) ? route.points : [];
 
-        if (points.length < 2) {
+        if (!points.length) {
           return;
         }
 
@@ -2554,6 +2722,82 @@
             };
           })
           .filter(Boolean);
+
+        if (!scaledPoints.length) {
+          return;
+        }
+
+        const pathType = normalizePathType(route.pathType);
+        const pointDiameter = normalizePointDiameter(route.pointDiameter);
+
+        function drawAnchorCircle(anchor, radius, strokeWidth) {
+          if (!anchor) {
+            return;
+          }
+
+          if (ascendedRoutes.has(route.id)) {
+            ctx.save();
+            ctx.fillStyle = strokeColor;
+            ctx.globalAlpha = 0.92;
+            ctx.beginPath();
+            ctx.arc(anchor.x, anchor.y, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = '#111';
+            ctx.lineWidth = Math.max(2, radius * 0.18);
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(anchor.x - radius * 0.45, anchor.y + radius * 0.1);
+            ctx.lineTo(anchor.x - radius * 0.15, anchor.y + radius * 0.45);
+            ctx.lineTo(anchor.x + radius * 0.5, anchor.y - radius * 0.35);
+            ctx.stroke();
+            ctx.restore();
+            return;
+          }
+
+          ctx.save();
+          ctx.lineWidth = strokeWidth;
+          ctx.strokeStyle = strokeColor;
+          ctx.beginPath();
+          ctx.arc(anchor.x, anchor.y, radius, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        if (pathType === PATH_TYPE_POINT) {
+          const circleRadius = Math.max(1, pointDiameter / 2);
+          const strokeWidth = Math.max(2, Math.round(pointDiameter / 10));
+          const path = new Path2D();
+
+          scaledPoints.forEach((point) => {
+            path.moveTo(point.x + circleRadius, point.y);
+            path.arc(point.x, point.y, circleRadius, 0, Math.PI * 2);
+          });
+
+          ctx.save();
+          ctx.lineWidth = strokeWidth;
+          ctx.strokeStyle = strokeColor;
+          ctx.lineJoin = 'round';
+          ctx.lineCap = 'round';
+          ctx.stroke(path);
+          ctx.restore();
+
+          const anchorIndex = Math.floor(scaledPoints.length / 2);
+          const anchor = scaledPoints[anchorIndex] || scaledPoints[0] || null;
+          const anchorRadius = Math.max(circleRadius, Math.max(12, canvas.width * 0.01));
+
+          routePaths.push({
+            route,
+            path,
+            lineWidth: strokeWidth,
+            anchor,
+            anchorRadius,
+          });
+
+          drawAnchorCircle(anchor, anchorRadius, strokeWidth);
+          return;
+        }
 
         if (scaledPoints.length < 2) {
           return;
@@ -2610,33 +2854,7 @@
           anchorRadius: radius,
         });
 
-        if (ascendedRoutes.has(route.id)) {
-          ctx.save();
-          ctx.fillStyle = strokeColor;
-          ctx.globalAlpha = 0.92;
-          ctx.beginPath();
-          ctx.arc(anchor.x, anchor.y, radius, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.globalAlpha = 1;
-          ctx.strokeStyle = '#111';
-          ctx.lineWidth = Math.max(2, radius * 0.18);
-          ctx.lineCap = 'round';
-          ctx.beginPath();
-          ctx.moveTo(anchor.x - radius * 0.45, anchor.y + radius * 0.1);
-          ctx.lineTo(anchor.x - radius * 0.15, anchor.y + radius * 0.45);
-          ctx.lineTo(anchor.x + radius * 0.5, anchor.y - radius * 0.35);
-          ctx.stroke();
-          ctx.restore();
-        } else {
-          ctx.save();
-          ctx.lineWidth = lineWidth;
-          ctx.strokeStyle = strokeColor;
-          ctx.beginPath();
-          ctx.arc(anchor.x, anchor.y, radius, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.restore();
-        }
+        drawAnchorCircle(anchor, radius, lineWidth);
       }
 
       function handlePointerMove(event) {

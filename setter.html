@@ -64,33 +64,67 @@
       transform: translateX(0);
     }
 
-    .panel-toggle {
-      display: inline-flex;
+    .panel-sidebar {
+      display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 0.35rem;
+      gap: 0.85rem;
       align-self: center;
       order: 1;
-      writing-mode: vertical-rl;
-      text-orientation: mixed;
-      border: none;
-      border-radius: 0.85rem 0 0 0.85rem;
+      padding: 1.5rem 0.75rem;
       background: rgba(0, 0, 0, 0.6);
-      color: #fff;
-      padding: 1.5rem 0.65rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      cursor: pointer;
-      transition: background 0.2s ease, transform 0.2s ease;
+      border-radius: 0.85rem 0 0 0.85rem;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     }
 
-    .panel-toggle:hover,
-    .panel-toggle:focus-visible {
-      background: rgba(0, 0, 0, 0.8);
+    .panel-tablist {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: center;
+      gap: 0.85rem;
+      width: 100%;
+    }
+
+    .panel-tab {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding: 1.5rem 0.65rem;
+      border-radius: 0.65rem;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease, color 0.2s ease,
+        box-shadow 0.2s ease;
+    }
+
+    .panel-tab:hover,
+    .panel-tab:focus-visible {
+      background: rgba(255, 255, 255, 0.2);
       transform: translateX(-1px);
       outline: none;
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
+    }
+
+    .panel-tab[aria-selected='true'] {
+      background: rgba(255, 255, 255, 0.85);
+      color: #111;
+      box-shadow: 0 12px 26px rgba(255, 255, 255, 0.45);
+    }
+
+    .panel-sidebar::after {
+      content: '';
+      display: block;
+      width: 100%;
+      height: 0.5rem;
     }
 
     .controls {
@@ -108,9 +142,6 @@
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
       overflow-y: auto;
       transition: box-shadow 0.25s ease, background 0.25s ease;
-    }
-
-    .controls {
       order: 2;
     }
 
@@ -134,6 +165,14 @@
       display: flex;
       flex-direction: column;
       gap: 0.6rem;
+    }
+
+    .control-section-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.75);
     }
 
     .control-field {
@@ -162,6 +201,22 @@
     .control-field textarea {
       min-height: 4.5rem;
       resize: vertical;
+    }
+
+    .tab-panels {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .tab-panel {
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .tab-panel[aria-hidden='false'] {
+      display: flex;
     }
 
     .control-row {
@@ -332,11 +387,66 @@
       margin-bottom: 0.75rem;
     }
 
+    #createWallButton {
+      background: #7ed957;
+      color: #0d2600;
+    }
+
     .location-button:hover,
     .location-button:focus-visible {
       transform: translateY(-1px);
       box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
       outline: none;
+    }
+
+    .global-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      align-items: stretch;
+      justify-content: flex-start;
+      width: 100%;
+    }
+
+    .global-action-button {
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 999px;
+      padding: 0.6rem 1.25rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      background: linear-gradient(135deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.2));
+      color: #fff;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      width: 100%;
+    }
+
+    .global-action-button:hover,
+    .global-action-button:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
+      outline: none;
+    }
+
+    #climberViewButton {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
+
+    #signOutButton {
+      background: rgba(255, 116, 116, 0.9);
+      color: #111;
+    }
+
+    #locationButton {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
     }
 
     .location-modal {
@@ -465,16 +575,6 @@
 
     #deleteButton {
       background: rgba(255, 116, 116, 0.8);
-      color: #111;
-    }
-
-    #signOutButton {
-      background: rgba(255, 255, 255, 0.25);
-      color: #fff;
-    }
-
-    #openPreviewButton {
-      background: rgba(255, 255, 255, 0.4);
       color: #111;
     }
 
@@ -651,108 +751,244 @@
     <div class="canvas-container">
       <canvas id="drawingCanvas"></canvas>
     </div>
-      <div class="control-panel" data-expanded="true">
-      <div id="controlsPanel" class="controls">
-        <div class="control-section">
-          <button id="locationButton" class="location-button" type="button" aria-haspopup="dialog" aria-expanded="false">
-            Select wall
-          </button>
-          <label class="control-field">
-            <span>Saved routes</span>
-            <select id="routeSelector">
-              <option value="">Create new route…</option>
-            </select>
-          </label>
-          <label class="control-field">
-            <span>Setter</span>
-            <input id="routeSetterInput" type="text" placeholder="setter name" autocomplete="off" />
-          </label>
-          <label class="control-field">
-            <span>Title</span>
-            <input id="routeTitleInput" type="text" placeholder="Route title" autocomplete="off" />
-          </label>
-          <label class="control-field">
-            <span>Description</span>
-            <textarea id="routeDescriptionInput" placeholder="Describe the climb"></textarea>
-          </label>
-          <label class="control-field">
-            <span>Date set</span>
-            <input id="routeDateSetInput" type="datetime-local" />
-          </label>
-        </div>
-        <div class="control-section">
-          <label class="control-field">
-            <span>Stroke colour</span>
-            <input type="color" id="colorPicker" value="#ffde59" />
-          </label>
+    <div class="control-panel" data-expanded="true">
+      <div id="panelSidebar" class="panel-sidebar">
+        <div
+          id="panelTablist"
+          class="panel-tablist"
+          role="tablist"
+          aria-orientation="vertical"
+          aria-label="Setter controls"
+        >
           <button
-            id="advancedColorToggle"
-            class="color-wheel-toggle"
+            id="routesTabButton"
+            class="panel-tab"
             type="button"
-            aria-expanded="false"
-            aria-controls="advancedColorPicker"
+            role="tab"
+            aria-selected="true"
+            aria-controls="routesTab"
+            data-target="routesTab"
           >
-            Open colour wheel
+            Routes
           </button>
-          <div
-            id="advancedColorPicker"
-            class="color-wheel hidden"
-            aria-hidden="true"
+          <button
+            id="wallsTabButton"
+            class="panel-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="wallsTab"
+            data-target="wallsTab"
           >
-            <div class="color-wheel-canvas-wrapper">
-              <canvas
-                id="colorWheelCanvas"
-                width="220"
-                height="220"
-                tabindex="0"
-                role="application"
-                aria-label="Colour wheel selector"
-                aria-describedby="colorWheelHint"
-              ></canvas>
-              <div id="colorWheelMarker" class="color-wheel-marker" aria-hidden="true"></div>
-            </div>
-            <p id="colorWheelHint" class="color-wheel-hint">
-              Drag on the wheel or use the arrow keys to adjust hue and saturation.
-            </p>
-            <div class="color-lightness-control">
-              <label for="colorLightnessSlider">Lightness</label>
-              <input id="colorLightnessSlider" type="range" min="0" max="100" value="50" />
-            </div>
-            <div class="color-wheel-preview" aria-live="polite">
-              <div id="colorWheelSwatch" class="color-wheel-swatch" aria-hidden="true"></div>
-              <code id="colorWheelValue">#FFDE59</code>
-            </div>
-          </div>
-          <button id="saveButton" type="button">Save route</button>
-          <button id="deleteButton" type="button">Delete route</button>
-          <button id="clearButton" type="button">Clear drawing</button>
-          <button id="signOutButton" type="button">Sign Out</button>
-          <button id="openPreviewButton" type="button">Open Preview</button>
-        </div>
-        <div class="control-section">
-          <label class="control-field">
-            <span>Grant setter access</span>
-            <input id="roleUsernameInput" type="text" placeholder="username" autocomplete="off" />
-          </label>
-          <button id="grantSetterButton" type="button">Grant setter role</button>
-          <p
-            id="roleStatusMessage"
-            class="status-message hidden"
-            role="status"
-            aria-live="polite"
-          ></p>
+            Walls
+          </button>
+          <button
+            id="configurationTabButton"
+            class="panel-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="configurationTab"
+            data-target="configurationTab"
+          >
+            Configuration
+          </button>
         </div>
       </div>
-      <button
-        id="controlsToggle"
-        class="panel-toggle"
-        type="button"
-        aria-expanded="true"
-        aria-controls="controlsPanel"
-      >
-        <span class="sr-only">Toggle menu</span>
-        Menu
-      </button>
+      <div id="controlsPanel" class="controls">
+        <div class="tab-panels">
+          <div
+            id="routesTab"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="routesTabButton"
+            aria-hidden="false"
+          >
+            <div class="control-section">
+              <label class="control-field">
+                <span>Saved routes</span>
+                <select id="routeSelector">
+                  <option value="">Create new route…</option>
+                </select>
+              </label>
+              <label class="control-field">
+                <span>Setter</span>
+                <input id="routeSetterInput" type="text" placeholder="setter name" autocomplete="off" />
+              </label>
+              <label class="control-field">
+                <span>Title</span>
+                <input id="routeTitleInput" type="text" placeholder="Route title" autocomplete="off" />
+              </label>
+              <label class="control-field">
+                <span>Description</span>
+                <textarea id="routeDescriptionInput" placeholder="Describe the climb"></textarea>
+              </label>
+              <label class="control-field">
+                <span>Date set</span>
+                <input id="routeDateSetInput" type="datetime-local" />
+              </label>
+            </div>
+            <div class="control-section">
+              <label class="control-field">
+                <span>Stroke colour</span>
+                <input type="color" id="colorPicker" value="#ffde59" />
+              </label>
+              <label class="control-field">
+                <span>Path</span>
+                <select id="pathTypeSelect">
+                  <option value="brezer">Brezer</option>
+                  <option value="point">Point</option>
+                </select>
+              </label>
+              <button
+                id="advancedColorToggle"
+                class="color-wheel-toggle"
+                type="button"
+                aria-expanded="false"
+                aria-controls="advancedColorPicker"
+              >
+                Open colour wheel
+              </button>
+              <div
+                id="advancedColorPicker"
+                class="color-wheel hidden"
+                aria-hidden="true"
+              >
+                <div class="color-wheel-canvas-wrapper">
+                  <canvas
+                    id="colorWheelCanvas"
+                    width="220"
+                    height="220"
+                    tabindex="0"
+                    role="application"
+                    aria-label="Colour wheel selector"
+                    aria-describedby="colorWheelHint"
+                  ></canvas>
+                  <div id="colorWheelMarker" class="color-wheel-marker" aria-hidden="true"></div>
+                </div>
+                <p id="colorWheelHint" class="color-wheel-hint">
+                  Drag on the wheel or use the arrow keys to adjust hue and saturation.
+                </p>
+                <div class="color-lightness-control">
+                  <label for="colorLightnessSlider">Lightness</label>
+                  <input id="colorLightnessSlider" type="range" min="0" max="100" value="50" />
+                </div>
+                <div class="color-wheel-preview" aria-live="polite">
+                  <div id="colorWheelSwatch" class="color-wheel-swatch" aria-hidden="true"></div>
+                  <code id="colorWheelValue">#FFDE59</code>
+                </div>
+              </div>
+              <button id="saveButton" type="button">Save route</button>
+              <button id="deleteButton" type="button">Delete route</button>
+              <button id="clearButton" type="button">Clear drawing</button>
+            </div>
+          </div>
+          <div
+            id="configurationTab"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="configurationTabButton"
+            aria-hidden="true"
+          >
+            <div class="control-section">
+              <label id="pointDiameterField" class="control-field">
+                <span>
+                  Point diameter
+                  <span id="pointDiameterValue"></span>
+                </span>
+                <input
+                  id="pointDiameterSlider"
+                  type="range"
+                  min="12"
+                  max="160"
+                  step="1"
+                  value="48"
+                />
+              </label>
+              <label id="unfocusedTransparencyField" class="control-field">
+                <span>
+                  Unfocused transparency
+                  <span id="unfocusedTransparencyValue"></span>
+                </span>
+                <input
+                  id="unfocusedTransparencySlider"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value="25"
+                />
+              </label>
+            </div>
+            <div class="control-section">
+              <label class="control-field">
+                <span>Grant setter access</span>
+                <input id="roleUsernameInput" type="text" placeholder="username" autocomplete="off" />
+              </label>
+              <button id="grantSetterButton" type="button">Grant setter role</button>
+              <p
+                id="roleStatusMessage"
+                class="status-message hidden"
+                role="status"
+                aria-live="polite"
+              ></p>
+            </div>
+            <div class="control-section">
+              <div class="global-actions">
+                <button id="climberViewButton" class="global-action-button" type="button">
+                  Climber View
+                </button>
+                <button id="signOutButton" class="global-action-button" type="button">Sign Out</button>
+              </div>
+            </div>
+          </div>
+          <div
+            id="wallsTab"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="wallsTabButton"
+            aria-hidden="true"
+          >
+            <div class="control-section">
+              <h3 class="control-section-title">Select wall</h3>
+              <div class="global-actions">
+                <button
+                  id="locationButton"
+                  class="global-action-button"
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-expanded="false"
+                >
+                  Select wall
+                </button>
+              </div>
+            </div>
+            <div class="control-section">
+              <h3 class="control-section-title">Create new wall</h3>
+              <label class="control-field">
+                <span>Wall name</span>
+                <input id="newWallNameInput" type="text" placeholder="e.g. Cave Wall" autocomplete="off" />
+              </label>
+              <label class="control-field">
+                <span>Background image URL</span>
+                <input
+                  id="newWallImageInput"
+                  type="text"
+                  placeholder="./location/cave-wall.jpg"
+                  autocomplete="off"
+                />
+              </label>
+              <button id="createWallButton" class="location-button" type="button">Create wall</button>
+              <p
+                id="createWallStatus"
+                class="status-message hidden"
+                role="status"
+                aria-live="polite"
+              ></p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -835,8 +1071,8 @@
     const deleteButton = document.getElementById('deleteButton');
     const routeStatus = document.getElementById('routeStatus');
     const controlPanel = document.querySelector('.control-panel');
-    const controlsToggle = document.getElementById('controlsToggle');
-    const openPreviewButton = document.getElementById('openPreviewButton');
+    const panelSidebar = document.getElementById('panelSidebar');
+    const climberViewButton = document.getElementById('climberViewButton');
     const roleUsernameInput = document.getElementById('roleUsernameInput');
     const grantSetterButton = document.getElementById('grantSetterButton');
     const roleStatusMessage = document.getElementById('roleStatusMessage');
@@ -844,6 +1080,19 @@
     const locationModal = document.getElementById('locationModal');
     const locationOptions = document.getElementById('locationOptions');
     const locationModalClose = document.getElementById('locationModalClose');
+    const routesTabButton = document.getElementById('routesTabButton');
+    const wallsTabButton = document.getElementById('wallsTabButton');
+    const configurationTabButton = document.getElementById('configurationTabButton');
+    const tabButtons = [routesTabButton, wallsTabButton, configurationTabButton].filter(Boolean);
+    const tabPanels = {
+      routesTab: document.getElementById('routesTab'),
+      wallsTab: document.getElementById('wallsTab'),
+      configurationTab: document.getElementById('configurationTab'),
+    };
+    const newWallNameInput = document.getElementById('newWallNameInput');
+    const newWallImageInput = document.getElementById('newWallImageInput');
+    const createWallButton = document.getElementById('createWallButton');
+    const createWallStatus = document.getElementById('createWallStatus');
 
     const LOCATIONS = [
       { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg' },
@@ -852,12 +1101,25 @@
 
     const LOCATION_STORAGE_KEY = 'ascend.setter.selectedLocation';
 
+    const PATH_TYPE_BREZER = 'brezer';
+    const PATH_TYPE_POINT = 'point';
+    const DEFAULT_PATH_TYPE = PATH_TYPE_BREZER;
+    const MIN_POINT_DIAMETER = 12;
+    const MAX_POINT_DIAMETER = 160;
+    const DEFAULT_POINT_DIAMETER = 48;
+    const MIN_UNFOCUSED_TRANSPARENCY = 0;
+    const MAX_UNFOCUSED_TRANSPARENCY = 1;
+    const DEFAULT_UNFOCUSED_TRANSPARENCY = 0.25;
+    const WALL_COLLECTION = 'walls';
+
     const normalizeLocationName = (value) => {
       if (typeof value !== 'string') {
         return '';
       }
       return value.trim().toLowerCase();
     };
+
+    const normalizeWallKey = (value) => normalizeLocationName(value);
 
     const findLocationByKey = (key) => LOCATIONS.find((location) => location.key === key);
 
@@ -868,11 +1130,75 @@
       );
     };
 
+    function upsertLocation({ key = '', name = '', image = '', fallbackName = '' } = {}) {
+      const trimmedName = typeof name === 'string' && name.trim() ? name.trim() : '';
+      const fallback =
+        trimmedName || (typeof fallbackName === 'string' && fallbackName.trim() ? fallbackName.trim() : '');
+      const keySource = typeof key === 'string' && key.trim() ? key.trim() : fallback;
+      const normalizedKey = normalizeWallKey(keySource);
+      const displayName = fallback;
+      if (!normalizedKey || !displayName) {
+        return { entry: null, changed: false };
+      }
+
+      const normalizedImage = typeof image === 'string' ? image.trim() : '';
+      const existingIndex = LOCATIONS.findIndex((location) => {
+        if (!location) {
+          return false;
+        }
+        if (location.key === normalizedKey) {
+          return true;
+        }
+        return normalizeLocationName(location.name) === normalizeLocationName(displayName);
+      });
+
+      if (existingIndex >= 0) {
+        const existing = LOCATIONS[existingIndex];
+        const needsUpdate =
+          existing.key !== normalizedKey ||
+          existing.name !== displayName ||
+          existing.image !== normalizedImage;
+
+        if (!needsUpdate) {
+          return { entry: existing, changed: false };
+        }
+
+        const updated = { ...existing, key: normalizedKey, name: displayName, image: normalizedImage };
+        LOCATIONS[existingIndex] = updated;
+        return { entry: updated, changed: true };
+      }
+
+      const created = { key: normalizedKey, name: displayName, image: normalizedImage };
+      LOCATIONS.push(created);
+      return { entry: created, changed: true };
+    }
+
+    function synchronizeCurrentLocationReference() {
+      if (!currentLocation) {
+        return;
+      }
+
+      const normalizedKey = normalizeWallKey(currentLocation.key || currentLocation.name);
+      const refreshed =
+        (normalizedKey && findLocationByKey(normalizedKey)) ||
+        findLocationByName(currentLocation.name);
+
+      if (refreshed && refreshed !== currentLocation) {
+        currentLocation = refreshed;
+        updateLocationButtonLabel();
+        updateLocationOptionsState();
+        updateBackgroundForCurrentLocation();
+      }
+    }
+
     const DEFAULT_LOCATION = LOCATIONS[0];
 
     let currentLocation = DEFAULT_LOCATION;
     let backgroundImageSource = '';
     let backgroundReady = false;
+
+    const wallSettingsCache = new Map();
+    const wallDocumentIdMap = new Map();
 
     const backgroundImage = new Image();
 
@@ -912,6 +1238,29 @@
       }
     };
 
+    function activateTab(targetId) {
+      if (!targetId) {
+        return;
+      }
+
+      tabButtons.forEach((button) => {
+        if (!button) {
+          return;
+        }
+        const isActive = button.dataset?.target === targetId;
+        button.setAttribute('aria-selected', String(isActive));
+        button.tabIndex = isActive ? 0 : -1;
+      });
+
+      Object.values(tabPanels).forEach((panel) => {
+        if (!panel) {
+          return;
+        }
+        const isActive = panel.id === targetId;
+        panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+      });
+    }
+
     const updateBackgroundForCurrentLocation = () => {
       const imagePath = currentLocation?.image || '';
       applyBodyBackground(imagePath);
@@ -949,29 +1298,75 @@
       updateLocationOptionsState();
     };
 
-    const setLocation = (location, { persist = true, refreshRoutes = true } = {}) => {
+    const setLocation = (
+      location,
+      { persist = true, refreshRoutes = true, wallFallback = null } = {},
+    ) => {
       const targetLocation = location || DEFAULT_LOCATION;
       if (!targetLocation) {
         return;
       }
 
-      const changed = !currentLocation || currentLocation.key !== targetLocation.key;
-      currentLocation = targetLocation;
+      const { entry: canonicalLocation, changed: locationEntryChanged } = upsertLocation({
+        key: typeof targetLocation?.key === 'string' ? targetLocation.key : '',
+        name: typeof targetLocation?.name === 'string' ? targetLocation.name : '',
+        image: typeof targetLocation?.image === 'string' ? targetLocation.image : '',
+        fallbackName: typeof targetLocation?.name === 'string' ? targetLocation.name : '',
+      });
+
+      if (!canonicalLocation) {
+        return;
+      }
+
+      if (locationEntryChanged) {
+        renderLocationOptions();
+      }
+
+      const previousKey = getCurrentLocationKey();
+      const nextKey = normalizeWallKey(canonicalLocation.key || canonicalLocation.name);
+      const changed = previousKey !== nextKey;
+
+      currentLocation = canonicalLocation;
       updateLocationButtonLabel();
       updateLocationOptionsState();
       updateBackgroundForCurrentLocation();
+
+      if (locationEntryChanged) {
+        synchronizeCurrentLocationReference();
+      }
+
+      applyWallSettingsToStateForLocationKey(nextKey, wallFallback);
       redraw();
 
-      if (persist) {
+      if (persist && canonicalLocation?.key) {
         try {
-          window.localStorage?.setItem(LOCATION_STORAGE_KEY, targetLocation.key);
+          window.localStorage?.setItem(LOCATION_STORAGE_KEY, canonicalLocation.key);
         } catch (error) {
           console.warn('Unable to persist setter location preference:', error);
         }
       }
 
+      if (changed) {
+        ensureWallSettings(nextKey)
+          .then(() => {
+            if (getCurrentLocationKey() !== nextKey) {
+              return;
+            }
+            const wallSettings = getWallSettingsForLocation(nextKey);
+            updateRoutesForWall(nextKey, wallSettings);
+            pointDiameter = wallSettings.pointDiameter;
+            unfocusedTransparency = wallSettings.unfocusedTransparency;
+            updatePathControls();
+            redraw();
+          })
+          .catch((error) => {
+            console.warn('Failed to load wall settings:', error);
+          });
+      }
+
       if (changed && refreshRoutes) {
-        loadRoutesList(currentRouteKey).catch((error) => {
+        prepareNewRoute();
+        loadRoutesList('').catch((error) => {
           console.error('Failed to refresh routes for the selected location:', error);
         });
       }
@@ -1038,11 +1433,11 @@
     };
 
     const updatePanelMeasurements = () => {
-      if (!controlPanel || !controlsToggle) {
+      if (!controlPanel || !panelSidebar) {
         return;
       }
 
-      const { width } = controlsToggle.getBoundingClientRect();
+      const { width } = panelSidebar.getBoundingClientRect();
       if (Number.isFinite(width) && width > 0) {
         controlPanel.style.setProperty('--toggle-visible-width', `${Math.ceil(width)}px`);
       }
@@ -1061,6 +1456,13 @@
     const canvas = document.getElementById('drawingCanvas');
     const ctx = canvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
+    const pathTypeSelect = document.getElementById('pathTypeSelect');
+    const pointDiameterField = document.getElementById('pointDiameterField');
+    const pointDiameterSlider = document.getElementById('pointDiameterSlider');
+    const pointDiameterValue = document.getElementById('pointDiameterValue');
+    const unfocusedTransparencyField = document.getElementById('unfocusedTransparencyField');
+    const unfocusedTransparencySlider = document.getElementById('unfocusedTransparencySlider');
+    const unfocusedTransparencyValue = document.getElementById('unfocusedTransparencyValue');
     const advancedColorToggle = document.getElementById('advancedColorToggle');
     const advancedColorPicker = document.getElementById('advancedColorPicker');
     const colorWheelCanvas = document.getElementById('colorWheelCanvas');
@@ -1092,6 +1494,451 @@
         .replace(/\s+/g, ' ');
     };
 
+    function normalizePathType(value) {
+      if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (normalized === PATH_TYPE_POINT) {
+          return PATH_TYPE_POINT;
+        }
+      }
+      return DEFAULT_PATH_TYPE;
+    }
+
+    function normalizePointDiameter(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return DEFAULT_POINT_DIAMETER;
+      }
+      const clamped = Math.min(Math.max(Math.round(numeric), MIN_POINT_DIAMETER), MAX_POINT_DIAMETER);
+      return clamped;
+    }
+
+    function normalizeUnfocusedTransparency(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return DEFAULT_UNFOCUSED_TRANSPARENCY;
+      }
+      const clamped = Math.min(
+        Math.max(numeric, MIN_UNFOCUSED_TRANSPARENCY),
+        MAX_UNFOCUSED_TRANSPARENCY,
+      );
+      return Math.round(clamped * 1000) / 1000;
+    }
+
+    function convertUnfocusedTransparencyToSliderValue(value) {
+      return Math.round(normalizeUnfocusedTransparency(value) * 100);
+    }
+
+    function sliderValueToUnfocusedTransparency(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return DEFAULT_UNFOCUSED_TRANSPARENCY;
+      }
+      return normalizeUnfocusedTransparency(numeric / 100);
+    }
+
+    function createDefaultWallSettings() {
+      return {
+        pointDiameter: DEFAULT_POINT_DIAMETER,
+        unfocusedTransparency: DEFAULT_UNFOCUSED_TRANSPARENCY,
+      };
+    }
+
+    function normalizeWallSettings(raw = {}) {
+      if (!raw || typeof raw !== 'object') {
+        return createDefaultWallSettings();
+      }
+
+      return {
+        pointDiameter: normalizePointDiameter(raw.pointDiameter),
+        unfocusedTransparency: normalizeUnfocusedTransparency(raw.unfocusedTransparency),
+      };
+    }
+
+    function getWallSettingsWithFallback(locationKey, fallback = null) {
+      const key = normalizeWallKey(locationKey);
+      if (key) {
+        const cached = wallSettingsCache.get(key);
+        if (cached) {
+          return { ...cached };
+        }
+      }
+
+      if (fallback) {
+        const normalized = normalizeWallSettings(fallback);
+        if (key) {
+          wallSettingsCache.set(key, normalized);
+        }
+        return normalized;
+      }
+
+      return createDefaultWallSettings();
+    }
+
+    function getWallSettingsForLocation(locationKey) {
+      return getWallSettingsWithFallback(locationKey);
+    }
+
+    function applyWallSettingsToStateForLocationKey(locationKey, fallback = null) {
+      const settings = getWallSettingsWithFallback(locationKey, fallback);
+      pointDiameter = settings.pointDiameter;
+      unfocusedTransparency = settings.unfocusedTransparency;
+      updatePathControls();
+    }
+
+    function getCurrentLocationKey() {
+      if (currentLocation?.key) {
+        return normalizeWallKey(currentLocation.key);
+      }
+      return normalizeLocationName(currentLocation?.name);
+    }
+
+    async function ensureWallSettings(locationKey) {
+      const key = normalizeWallKey(locationKey);
+      if (!key) {
+        return createDefaultWallSettings();
+      }
+
+      if (wallSettingsCache.has(key)) {
+        return { ...wallSettingsCache.get(key) };
+      }
+
+      try {
+        const docId = wallDocumentIdMap.get(key) || key;
+        const wallRef = doc(db, WALL_COLLECTION, docId);
+        const snap = await getDoc(wallRef);
+        if (snap.exists()) {
+          const data = snap.data();
+          const settings = normalizeWallSettings(data);
+          const normalizedId = normalizeWallKey(snap.id);
+          const normalizedName = normalizeWallKey(data?.name);
+
+          if (normalizedId) {
+            wallSettingsCache.set(normalizedId, settings);
+            wallDocumentIdMap.set(normalizedId, snap.id);
+          }
+
+          if (normalizedName) {
+            wallDocumentIdMap.set(normalizedName, snap.id);
+            if (!wallSettingsCache.has(normalizedName)) {
+              wallSettingsCache.set(normalizedName, settings);
+            }
+          }
+
+          if (data?.key) {
+            const normalizedLocationKey = normalizeWallKey(data.key);
+            if (normalizedLocationKey) {
+              wallDocumentIdMap.set(normalizedLocationKey, snap.id);
+              if (!wallSettingsCache.has(normalizedLocationKey)) {
+                wallSettingsCache.set(normalizedLocationKey, settings);
+              }
+            }
+          }
+
+          const { changed: locationChanged } = upsertLocation({
+            key: typeof data?.key === 'string' ? data.key : snap.id,
+            name: typeof data?.name === 'string' ? data.name : '',
+            image: typeof data?.background_url === 'string' ? data.background_url : '',
+            fallbackName: typeof data?.name === 'string' && data.name ? data.name : snap.id,
+          });
+
+          if (locationChanged) {
+            renderLocationOptions();
+            synchronizeCurrentLocationReference();
+          }
+
+          return { ...settings };
+        }
+      } catch (error) {
+        console.warn(`Failed to load wall settings for ${locationKey}:`, error);
+      }
+
+      return createDefaultWallSettings();
+    }
+
+    async function refreshWallSettingsCache() {
+      try {
+        const snapshot = await getDocs(collection(db, WALL_COLLECTION));
+        const fetchedKeys = new Set();
+        wallDocumentIdMap.clear();
+        let locationsChanged = false;
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const settings = normalizeWallSettings(data);
+          const normalizedId = normalizeWallKey(docSnap.id);
+          const normalizedName = normalizeWallKey(data?.name);
+
+          if (normalizedId) {
+            wallSettingsCache.set(normalizedId, settings);
+            wallDocumentIdMap.set(normalizedId, docSnap.id);
+            fetchedKeys.add(normalizedId);
+          }
+
+          if (normalizedName) {
+            wallDocumentIdMap.set(normalizedName, docSnap.id);
+            wallSettingsCache.set(normalizedName, settings);
+            fetchedKeys.add(normalizedName);
+          }
+
+          if (data?.key) {
+            const normalizedLocationKey = normalizeWallKey(data.key);
+            if (normalizedLocationKey) {
+              wallDocumentIdMap.set(normalizedLocationKey, docSnap.id);
+              wallSettingsCache.set(normalizedLocationKey, settings);
+              fetchedKeys.add(normalizedLocationKey);
+            }
+          }
+
+          const { changed } = upsertLocation({
+            key: typeof data?.key === 'string' ? data.key : docSnap.id,
+            name: typeof data?.name === 'string' ? data.name : '',
+            image: typeof data?.background_url === 'string' ? data.background_url : '',
+            fallbackName: typeof data?.name === 'string' && data.name ? data.name : docSnap.id,
+          });
+
+          if (changed) {
+            locationsChanged = true;
+          }
+        });
+
+        wallSettingsCache.forEach((value, key) => {
+          if (!fetchedKeys.has(key)) {
+            wallSettingsCache.delete(key);
+          }
+        });
+
+        if (locationsChanged) {
+          renderLocationOptions();
+          synchronizeCurrentLocationReference();
+        }
+      } catch (error) {
+        console.warn('Failed to refresh wall settings:', error);
+      }
+    }
+
+    function updateRoutesForWall(locationKey, settings) {
+      const normalizedKey = normalizeWallKey(locationKey);
+      if (!normalizedKey || !settings) {
+        return;
+      }
+
+      routesCache.forEach((data, routeKey) => {
+        const routeLocationKey = normalizeWallKey(
+          typeof data?.locationKey === 'string'
+            ? data.locationKey
+            : normalizeLocationName(data?.location),
+        );
+        if (routeLocationKey === normalizedKey) {
+          routesCache.set(routeKey, {
+            ...data,
+            pointDiameter: settings.pointDiameter,
+          });
+        }
+      });
+    }
+
+    function updateRoutesForAllWalls() {
+      routesCache.forEach((data, key) => {
+        const routeLocationKey = normalizeWallKey(
+          typeof data?.locationKey === 'string'
+            ? data.locationKey
+            : normalizeLocationName(data?.location),
+        );
+        const settings = getWallSettingsForLocation(routeLocationKey);
+        routesCache.set(key, {
+          ...data,
+          pointDiameter: settings.pointDiameter,
+        });
+      });
+    }
+
+    async function persistWallSettings(locationKey, updates = {}) {
+      const normalizedKey = normalizeWallKey(locationKey);
+      if (!normalizedKey) {
+        return;
+      }
+
+      const merged = normalizeWallSettings({
+        ...getWallSettingsForLocation(normalizedKey),
+        ...updates,
+      });
+
+      wallSettingsCache.set(normalizedKey, merged);
+      updateRoutesForWall(normalizedKey, merged);
+
+      if (getCurrentLocationKey() === normalizedKey) {
+        pointDiameter = merged.pointDiameter;
+        unfocusedTransparency = merged.unfocusedTransparency;
+        updatePathControls();
+        redraw();
+      } else {
+        redraw();
+      }
+
+      try {
+        const locationDetails =
+          (currentLocation && normalizeWallKey(currentLocation.name) === normalizedKey
+            ? currentLocation
+            : null) ||
+          findLocationByName(normalizedKey) ||
+          null;
+
+        const wallPayload = {
+          pointDiameter: merged.pointDiameter,
+          unfocusedTransparency: merged.unfocusedTransparency,
+          updatedAt: serverTimestamp(),
+          key: normalizedKey,
+        };
+
+        if (locationDetails) {
+          const { name, image } = locationDetails;
+          if (typeof name === 'string' && name.trim()) {
+            wallPayload.name = name.trim();
+          }
+
+          if (typeof image === 'string' && image.trim()) {
+            wallPayload.background_url = image.trim();
+          }
+        }
+
+        const docId = wallDocumentIdMap.get(normalizedKey) || normalizedKey;
+        await setDoc(doc(db, WALL_COLLECTION, docId), wallPayload, { merge: true });
+        wallDocumentIdMap.set(normalizedKey, docId);
+
+        if (typeof wallPayload.name === 'string' && wallPayload.name) {
+          const normalizedName = normalizeWallKey(wallPayload.name);
+          if (normalizedName) {
+            wallDocumentIdMap.set(normalizedName, docId);
+            if (!wallSettingsCache.has(normalizedName)) {
+              wallSettingsCache.set(normalizedName, merged);
+            }
+          }
+        }
+
+        if (locationDetails?.key) {
+          const normalizedLocationKey = normalizeWallKey(locationDetails.key);
+          if (normalizedLocationKey) {
+            wallDocumentIdMap.set(normalizedLocationKey, docId);
+            if (!wallSettingsCache.has(normalizedLocationKey)) {
+              wallSettingsCache.set(normalizedLocationKey, merged);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to save wall settings:', error);
+        setStatus('Failed to save wall settings. Please try again.', 'error');
+        throw error;
+      }
+    }
+
+    async function handleCreateWall() {
+      if (isCreatingWall) {
+        return;
+      }
+
+      clearCreateWallStatusMessage();
+
+      const rawName = newWallNameInput?.value ?? '';
+      const trimmedName = rawName.trim();
+      if (!trimmedName) {
+        setCreateWallStatusMessage('Enter a wall name.', 'error');
+        newWallNameInput?.focus();
+        return;
+      }
+
+      const rawImage = newWallImageInput?.value ?? '';
+      const trimmedImage = rawImage.trim();
+      if (!trimmedImage) {
+        setCreateWallStatusMessage('Enter a background image URL.', 'error');
+        newWallImageInput?.focus();
+        return;
+      }
+
+      const normalizedKey = normalizeWallKey(trimmedName);
+      if (!normalizedKey) {
+        setCreateWallStatusMessage('Enter a valid wall name.', 'error');
+        newWallNameInput?.focus();
+        return;
+      }
+
+      if (findLocationByKey(normalizedKey) || findLocationByName(trimmedName)) {
+        setCreateWallStatusMessage('A wall with this name already exists.', 'error');
+        return;
+      }
+
+      if (wallDocumentIdMap.has(normalizedKey)) {
+        setCreateWallStatusMessage('A wall with this key already exists.', 'error');
+        return;
+      }
+
+      isCreatingWall = true;
+      if (createWallButton) {
+        createWallButton.disabled = true;
+      }
+
+      setCreateWallStatusMessage('Creating wall…');
+
+      try {
+        const wallSettings = createDefaultWallSettings();
+        const payload = {
+          name: trimmedName,
+          background_url: trimmedImage,
+          pointDiameter: wallSettings.pointDiameter,
+          unfocusedTransparency: wallSettings.unfocusedTransparency,
+          key: normalizedKey,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+
+        const docId = normalizedKey;
+        await setDoc(doc(db, WALL_COLLECTION, docId), payload, { merge: true });
+
+        wallDocumentIdMap.set(normalizedKey, docId);
+        wallSettingsCache.set(normalizedKey, wallSettings);
+
+        const { entry: locationEntry, changed } = upsertLocation({
+          key: normalizedKey,
+          name: trimmedName,
+          image: trimmedImage,
+          fallbackName: trimmedName,
+        });
+
+        if (changed) {
+          renderLocationOptions();
+        }
+
+        synchronizeCurrentLocationReference();
+
+        if (newWallNameInput) {
+          newWallNameInput.value = '';
+        }
+        if (newWallImageInput) {
+          newWallImageInput.value = '';
+        }
+
+        const targetLocation =
+          locationEntry ||
+          findLocationByKey(normalizedKey) ||
+          { key: normalizedKey, name: trimmedName, image: trimmedImage };
+
+        setLocation(targetLocation, {
+          persist: true,
+          refreshRoutes: true,
+          wallFallback: wallSettings,
+        });
+
+        setCreateWallStatusMessage(`Created wall “${trimmedName}”.`, 'success');
+      } catch (error) {
+        console.error('Failed to create wall:', error);
+        setCreateWallStatusMessage('Failed to create wall. Please try again.', 'error');
+      } finally {
+        isCreatingWall = false;
+        if (createWallButton) {
+          createWallButton.disabled = false;
+        }
+      }
+    }
+
     const isValidUsername = (value) => USERNAME_PATTERN.test(normalizeUsername(value));
     const isValidSetterName = (value) => SETTER_NAME_PATTERN.test(normalizeSetterName(value));
 
@@ -1102,6 +1949,9 @@
 
     const points = [];
     let strokeColor = sanitizeColor(colorPicker.value || '#ffde59');
+    let pathType = DEFAULT_PATH_TYPE;
+    let pointDiameter = DEFAULT_POINT_DIAMETER;
+    let unfocusedTransparency = DEFAULT_UNFOCUSED_TRANSPARENCY;
     let wheelHue = 48;
     let wheelSaturation = 1;
     let wheelLightness = 0.5;
@@ -1113,28 +1963,65 @@
     let currentUsername = '';
     let currentUserId = null;
     let isCanvasScrollable = false;
+    let isCreatingWall = false;
 
     const routesCache = new Map();
-    if (controlsToggle && controlPanel) {
-      updatePanelMeasurements();
 
-      controlsToggle.addEventListener('click', () => {
-        const expanded = controlPanel.getAttribute('data-expanded') === 'true';
-        const next = !expanded;
-        controlPanel.setAttribute('data-expanded', String(next));
-        controlsToggle.setAttribute('aria-expanded', String(next));
-        requestAnimationFrame(updatePanelMeasurements);
-      });
+    const setPanelExpanded = (value) => {
+      if (!controlPanel) {
+        return;
+      }
+
+      const expanded = Boolean(value);
+      controlPanel.setAttribute('data-expanded', String(expanded));
+    };
+
+    if (controlPanel) {
+      const initialExpanded = controlPanel.getAttribute('data-expanded') !== 'false';
+      setPanelExpanded(initialExpanded);
+      updatePanelMeasurements();
 
       window.addEventListener('resize', updatePanelMeasurements);
 
-      if ('ResizeObserver' in window) {
+      if ('ResizeObserver' in window && panelSidebar) {
         const resizeObserver = new ResizeObserver(updatePanelMeasurements);
-        resizeObserver.observe(controlsToggle);
+        resizeObserver.observe(panelSidebar);
       }
     }
 
     renderLocationOptions();
+
+    if (tabButtons.length) {
+      tabButtons.forEach((button) => {
+        if (!button) {
+          return;
+        }
+        button.addEventListener('click', () => {
+          const targetId = button.dataset?.target;
+          const expanded = controlPanel
+            ? controlPanel.getAttribute('data-expanded') !== 'false'
+            : false;
+          const isActive = button.getAttribute('aria-selected') === 'true';
+
+          if (isActive && expanded) {
+            setPanelExpanded(false);
+            requestAnimationFrame(updatePanelMeasurements);
+            return;
+          }
+
+          if (!expanded) {
+            setPanelExpanded(true);
+            requestAnimationFrame(updatePanelMeasurements);
+          }
+
+          if (targetId) {
+            activateTab(targetId);
+          }
+        });
+      });
+    }
+
+    activateTab('routesTab');
 
     let storedLocationKey = null;
     try {
@@ -1534,8 +2421,8 @@
 
     syncAdvancedColorPicker(strokeColor);
 
-    if (openPreviewButton) {
-      openPreviewButton.addEventListener('click', () => {
+    if (climberViewButton) {
+      climberViewButton.addEventListener('click', () => {
         window.location.href = 'index.html';
       });
     }
@@ -1717,12 +2604,19 @@
       const rawLocation = typeof rest.location === 'string' ? rest.location.trim() : '';
       const locationName = rawLocation || DEFAULT_LOCATION?.name || '';
       const locationKey = normalizeLocationName(locationName);
+      const normalizedPathType = normalizePathType(rest.pathType);
+      const fallbackPointDiameter = normalizePointDiameter(rest.pointDiameter);
+      const wallSettings = getWallSettingsWithFallback(locationKey, {
+        pointDiameter: fallbackPointDiameter,
+      });
       return {
         ...rest,
         setter: normalizeSetterName(rest.setter),
         title: typeof rest.title === 'string' ? rest.title.trim() : '',
         description: typeof rest.description === 'string' ? rest.description.trim() : '',
         strokeColor: sanitizeColor(rest.strokeColor),
+        pathType: normalizedPathType,
+        pointDiameter: wallSettings.pointDiameter,
         points: Array.isArray(rest.points) ? rest.points : [],
         date_set: normalizeDateValue(rest.date_set),
         location: locationName,
@@ -1793,6 +2687,32 @@
       delete routeStatus.dataset.variant;
     }
 
+    function setCreateWallStatusMessage(message, variant = 'info') {
+      if (!createWallStatus) {
+        return;
+      }
+      if (!message) {
+        clearCreateWallStatusMessage();
+        return;
+      }
+      createWallStatus.textContent = message;
+      createWallStatus.classList.remove('hidden');
+      if (variant) {
+        createWallStatus.dataset.variant = variant;
+      } else {
+        delete createWallStatus.dataset.variant;
+      }
+    }
+
+    function clearCreateWallStatusMessage() {
+      if (!createWallStatus) {
+        return;
+      }
+      createWallStatus.textContent = '';
+      createWallStatus.classList.add('hidden');
+      delete createWallStatus.dataset.variant;
+    }
+
     function setRoleStatus(message, variant = 'info') {
       if (!roleStatusMessage) {
         return;
@@ -1828,6 +2748,27 @@
 
     function resetUnsavedState() {
       hasUnsavedChanges = false;
+    }
+
+    function updatePathControls() {
+      if (pathTypeSelect) {
+        pathTypeSelect.value = pathType;
+      }
+      if (pointDiameterSlider) {
+        pointDiameterSlider.value = String(pointDiameter);
+      }
+      if (pointDiameterValue) {
+        pointDiameterValue.textContent = `${pointDiameter}px`;
+      }
+      if (unfocusedTransparencySlider) {
+        unfocusedTransparencySlider.value = String(
+          convertUnfocusedTransparencyToSliderValue(unfocusedTransparency),
+        );
+      }
+      if (unfocusedTransparencyValue) {
+        const percentage = Math.round(normalizeUnfocusedTransparency(unfocusedTransparency) * 100);
+        unfocusedTransparencyValue.textContent = `${percentage}%`;
+      }
     }
 
     const DEFAULT_CANVAS_ASPECT_RATIO = 1536 / 1024;
@@ -1917,10 +2858,16 @@
       }
 
       drawExistingRoutesOverlay();
-      drawRouteFromCanvasPoints(points, strokeColor, 1);
+      drawRouteFromCanvasPoints(points, strokeColor, 1, pathType, pointDiameter);
     }
 
-    function drawRouteFromCanvasPoints(routePoints = [], color = '#ffde59', alpha = 1) {
+    function drawRouteFromCanvasPoints(
+      routePoints = [],
+      color = '#ffde59',
+      alpha = 1,
+      routePathType = DEFAULT_PATH_TYPE,
+      routePointDiameter = DEFAULT_POINT_DIAMETER,
+    ) {
       if (!Array.isArray(routePoints) || !routePoints.length) {
         return;
       }
@@ -1928,7 +2875,10 @@
       ctx.save();
       ctx.globalAlpha = alpha;
 
-      if (routePoints.length >= 2) {
+      const effectivePathType = normalizePathType(routePathType);
+      const effectivePointDiameter = normalizePointDiameter(routePointDiameter);
+
+      if (effectivePathType === PATH_TYPE_BREZER && routePoints.length >= 2) {
         ctx.lineWidth = 10;
         ctx.strokeStyle = color;
         ctx.lineJoin = 'round';
@@ -1953,12 +2903,24 @@
         ctx.stroke();
       }
 
-      ctx.fillStyle = color;
-      routePoints.forEach((point) => {
-        ctx.beginPath();
-        ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
-        ctx.fill();
-      });
+      if (effectivePathType === PATH_TYPE_POINT) {
+        const radius = Math.max(1, effectivePointDiameter / 2);
+        const strokeWidth = Math.max(2, Math.round(effectivePointDiameter / 10));
+        ctx.lineWidth = strokeWidth;
+        ctx.strokeStyle = color;
+        routePoints.forEach((point) => {
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+          ctx.stroke();
+        });
+      } else {
+        ctx.fillStyle = color;
+        routePoints.forEach((point) => {
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
 
       ctx.restore();
     }
@@ -1985,6 +2947,10 @@
         return;
       }
 
+      const activeLocationKey = getCurrentLocationKey();
+      const wallSettings = getWallSettingsForLocation(activeLocationKey);
+      const overlayAlpha = normalizeUnfocusedTransparency(wallSettings.unfocusedTransparency);
+
       routesCache.forEach((data, key) => {
         if (!data || key === currentRouteKey) {
           return;
@@ -1994,7 +2960,6 @@
           typeof data?.locationKey === 'string'
             ? data.locationKey
             : normalizeLocationName(data?.location);
-        const activeLocationKey = normalizeLocationName(currentLocation?.name);
         if (activeLocationKey && routeLocationKey !== activeLocationKey) {
           return;
         }
@@ -2005,7 +2970,13 @@
         }
 
         const color = sanitizeColor(data.strokeColor);
-        drawRouteFromCanvasPoints(canvasPoints, color, 0.25);
+        drawRouteFromCanvasPoints(
+          canvasPoints,
+          color,
+          overlayAlpha,
+          data.pathType,
+          data.pointDiameter,
+        );
       });
     }
 
@@ -2048,10 +3019,127 @@
       }));
     }
 
+    function getPointDetectionRadius(diameter) {
+      const normalizedDiameter = normalizePointDiameter(diameter);
+      return Math.max(6, normalizedDiameter / 2);
+    }
+
+    function findPointIndexNear(x, y, targetPoints = [], radius = 0) {
+      if (!Array.isArray(targetPoints) || !targetPoints.length || radius <= 0) {
+        return -1;
+      }
+
+      const radiusSq = radius * radius;
+      for (let index = 0; index < targetPoints.length; index += 1) {
+        const point = targetPoints[index];
+        if (!point) {
+          continue;
+        }
+
+        const dx = point.x - x;
+        const dy = point.y - y;
+        if (dx * dx + dy * dy <= radiusSq) {
+          return index;
+        }
+      }
+
+      return -1;
+    }
+
+    function findSharedPointNear(x, y) {
+      if (!routesCache.size) {
+        return null;
+      }
+
+      const activeLocationKey = getCurrentLocationKey();
+      let closestPoint = null;
+      let closestDistanceSq = Number.POSITIVE_INFINITY;
+      const activeDetectionRadius = getPointDetectionRadius(pointDiameter);
+
+      routesCache.forEach((data, routeKey) => {
+        if (!data || routeKey === currentRouteKey) {
+          return;
+        }
+
+        const routeLocationKey = normalizeWallKey(
+          typeof data?.locationKey === 'string'
+            ? data.locationKey
+            : normalizeLocationName(data?.location),
+        );
+
+        if (activeLocationKey && routeLocationKey !== activeLocationKey) {
+          return;
+        }
+
+        if (normalizePathType(data.pathType) !== PATH_TYPE_POINT) {
+          return;
+        }
+
+        const routeDiameter = normalizePointDiameter(
+          typeof data?.pointDiameter === 'number' ? data.pointDiameter : pointDiameter,
+        );
+        const detectionRadius = Math.max(activeDetectionRadius, getPointDetectionRadius(routeDiameter));
+        const detectionRadiusSq = detectionRadius * detectionRadius;
+        const routePoints = convertNormalizedToCanvasPoints(data.points);
+
+        routePoints.forEach((point) => {
+          if (!point) {
+            return;
+          }
+
+          const dx = point.x - x;
+          const dy = point.y - y;
+          const distanceSq = dx * dx + dy * dy;
+          if (distanceSq <= detectionRadiusSq && distanceSq < closestDistanceSq) {
+            closestDistanceSq = distanceSq;
+            closestPoint = { x: point.x, y: point.y };
+          }
+        });
+      });
+
+      if (!closestPoint) {
+        return null;
+      }
+
+      const existingIndex = findPointIndexNear(
+        closestPoint.x,
+        closestPoint.y,
+        points,
+        activeDetectionRadius,
+      );
+
+      if (existingIndex >= 0) {
+        return null;
+      }
+
+      return closestPoint;
+    }
+
     function addPoint(event) {
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
+      if (normalizePathType(pathType) === PATH_TYPE_POINT) {
+        const detectionRadius = getPointDetectionRadius(pointDiameter);
+        const existingIndex = findPointIndexNear(x, y, points, detectionRadius);
+        if (existingIndex >= 0) {
+          points.splice(existingIndex, 1);
+          loadedNormalizedPoints = null;
+          redraw();
+          markUnsavedChange();
+          return;
+        }
+
+        const sharedPoint = findSharedPointNear(x, y);
+        if (sharedPoint) {
+          points.push(sharedPoint);
+          loadedNormalizedPoints = null;
+          redraw();
+          markUnsavedChange();
+          return;
+        }
+      }
+
       points.push({ x, y });
       loadedNormalizedPoints = null;
       redraw();
@@ -2079,7 +3167,14 @@
       const data = normalizeRouteData(rawData);
 
       const targetLocation = findLocationByName(data.location) || DEFAULT_LOCATION;
-      setLocation(targetLocation, { persist: false, refreshRoutes: false });
+      setLocation(targetLocation, {
+        persist: false,
+        refreshRoutes: false,
+        wallFallback: { pointDiameter: data.pointDiameter },
+      });
+
+      pathType = data.pathType || DEFAULT_PATH_TYPE;
+      updatePathControls();
 
       currentRouteKey = routeKey;
       routeSelector.value = routeKey;
@@ -2111,6 +3206,11 @@
       strokeColor = '#ffde59';
       colorPicker.value = strokeColor;
       syncAdvancedColorPicker(strokeColor);
+      const wallSettings = getWallSettingsForLocation(getCurrentLocationKey());
+      pathType = DEFAULT_PATH_TYPE;
+      pointDiameter = wallSettings.pointDiameter;
+      unfocusedTransparency = wallSettings.unfocusedTransparency;
+      updatePathControls();
       loadedNormalizedPoints = null;
       points.length = 0;
       redraw();
@@ -2126,11 +3226,22 @@
     async function loadRoutesList(selectedRouteKey = '') {
       try {
         routeSelector.disabled = true;
+        const currentLocationKey = getCurrentLocationKey();
+        const previousSettings = getWallSettingsForLocation(currentLocationKey);
+        await refreshWallSettingsCache();
+        const resolvedSettings = getWallSettingsForLocation(currentLocationKey);
+        if (resolvedSettings.pointDiameter !== previousSettings.pointDiameter) {
+          pointDiameter = resolvedSettings.pointDiameter;
+          updatePathControls();
+        }
+
         const snapshot = await getDocs(collection(db, 'routes'));
         routesCache.clear();
         snapshot.forEach((docSnap) => {
           routesCache.set(docSnap.id, normalizeRouteData(docSnap.data()));
         });
+
+        updateRoutesForAllWalls();
 
         const sortedEntries = [...routesCache.entries()].sort((a, b) => {
           const labelA = (a[1]?.title || a[0]).toLowerCase();
@@ -2138,16 +3249,16 @@
           return labelA.localeCompare(labelB);
         });
 
-        const currentLocationKey = normalizeLocationName(currentLocation?.name);
+        const activeLocationKey = getCurrentLocationKey();
         const filteredEntries = sortedEntries.filter(([_, data]) => {
           const routeLocationKey =
             typeof data?.locationKey === 'string'
               ? data.locationKey
               : normalizeLocationName(data?.location);
-          if (!currentLocationKey) {
+          if (!activeLocationKey) {
             return true;
           }
-          return routeLocationKey === currentLocationKey;
+          return routeLocationKey === activeLocationKey;
         });
 
         routeSelector.innerHTML = '';
@@ -2244,11 +3355,22 @@
         return;
       }
 
+      const currentLocationKey = getCurrentLocationKey();
+      const wallSettings = getWallSettingsForLocation(currentLocationKey);
+      const normalizedPathType = normalizePathType(pathType);
+      const normalizedPointDiameter = wallSettings.pointDiameter;
+      const normalizedUnfocusedTransparency = wallSettings.unfocusedTransparency;
+      pathType = normalizedPathType;
+      pointDiameter = normalizedPointDiameter;
+      unfocusedTransparency = normalizedUnfocusedTransparency;
+      updatePathControls();
+
       const payload = {
         setter,
         title,
         description: description || null,
         strokeColor,
+        pathType: normalizedPathType,
         points: normalizedPoints,
         date_set: dateSetIso,
         date_removed: deleteField(),
@@ -2274,7 +3396,10 @@
 
         loadedNormalizedPoints = normalizedPoints;
         currentRouteKey = routeKey;
-        routesCache.set(routeKey, normalizeRouteData(payload));
+        routesCache.set(
+          routeKey,
+          normalizeRouteData({ ...payload, pointDiameter: normalizedPointDiameter }),
+        );
 
         if (isRenaming) {
           try {
@@ -2391,6 +3516,131 @@
       redraw();
       markUnsavedChange();
       syncAdvancedColorPicker(strokeColor);
+    });
+
+    if (pathTypeSelect) {
+      pathTypeSelect.addEventListener('change', (event) => {
+        const selectedType = normalizePathType(event.target.value);
+        if (pathType === selectedType) {
+          updatePathControls();
+          return;
+        }
+
+        pathType = selectedType;
+        updatePathControls();
+
+        if (currentRouteKey && routesCache.has(currentRouteKey)) {
+          const cached = routesCache.get(currentRouteKey);
+          routesCache.set(currentRouteKey, { ...cached, pathType: selectedType });
+        }
+
+        redraw();
+        markUnsavedChange();
+      });
+    }
+
+    if (pointDiameterSlider) {
+      pointDiameterSlider.addEventListener('input', (event) => {
+        const nextValue = normalizePointDiameter(event.target.value);
+        if (pointDiameter === nextValue) {
+          updatePathControls();
+          return;
+        }
+
+        pointDiameter = nextValue;
+        updatePathControls();
+
+        const locationKey = getCurrentLocationKey();
+        const normalizedKey = normalizeWallKey(locationKey);
+        if (normalizedKey) {
+          const previewSettings = normalizeWallSettings({
+            pointDiameter: nextValue,
+            unfocusedTransparency,
+          });
+          wallSettingsCache.set(normalizedKey, previewSettings);
+          updateRoutesForWall(normalizedKey, previewSettings);
+        }
+
+        redraw();
+      });
+
+      pointDiameterSlider.addEventListener('change', async (event) => {
+        const nextValue = normalizePointDiameter(event.target.value);
+        if (pointDiameter !== nextValue) {
+          pointDiameter = nextValue;
+          updatePathControls();
+        }
+
+        const locationKey = getCurrentLocationKey();
+        if (locationKey) {
+          try {
+            await persistWallSettings(locationKey, { pointDiameter: nextValue });
+          } catch (error) {
+            console.error('Failed to persist wall point diameter:', error);
+          }
+        }
+      });
+    }
+
+    if (unfocusedTransparencySlider) {
+      unfocusedTransparencySlider.addEventListener('input', (event) => {
+        const nextValue = sliderValueToUnfocusedTransparency(event.target.value);
+        if (unfocusedTransparency === nextValue) {
+          updatePathControls();
+          return;
+        }
+
+        unfocusedTransparency = nextValue;
+        updatePathControls();
+
+        const locationKey = getCurrentLocationKey();
+        const normalizedKey = normalizeWallKey(locationKey);
+        if (normalizedKey) {
+          const previewSettings = normalizeWallSettings({
+            pointDiameter,
+            unfocusedTransparency: nextValue,
+          });
+          wallSettingsCache.set(normalizedKey, previewSettings);
+          updateRoutesForWall(normalizedKey, previewSettings);
+        }
+
+        redraw();
+      });
+
+      unfocusedTransparencySlider.addEventListener('change', async (event) => {
+        const nextValue = sliderValueToUnfocusedTransparency(event.target.value);
+        if (unfocusedTransparency !== nextValue) {
+          unfocusedTransparency = nextValue;
+          updatePathControls();
+        }
+
+        const locationKey = getCurrentLocationKey();
+        if (locationKey) {
+          try {
+            await persistWallSettings(locationKey, { unfocusedTransparency: nextValue });
+          } catch (error) {
+            console.error('Failed to persist unfocused transparency:', error);
+          }
+        }
+      });
+    }
+
+    if (createWallButton) {
+      createWallButton.addEventListener('click', () => {
+        void handleCreateWall();
+      });
+    }
+
+    [newWallNameInput, newWallImageInput].forEach((input) => {
+      if (!input) {
+        return;
+      }
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          void handleCreateWall();
+        }
+      });
     });
 
     if (backgroundImage.complete) {
@@ -2753,6 +4003,20 @@
         setAuthMode('login');
       }
     });
+
+    refreshWallSettingsCache()
+      .then(() => {
+        const locationKey = getCurrentLocationKey();
+        const wallSettings = getWallSettingsForLocation(locationKey);
+        pointDiameter = wallSettings.pointDiameter;
+        unfocusedTransparency = wallSettings.unfocusedTransparency;
+        updatePathControls();
+        updateRoutesForAllWalls();
+        redraw();
+      })
+      .catch((error) => {
+        console.warn('Unable to initialise wall settings cache:', error);
+      });
 
     setAuthMode('login');
 
