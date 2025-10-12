@@ -1639,6 +1639,51 @@
       };
     }
 
+    function computeGradeBarPersistenceUpdates(source = {}, normalized = {}) {
+      const updates = {};
+
+      const normalizedBase = Number(normalized.gradeBarBaseHeight);
+      if (Number.isFinite(normalizedBase)) {
+        const persistedBaseValue = source?.gradeBarBaseHeight;
+        const persistedBase = Number(persistedBaseValue);
+        if (
+          !Number.isFinite(persistedBase) ||
+          persistedBase !== normalizedBase ||
+          typeof persistedBaseValue !== 'number'
+        ) {
+          updates.gradeBarBaseHeight = normalizedBase;
+        }
+      }
+
+      const normalizedMax = Number(normalized.gradeBarMaxHeight);
+      if (Number.isFinite(normalizedMax)) {
+        const persistedMaxValue = source?.gradeBarMaxHeight;
+        const persistedMax = Number(persistedMaxValue);
+        if (
+          !Number.isFinite(persistedMax) ||
+          persistedMax !== normalizedMax ||
+          typeof persistedMaxValue !== 'number'
+        ) {
+          updates.gradeBarMaxHeight = normalizedMax;
+        }
+      }
+
+      const normalizedWidth = Number(normalized.gradeBarWidth);
+      if (Number.isFinite(normalizedWidth)) {
+        const persistedWidthValue = source?.gradeBarWidth;
+        const persistedWidth = Number(persistedWidthValue);
+        if (
+          !Number.isFinite(persistedWidth) ||
+          persistedWidth !== normalizedWidth ||
+          typeof persistedWidthValue !== 'number'
+        ) {
+          updates.gradeBarWidth = normalizedWidth;
+        }
+      }
+
+      return updates;
+    }
+
     function createDefaultWallSettings() {
       return {
         pointDiameter: DEFAULT_POINT_DIAMETER,
@@ -1751,6 +1796,22 @@
             }
           }
 
+          const gradeBarUpdates = computeGradeBarPersistenceUpdates(data, settings);
+          if (Object.keys(gradeBarUpdates).length) {
+            try {
+              await setDoc(
+                doc(db, WALL_COLLECTION, snap.id),
+                { ...gradeBarUpdates, updatedAt: serverTimestamp() },
+                { merge: true },
+              );
+            } catch (persistError) {
+              console.warn(
+                `Failed to backfill grade bar settings for wall ${snap.id}:`,
+                persistError,
+              );
+            }
+          }
+
           const { changed: locationChanged } = upsertLocation({
             key: typeof data?.key === 'string' ? data.key : snap.id,
             name: typeof data?.name === 'string' ? data.name : '',
@@ -1778,7 +1839,9 @@
         const fetchedKeys = new Set();
         wallDocumentIdMap.clear();
         let locationsChanged = false;
-        snapshot.forEach((docSnap) => {
+        const pendingGradeBarWrites = [];
+
+        for (const docSnap of snapshot.docs) {
           const data = docSnap.data();
           const settings = normalizeWallSettings(data);
           const normalizedId = normalizeWallKey(docSnap.id);
@@ -1805,6 +1868,22 @@
             }
           }
 
+          const gradeBarUpdates = computeGradeBarPersistenceUpdates(data, settings);
+          if (Object.keys(gradeBarUpdates).length) {
+            pendingGradeBarWrites.push(
+              setDoc(
+                doc(db, WALL_COLLECTION, docSnap.id),
+                { ...gradeBarUpdates, updatedAt: serverTimestamp() },
+                { merge: true },
+              ).catch((error) => {
+                console.warn(
+                  `Failed to backfill grade bar settings for wall ${docSnap.id}:`,
+                  error,
+                );
+              }),
+            );
+          }
+
           const { changed } = upsertLocation({
             key: typeof data?.key === 'string' ? data.key : docSnap.id,
             name: typeof data?.name === 'string' ? data.name : '',
@@ -1815,7 +1894,11 @@
           if (changed) {
             locationsChanged = true;
           }
-        });
+        }
+
+        if (pendingGradeBarWrites.length) {
+          await Promise.all(pendingGradeBarWrites);
+        }
 
         wallSettingsCache.forEach((value, key) => {
           if (!fetchedKeys.has(key)) {
