@@ -120,31 +120,11 @@
       box-shadow: 0 12px 26px rgba(255, 255, 255, 0.45);
     }
 
-    .panel-collapse {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border: none;
-      background: rgba(0, 0, 0, 0.35);
-      color: #fff;
-      writing-mode: vertical-rl;
-      text-orientation: mixed;
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      padding: 1.1rem 0.45rem;
-      border-radius: 0.65rem;
-      cursor: pointer;
-      transition: background 0.2s ease, transform 0.2s ease;
+    .panel-sidebar::after {
+      content: '';
+      display: block;
       width: 100%;
-      margin-top: 0.5rem;
-    }
-
-    .panel-collapse:hover,
-    .panel-collapse:focus-visible {
-      background: rgba(0, 0, 0, 0.7);
-      transform: translateX(-1px);
-      outline: none;
+      height: 0.5rem;
     }
 
     .controls {
@@ -750,16 +730,6 @@
             Global
           </button>
         </div>
-        <button
-          id="panelCollapseButton"
-          class="panel-collapse"
-          type="button"
-          aria-expanded="true"
-          aria-controls="controlsPanel"
-          aria-label="Collapse setter controls"
-        >
-          Hide
-        </button>
       </div>
       <div id="controlsPanel" class="controls">
         <div class="tab-panels">
@@ -984,7 +954,6 @@
     const routeStatus = document.getElementById('routeStatus');
     const controlPanel = document.querySelector('.control-panel');
     const panelSidebar = document.getElementById('panelSidebar');
-    const panelCollapseButton = document.getElementById('panelCollapseButton');
     const openPreviewButton = document.getElementById('openPreviewButton');
     const roleUsernameInput = document.getElementById('roleUsernameInput');
     const grantSetterButton = document.getElementById('grantSetterButton');
@@ -1618,15 +1587,6 @@
 
       const expanded = Boolean(value);
       controlPanel.setAttribute('data-expanded', String(expanded));
-
-      if (panelCollapseButton) {
-        panelCollapseButton.setAttribute('aria-expanded', String(expanded));
-        panelCollapseButton.textContent = expanded ? 'Hide' : 'Show';
-        panelCollapseButton.setAttribute(
-          'aria-label',
-          expanded ? 'Collapse setter controls' : 'Expand setter controls'
-        );
-      }
     };
 
     if (controlPanel) {
@@ -1635,15 +1595,6 @@
       updatePanelMeasurements();
 
       window.addEventListener('resize', updatePanelMeasurements);
-
-      if (panelCollapseButton) {
-        panelCollapseButton.addEventListener('click', () => {
-          const expanded = controlPanel.getAttribute('data-expanded') === 'true';
-          const next = !expanded;
-          setPanelExpanded(next);
-          requestAnimationFrame(updatePanelMeasurements);
-        });
-      }
 
       if ('ResizeObserver' in window && panelSidebar) {
         const resizeObserver = new ResizeObserver(updatePanelMeasurements);
@@ -1660,10 +1611,22 @@
         }
         button.addEventListener('click', () => {
           const targetId = button.dataset?.target;
-          if (controlPanel && controlPanel.getAttribute('data-expanded') !== 'true') {
+          const expanded = controlPanel
+            ? controlPanel.getAttribute('data-expanded') !== 'false'
+            : false;
+          const isActive = button.getAttribute('aria-selected') === 'true';
+
+          if (isActive && expanded) {
+            setPanelExpanded(false);
+            requestAnimationFrame(updatePanelMeasurements);
+            return;
+          }
+
+          if (!expanded) {
             setPanelExpanded(true);
             requestAnimationFrame(updatePanelMeasurements);
           }
+
           if (targetId) {
             activateTab(targetId);
           }
