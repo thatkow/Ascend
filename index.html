@@ -460,6 +460,33 @@
         box-shadow: 0 10px 18px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.25);
       }
 
+      .focus-toggle {
+        margin-top: 0.35rem;
+        width: 100%;
+        border-radius: 999px;
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: transparent;
+        color: var(--tooltip-soft-foreground, #fff);
+        transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease,
+          border-color 0.15s ease, color 0.15s ease;
+      }
+
+      .focus-toggle:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 18px rgba(0, 0, 0, 0.35);
+      }
+
+      .focus-toggle[aria-pressed='true'] {
+        background: var(--tooltip-accent-soft, rgba(126, 217, 87, 0.18));
+        border-color: var(--tooltip-accent, #7ed957);
+        color: var(--tooltip-accent, #7ed957);
+        box-shadow: 0 10px 18px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.25);
+      }
+
       .grade-section {
         display: flex;
         flex-direction: column;
@@ -1725,6 +1752,7 @@
           authForm.reset();
           setAuthMode('login');
           routes = [];
+          focusedRouteId = null;
           currentUser = null;
           currentUsername = '';
           authenticatedUsernameClaim = '';
@@ -1748,6 +1776,7 @@
 
       let allRoutes = [];
       let routes = [];
+      let focusedRouteId = null;
       let gradeBarEntries = [];
       let queuedGradeBarOverlays = [];
       let activeRouteId = null;
@@ -2282,6 +2311,19 @@
           }
         }
 
+        const focusButton = document.createElement('button');
+        focusButton.type = 'button';
+        focusButton.className = 'focus-toggle';
+        const isFocused = focusedRouteId === route.id;
+        focusButton.textContent = isFocused ? 'Show all routes' : 'Focus';
+        focusButton.setAttribute('aria-pressed', isFocused ? 'true' : 'false');
+        focusButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          toggleRouteFocus(route);
+        });
+        fragment.appendChild(focusButton);
+
         tooltip.replaceChildren(fragment);
 
         if (ariaLines.length) {
@@ -2361,6 +2403,21 @@
         pinnedPosition = null;
       }
 
+      function toggleRouteFocus(route) {
+        if (!route || typeof route.id !== 'string') {
+          return;
+        }
+
+        const shouldFocus = focusedRouteId !== route.id;
+        focusedRouteId = shouldFocus ? route.id : null;
+
+        redraw();
+
+        if (tooltip && tooltip.classList.contains('visible') && activeRouteId === route.id) {
+          updateTooltipContent(route);
+        }
+      }
+
       function getGradeBarEntryAtClientPoint(clientX, clientY) {
         if (!gradeBarEntries.length) {
           return null;
@@ -2418,6 +2475,14 @@
                 : normalizeLocationName(route?.location);
             return routeLocation === targetLocation;
           });
+        }
+
+        if (focusedRouteId) {
+          const hasFocusedRoute = routes.some((route) => route.id === focusedRouteId);
+          if (!hasFocusedRoute) {
+            focusedRouteId = null;
+            hideTooltip({ force: true });
+          }
         }
 
         synchroniseAscentsWithRoutes({ shouldRedraw: false });
@@ -2534,6 +2599,7 @@
           console.error('Failed to load routes:', error);
           allRoutes = [];
           routes = [];
+          focusedRouteId = null;
           routeMedianGrades = new Map();
           redraw();
         }
@@ -2703,9 +2769,26 @@
 
         gradeBarEntries = [];
         queuedGradeBarOverlays = [];
-        const shouldPreservePinned = Boolean(pinnedRouteId && pinnedPosition);
+        let visibleRoutes = routes;
+        let isFocusActive = false;
+
+        if (focusedRouteId) {
+          const focusedRoutes = routes.filter((route) => route.id === focusedRouteId);
+          if (focusedRoutes.length) {
+            visibleRoutes = focusedRoutes;
+            isFocusActive = true;
+          } else {
+            focusedRouteId = null;
+          }
+        }
+
+        const shouldPreservePinned = Boolean(
+          pinnedRouteId &&
+            pinnedPosition &&
+            (!isFocusActive || pinnedRouteId === focusedRouteId),
+        );
         const pinnedRoute = shouldPreservePinned
-          ? routes.find((route) => route.id === pinnedRouteId)
+          ? visibleRoutes.find((route) => route.id === pinnedRouteId)
           : null;
 
         if (!shouldPreservePinned) {
@@ -2714,7 +2797,7 @@
           hideTooltip({ force: true });
         }
 
-        routes.forEach(drawRoute);
+        visibleRoutes.forEach(drawRoute);
         renderQueuedGradeBarOverlays();
 
         if (pinnedRoute && tooltip) {

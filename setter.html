@@ -944,10 +944,7 @@
                 />
               </label>
               <label id="unfocusedTransparencyField" class="control-field">
-                <span>
-                  Unfocused transparency
-                  <span id="unfocusedTransparencyValue"></span>
-                </span>
+                <span>Unfocused transparency</span>
                 <input
                   id="unfocusedTransparencySlider"
                   type="range"
@@ -1615,7 +1612,6 @@
     const rectangleHeightValue = document.getElementById('rectangleHeightValue');
     const unfocusedTransparencyField = document.getElementById('unfocusedTransparencyField');
     const unfocusedTransparencySlider = document.getElementById('unfocusedTransparencySlider');
-    const unfocusedTransparencyValue = document.getElementById('unfocusedTransparencyValue');
     const appearancePointDiameterInput = document.getElementById('appearancePointDiameterInput');
     const gradeBarBaseHeightInput = document.getElementById('gradeBarBaseHeightInput');
     const gradeBarMaxHeightInput = document.getElementById('gradeBarMaxHeightInput');
@@ -3354,10 +3350,6 @@
           convertUnfocusedTransparencyToSliderValue(unfocusedTransparency),
         );
       }
-      if (unfocusedTransparencyValue) {
-        const percentage = Math.round(normalizeUnfocusedTransparency(unfocusedTransparency) * 100);
-        unfocusedTransparencyValue.textContent = `${percentage}%`;
-      }
     }
 
     function updateAppearanceControls() {
@@ -3846,6 +3838,10 @@
 
     function drawExistingRoutesOverlay() {
       if (!routesCache.size) {
+        return;
+      }
+
+      if (currentRouteKey) {
         return;
       }
 
