@@ -430,6 +430,8 @@
         --tooltip-foreground: #fff;
         --tooltip-soft-foreground: #000;
         --tooltip-muted-foreground: #d1d5db;
+        --tooltip-surface: #0e150f;
+        --tooltip-border-color: #7ed957;
         --tooltip-grade-size: 7.5rem;
         --tooltip-grade-cutout: calc(
           var(--tooltip-grade-size) / 2 + 0.35rem + var(--tooltip-grade-stroke-width, 2px)
@@ -438,7 +440,7 @@
         pointer-events: none;
         color: var(--tooltip-foreground, #fff);
         padding: 0.75rem 1rem;
-        padding-right: calc(1rem + var(--tooltip-grade-size, 7.5rem) * 0.5);
+        padding-right: calc(1rem + var(--tooltip-grade-size, 7.5rem) * 0.7);
         border-radius: 0.75rem;
         font-size: 0.85rem;
         line-height: 1.4;
@@ -466,8 +468,8 @@
       }
 
       .route-tooltip::before {
-        background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.72);
-        box-shadow: 0 12px 30px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.25);
+        background: var(--tooltip-surface, #0e150f);
+        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
         -webkit-mask-image: radial-gradient(
           circle at top right,
           transparent calc(var(--tooltip-grade-cutout) - 1px),
@@ -487,7 +489,7 @@
       }
 
       .route-tooltip::after {
-        border: 1px solid rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.45);
+        border: 1px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
         -webkit-mask-image: radial-gradient(
           circle at top right,
           transparent calc(var(--tooltip-grade-cutout) - 1px),
@@ -532,11 +534,20 @@
         display: block;
       }
 
-      .route-tooltip .tooltip-grade-badge {
+      .route-tooltip .tooltip-grade-cluster {
         position: absolute;
         top: 0;
         right: 0;
         transform: translate(50%, -50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.55rem;
+        min-width: var(--tooltip-grade-size, 7.5rem);
+        z-index: 1;
+      }
+
+      .route-tooltip .tooltip-grade-badge {
         width: var(--tooltip-grade-size, 7.5rem);
         height: var(--tooltip-grade-size, 7.5rem);
         border-radius: 50%;
@@ -552,6 +563,83 @@
         pointer-events: none;
         isolation: isolate;
         overflow: hidden;
+      }
+
+      .route-tooltip .tooltip-action-group {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        width: calc(var(--tooltip-grade-size, 7.5rem) * 0.94);
+        margin-top: calc(var(--tooltip-grade-size, 7.5rem) * -0.15);
+        padding: calc(0.85rem + var(--tooltip-grade-size, 7.5rem) * 0.05) 0.9rem 0.85rem;
+        background: var(--tooltip-surface, #0e150f);
+        border: 1px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
+        border-radius: calc(var(--tooltip-grade-size, 7.5rem) * 0.48);
+        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
+        pointer-events: auto;
+      }
+
+      .route-tooltip .tooltip-action-group::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translate(-50%, -55%);
+        width: calc(var(--tooltip-grade-size, 7.5rem) * 0.98);
+        height: calc(var(--tooltip-grade-size, 7.5rem) * 0.2);
+        background: var(--tooltip-surface, #0e150f);
+        pointer-events: none;
+      }
+
+      .route-tooltip .tooltip-action-button {
+        width: 100%;
+        border-radius: 999px;
+        padding: 0.6rem 0.9rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        border: 2px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
+        background: var(--tooltip-accent, #7ed957);
+        color: var(--tooltip-on-accent, #000);
+        text-align: center;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease,
+          color 0.15s ease, border-color 0.15s ease;
+      }
+
+      .route-tooltip .tooltip-action-button:hover,
+      .route-tooltip .tooltip-action-button:focus-visible {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+        outline: none;
+      }
+
+      .route-tooltip .tooltip-action-button.is-quiet {
+        background: var(--tooltip-surface, #0e150f);
+        color: var(--tooltip-foreground, #fff);
+      }
+
+      .route-tooltip .tooltip-action-button.is-quiet:hover,
+      .route-tooltip .tooltip-action-button.is-quiet:focus-visible {
+        border-color: var(--tooltip-accent, #7ed957);
+      }
+
+      .route-tooltip .tooltip-action-button[aria-pressed='true'] {
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+      }
+
+      .route-tooltip .ascend-toggle[aria-pressed='true'] {
+        background: var(--tooltip-on-accent, #000);
+        color: var(--tooltip-accent, #7ed957);
+      }
+
+      .route-tooltip .focus-toggle {
+        text-align: center;
+      }
+
+      .route-tooltip .focus-toggle[aria-pressed='true'] {
+        background: var(--tooltip-accent, #7ed957);
+        color: var(--tooltip-on-accent, #000);
       }
 
       .route-tooltip .tooltip-grade-value {
@@ -581,59 +669,6 @@
         mix-blend-mode: destination-out;
         color: var(--tooltip-on-accent, #000);
         pointer-events: none;
-      }
-
-      .ascend-toggle {
-        margin-top: 0.75rem;
-        width: 100%;
-        border: 2px solid var(--tooltip-accent, #7ed957);
-        border-radius: 999px;
-        padding: 0.6rem 1rem;
-        font-size: 0.85rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease,
-          color 0.15s ease;
-        background: var(--tooltip-accent, #7ed957);
-        color: var(--tooltip-on-accent, #000);
-      }
-
-      .ascend-toggle:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 10px 18px rgba(0, 0, 0, 0.35);
-      }
-
-      .ascend-toggle.ascended {
-        background: var(--tooltip-on-accent, #000);
-        color: var(--tooltip-accent, #7ed957);
-        box-shadow: 0 10px 18px rgba(0, 0, 0, 0.35);
-      }
-
-      .focus-toggle {
-        margin-top: 0.35rem;
-        width: 100%;
-        border-radius: 999px;
-        padding: 0.5rem 1rem;
-        font-size: 0.8rem;
-        font-weight: 600;
-        cursor: pointer;
-        border: 2px solid var(--tooltip-accent, #7ed957);
-        background: #fff;
-        color: var(--tooltip-accent, #7ed957);
-        transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease,
-          border-color 0.15s ease, color 0.15s ease;
-      }
-
-      .focus-toggle:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 10px 18px rgba(0, 0, 0, 0.35);
-      }
-
-      .focus-toggle[aria-pressed='true'] {
-        background: var(--tooltip-accent, #7ed957);
-        border-color: var(--tooltip-accent, #7ed957);
-        color: var(--tooltip-on-accent, #000);
-        box-shadow: 0 10px 18px rgba(0, 0, 0, 0.35);
       }
 
       .grade-section {
@@ -675,28 +710,6 @@
         color: var(--tooltip-foreground, #fff);
       }
 
-      .ascend-status {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        font-weight: 600;
-        color: var(--tooltip-foreground, #fff);
-      }
-
-      .ascend-status::before {
-        content: '✔';
-        font-size: 0.9rem;
-        color: inherit;
-      }
-
-      .ascend-status.not-ascended {
-        color: var(--tooltip-muted-foreground, #d1d5db);
-      }
-
-      .ascend-status.not-ascended::before {
-        content: '○';
-        font-size: 0.9rem;
-      }
     </style>
   </head>
   <body>
@@ -807,7 +820,6 @@
         doc,
         getDoc,
         setDoc,
-        deleteDoc,
         serverTimestamp,
         collection,
         getDocs,
@@ -1513,10 +1525,13 @@
         const accent = parsed.hex ? parsed.hex : `rgb(${rgbString})`;
         const soft = `rgba(${rgbString}, 0.18)`;
         const strong = `rgba(${rgbString}, 0.85)`;
-        const tooltipBackground = `rgba(${rgbString}, 0.72)`;
+        const surfaceFactor = 0.22;
+        const surfaceOffset = 18;
+        const mixChannel = (channel) => clamp(Math.round(channel * surfaceFactor + surfaceOffset));
+        const surface = `rgb(${mixChannel(r)}, ${mixChannel(g)}, ${mixChannel(b)})`;
         const onAccent = getTextColor(strong);
-        const foreground = getTextColor(tooltipBackground);
-        const softForeground = getTextColor(soft);
+        const foreground = getTextColor(surface);
+        const softForeground = foreground;
         const mutedForeground = foreground === '#000' ? '#333333' : '#d1d5db';
 
         return {
@@ -1528,6 +1543,8 @@
           foreground,
           softForeground,
           mutedForeground,
+          surface,
+          border: accent,
         };
       }
 
@@ -1535,8 +1552,8 @@
         const defaultRgb = '126, 217, 87';
         const soft = 'rgba(126, 217, 87, 0.18)';
         const strong = 'rgba(126, 217, 87, 0.85)';
-        const tooltipBackground = 'rgba(126, 217, 87, 0.72)';
-        const foreground = getTextColor(tooltipBackground);
+        const surface = 'rgb(43, 71, 47)';
+        const foreground = getTextColor(surface);
 
         return {
           accent: '#7ed957',
@@ -1545,8 +1562,10 @@
           strong,
           onAccent: getTextColor(strong),
           foreground,
-          softForeground: getTextColor(soft),
+          softForeground: foreground,
           mutedForeground: foreground === '#000' ? '#333333' : '#d1d5db',
+          surface,
+          border: '#7ed957',
         };
       })();
 
@@ -1569,6 +1588,8 @@
         const foreground = scheme.foreground ?? base.foreground;
         const softForeground = scheme.softForeground ?? base.softForeground;
         const mutedForeground = scheme.mutedForeground ?? base.mutedForeground;
+        const surface = scheme.surface ?? base.surface;
+        const border = scheme.border ?? base.border ?? accent;
 
         tooltip.style.setProperty('--tooltip-accent', accent);
         tooltip.style.setProperty('--tooltip-accent-rgb', rgb);
@@ -1578,6 +1599,8 @@
         tooltip.style.setProperty('--tooltip-foreground', foreground);
         tooltip.style.setProperty('--tooltip-soft-foreground', softForeground);
         tooltip.style.setProperty('--tooltip-muted-foreground', mutedForeground);
+        tooltip.style.setProperty('--tooltip-surface', surface);
+        tooltip.style.setProperty('--tooltip-border-color', border);
       }
 
       function closeInfoPopover() {
@@ -2290,6 +2313,48 @@
 
         gradeForm.appendChild(gradeLabel);
 
+        let isSubmittingGrade = false;
+        let lastSubmittedValue = gradeInput.value.trim();
+
+        const commitGradeFromInput = async () => {
+          if (isSubmittingGrade) {
+            return;
+          }
+
+          const rawValue = gradeInput.value.trim();
+          if (rawValue === lastSubmittedValue) {
+            return;
+          }
+
+          isSubmittingGrade = true;
+
+          try {
+            if (!rawValue) {
+              gradeInput.setCustomValidity('');
+              await applyUserRouteGrade(route, null);
+              lastSubmittedValue = '';
+              gradeInput.value = '';
+              return;
+            }
+
+            const parsed = normalizeGradeValue(rawValue);
+            if (parsed === null) {
+              gradeInput.setCustomValidity(
+                `Enter a whole number between ${MIN_GRADE_VALUE} and ${MAX_GRADE_VALUE}.`,
+              );
+              gradeInput.reportValidity();
+              return;
+            }
+
+            gradeInput.setCustomValidity('');
+            await applyUserRouteGrade(route, parsed);
+            lastSubmittedValue = String(parsed);
+            gradeInput.value = String(parsed);
+          } finally {
+            isSubmittingGrade = false;
+          }
+        };
+
         gradeInput.addEventListener('input', () => {
           gradeInput.setCustomValidity('');
         });
@@ -2301,29 +2366,14 @@
           }
         });
 
+        gradeInput.addEventListener('blur', () => {
+          void commitGradeFromInput();
+        });
+
         gradeForm.addEventListener('submit', async (event) => {
           event.preventDefault();
           event.stopPropagation();
-
-          const rawValue = gradeInput.value.trim();
-          if (!rawValue) {
-            gradeInput.setCustomValidity('');
-            await applyUserRouteGrade(route, null);
-            gradeInput.value = '';
-            return;
-          }
-
-          const parsed = normalizeGradeValue(rawValue);
-          if (parsed === null) {
-            gradeInput.setCustomValidity(
-              `Enter a whole number between ${MIN_GRADE_VALUE} and ${MAX_GRADE_VALUE}.`,
-            );
-            gradeInput.reportValidity();
-            return;
-          }
-
-          gradeInput.setCustomValidity('');
-          await applyUserRouteGrade(route, parsed);
+          await commitGradeFromInput();
         });
 
         container.appendChild(gradeForm);
@@ -2504,14 +2554,60 @@
         gradeValue.className = 'tooltip-grade-value';
         gradeValue.textContent = gradeDisplay;
         gradeBadge.appendChild(gradeValue);
-        if (route && ascendedRoutes.has(route.id)) {
+        const isAscended = Boolean(route && ascendedRoutes.has(route.id));
+        if (isAscended) {
           gradeBadge.classList.add('ascended');
         }
         const gradeStrokeWidth = Math.max(2, Math.round(calculateRouteStrokeWidth(route)) || 2);
         gradeBadge.style.setProperty('--tooltip-grade-stroke-width', `${gradeStrokeWidth}px`);
         tooltip.style.setProperty('--tooltip-grade-stroke-width', `${gradeStrokeWidth}px`);
-        fragment.appendChild(gradeBadge);
+        const gradeCluster = document.createElement('div');
+        gradeCluster.className = 'tooltip-grade-cluster';
+        gradeCluster.appendChild(gradeBadge);
+
+        const actionGroup = document.createElement('div');
+        actionGroup.className = 'tooltip-action-group';
+        let hasActions = false;
+
+        if (currentUser) {
+          const actionButton = document.createElement('button');
+          actionButton.type = 'button';
+          actionButton.className = 'tooltip-action-button ascend-toggle';
+          actionButton.setAttribute('aria-pressed', isAscended ? 'true' : 'false');
+          actionButton.textContent = isAscended ? 'Ascended' : 'Not ascended';
+          actionButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleRouteAscent(route);
+          });
+          actionGroup.appendChild(actionButton);
+          hasActions = true;
+        }
+
+        const focusButton = document.createElement('button');
+        focusButton.type = 'button';
+        focusButton.className = 'tooltip-action-button focus-toggle';
+        const isFocused = focusedRouteId === route.id;
+        if (!isFocused) {
+          focusButton.classList.add('is-quiet');
+        }
+        focusButton.textContent = isFocused ? 'Show all routes' : 'Focus';
+        focusButton.setAttribute('aria-pressed', isFocused ? 'true' : 'false');
+        focusButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          toggleRouteFocus(route);
+        });
+        actionGroup.appendChild(focusButton);
+        hasActions = true;
+
+        if (hasActions) {
+          gradeCluster.appendChild(actionGroup);
+        }
+
+        fragment.appendChild(gradeCluster);
         ariaLines.push(`Grade: ${gradeDisplay}`);
+        ariaLines.push(isAscended ? 'Ascended' : 'Not ascended');
 
         const infoContainer = document.createElement('div');
         infoContainer.className = 'tooltip-lines';
@@ -2537,47 +2633,12 @@
 
         appendInfoLine(`Date set: ${formatDisplayDate(route.date_set)}`);
 
-        if (route && ascendedRoutes.has(route.id)) {
-          appendInfoLine('Ascended', 'ascend-status');
-        } else {
-          appendInfoLine('Not ascended', 'ascend-status not-ascended');
-        }
-
         if (currentUser) {
-          const userGrade = getUserGradeForRoute(route.id);
-          appendInfoLine(`Your grade: ${formatGradeDisplay(userGrade)}`);
-        }
-
-        if (currentUser) {
-          const actionButton = document.createElement('button');
-          actionButton.type = 'button';
-          actionButton.className = `ascend-toggle${ascendedRoutes.has(route.id) ? ' ascended' : ''}`;
-          actionButton.textContent = ascendedRoutes.has(route.id) ? 'Unmark as ascended' : 'Mark as ascended';
-          actionButton.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            toggleRouteAscent(route);
-          });
-          fragment.appendChild(actionButton);
-
           const gradeControls = buildGradeControls(route);
           if (gradeControls) {
             fragment.appendChild(gradeControls);
           }
         }
-
-        const focusButton = document.createElement('button');
-        focusButton.type = 'button';
-        focusButton.className = 'focus-toggle';
-        const isFocused = focusedRouteId === route.id;
-        focusButton.textContent = isFocused ? 'Show all routes' : 'Focus';
-        focusButton.setAttribute('aria-pressed', isFocused ? 'true' : 'false');
-        focusButton.addEventListener('click', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          toggleRouteFocus(route);
-        });
-        fragment.appendChild(focusButton);
 
         tooltip.replaceChildren(fragment);
 
@@ -2907,46 +2968,18 @@
         }
         const ascentRef = doc(db, 'ascents', userId);
         const isAscended = ascendedRoutes.has(routeId);
-        let shouldRefreshMedians = false;
+        const previousEntry = userAscentDetails.get(routeId) || {};
+        const persistedGrade =
+          typeof previousEntry.grade === 'number' && Number.isFinite(previousEntry.grade)
+            ? previousEntry.grade
+            : getUserGradeForRoute(routeId);
+        const normalizedGrade =
+          typeof persistedGrade === 'number' && Number.isFinite(persistedGrade)
+            ? persistedGrade
+            : null;
 
         try {
           if (isAscended) {
-            const previousEntry = userAscentDetails.get(routeId);
-            let remainingRoutes = {};
-
-            try {
-              const ascentSnap = await getDoc(ascentRef);
-              if (ascentSnap.exists()) {
-                const ascentData = ascentSnap.data() ?? {};
-                const currentRoutes =
-                  ascentData.routes && typeof ascentData.routes === 'object' ? { ...ascentData.routes } : {};
-                delete currentRoutes[routeId];
-                remainingRoutes = currentRoutes;
-              }
-            } catch (loadError) {
-              console.warn('Unable to load existing ascents before removal:', loadError);
-            }
-
-            if (Object.keys(remainingRoutes).length === 0) {
-              await deleteDoc(ascentRef);
-            } else {
-              await setDoc(ascentRef, {
-                climber_uid: userId,
-                climber_username: username,
-                updatedAt: serverTimestamp(),
-                routes: remainingRoutes,
-              });
-            }
-            userAscentDetails.delete(routeId);
-            if (previousEntry && typeof previousEntry.grade === 'number') {
-              shouldRefreshMedians = true;
-            }
-          } else {
-            const existingGrade = routeGrades.get(routeId);
-            const gradeValue = typeof existingGrade === 'number' && Number.isFinite(existingGrade)
-              ? existingGrade
-              : null;
-
             await setDoc(
               ascentRef,
               {
@@ -2956,28 +2989,52 @@
                 routes: {
                   [routeId]: {
                     route_id: routeId,
-                    date_ascended: new Date().toISOString(),
                     climber_uid: userId,
                     climber_username: username,
-                    grade: gradeValue,
+                    grade: normalizedGrade,
+                    ascended: false,
+                    date_ascended: null,
+                  },
                 },
               },
-            },
-            { merge: true },
+              { merge: true },
+            );
+
+            userAscentDetails.set(routeId, {
+              ascended: false,
+              grade: normalizedGrade,
+            });
+          } else {
+            const now = new Date().toISOString();
+            await setDoc(
+              ascentRef,
+              {
+                climber_uid: userId,
+                climber_username: username,
+                updatedAt: serverTimestamp(),
+                routes: {
+                  [routeId]: {
+                    route_id: routeId,
+                    date_ascended: now,
+                    climber_uid: userId,
+                    climber_username: username,
+                    grade: normalizedGrade,
+                    ascended: true,
+                  },
+                },
+              },
+              { merge: true },
             );
             userAscentDetails.set(routeId, {
               ascended: true,
-              grade: gradeValue,
+              grade: normalizedGrade,
+              dateAscended: now,
             });
           }
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
-          if (shouldRefreshMedians) {
-            await refreshMedianGrades();
-          } else {
-            redraw();
-          }
+          redraw();
         } catch (error) {
           console.error('Failed to update ascent:', error);
         }
