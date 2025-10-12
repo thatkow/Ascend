@@ -1704,13 +1704,16 @@
           }
 
           const ascent = userAscentDetails.get(route.id);
-          if (!ascent || !ascent.ascended) {
+          if (!ascent) {
             return;
           }
 
-          ascendedRoutes.add(route.id);
           if (typeof ascent.grade === 'number' && Number.isFinite(ascent.grade)) {
             routeGrades.set(route.id, ascent.grade);
+          }
+
+          if (ascent.ascended) {
+            ascendedRoutes.add(route.id);
           }
         });
 
@@ -1791,10 +1794,19 @@
               }
 
               const gradeValue = normalizeGradeValue(details?.grade);
-              userAscentDetails.set(routeId, {
-                ascended: true,
+              const normalizedDate = normalizeDate(details?.date_ascended);
+              const ascended = details?.ascended === true || Boolean(normalizedDate);
+
+              const entry = {
+                ascended,
                 grade: gradeValue,
-              });
+              };
+
+              if (normalizedDate) {
+                entry.dateAscended = normalizedDate;
+              }
+
+              userAscentDetails.set(routeId, entry);
             });
 
             synchroniseAscentsWithRoutes();
@@ -1943,20 +1955,9 @@
         actions.appendChild(clearButton);
         gradeForm.appendChild(actions);
 
-        const isAscended = ascendedRoutes.has(route.id);
-        if (!isAscended) {
-          gradeInput.disabled = true;
-          saveButton.disabled = true;
-          clearButton.disabled = true;
-        }
-
         gradeForm.addEventListener('submit', async (event) => {
           event.preventDefault();
           event.stopPropagation();
-
-          if (!ascendedRoutes.has(route.id)) {
-            return;
-          }
 
           const rawValue = gradeInput.value.trim();
           if (!rawValue) {
@@ -1981,23 +1982,12 @@
           event.preventDefault();
           event.stopPropagation();
 
-          if (!ascendedRoutes.has(route.id)) {
-            return;
-          }
-
           gradeInput.value = '';
           gradeInput.setCustomValidity('');
           await applyUserRouteGrade(route, null);
         });
 
         container.appendChild(gradeForm);
-
-        if (!isAscended) {
-          const note = document.createElement('p');
-          note.className = 'grade-note';
-          note.textContent = 'Mark this route as ascended to record a grade.';
-          container.appendChild(note);
-        }
 
         return container;
       }
@@ -2009,11 +1999,6 @@
 
         if (!currentUser) {
           console.warn('Unable to save grade: no authenticated user.');
-          return;
-        }
-
-        if (!ascendedRoutes.has(route.id)) {
-          console.warn('Unable to save grade: route not marked as ascended.');
           return;
         }
 
@@ -2056,13 +2041,21 @@
             { merge: true },
           );
 
+          const existingEntry = userAscentDetails.get(route.id);
+          const isAscended = existingEntry?.ascended === true;
+
           if (sanitizedGrade === null) {
             routeGrades.delete(route.id);
-            const existingEntry = userAscentDetails.get(route.id) || {};
-            userAscentDetails.set(route.id, { ...existingEntry, ascended: true, grade: null });
+
+            if (existingEntry) {
+              userAscentDetails.set(route.id, { ...existingEntry, ascended: isAscended, grade: null });
+            } else {
+              userAscentDetails.delete(route.id);
+            }
           } else {
             routeGrades.set(route.id, sanitizedGrade);
-            userAscentDetails.set(route.id, { ascended: true, grade: sanitizedGrade });
+            const nextEntry = { ...(existingEntry || {}), ascended: isAscended, grade: sanitizedGrade };
+            userAscentDetails.set(route.id, nextEntry);
           }
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
