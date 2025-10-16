@@ -119,15 +119,31 @@
     }
 
     .panel-icon-button.info-button {
-      background: #7ed957;
-      color: #0c1905;
-      border: 2px solid rgba(126, 217, 87, 0.6);
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      background: linear-gradient(135deg, rgba(36, 36, 36, 0.9), rgba(92, 92, 92, 0.45));
+      color: #f8fafc;
+      transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease,
+        border-color 0.2s ease, color 0.2s ease;
     }
 
     .panel-icon-button.info-button:hover,
     .panel-icon-button.info-button:focus-visible {
+      border-color: rgba(255, 255, 255, 0.55);
+      background: linear-gradient(135deg, rgba(60, 60, 60, 0.95), rgba(120, 120, 120, 0.45));
+    }
+
+    .panel-icon-button.info-button.is-active {
+      border-color: rgba(126, 217, 87, 0.6);
+      background: #7ed957;
+      color: #0c1905;
+      box-shadow: 0 8px 22px rgba(126, 217, 87, 0.35);
+    }
+
+    .panel-icon-button.info-button.is-active:hover,
+    .panel-icon-button.info-button.is-active:focus-visible {
       border-color: rgba(126, 217, 87, 0.9);
       background: #8ae064;
+      color: #0c1905;
     }
 
     .panel-icon-button.drawing-toggle[aria-pressed='true'] {
@@ -170,34 +186,6 @@
     }
 
     .info-popover p {
-      color: rgba(255, 255, 255, 0.85);
-    }
-
-    .info-popover .grade-bar-demo {
-      display: flex;
-      align-items: flex-end;
-      gap: 0.55rem;
-      margin-top: 0.2rem;
-    }
-
-    .info-popover .grade-bar-demo-bar {
-      position: relative;
-      --grade-value: 10;
-      width: 0.65rem;
-      height: calc(0.8rem + var(--grade-value) * 0.08rem);
-      border-radius: 0.35rem 0.35rem 0 0;
-      background: linear-gradient(180deg, rgba(126, 217, 87, 0.9), rgba(126, 217, 87, 0.35));
-      border: 1px solid rgba(126, 217, 87, 0.9);
-    }
-
-    .info-popover .grade-bar-demo-bar::after {
-      content: attr(data-grade);
-      position: absolute;
-      top: calc(100% + 0.25rem);
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 0.65rem;
-      font-weight: 600;
       color: rgba(255, 255, 255, 0.85);
     }
 
@@ -998,19 +986,19 @@
               id="infoButton"
               class="panel-icon-button info-button"
               type="button"
-              aria-label="Show tooltips"
+              aria-label="Learn about setter tools"
               aria-haspopup="dialog"
               aria-pressed="false"
               aria-expanded="false"
               aria-controls="infoPopover"
-              title="Show tooltips"
+              title="Learn about setter tools"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
                 <rect x="11" y="10" width="2" height="7" rx="1" />
                 <circle cx="12" cy="7" r="1.5" />
               </svg>
-              <span class="sr-only">Show tooltips</span>
+              <span class="sr-only">Learn about setter tools</span>
             </button>
             <div
               id="infoPopover"
@@ -1019,18 +1007,10 @@
               aria-modal="false"
               aria-hidden="true"
               aria-label="About Ascend"
+              tabindex="-1"
             >
-              <p>Help mode highlights every control in the active tab with quick guidance.</p>
-              <p>Track which climbs you have completed.</p>
-              <p>
-                Grade bars grow taller for harder climbs. Here's how grades compare:
-              </p>
-              <div class="grade-bar-demo" aria-hidden="true">
-                <div class="grade-bar-demo-bar" data-grade="7" style="--grade-value: 7"></div>
-                <div class="grade-bar-demo-bar" data-grade="13" style="--grade-value: 13"></div>
-                <div class="grade-bar-demo-bar" data-grade="25" style="--grade-value: 25"></div>
-              </div>
-              <p class="sr-only">Example grade bars: grade 7 is shortest, grade 13 is taller, and grade 25 is tallest.</p>
+              <p>Select any setter control to learn what it does.</p>
+              <p>The next control you activate will show its tooltip and close this message.</p>
             </div>
           </div>
           <button
@@ -2097,71 +2077,145 @@
     }
 
     function updateHelpTooltips() {
+      if (!activeHelpEntry) {
+        return;
+      }
+
+      const { element } = activeHelpEntry;
+      if (!element || !element.isConnected) {
+        clearActiveHelpTooltip();
+        return;
+      }
+
+      if (!helpTargets.has(element)) {
+        registerHelpTargets(element);
+      }
+
+      const tooltip = helpTargets.get(element);
+      if (!tooltip) {
+        clearActiveHelpTooltip();
+        return;
+      }
+
+      activeHelpEntry.tooltip = tooltip;
+
       const activePanel = document.querySelector('.tab-panel[aria-hidden="false"]');
       const panelCollapsed = controlPanel?.getAttribute('data-expanded') === 'false';
-      helpTargets.forEach((tooltip, element) => {
-        const inActivePanel = activePanel ? activePanel.contains(element) : true;
-        const modalAncestor = element.closest('.location-modal');
-        const inVisibleModal = Boolean(
-          modalAncestor && !modalAncestor.classList.contains('hidden'),
-        );
-        const insideControlPanel = controlPanel ? controlPanel.contains(element) : false;
-        const visible = isElementVisible(element);
-        const shouldShow =
-          isHelpModeActive &&
-          visible &&
-          (!panelCollapsed || !insideControlPanel) &&
-          (inActivePanel || inVisibleModal || (!activePanel && visible));
-        element.classList.toggle('showing-help', shouldShow);
-        tooltip.hidden = !shouldShow;
-      });
+      const modalAncestor = element.closest('.location-modal');
+      const inVisibleModal = Boolean(
+        modalAncestor && !modalAncestor.classList.contains('hidden'),
+      );
+      const insideControlPanel = controlPanel ? controlPanel.contains(element) : false;
+      const inActivePanel = activePanel ? activePanel.contains(element) : true;
+      const visible = isElementVisible(element);
+      const shouldShow =
+        visible &&
+        (!panelCollapsed || !insideControlPanel) &&
+        (inActivePanel || inVisibleModal || (!activePanel && visible));
+
+      element.classList.toggle('showing-help', shouldShow);
+      tooltip.hidden = !shouldShow;
     }
 
-    function updateInfoButtonLabel(active) {
+    function setInfoButtonActiveState(active) {
       if (!infoButton) {
         return;
       }
-      const label = active ? 'Hide tooltips' : 'Show tooltips';
+
+      const label = active ? 'Hide setter help' : 'Learn about setter tools';
       infoButton.setAttribute('aria-label', label);
       infoButton.setAttribute('title', label);
-      infoButton.setAttribute('aria-pressed', String(active));
-      infoButton.setAttribute('aria-expanded', String(active));
+      infoButton.setAttribute('aria-pressed', active ? 'true' : 'false');
+      infoButton.setAttribute('aria-expanded', active ? 'true' : 'false');
+      infoButton.classList.toggle('is-active', active);
+
       const srTarget = infoButton.querySelector('.sr-only');
       if (srTarget) {
         srTarget.textContent = label;
       }
     }
 
-    function setHelpMode(value) {
-      const next = Boolean(value);
-      if (isHelpModeActive === next) {
-        updateHelpTooltips();
+    function showInfoPopover() {
+      if (!infoPopover) {
         return;
       }
-      isHelpModeActive = next;
-      updateInfoButtonLabel(isHelpModeActive);
-      if (infoPopover) {
-        if (isHelpModeActive) {
-          infoPopover.classList.remove('hidden');
-          infoPopover.setAttribute('aria-hidden', 'false');
-        } else {
-          infoPopover.classList.add('hidden');
-          infoPopover.setAttribute('aria-hidden', 'true');
-        }
+
+      infoPopover.classList.remove('hidden');
+      infoPopover.setAttribute('aria-hidden', 'false');
+      if (typeof infoPopover.focus === 'function') {
+        infoPopover.focus({ preventScroll: true });
       }
+    }
+
+    function hideInfoPopover() {
+      if (!infoPopover) {
+        return;
+      }
+
+      infoPopover.classList.add('hidden');
+      infoPopover.setAttribute('aria-hidden', 'true');
+    }
+
+    function clearActiveHelpTooltip() {
+      if (!activeHelpEntry) {
+        return;
+      }
+
+      const { element, tooltip } = activeHelpEntry;
+      if (element) {
+        element.classList.remove('showing-help');
+      }
+      if (tooltip) {
+        tooltip.hidden = true;
+      }
+      activeHelpEntry = null;
+    }
+
+    function showHelpTooltipForElement(element) {
+      if (!element) {
+        return null;
+      }
+
+      registerHelpTargets(element);
+      const tooltip = helpTargets.get(element);
+      if (!tooltip) {
+        return null;
+      }
+
+      if (activeHelpEntry && activeHelpEntry.element !== element) {
+        clearActiveHelpTooltip();
+      }
+
+      activeHelpEntry = { element, tooltip };
       updateHelpTooltips();
+      return activeHelpEntry;
     }
 
-    function toggleHelpMode() {
-      setHelpMode(!isHelpModeActive);
+    function activateInfoMode() {
+      if (infoModeActive) {
+        return;
+      }
+
+      infoModeActive = true;
+      awaitingHelpTargetSelection = true;
+      clearActiveHelpTooltip();
+      setInfoButtonActiveState(true);
+      showInfoPopover();
     }
 
-    function closeInfoPopover() {
-      setHelpMode(false);
-    }
+    function deactivateInfoMode({ clearTooltip = false } = {}) {
+      awaitingHelpTargetSelection = false;
 
-    function toggleInfoPopover() {
-      toggleHelpMode();
+      if (infoModeActive) {
+        infoModeActive = false;
+      }
+
+      setInfoButtonActiveState(false);
+      hideInfoPopover();
+
+      if (clearTooltip) {
+        clearActiveHelpTooltip();
+      }
     }
 
     const isInteractiveElement = (element) => {
@@ -3173,10 +3227,12 @@
     let shouldIgnoreNextClick = false;
     let isPanModifierActive = false;
     const helpTargets = new Map();
-    let isHelpModeActive = false;
+    let infoModeActive = false;
+    let awaitingHelpTargetSelection = false;
+    let activeHelpEntry = null;
 
     registerHelpTargets(document);
-    updateInfoButtonLabel(isHelpModeActive);
+    setInfoButtonActiveState(false);
     updateHelpTooltips();
 
     if (drawingToggle) {
@@ -3279,24 +3335,65 @@
 
     if (infoButton && infoPopover) {
       infoButton.addEventListener('click', (event) => {
+        event.preventDefault();
         event.stopPropagation();
-        toggleInfoPopover();
+        if (infoModeActive) {
+          deactivateInfoMode({ clearTooltip: true });
+        } else {
+          activateInfoMode();
+        }
       });
 
       infoPopover.addEventListener('click', (event) => {
         event.stopPropagation();
       });
-
-      document.addEventListener('click', () => {
-        closeInfoPopover();
-      });
-
-      document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-          closeInfoPopover();
-        }
-      });
     }
+
+    document.addEventListener(
+      'click',
+      (event) => {
+        if (!infoModeActive || !awaitingHelpTargetSelection) {
+          return;
+        }
+
+        const target = event.target instanceof Element ? event.target : null;
+        if (!target) {
+          deactivateInfoMode({ clearTooltip: true });
+          return;
+        }
+
+        if ((infoButton && infoButton.contains(target)) || (infoPopover && infoPopover.contains(target))) {
+          return;
+        }
+
+        const helpElement = target.closest('[data-help-text]');
+        if (helpElement) {
+          event.preventDefault();
+          event.stopPropagation();
+          const entry = showHelpTooltipForElement(helpElement);
+          deactivateInfoMode({ clearTooltip: !entry });
+        } else {
+          deactivateInfoMode({ clearTooltip: true });
+        }
+      },
+      true,
+    );
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        if (infoModeActive) {
+          deactivateInfoMode({ clearTooltip: true });
+          if (infoButton) {
+            infoButton.focus();
+          }
+        } else if (activeHelpEntry) {
+          clearActiveHelpTooltip();
+          if (infoButton) {
+            infoButton.focus();
+          }
+        }
+      }
+    });
 
     renderLocationOptions();
 

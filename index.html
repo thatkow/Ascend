@@ -326,10 +326,13 @@
       }
 
       .info-wrapper {
-        position: relative;
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        z-index: 6;
         display: flex;
-        align-items: center;
-        justify-content: center;
+        align-items: flex-start;
+        justify-content: flex-start;
       }
 
       .info-button {
@@ -403,7 +406,7 @@
       .info-popover {
         position: absolute;
         top: calc(100% + 0.75rem);
-        right: 0;
+        left: 0;
         width: min(280px, 70vw);
         padding: 0.9rem 1rem;
         border-radius: 0.75rem;
@@ -756,38 +759,38 @@
       </form>
     </div>
     <div id="appContent" class="app hidden" aria-live="polite">
-      <header class="app-header">
-        <div class="info-wrapper">
-          <button
-            id="infoButton"
-            class="header-icon-button info-button"
-            type="button"
-            aria-label="Learn about Ascend"
-            aria-haspopup="dialog"
-            aria-pressed="false"
-            aria-expanded="false"
-            aria-controls="infoPopover"
-            title="Learn about Ascend"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
-              <rect x="11" y="10" width="2" height="7" rx="1" />
-              <circle cx="12" cy="7" r="1.5" />
-            </svg>
-          </button>
-          <div
-            id="infoPopover"
-            class="info-popover hidden"
-            role="dialog"
-            aria-modal="false"
-            aria-hidden="true"
-            aria-label="About Ascend"
-            tabindex="-1"
-          >
-            <p>Tap a header button to learn what it does.</p>
-            <p>The next button you press will open its tooltip and close this message.</p>
-          </div>
+      <div class="info-wrapper">
+        <button
+          id="infoButton"
+          class="header-icon-button info-button"
+          type="button"
+          aria-label="Learn about Ascend"
+          aria-haspopup="dialog"
+          aria-pressed="false"
+          aria-expanded="false"
+          aria-controls="infoPopover"
+          title="Learn about Ascend"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
+            <rect x="11" y="10" width="2" height="7" rx="1" />
+            <circle cx="12" cy="7" r="1.5" />
+          </svg>
+        </button>
+        <div
+          id="infoPopover"
+          class="info-popover hidden"
+          role="dialog"
+          aria-modal="false"
+          aria-hidden="true"
+          aria-label="About Ascend"
+          tabindex="-1"
+        >
+          <p>Tap a header button to learn what it does.</p>
+          <p>The next button you press will open its tooltip and close this message.</p>
         </div>
+      </div>
+      <header class="app-header">
         <button
           id="viewToggle"
           class="header-icon-button view-toggle"
@@ -1109,6 +1112,22 @@
         };
       }
 
+      function buildSignOutCallout() {
+        if (!signOutButton || !isElementVisible(signOutButton)) {
+          return null;
+        }
+
+        const callout = createBasicCallout('Sign out', [
+          'Log out of Ascend and return to the sign-in screen.',
+        ]);
+
+        return {
+          target: signOutButton,
+          element: callout,
+          options: { placement: 'bottom', offset: 14 },
+        };
+      }
+
       function positionCallout(entry) {
         if (!entry?.target || !entry?.element) {
           return;
@@ -1271,6 +1290,9 @@
             break;
           case 'location':
             entry = buildLocationCallout();
+            break;
+          case 'sign-out':
+            entry = buildSignOutCallout();
             break;
           default:
             break;
@@ -2389,11 +2411,19 @@
         }
       });
 
-      signOutButton.addEventListener('click', () => {
-        signOut(auth).catch((error) => {
-          console.error('Failed to sign out:', error);
+      if (signOutButton) {
+        signOutButton.addEventListener('click', (event) => {
+          if (handleInfoRequestFor('sign-out', event)) {
+            return;
+          }
+          if (activeInfoCallout?.target === signOutButton) {
+            clearInfoHighlights();
+          }
+          signOut(auth).catch((error) => {
+            console.error('Failed to sign out:', error);
+          });
         });
-      });
+      }
 
       async function ensureUserRole(user, username) {
         if (!user) {
