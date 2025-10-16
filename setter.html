@@ -45,11 +45,11 @@
     .canvas-utility-buttons {
       position: fixed;
       top: 1rem;
-      right: 1rem;
-      left: auto;
+      left: 1rem;
+      right: auto;
       display: flex;
       flex-direction: column;
-      align-items: flex-end;
+      align-items: flex-start;
       gap: 0.75rem;
       z-index: 18;
       pointer-events: none;
@@ -62,13 +62,11 @@
     .canvas-utility-buttons button {
       pointer-events: auto;
       border: 1px solid rgba(255, 255, 255, 0.35);
-      border-radius: 999px;
-      padding: 0.35rem 0.65rem;
-      background: rgba(0, 0, 0, 0.65);
+      border-radius: 0.85rem;
+      width: 44px;
+      height: 44px;
+      background: rgba(0, 0, 0, 0.68);
       color: #fff;
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.04em;
       cursor: pointer;
       transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
         border-color 0.2s ease;
@@ -77,14 +75,11 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 44px;
     }
 
-    .canvas-utility-buttons button .reset-zoom-label {
-      display: inline-flex;
-      transform: rotate(90deg);
-      transform-origin: center;
-      white-space: nowrap;
+    .canvas-utility-buttons button svg {
+      width: 20px;
+      height: 20px;
     }
 
     .canvas-utility-buttons button:hover,
@@ -99,7 +94,7 @@
     .canvas-toolbar {
       position: fixed;
       bottom: 1.5rem;
-      right: calc(1.5rem + min(360px, 92vw));
+      right: calc(1.5rem + var(--control-panel-offset, min(360px, 92vw)));
       display: flex;
       align-items: center;
       justify-content: center;
@@ -109,44 +104,133 @@
 
     .drawing-toggle {
       pointer-events: auto;
-      border: none;
-      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(0, 0, 0, 0.72);
       color: #fff;
-      border-radius: 0.65rem;
-      padding: 1.5rem 0.65rem;
-      font-size: 0.75rem;
-      letter-spacing: 0.08em;
-      font-weight: 600;
+      border-radius: 1rem;
+      width: 58px;
+      height: 58px;
       cursor: pointer;
-      transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease,
-        transform 0.2s ease;
-      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+        border-color 0.2s ease;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      writing-mode: vertical-rl;
-      text-orientation: mixed;
-      white-space: nowrap;
+    }
+
+    .drawing-toggle svg {
+      width: 26px;
+      height: 26px;
     }
 
     .drawing-toggle:hover,
     .drawing-toggle:focus-visible {
       outline: none;
-      background: rgba(255, 255, 255, 0.2);
       transform: translateY(-1px);
-      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+      background: rgba(0, 0, 0, 0.88);
+      border-color: rgba(255, 255, 255, 0.55);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
     }
 
     .drawing-toggle[aria-pressed='true'] {
-      background: rgba(21, 128, 61, 0.85);
-      color: #0d1405;
-      box-shadow: 0 16px 32px rgba(21, 128, 61, 0.35);
+      background: rgba(21, 128, 61, 0.9);
+      border-color: rgba(74, 222, 128, 0.6);
+      color: #0f1c09;
+      box-shadow: 0 16px 36px rgba(21, 128, 61, 0.4);
     }
 
     .drawing-toggle[aria-pressed='true']:hover,
     .drawing-toggle[aria-pressed='true']:focus-visible {
       background: rgba(22, 163, 74, 0.95);
-      color: #031406;
+      border-color: rgba(190, 242, 100, 0.6);
+      color: #041407;
+    }
+
+    .info-hotspot {
+      --info-hotspot-bg: rgba(15, 15, 15, 0.92);
+      position: fixed;
+      background: var(--info-hotspot-bg);
+      color: #f9fafb;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.75rem;
+      font-size: 0.75rem;
+      line-height: 1.3;
+      max-width: min(240px, 70vw);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+      pointer-events: none;
+      z-index: 24;
+    }
+
+    .info-hotspot[hidden] {
+      display: none !important;
+    }
+
+    .info-hotspot::after {
+      content: '';
+      position: absolute;
+      width: 0;
+      height: 0;
+      border-style: solid;
+    }
+
+    .info-hotspot[data-arrow='left']::after {
+      top: 50%;
+      left: -0.45rem;
+      border-width: 0.45rem 0.45rem 0.45rem 0;
+      border-color: transparent var(--info-hotspot-bg) transparent transparent;
+      transform: translateY(-50%);
+    }
+
+    .info-hotspot[data-arrow='down']::after {
+      bottom: -0.45rem;
+      left: 50%;
+      border-width: 0.45rem 0.45rem 0 0.45rem;
+      border-color: var(--info-hotspot-bg) transparent transparent transparent;
+      transform: translateX(-50%);
+    }
+
+    #setterResetTooltip {
+      top: 1.3rem;
+      left: calc(1rem + 44px + 0.75rem);
+    }
+
+    #drawingToggleTooltip {
+      bottom: calc(1.5rem + 58px + 0.9rem);
+      right: calc(1.5rem + var(--control-panel-offset, min(360px, 92vw)) - 29px);
+    }
+
+    .canvas-help-button {
+      position: fixed;
+      top: 1rem;
+      left: 4.75rem;
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      background: rgba(0, 0, 0, 0.68);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(6px);
+      z-index: 19;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+        border-color 0.2s ease;
+    }
+
+    .canvas-help-button:hover,
+    .canvas-help-button:focus-visible {
+      outline: none;
+      transform: translateY(-1px);
+      background: rgba(0, 0, 0, 0.85);
+      border-color: rgba(255, 255, 255, 0.55);
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
     }
 
     canvas {
@@ -878,9 +962,36 @@
 
   <div id="appContent" class="hidden">
     <div class="canvas-utility-buttons" aria-label="Canvas controls" hidden>
-      <button id="resetZoomButton" type="button">
-        <span class="reset-zoom-label">Reset zoom</span>
+      <button
+        id="resetZoomButton"
+        type="button"
+        aria-label="Reset vertical zoom"
+        title="Reset vertical zoom"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M12 4v16m0 0-3-3m3 3 3-3m-3-13 3 3m-3-3-3 3"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <rect x="7" y="10.75" width="10" height="2.5" rx="1.25" fill="currentColor" />
+        </svg>
+        <span class="sr-only">Reset vertical zoom</span>
       </button>
+    </div>
+    <div
+      id="setterResetTooltip"
+      class="info-hotspot"
+      data-info-hotspot="setter"
+      data-arrow="left"
+      role="note"
+      hidden
+      aria-hidden="true"
+    >
+      This icon appears once you zoom vertically. Click it to restore the wall height without changing your horizontal view.
     </div>
     <div class="canvas-container">
       <canvas id="drawingCanvas"></canvas>
@@ -891,9 +1002,45 @@
         class="drawing-toggle"
         type="button"
         aria-pressed="false"
+        aria-label="Enable drawing"
+        title="Enable drawing"
       >
-        Enable drawing
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M4 16.75 16.4 4.35a1.5 1.5 0 0 1 2.12 0l1.13 1.13a1.5 1.5 0 0 1 0 2.12L7.25 20h-3.5z"
+            fill="currentColor"
+          />
+          <path
+            d="M3.75 20.25h4.5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+          />
+        </svg>
+        <span class="sr-only">Enable drawing</span>
       </button>
+    </div>
+    <button
+      id="setterInfoButton"
+      class="canvas-help-button"
+      type="button"
+      aria-label="Show canvas tips"
+      aria-expanded="false"
+      title="Show tips"
+    >
+      i
+    </button>
+    <div
+      id="drawingToggleTooltip"
+      class="info-hotspot"
+      data-info-hotspot="setter"
+      data-arrow="down"
+      role="note"
+      hidden
+      aria-hidden="true"
+    >
+      Toggle drawing mode from here. When enabled, you can sketch routes; pan any time with the spacebar or right-drag.
     </div>
     <div class="control-panel" data-expanded="true">
       <div id="panelSidebar" class="panel-sidebar">
@@ -1310,6 +1457,10 @@
     const canvasUtilityButtons = document.querySelector('.canvas-utility-buttons');
     const resetZoomButton = document.getElementById('resetZoomButton');
     const drawingToggle = document.getElementById('drawingToggle');
+    const setterInfoButton = document.getElementById('setterInfoButton');
+    const infoHotspots = Array.from(
+      document.querySelectorAll('[data-info-hotspot="setter"]')
+    );
     const panelSidebar = document.getElementById('panelSidebar');
     const climberViewButton = document.getElementById('climberViewButton');
     const previewLink = document.getElementById('previewLink');
@@ -1849,12 +2000,48 @@
 
       const label = isDrawingEnabled ? 'Disable drawing' : 'Enable drawing';
       drawingToggle.setAttribute('aria-pressed', String(isDrawingEnabled));
-      drawingToggle.textContent = label;
+      drawingToggle.setAttribute('aria-label', label);
       drawingToggle.setAttribute('title', label);
+
+      const drawingToggleLabel = drawingToggle.querySelector('.sr-only');
+      if (drawingToggleLabel) {
+        drawingToggleLabel.textContent = label;
+      }
 
       if (canvas) {
         canvas.setAttribute('data-drawing-enabled', String(isDrawingEnabled));
       }
+    };
+
+    const setSetterHotspotsVisible = (visible) => {
+      if (!infoHotspots.length) {
+        return;
+      }
+
+      infoHotspots.forEach((hotspot) => {
+        if (!hotspot) {
+          return;
+        }
+
+        if (visible) {
+          hotspot.removeAttribute('hidden');
+          hotspot.setAttribute('aria-hidden', 'false');
+        } else {
+          hotspot.setAttribute('hidden', '');
+          hotspot.setAttribute('aria-hidden', 'true');
+        }
+      });
+    };
+
+    const closeSetterHotspots = () => {
+      if (!setterInfoButton) {
+        return;
+      }
+
+      setterInfoButton.setAttribute('aria-expanded', 'false');
+      setterInfoButton.setAttribute('aria-label', 'Show canvas tips');
+      setterInfoButton.setAttribute('title', 'Show tips');
+      setSetterHotspotsVisible(false);
     };
 
     const isInteractiveElement = (element) => {
@@ -2870,6 +3057,31 @@
       drawingToggle.addEventListener('click', () => {
         isDrawingEnabled = !isDrawingEnabled;
         updateDrawingToggle();
+      });
+    }
+
+    if (setterInfoButton) {
+      setterInfoButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const expanded = setterInfoButton.getAttribute('aria-expanded') === 'true';
+        const nextExpanded = !expanded;
+        setterInfoButton.setAttribute('aria-expanded', String(nextExpanded));
+        const label = nextExpanded ? 'Hide canvas tips' : 'Show canvas tips';
+        setterInfoButton.setAttribute('aria-label', label);
+        setterInfoButton.setAttribute('title', nextExpanded ? 'Hide tips' : 'Show tips');
+        setSetterHotspotsVisible(nextExpanded);
+      });
+
+      document.addEventListener('click', () => {
+        if (setterInfoButton.getAttribute('aria-expanded') === 'true') {
+          closeSetterHotspots();
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && setterInfoButton.getAttribute('aria-expanded') === 'true') {
+          closeSetterHotspots();
+        }
       });
     }
 
@@ -3900,6 +4112,15 @@
       const isZoomed = isCanvasVerticallyZoomed();
       canvasUtilityButtons.hidden = !isZoomed;
       canvasUtilityButtons.setAttribute('aria-hidden', String(!isZoomed));
+
+      if (!isZoomed) {
+        setSetterHotspotsVisible(false);
+        if (setterInfoButton) {
+          setterInfoButton.setAttribute('aria-expanded', 'false');
+          setterInfoButton.setAttribute('aria-label', 'Show canvas tips');
+          setterInfoButton.setAttribute('title', 'Show tips');
+        }
+      }
     }
 
     function computeCanvasDimensions() {
