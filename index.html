@@ -1078,6 +1078,7 @@
         getAuth,
         onAuthStateChanged,
         signInWithEmailAndPassword,
+        signInAnonymously,
         createUserWithEmailAndPassword,
         signOut,
         updateProfile,
@@ -1102,6 +1103,38 @@
       const auth = getAuth(firebaseApp);
 
       const db = getFirestore(firebaseApp);
+
+      let anonymousAccessPromise = null;
+      let anonymousAccessEnabled = false;
+      let anonymousAccessFailed = false;
+
+      function ensureAnonymousAccess() {
+        if (anonymousAccessEnabled) {
+          return Promise.resolve(true);
+        }
+
+        if (anonymousAccessFailed) {
+          return Promise.resolve(false);
+        }
+
+        if (!anonymousAccessPromise) {
+          anonymousAccessPromise = signInAnonymously(auth)
+            .then(() => {
+              anonymousAccessEnabled = true;
+              return true;
+            })
+            .catch((error) => {
+              console.error('Failed to enable guest access:', error);
+              anonymousAccessFailed = true;
+              return false;
+            })
+            .finally(() => {
+              anonymousAccessPromise = null;
+            });
+        }
+
+        return anonymousAccessPromise;
+      }
 
       const authOverlay = document.getElementById('authOverlay');
       const appContent = document.getElementById('appContent');
@@ -2950,22 +2983,64 @@
         }
       }
 
-        function updateNavigationForRole(role) {
-          updateSetterLinkHref();
-          if (!setterLink) {
-            return;
-          }
-
-          const shouldHideSetterLink = role !== 'setter';
-          setterLink.classList.toggle('hidden', shouldHideSetterLink);
-
-          if (shouldHideSetterLink && activeInfoCallout?.target === setterLink) {
-            clearInfoHighlights();
-          }
+      function updateNavigationForRole(role) {
+        updateSetterLinkHref();
+        if (!setterLink) {
+          return;
         }
 
+        const shouldHideSetterLink = role !== 'setter';
+        setterLink.classList.toggle('hidden', shouldHideSetterLink);
+
+        if (shouldHideSetterLink && activeInfoCallout?.target === setterLink) {
+          clearInfoHighlights();
+        }
+      }
+
+      async function presentGuestExperience() {
+        if (authOverlay) {
+          authOverlay.classList.add('hidden');
+          authOverlay.setAttribute('aria-hidden', 'true');
+        }
+
+        appContent.classList.remove('hidden');
+        updateNavigationForRole('default');
+
+        if (setterLink) {
+          setterLink.classList.add('hidden');
+        }
+
+        if (infoModeActive) {
+          deactivateInfoMode({ clearCallout: true });
+        } else if (activeInfoCallout) {
+          clearInfoHighlights();
+        }
+
+        authForm?.reset();
+        if (authError) {
+          authError.textContent = '';
+        }
+        setAuthMode('login');
+
+        focusedRouteId = null;
+        currentUser = null;
+        currentUsername = '';
+        authenticatedUsernameClaim = '';
+        ascendedRoutes.clear();
+        routeGrades.clear();
+        userAscentDetails = new Map();
+        routeMedianGrades = new Map();
+        hasShownWelcomeCallout = false;
+        hideTooltip({ force: true });
+
+        await loadRoutes();
+        showWelcomeCallout();
+      }
+
       onAuthStateChanged(auth, async (user) => {
-        if (user) {
+        anonymousAccessEnabled = Boolean(user?.isAnonymous);
+
+        if (user && !user.isAnonymous) {
           if (authOverlay) {
             authOverlay.classList.add('hidden');
             authOverlay.setAttribute('aria-hidden', 'true');
@@ -2999,34 +3074,18 @@
           } finally {
             showWelcomeCallout();
           }
-        } else {
-          if (authOverlay) {
-            authOverlay.classList.add('hidden');
-            authOverlay.setAttribute('aria-hidden', 'true');
-          }
-          appContent.classList.remove('hidden');
-          if (setterLink) {
-            setterLink.classList.add('hidden');
-          }
-          if (infoModeActive) {
-            deactivateInfoMode({ clearCallout: true });
-          } else if (activeInfoCallout) {
-            clearInfoHighlights();
-          }
-          authForm?.reset();
-          setAuthMode('login');
-          focusedRouteId = null;
-          currentUser = null;
-          currentUsername = '';
-          authenticatedUsernameClaim = '';
-          ascendedRoutes.clear();
-          routeGrades.clear();
-          routeMedianGrades = new Map();
-          hasShownWelcomeCallout = false;
-          hideTooltip({ force: true });
-          await loadRoutes();
-          showWelcomeCallout();
+
+          return;
         }
+
+        if (!user) {
+          const anonymousResult = await ensureAnonymousAccess();
+          if (anonymousResult) {
+            return;
+          }
+        }
+
+        await presentGuestExperience();
       });
 
       setAuthMode('login');
