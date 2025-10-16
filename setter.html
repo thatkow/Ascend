@@ -1528,6 +1528,18 @@
     const previewLinkBaseHref = previewLink?.getAttribute('href') || 'index.html';
     const climberViewBaseHref = 'index.html';
     let climberViewTargetHref = climberViewBaseHref;
+
+    async function signOutAndRedirectToIndex() {
+      try {
+        await signOut(auth);
+      } catch (error) {
+        console.error('Failed to sign out:', error);
+        return false;
+      }
+
+      window.location.href = 'index.html';
+      return true;
+    }
     const roleUsernameInput = document.getElementById('roleUsernameInput');
     const grantSetterButton = document.getElementById('grantSetterButton');
     const roleStatusMessage = document.getElementById('roleStatusMessage');
@@ -6281,16 +6293,12 @@
       }
     });
 
-    signOutButton.addEventListener('click', () => {
-      signOut(auth).catch((error) => {
-        console.error('Failed to sign out:', error);
-      });
+    signOutButton.addEventListener('click', async () => {
+      await signOutAndRedirectToIndex();
     });
 
-    unauthorizedSignOut.addEventListener('click', () => {
-      signOut(auth).catch((error) => {
-        console.error('Failed to sign out:', error);
-      });
+    unauthorizedSignOut.addEventListener('click', async () => {
+      await signOutAndRedirectToIndex();
     });
 
     async function ensureUserRole(user, username) {
@@ -6429,7 +6437,7 @@
         if (!isValidUsername(resolvedUsername)) {
           authError.textContent =
             'Unable to resolve your username. Please contact another setter for assistance.';
-          await signOut(auth);
+          await signOutAndRedirectToIndex();
           return;
         }
 
@@ -6439,7 +6447,7 @@
 
         if (!role) {
           authError.textContent = 'Unable to determine your role. Please try again later.';
-          await signOut(auth);
+          await signOutAndRedirectToIndex();
           return;
         }
 

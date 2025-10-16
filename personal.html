@@ -1196,6 +1196,18 @@
       const LOCATION_STORAGE_KEY = 'ascend.selectedWall';
       const WALL_QUERY_PARAM = 'wall';
 
+      async function signOutAndRedirectToIndex() {
+        try {
+          await signOut(auth);
+        } catch (error) {
+          console.error('Failed to sign out:', error);
+          return false;
+        }
+
+        window.location.href = 'index.html';
+        return true;
+      }
+
       function ensureInfoHighlightsContainer() {
         if (infoHighlightsContainer && document.body?.contains(infoHighlightsContainer)) {
           return infoHighlightsContainer;
@@ -2888,16 +2900,14 @@
       });
 
       if (signOutButton) {
-        signOutButton.addEventListener('click', (event) => {
+        signOutButton.addEventListener('click', async (event) => {
           if (handleInfoRequestFor('sign-out', event)) {
             return;
           }
           if (activeInfoCallout?.target === signOutButton) {
             clearInfoHighlights();
           }
-          signOut(auth).catch((error) => {
-            console.error('Failed to sign out:', error);
-          });
+          await signOutAndRedirectToIndex();
         });
       }
 
@@ -3028,7 +3038,7 @@
           if (!isValidUsername(resolvedUsername)) {
             authError.textContent =
               'Unable to resolve your username. Please contact a setter for assistance.';
-            await signOut(auth);
+            await signOutAndRedirectToIndex();
             return;
           }
 
