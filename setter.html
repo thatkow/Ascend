@@ -1519,9 +1519,6 @@
     const deleteWallButton = document.getElementById('deleteWallButton');
     const createWallStatus = document.getElementById('createWallStatus');
 
-    const AUTH_USERNAME_QUERY_PARAM = 'username';
-    const AUTH_PASSWORD_QUERY_PARAM = 'password';
-
     const LOCATIONS = [
       { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg' },
       { key: 'old-wall', name: 'Old Wall', image: './location/Old Wall.jpg' },
@@ -6028,7 +6025,6 @@
     }
 
     let authMode = 'login';
-    let shouldPreserveAuthInputs = false;
 
     function setAuthMode(mode) {
       authMode = mode;
@@ -6370,11 +6366,7 @@
         unauthorizedNotice.classList.add('hidden');
         routeSelector.disabled = true;
         deleteButton.disabled = true;
-        if (shouldPreserveAuthInputs) {
-          shouldPreserveAuthInputs = false;
-        } else {
-          authForm.reset();
-        }
+        authForm.reset();
         prepareNewRoute();
         clearStatus();
         setRoleControlsEnabled(false);
@@ -6382,76 +6374,6 @@
         setAuthMode('login');
       }
     });
-
-    function scrubAuthQueryParams() {
-      try {
-        const url = new URL(window.location.href);
-        let changed = false;
-
-        if (url.searchParams.has(AUTH_USERNAME_QUERY_PARAM)) {
-          url.searchParams.delete(AUTH_USERNAME_QUERY_PARAM);
-          changed = true;
-        }
-
-        if (url.searchParams.has(AUTH_PASSWORD_QUERY_PARAM)) {
-          url.searchParams.delete(AUTH_PASSWORD_QUERY_PARAM);
-          changed = true;
-        }
-
-        if (!changed) {
-          return;
-        }
-
-        const next = `${url.pathname}${url.search}${url.hash}`;
-        window.history.replaceState({}, '', next);
-      } catch (error) {
-        console.warn('Unable to clear authentication query parameters:', error);
-      }
-    }
-
-    function maybeAutoSignInFromQuery() {
-      if (!authForm || !authUsername || !authPassword) {
-        scrubAuthQueryParams();
-        return;
-      }
-
-      let usernameFromQuery = '';
-      let passwordFromQuery = '';
-
-      try {
-        const params = new URLSearchParams(window.location.search);
-        usernameFromQuery = normalizeUsername(params.get(AUTH_USERNAME_QUERY_PARAM));
-        const rawPassword = params.get(AUTH_PASSWORD_QUERY_PARAM);
-        passwordFromQuery = typeof rawPassword === 'string' ? rawPassword : '';
-
-        if (!usernameFromQuery || !passwordFromQuery) {
-          return;
-        }
-
-        shouldPreserveAuthInputs = true;
-        setAuthMode('login');
-        authUsername.value = usernameFromQuery;
-        authPassword.value = passwordFromQuery;
-
-        window.setTimeout(() => {
-          try {
-            if (typeof authForm.requestSubmit === 'function') {
-              authForm.requestSubmit();
-            } else {
-              authForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-            }
-          } catch (error) {
-            console.warn('Unable to trigger automatic sign-in:', error);
-          }
-        }, 0);
-      } catch (error) {
-        console.warn('Unable to process authentication query parameters:', error);
-      } finally {
-        if (usernameFromQuery || passwordFromQuery) {
-          scrubAuthQueryParams();
-        }
-      }
-    }
 
     refreshWallSettingsCache()
       .then(() => {
@@ -6468,8 +6390,6 @@
       });
 
     setAuthMode('login');
-
-    maybeAutoSignInFromQuery();
 
     prepareNewRoute();
   </script>
