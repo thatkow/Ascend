@@ -2164,10 +2164,6 @@
       toggleHelpMode();
     }
 
-    registerHelpTargets(document);
-    updateInfoButtonLabel(isHelpModeActive);
-    updateHelpTooltips();
-
     const isInteractiveElement = (element) => {
       if (!element) {
         return false;
@@ -3178,6 +3174,10 @@
     let isPanModifierActive = false;
     const helpTargets = new Map();
     let isHelpModeActive = false;
+
+    registerHelpTargets(document);
+    updateInfoButtonLabel(isHelpModeActive);
+    updateHelpTooltips();
 
     if (drawingToggle) {
       updateDrawingToggle();
