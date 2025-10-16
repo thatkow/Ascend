@@ -54,6 +54,160 @@
         -webkit-overflow-scrolling: touch;
       }
 
+      .tutorial-prompt {
+        position: fixed;
+        left: 50%;
+        bottom: 1.5rem;
+        transform: translate(-50%, 0);
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 50%;
+        border: none;
+        background: linear-gradient(135deg, rgba(126, 217, 87, 0.95), rgba(63, 142, 45, 0.95));
+        color: #0b1a05;
+        font-size: 1.75rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+        z-index: 20;
+        animation: tutorial-bounce 2.4s ease-in-out infinite;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .tutorial-prompt:hover,
+      .tutorial-prompt:focus-visible {
+        transform: translate(-50%, -6px) scale(1.02);
+        box-shadow: 0 22px 48px rgba(0, 0, 0, 0.55);
+        outline: none;
+      }
+
+      .tutorial-prompt:focus-visible {
+        box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.45), 0 22px 48px rgba(0, 0, 0, 0.55);
+      }
+
+      @keyframes tutorial-bounce {
+        0%,
+        100% {
+          transform: translate(-50%, 0);
+        }
+        50% {
+          transform: translate(-50%, -12px);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .tutorial-prompt {
+          animation: none;
+        }
+      }
+
+      .tutorial-overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        background: rgba(8, 12, 9, 0.75);
+        backdrop-filter: blur(2px);
+        z-index: 30;
+      }
+
+      .tutorial-card {
+        width: min(520px, 100%);
+        background: rgba(12, 18, 15, 0.95);
+        border-radius: 1rem;
+        padding: 1.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.15rem;
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55);
+        border: 1px solid rgba(126, 217, 87, 0.2);
+      }
+
+      .tutorial-progress {
+        font-size: 0.85rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: rgba(126, 217, 87, 0.8);
+      }
+
+      .tutorial-title {
+        font-size: 1.35rem;
+        font-weight: 700;
+        line-height: 1.3;
+      }
+
+      .tutorial-description {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        color: rgba(248, 250, 252, 0.92);
+        font-size: 0.98rem;
+        line-height: 1.55;
+      }
+
+      .tutorial-description p {
+        margin: 0;
+      }
+
+      .tutorial-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        justify-content: flex-end;
+      }
+
+      .tutorial-button {
+        border-radius: 999px;
+        border: none;
+        padding: 0.65rem 1.4rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+          color 0.2s ease, border-color 0.2s ease;
+      }
+
+      .tutorial-primary {
+        background: #7ed957;
+        color: #0c1a07;
+        box-shadow: 0 12px 22px rgba(126, 217, 87, 0.3);
+      }
+
+      .tutorial-primary:hover,
+      .tutorial-primary:focus-visible {
+        transform: translateY(-1px);
+        box-shadow: 0 18px 30px rgba(126, 217, 87, 0.35);
+        outline: none;
+      }
+
+      .tutorial-secondary {
+        background: transparent;
+        color: rgba(248, 250, 252, 0.9);
+        border: 1px solid rgba(248, 250, 252, 0.3);
+      }
+
+      .tutorial-secondary:hover,
+      .tutorial-secondary:focus-visible {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+        outline: none;
+        border-color: rgba(248, 250, 252, 0.6);
+      }
+
+      .tutorial-highlight {
+        box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.65), 0 0 20px rgba(126, 217, 87, 0.45);
+      }
+
+      .is-tutorial-disabled {
+        pointer-events: none !important;
+        opacity: 0.55 !important;
+      }
+
       canvas {
         display: block;
         height: 100%;
@@ -1047,6 +1201,46 @@
         <canvas id="previewCanvas" aria-hidden="true"></canvas>
       </div>
     </div>
+    <button
+      id="tutorialPromptButton"
+      class="tutorial-prompt hidden"
+      type="button"
+      aria-label="Open tutorial"
+      aria-hidden="true"
+      title="Show a quick tour"
+      data-tutorial-exempt="true"
+    >
+      ?
+    </button>
+    <div
+      id="tutorialOverlay"
+      class="tutorial-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-hidden="true"
+      aria-labelledby="tutorialTitle"
+      aria-describedby="tutorialDescription"
+    >
+      <div id="tutorialDialogCard" class="tutorial-card" role="document" tabindex="-1">
+        <div id="tutorialProgress" class="tutorial-progress hidden" aria-live="polite"></div>
+        <h2 id="tutorialTitle" class="tutorial-title"></h2>
+        <div id="tutorialDescription" class="tutorial-description"></div>
+        <div class="tutorial-actions">
+          <button
+            id="tutorialSecondaryAction"
+            class="tutorial-button tutorial-secondary hidden"
+            type="button"
+            data-tutorial-exempt="true"
+          ></button>
+          <button
+            id="tutorialPrimaryAction"
+            class="tutorial-button tutorial-primary"
+            type="button"
+            data-tutorial-exempt="true"
+          ></button>
+        </div>
+      </div>
+    </div>
     <div
       id="routeTooltip"
       class="route-tooltip"
@@ -1127,6 +1321,14 @@
       const progressionModal = document.getElementById('progressionModal');
       const progressionModalClose = document.getElementById('progressionModalClose');
       const progressionList = document.getElementById('progressionList');
+      const tutorialPromptButton = document.getElementById('tutorialPromptButton');
+      const tutorialOverlay = document.getElementById('tutorialOverlay');
+      const tutorialDialogCard = document.getElementById('tutorialDialogCard');
+      const tutorialTitle = document.getElementById('tutorialTitle');
+      const tutorialDescription = document.getElementById('tutorialDescription');
+      const tutorialPrimaryAction = document.getElementById('tutorialPrimaryAction');
+      const tutorialSecondaryAction = document.getElementById('tutorialSecondaryAction');
+      const tutorialProgress = document.getElementById('tutorialProgress');
 
       let infoHighlightsContainer = null;
       let infoModeActive = false;
@@ -1135,6 +1337,18 @@
       let pendingInfoRepositionFrame = null;
       let ephemeralCalloutDismissTimer = null;
       let hasShownWelcomeCallout = false;
+      let tutorialPromptTimeoutId = null;
+      let tutorialPromptVisible = false;
+      let tutorialInviteOpen = false;
+      let tutorialActive = false;
+      let tutorialCompleted = false;
+      let tutorialStepIndex = -1;
+      let tutorialTransitionInProgress = false;
+      let tutorialHighlightedRouteId = null;
+      let tutorialHighlightedElement = null;
+      let tutorialPreviousFocus = null;
+      let tutorialOverlayMode = 'hidden';
+      let tutorialLastActivityTimestamp = 0;
 
       const LOCATIONS = [
         { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg' },
@@ -3002,6 +3216,591 @@
 
         await loadRoutes();
         showWelcomeCallout();
+      }
+
+      function clearTutorialPromptTimer() {
+        if (tutorialPromptTimeoutId !== null) {
+          clearTimeout(tutorialPromptTimeoutId);
+          tutorialPromptTimeoutId = null;
+        }
+      }
+
+      function showTutorialPrompt() {
+        if (!tutorialPromptButton || tutorialPromptVisible || tutorialActive || tutorialInviteOpen || tutorialCompleted) {
+          return;
+        }
+
+        tutorialPromptVisible = true;
+        tutorialPromptButton.classList.remove('hidden');
+        tutorialPromptButton.setAttribute('aria-hidden', 'false');
+        tutorialPromptTimeoutId = null;
+      }
+
+      function hideTutorialPromptButton() {
+        if (!tutorialPromptButton) {
+          return;
+        }
+
+        tutorialPromptVisible = false;
+        tutorialPromptButton.classList.add('hidden');
+        tutorialPromptButton.setAttribute('aria-hidden', 'true');
+      }
+
+      function resetTutorialInactivityTimer() {
+        if (tutorialCompleted || tutorialActive || tutorialInviteOpen) {
+          return;
+        }
+
+        clearTutorialPromptTimer();
+        tutorialPromptTimeoutId = window.setTimeout(() => {
+          showTutorialPrompt();
+        }, 60000);
+      }
+
+      function registerTutorialActivity() {
+        if (tutorialCompleted || tutorialActive || tutorialInviteOpen) {
+          return;
+        }
+
+        const now = Date.now();
+        if (now - tutorialLastActivityTimestamp < 1000) {
+          return;
+        }
+
+        tutorialLastActivityTimestamp = now;
+
+        if (tutorialPromptVisible) {
+          return;
+        }
+
+        resetTutorialInactivityTimer();
+      }
+
+      function openTutorialOverlay() {
+        if (!tutorialOverlay || !tutorialDialogCard) {
+          return;
+        }
+
+        tutorialPreviousFocus =
+          document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+        tutorialOverlay.classList.remove('hidden');
+        tutorialOverlay.setAttribute('aria-hidden', 'false');
+
+        window.setTimeout(() => {
+          tutorialDialogCard.focus();
+        }, 0);
+      }
+
+      function closeTutorialOverlay() {
+        if (!tutorialOverlay) {
+          return;
+        }
+
+        tutorialOverlay.classList.add('hidden');
+        tutorialOverlay.setAttribute('aria-hidden', 'true');
+
+        if (tutorialPreviousFocus && typeof tutorialPreviousFocus.focus === 'function') {
+          tutorialPreviousFocus.focus();
+        }
+
+        tutorialPreviousFocus = null;
+      }
+
+      function setTutorialDescriptionContent(lines) {
+        if (!tutorialDescription) {
+          return;
+        }
+
+        tutorialDescription.innerHTML = '';
+
+        if (!Array.isArray(lines)) {
+          return;
+        }
+
+        const fragment = document.createDocumentFragment();
+
+        lines
+          .filter((line) => typeof line === 'string' && line.trim().length)
+          .forEach((line) => {
+            const paragraph = document.createElement('p');
+            paragraph.textContent = line.trim();
+            fragment.appendChild(paragraph);
+          });
+
+        tutorialDescription.appendChild(fragment);
+      }
+
+      function highlightTutorialElement(element) {
+        if (tutorialHighlightedElement && tutorialHighlightedElement !== element) {
+          tutorialHighlightedElement.classList.remove('tutorial-highlight');
+        }
+
+        if (element && element.classList) {
+          element.classList.add('tutorial-highlight');
+          tutorialHighlightedElement = element;
+        } else {
+          tutorialHighlightedElement = null;
+        }
+      }
+
+      function disableInteractiveElementsForTutorial() {
+        const interactiveElements = document.querySelectorAll('button, a, [role="button"]');
+
+        interactiveElements.forEach((element) => {
+          if (!(element instanceof HTMLElement)) {
+            return;
+          }
+
+          if (element.dataset.tutorialExempt === 'true') {
+            return;
+          }
+
+          if (element instanceof HTMLButtonElement) {
+            element.dataset.tutorialWasDisabled = element.disabled ? 'true' : 'false';
+            element.disabled = true;
+          } else {
+            const alreadyDisabled = element.getAttribute('aria-disabled') === 'true';
+            element.dataset.tutorialWasDisabled = alreadyDisabled ? 'true' : 'false';
+            element.setAttribute('aria-disabled', 'true');
+          }
+
+          element.classList.add('is-tutorial-disabled');
+        });
+      }
+
+      function restoreInteractiveElementsAfterTutorial() {
+        const interactiveElements = document.querySelectorAll('button, a, [role="button"]');
+
+        interactiveElements.forEach((element) => {
+          if (!(element instanceof HTMLElement)) {
+            return;
+          }
+
+          if (element.dataset.tutorialExempt === 'true') {
+            return;
+          }
+
+          const wasDisabled = element.dataset.tutorialWasDisabled === 'true';
+
+          if (element instanceof HTMLButtonElement) {
+            if (!wasDisabled) {
+              element.disabled = false;
+            }
+          } else if (!wasDisabled) {
+            element.removeAttribute('aria-disabled');
+          }
+
+          element.classList.remove('is-tutorial-disabled');
+          delete element.dataset.tutorialWasDisabled;
+        });
+      }
+
+      async function ensureRoutesAvailableForTutorial() {
+        if (Array.isArray(routes) && routes.length) {
+          return routes;
+        }
+
+        if (Array.isArray(allRoutes) && allRoutes.length) {
+          return allRoutes;
+        }
+
+        try {
+          await loadRoutes();
+        } catch (error) {
+          console.warn('Unable to refresh routes for tutorial:', error);
+        }
+
+        if (Array.isArray(routes) && routes.length) {
+          return routes;
+        }
+
+        if (Array.isArray(allRoutes) && allRoutes.length) {
+          return allRoutes;
+        }
+
+        return [];
+      }
+
+      async function showTutorialRouteTooltip() {
+        const availableRoutes = await ensureRoutesAvailableForTutorial();
+        if (!Array.isArray(availableRoutes) || availableRoutes.length === 0) {
+          return;
+        }
+
+        const targetRoute = availableRoutes.find((route) => route && typeof route.id === 'string');
+        if (!targetRoute) {
+          return;
+        }
+
+        tutorialHighlightedRouteId = targetRoute.id;
+        focusRoute(targetRoute);
+        showTooltip(targetRoute, window.innerWidth / 2, window.innerHeight / 2, { pin: true });
+      }
+
+      function closeTutorialRouteTooltip() {
+        if (tutorialHighlightedRouteId) {
+          const targetRoute =
+            (Array.isArray(routes) ? routes : []).find((route) => route?.id === tutorialHighlightedRouteId) ||
+            (Array.isArray(allRoutes) ? allRoutes : []).find((route) => route?.id === tutorialHighlightedRouteId);
+
+          if (targetRoute) {
+            setRouteFocus(targetRoute, false);
+          } else if (focusedRouteId === tutorialHighlightedRouteId) {
+            focusedRouteId = null;
+            redraw();
+          }
+        }
+
+        tutorialHighlightedRouteId = null;
+        hideTooltip({ force: true });
+      }
+
+      const tutorialSteps = [
+        {
+          title: 'Welcome to Ascend',
+          body: [
+            'Ascend helps you explore the latest problems on the wall and stay up to date with the gym.',
+            'Use this public view to browse climbs and see what sets are available right now.',
+          ],
+          onEnter: () => {
+            highlightTutorialElement(null);
+            hideTooltip({ force: true });
+          },
+          onExit: () => {
+            highlightTutorialElement(null);
+          },
+        },
+        {
+          title: 'Route details',
+          body: [
+            'Click any climb to open its tooltip for more information.',
+            'You\'ll see the setter, description, and consensus grade gathered from other climbers.',
+          ],
+          onEnter: async () => {
+            highlightTutorialElement(null);
+            await showTutorialRouteTooltip();
+          },
+          onExit: () => {
+            closeTutorialRouteTooltip();
+          },
+        },
+        {
+          title: 'Show hold colors',
+          body: [
+            'Toggle the Show Hold Colors button to switch between route outlines and grade colors.',
+            'It\'s perfect when you want to scan the wall by difficulty at a glance.',
+          ],
+          onEnter: () => {
+            if (viewToggleButton) {
+              highlightTutorialElement(viewToggleButton);
+            }
+          },
+          onExit: () => {
+            highlightTutorialElement(null);
+          },
+        },
+        {
+          title: 'Choose a wall',
+          body: [
+            'Use the wall selector to jump between different locations in the gym.',
+            'Each wall has its own background and set of climbs to explore.',
+          ],
+          onEnter: () => {
+            if (locationButton) {
+              highlightTutorialElement(locationButton);
+            }
+          },
+          onExit: () => {
+            highlightTutorialElement(null);
+          },
+        },
+        {
+          title: 'Sign in to track progress',
+          body: [
+            'The Log in button takes you to the personal dashboard where you can create an account or sign in.',
+            'Members can record ascents and personal grades once they\'re logged in.',
+          ],
+          onEnter: () => {
+            if (loginButton) {
+              highlightTutorialElement(loginButton);
+            }
+          },
+          onExit: () => {
+            highlightTutorialElement(null);
+          },
+        },
+        {
+          title: 'Need more info later?',
+          body: [
+            'Tap the info button to activate quick explanations for the controls around the screen.',
+            'It\'s a handy refresher whenever you want to revisit what each tool does.',
+          ],
+          onEnter: () => {
+            if (infoButton) {
+              highlightTutorialElement(infoButton);
+            }
+          },
+          onExit: () => {
+            highlightTutorialElement(null);
+          },
+        },
+      ];
+
+      function renderTutorialStep() {
+        if (!tutorialActive) {
+          return;
+        }
+
+        const step = tutorialSteps[tutorialStepIndex];
+        if (!step) {
+          return;
+        }
+
+        if (tutorialTitle) {
+          tutorialTitle.textContent = step.title || '';
+        }
+
+        setTutorialDescriptionContent(step.body || []);
+
+        if (tutorialProgress) {
+          tutorialProgress.textContent = `Step ${tutorialStepIndex + 1} of ${tutorialSteps.length}`;
+          tutorialProgress.classList.toggle('hidden', tutorialSteps.length === 0);
+        }
+
+        if (tutorialPrimaryAction) {
+          tutorialPrimaryAction.textContent =
+            tutorialStepIndex === tutorialSteps.length - 1 ? 'Finish' : 'Next';
+        }
+
+        if (tutorialSecondaryAction) {
+          tutorialSecondaryAction.textContent = 'Back';
+          tutorialSecondaryAction.classList.toggle('hidden', tutorialStepIndex <= 0);
+        }
+      }
+
+      async function goToTutorialStep(index) {
+        if (!tutorialActive || tutorialTransitionInProgress) {
+          return;
+        }
+
+        if (index < 0 || index >= tutorialSteps.length) {
+          return;
+        }
+
+        tutorialTransitionInProgress = true;
+
+        if (tutorialStepIndex >= 0 && tutorialStepIndex < tutorialSteps.length) {
+          const currentStep = tutorialSteps[tutorialStepIndex];
+          if (currentStep && typeof currentStep.onExit === 'function') {
+            try {
+              await currentStep.onExit();
+            } catch (error) {
+              console.warn('Tutorial step cleanup failed:', error);
+            }
+          }
+        }
+
+        tutorialStepIndex = index;
+        tutorialOverlayMode = 'step';
+        renderTutorialStep();
+
+        const nextStep = tutorialSteps[tutorialStepIndex];
+        if (nextStep && typeof nextStep.onEnter === 'function') {
+          try {
+            await nextStep.onEnter();
+          } catch (error) {
+            console.warn('Tutorial step setup failed:', error);
+          }
+        }
+
+        tutorialTransitionInProgress = false;
+
+        if (tutorialPrimaryAction) {
+          tutorialPrimaryAction.focus();
+        }
+      }
+
+      function renderTutorialInvite() {
+        tutorialOverlayMode = 'invite';
+        tutorialInviteOpen = true;
+        tutorialActive = false;
+
+        if (tutorialProgress) {
+          tutorialProgress.classList.add('hidden');
+        }
+
+        highlightTutorialElement(null);
+        closeTutorialRouteTooltip();
+
+        if (tutorialTitle) {
+          tutorialTitle.textContent = 'Need a quick tour?';
+        }
+
+        setTutorialDescriptionContent([
+          'It looks like you\'ve been away for a moment. Would you like a guided tour of the main controls?',
+          'You can always open it again later from the question mark button.',
+        ]);
+
+        if (tutorialPrimaryAction) {
+          tutorialPrimaryAction.textContent = 'Start tutorial';
+        }
+
+        if (tutorialSecondaryAction) {
+          tutorialSecondaryAction.textContent = 'Not now';
+          tutorialSecondaryAction.classList.remove('hidden');
+        }
+      }
+
+      async function startTutorial() {
+        if (tutorialActive) {
+          return;
+        }
+
+        tutorialInviteOpen = false;
+        tutorialOverlayMode = 'step';
+        tutorialActive = true;
+        tutorialStepIndex = -1;
+        tutorialCompleted = false;
+        tutorialTransitionInProgress = false;
+
+        if (tutorialProgress) {
+          tutorialProgress.classList.remove('hidden');
+        }
+
+        hideTutorialPromptButton();
+        clearTutorialPromptTimer();
+        disableInteractiveElementsForTutorial();
+
+        await goToTutorialStep(0);
+      }
+
+      async function finishTutorial() {
+        if (!tutorialActive) {
+          return;
+        }
+
+        tutorialTransitionInProgress = true;
+
+        if (tutorialStepIndex >= 0 && tutorialStepIndex < tutorialSteps.length) {
+          const finalStep = tutorialSteps[tutorialStepIndex];
+          if (finalStep && typeof finalStep.onExit === 'function') {
+            try {
+              await finalStep.onExit();
+            } catch (error) {
+              console.warn('Tutorial completion cleanup failed:', error);
+            }
+          }
+        }
+
+        tutorialActive = false;
+        tutorialCompleted = true;
+        tutorialInviteOpen = false;
+        tutorialOverlayMode = 'hidden';
+        tutorialStepIndex = -1;
+        tutorialTransitionInProgress = false;
+
+        highlightTutorialElement(null);
+        closeTutorialRouteTooltip();
+        restoreInteractiveElementsAfterTutorial();
+        hideTutorialPromptButton();
+
+        if (tutorialProgress) {
+          tutorialProgress.classList.add('hidden');
+        }
+
+        closeTutorialOverlay();
+        clearTutorialPromptTimer();
+      }
+
+      function declineTutorial() {
+        tutorialInviteOpen = false;
+        tutorialOverlayMode = 'hidden';
+        highlightTutorialElement(null);
+        closeTutorialRouteTooltip();
+        closeTutorialOverlay();
+        hideTutorialPromptButton();
+        resetTutorialInactivityTimer();
+      }
+
+      async function handleTutorialPrimaryAction() {
+        if (tutorialOverlayMode === 'invite') {
+          await startTutorial();
+          return;
+        }
+
+        if (tutorialOverlayMode === 'step') {
+          if (tutorialTransitionInProgress) {
+            return;
+          }
+
+          if (tutorialStepIndex >= tutorialSteps.length - 1) {
+            await finishTutorial();
+          } else {
+            await goToTutorialStep(tutorialStepIndex + 1);
+          }
+        }
+      }
+
+      async function handleTutorialSecondaryAction() {
+        if (tutorialOverlayMode === 'invite') {
+          declineTutorial();
+          return;
+        }
+
+        if (tutorialOverlayMode === 'step') {
+          if (tutorialTransitionInProgress || tutorialStepIndex <= 0) {
+            return;
+          }
+
+          await goToTutorialStep(tutorialStepIndex - 1);
+        }
+      }
+
+      function setupTutorialInteractions() {
+        tutorialLastActivityTimestamp = Date.now();
+
+        if (tutorialPromptButton) {
+          tutorialPromptButton.addEventListener('click', () => {
+            if (tutorialActive || tutorialInviteOpen || tutorialCompleted) {
+              return;
+            }
+
+            hideTutorialPromptButton();
+            clearTutorialPromptTimer();
+            renderTutorialInvite();
+            openTutorialOverlay();
+
+            if (tutorialPrimaryAction) {
+              tutorialPrimaryAction.focus();
+            }
+          });
+        }
+
+        if (tutorialPrimaryAction) {
+          tutorialPrimaryAction.addEventListener('click', () => {
+            void handleTutorialPrimaryAction();
+          });
+        }
+
+        if (tutorialSecondaryAction) {
+          tutorialSecondaryAction.addEventListener('click', () => {
+            void handleTutorialSecondaryAction();
+          });
+        }
+
+        const activityEvents = ['pointerdown', 'keydown', 'touchstart', 'mousemove'];
+        activityEvents.forEach((eventName) => {
+          document.addEventListener(
+            eventName,
+            () => {
+              registerTutorialActivity();
+            },
+            { passive: true },
+          );
+        });
+
+        resetTutorialInactivityTimer();
       }
 
       onAuthStateChanged(auth, async (user) => {
@@ -5096,6 +5895,8 @@
         document.addEventListener('mousedown', handleDocumentPointerDown);
         document.addEventListener('touchstart', handleDocumentPointerDown);
       }
+
+      setupTutorialInteractions();
 
       window.addEventListener('resize', resizeCanvas);
 
