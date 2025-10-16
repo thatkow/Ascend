@@ -158,37 +158,31 @@
         align-items: center;
       }
 
-      .location-button,
-      .view-toggle,
-      .sign-out,
-      .nav-links a {
-        border: 1px solid rgba(255, 255, 255, 0.35);
-        border-radius: 999px;
-        padding: 0.6rem 1.25rem;
-        font-size: 0.9rem;
-        font-weight: 700;
-        cursor: pointer;
-        background: linear-gradient(135deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.2));
-        color: #fff;
-        backdrop-filter: blur(6px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      .header-icon-button {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 0.45rem;
-        text-decoration: none;
-        line-height: 1;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        background: linear-gradient(135deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.2));
+        color: #fff;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+          border-color 0.2s ease;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+        padding: 0;
       }
 
-      .location-button:hover,
-      .location-button:focus-visible,
-      .view-toggle:hover,
-      .view-toggle:focus-visible,
-      .sign-out:hover,
-      .sign-out:focus-visible,
-      .nav-links a:hover,
-      .nav-links a:focus-visible {
+      .header-icon-button svg {
+        width: 20px;
+        height: 20px;
+        display: block;
+      }
+
+      .header-icon-button:hover,
+      .header-icon-button:focus-visible {
         transform: translateY(-1px);
         box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
         outline: none;
@@ -328,20 +322,12 @@
       }
 
       .info-button {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
+        width: 40px;
+        height: 40px;
         border: 2px solid rgba(126, 217, 87, 0.6);
         background: #7ed957;
         color: #0c1905;
-        font-size: 1.05rem;
-        font-weight: 700;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
         box-shadow: 0 8px 22px rgba(126, 217, 87, 0.35);
-        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
       }
 
       .info-button:hover,
@@ -354,6 +340,33 @@
 
       .info-button:focus-visible {
         box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.25), 0 12px 28px rgba(126, 217, 87, 0.45);
+      }
+
+      .setter-link {
+        text-decoration: none;
+        color: inherit;
+      }
+
+      .setter-link.header-icon-button {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.4));
+        color: #0c1905;
+        border-color: rgba(255, 255, 255, 0.6);
+      }
+
+      .walls-button {
+        backdrop-filter: blur(6px);
+      }
+
+      .sign-out {
+        background: linear-gradient(135deg, rgba(255, 116, 116, 0.85), rgba(255, 116, 116, 0.55));
+        color: #2d0a0a;
+        border-color: rgba(255, 180, 180, 0.65);
+      }
+
+      .sign-out:hover,
+      .sign-out:focus-visible {
+        border-color: rgba(255, 200, 200, 0.85);
+        background: linear-gradient(135deg, rgba(255, 116, 116, 0.95), rgba(255, 116, 116, 0.65));
       }
 
       .info-popover {
@@ -622,30 +635,23 @@
     </div>
     <div id="appContent" class="app hidden" aria-live="polite">
       <header class="app-header">
-        <button id="locationButton" class="location-button" type="button" aria-haspopup="dialog">
-          <span class="button-icon" aria-hidden="true">📍</span>
-          <span class="button-label">Select wall</span>
-        </button>
-        <nav id="navLinks" class="nav-links" aria-label="Available pages">
-          <a id="setterLink" class="hidden" href="setter.html">
-            <span class="button-icon" aria-hidden="true">🔧</span>
-            <span class="button-label">Setter Tools</span>
-          </a>
-        </nav>
-        <button id="viewToggle" class="view-toggle" type="button" aria-pressed="false">
-          Show Grade Colors
-        </button>
         <div class="info-wrapper">
           <button
             id="infoButton"
-            class="info-button"
+            class="header-icon-button info-button"
             type="button"
             aria-label="Learn about Ascend"
             aria-haspopup="dialog"
             aria-expanded="false"
             aria-controls="infoPopover"
+            title="Learn about Ascend"
           >
-            i
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
+              <rect x="11" y="10" width="2" height="7" rx="1" />
+              <circle cx="12" cy="7" r="1.5" />
+            </svg>
+            <span class="sr-only">Learn about Ascend</span>
           </button>
           <div
             id="infoPopover"
@@ -659,9 +665,55 @@
             <p>Switch the view to highlight each route by its grade color or by the hold color you assigned.</p>
           </div>
         </div>
-        <button id="signOutButton" class="sign-out" type="button">
-          <span class="button-icon" aria-hidden="true">🚪</span>
-          <span class="button-label">Sign out</span>
+        <a
+          id="setterLink"
+          class="header-icon-button setter-link hidden"
+          href="setter.html"
+          aria-label="Open setter tools"
+          title="Open setter tools"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M10.5 4.5a3 3 0 0 1 3.87 2.88l3.13 3.12-2.12 2.13-3.13-3.13a3 3 0 1 1-4.75-3.44l2.12 2.12 1.41-1.41Z"
+              fill="currentColor"
+            />
+            <path
+              d="M6.34 14.34 9.66 17.66a2 2 0 0 1 0 2.83l-.83.83a2 2 0 0 1-2.83 0L2.68 17.2a1 1 0 0 1 0-1.41l2.25-2.25a1 1 0 0 1 1.41 0Z"
+              fill="currentColor"
+            />
+          </svg>
+          <span class="sr-only">Open setter tools</span>
+        </a>
+        <button
+          id="locationButton"
+          class="header-icon-button walls-button"
+          type="button"
+          aria-haspopup="dialog"
+          aria-label="Select wall"
+          title="Select wall"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M12 2a7 7 0 0 1 7 7c0 4.42-4.56 9.52-6.38 11.34a0.88 0.88 0 0 1-1.24 0C9.56 18.52 5 13.42 5 9a7 7 0 0 1 7-7Zm0 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"
+              fill="currentColor"
+            />
+          </svg>
+          <span class="sr-only">Select wall</span>
+        </button>
+        <button
+          id="signOutButton"
+          class="header-icon-button sign-out"
+          type="button"
+          aria-label="Sign out"
+          title="Sign out"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M13 4a1 1 0 0 1 1-1h6v18h-6a1 1 0 0 1-1-1V4Zm-2.29 4.29 1.42 1.42L9.83 12l2.3 2.29-1.42 1.42L6 12l4.71-3.71Z"
+              fill="currentColor"
+            />
+          </svg>
+          <span class="sr-only">Sign out</span>
         </button>
       </header>
       <div class="canvas-container">
