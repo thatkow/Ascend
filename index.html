@@ -208,15 +208,6 @@
         outline: none;
       }
 
-      .button-icon {
-        font-size: 1.05rem;
-        line-height: 1;
-      }
-
-      .button-label {
-        line-height: 1;
-      }
-
       .view-toggle[aria-pressed='true'] {
         background: linear-gradient(135deg, rgba(126, 217, 87, 0.85), rgba(126, 217, 87, 0.4));
         color: #0f1a08;
@@ -671,7 +662,6 @@
               <rect x="11" y="10" width="2" height="7" rx="1" />
               <circle cx="12" cy="7" r="1.5" />
             </svg>
-            <span class="sr-only">Learn about Ascend</span>
           </button>
           <div
             id="infoPopover"
@@ -709,7 +699,6 @@
               <rect x="4" y="20" width="16" height="1.5" rx="0.75" fill="#ffffff" fill-opacity="0.55" />
             </svg>
           </span>
-          <span class="sr-only view-toggle-label">Show Grade Colors</span>
         </button>
         <a
           id="setterLink"
@@ -728,7 +717,6 @@
               fill="currentColor"
             />
           </svg>
-          <span class="sr-only">Open setter tools</span>
         </a>
         <button
           id="locationButton"
@@ -744,7 +732,6 @@
               fill="currentColor"
             />
           </svg>
-          <span class="sr-only">Select wall</span>
         </button>
         <button
           id="signOutButton"
@@ -759,7 +746,6 @@
               fill="currentColor"
             />
           </svg>
-          <span class="sr-only">Sign out</span>
         </button>
       </header>
       <div class="canvas-container">
@@ -838,9 +824,7 @@
       const infoButton = document.getElementById('infoButton');
       const infoPopover = document.getElementById('infoPopover');
       const locationButton = document.getElementById('locationButton');
-      const locationButtonLabel = locationButton?.querySelector('.button-label');
       const viewToggleButton = document.getElementById('viewToggle');
-      const viewToggleLabel = viewToggleButton?.querySelector('.view-toggle-label');
       const locationModal = document.getElementById('locationModal');
       const locationOptions = document.getElementById('locationOptions');
       const locationModalClose = document.getElementById('locationModalClose');
@@ -1256,9 +1240,6 @@
 
       function updateLocationButtonLabel() {
         const labelText = currentLocation?.name || 'Select wall';
-        if (locationButtonLabel) {
-          locationButtonLabel.textContent = labelText;
-        }
         if (locationButton) {
           locationButton.setAttribute('aria-label', `Select wall: ${labelText}`);
         }
@@ -1282,9 +1263,6 @@
         viewToggleButton.setAttribute('aria-pressed', showingGradeColors ? 'true' : 'false');
         viewToggleButton.setAttribute('aria-label', labelText);
         viewToggleButton.setAttribute('title', labelText);
-        if (viewToggleLabel) {
-          viewToggleLabel.textContent = labelText;
-        }
       }
 
       function setViewMode(mode) {
