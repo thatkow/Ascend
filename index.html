@@ -368,6 +368,24 @@
         padding: 0.75rem 1rem;
         border-radius: 0.85rem;
         background: rgba(255, 255, 255, 0.08);
+        cursor: pointer;
+        transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .progression-entry:hover {
+        background: rgba(255, 255, 255, 0.14);
+        transform: translateY(-1px);
+      }
+
+      .progression-entry:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+        background: rgba(255, 255, 255, 0.16);
+      }
+
+      .progression-entry.is-focused {
+        background: rgba(255, 255, 255, 0.18);
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.45);
       }
 
       .progression-entry-grade {
@@ -380,13 +398,6 @@
       .progression-entry-name {
         font-size: 1rem;
         font-weight: 600;
-      }
-
-      .progression-entry-location {
-        display: block;
-        font-size: 0.85rem;
-        color: rgba(255, 255, 255, 0.65);
-        margin-top: 0.15rem;
       }
 
       .progression-entry-status {
@@ -3328,15 +3339,38 @@
 
         progressionList.innerHTML = '';
 
-        if (!Array.isArray(routes) || routes.length === 0) {
+        const desiredLocation = normalizeLocationName(currentLocation?.name);
+        const fallbackLocation = normalizeLocationName(DEFAULT_LOCATION?.name);
+        const targetLocation = desiredLocation || fallbackLocation || null;
+
+        const relevantRoutes = Array.isArray(routes)
+          ? routes.filter((route) => {
+              if (!route) {
+                return false;
+              }
+
+              if (!targetLocation) {
+                return true;
+              }
+
+              const routeLocationKey =
+                typeof route.locationKey === 'string' && route.locationKey
+                  ? route.locationKey
+                  : normalizeLocationName(route.location);
+
+              return routeLocationKey === targetLocation;
+            })
+          : [];
+
+        if (!relevantRoutes.length) {
           const emptyMessage = document.createElement('p');
           emptyMessage.className = 'progression-empty-message';
-          emptyMessage.textContent = 'No routes available yet.';
+          emptyMessage.textContent = 'No routes available for this wall yet.';
           progressionList.appendChild(emptyMessage);
           return;
         }
 
-        const sorted = [...routes].sort((routeA, routeB) => {
+        const sorted = relevantRoutes.slice().sort((routeA, routeB) => {
           const gradeA = resolveProgressionGradeValue(routeA);
           const gradeB = resolveProgressionGradeValue(routeB);
 
@@ -3371,26 +3405,40 @@
           const listItem = document.createElement('div');
           listItem.className = 'progression-entry';
           listItem.setAttribute('role', 'listitem');
+          listItem.setAttribute('tabindex', '0');
+
+          if (route.id) {
+            listItem.dataset.routeId = route.id;
+          }
+
+          const isFocused = typeof route.id === 'string' && route.id === focusedRouteId;
+          if (isFocused) {
+            listItem.classList.add('is-focused');
+            listItem.setAttribute('aria-current', 'true');
+          }
 
           const grade = document.createElement('span');
           grade.className = 'progression-entry-grade';
           const gradeValue = resolveProgressionGradeValue(route);
           grade.textContent = formatGradeDisplay(gradeValue);
+
+          const gradeColor = getRouteGradeColor(route);
+          if (gradeColor) {
+            grade.style.color = gradeColor;
+          }
+
           listItem.appendChild(grade);
 
           const details = document.createElement('div');
           const title = document.createElement('span');
           title.className = 'progression-entry-name';
           title.textContent = route.title || route.id || 'Untitled route';
-          details.appendChild(title);
 
-          if (route.location) {
-            const location = document.createElement('span');
-            location.className = 'progression-entry-location';
-            location.textContent = route.location;
-            details.appendChild(location);
+          if (gradeColor) {
+            title.style.color = gradeColor;
           }
 
+          details.appendChild(title);
           listItem.appendChild(details);
 
           const status = document.createElement('span');
@@ -3408,6 +3456,19 @@
           }
 
           listItem.appendChild(status);
+
+          listItem.addEventListener('click', (event) => {
+            event.preventDefault();
+            focusRoute(route);
+          });
+
+          listItem.addEventListener('keydown', (event) => {
+            const { key } = event;
+            if (key === 'Enter' || key === ' ' || key === 'Spacebar') {
+              event.preventDefault();
+              focusRoute(route);
+            }
+          });
 
           progressionList.appendChild(listItem);
         });
@@ -3959,19 +4020,64 @@
         pinnedPosition = null;
       }
 
-      function toggleRouteFocus(route) {
+      function setRouteFocus(route, shouldFocus) {
         if (!route || typeof route.id !== 'string') {
           return;
         }
 
-        const shouldFocus = focusedRouteId !== route.id;
-        focusedRouteId = shouldFocus ? route.id : null;
+        const nextFocusedId = shouldFocus ? route.id : null;
+        const shouldRestoreProgressionFocus = Boolean(
+          shouldFocus && progressionList && isProgressionModalOpen()
+        );
+
+        if (focusedRouteId === nextFocusedId) {
+          redraw();
+
+          if (tooltip && tooltip.classList.contains('visible') && activeRouteId === route.id) {
+            updateTooltipContent(route);
+          }
+
+          renderProgressionList();
+
+          if (shouldRestoreProgressionFocus) {
+            const entry = progressionList.querySelector(
+              `[data-route-id="${route.id}"]`,
+            );
+            if (entry && typeof entry.focus === 'function') {
+              entry.focus();
+            }
+          }
+          return;
+        }
+
+        focusedRouteId = nextFocusedId;
 
         redraw();
 
         if (tooltip && tooltip.classList.contains('visible') && activeRouteId === route.id) {
           updateTooltipContent(route);
         }
+
+        renderProgressionList();
+
+        if (shouldRestoreProgressionFocus) {
+          const entry = progressionList.querySelector(`[data-route-id="${route.id}"]`);
+          if (entry && typeof entry.focus === 'function') {
+            entry.focus();
+          }
+        }
+      }
+
+      function focusRoute(route) {
+        setRouteFocus(route, true);
+      }
+
+      function toggleRouteFocus(route) {
+        if (!route || typeof route.id !== 'string') {
+          return;
+        }
+
+        setRouteFocus(route, focusedRouteId !== route.id);
       }
 
       function extractClientPoint(event) {
