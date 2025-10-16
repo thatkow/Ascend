@@ -788,12 +788,6 @@
         display: block;
       }
 
-      .route-tooltip .grade-close-row {
-        display: flex;
-        justify-content: flex-end;
-        margin-top: 0.75rem;
-      }
-
     </style>
   </head>
   <body>
@@ -3112,13 +3106,6 @@
         return closeButton;
       }
 
-      function buildTooltipCloseRow() {
-        const row = document.createElement('div');
-        row.className = 'grade-close-row';
-        row.appendChild(createTooltipCloseButton());
-        return row;
-      }
-
       function buildGradeControls(route) {
         if (!route || !route.id) {
           return null;
@@ -3152,7 +3139,6 @@
         const gradeInputRow = document.createElement('div');
         gradeInputRow.className = 'grade-input-row';
         gradeInputRow.appendChild(gradeLabel);
-        gradeInputRow.appendChild(createTooltipCloseButton());
 
         gradeForm.appendChild(gradeInputRow);
 
@@ -3374,7 +3360,6 @@
 
         const fragment = document.createDocumentFragment();
         const ariaLines = [];
-        let closeControlsAppended = false;
 
         const header = document.createElement('div');
         header.className = 'tooltip-header';
@@ -3490,13 +3475,7 @@
           const gradeControls = buildGradeControls(route);
           if (gradeControls) {
             fragment.appendChild(gradeControls);
-            closeControlsAppended = true;
           }
-        }
-
-        if (!closeControlsAppended) {
-          const closeRow = buildTooltipCloseRow();
-          fragment.appendChild(closeRow);
         }
 
         tooltip.replaceChildren(fragment);
