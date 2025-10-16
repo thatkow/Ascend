@@ -101,7 +101,7 @@
           );
         }
         50% {
-          transform: translate(-50%, calc(-100% / 6));
+          transform: translate(-50%, calc(-100% / 3));
           background-color: #ff8c42;
           background-image: none;
         }
@@ -123,6 +123,14 @@
         background: rgba(8, 12, 9, 0.75);
         backdrop-filter: blur(2px);
         z-index: 30;
+      }
+
+      .tutorial-overlay.is-bottom-aligned {
+        align-items: flex-end;
+      }
+
+      .tutorial-overlay.is-bottom-aligned .tutorial-card {
+        margin-bottom: clamp(1.5rem, 8vh, 4rem);
       }
 
       .tutorial-card {
@@ -210,6 +218,35 @@
 
       .tutorial-highlight {
         box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.65), 0 0 20px rgba(126, 217, 87, 0.45);
+      }
+
+      .tutorial-illuminated {
+        animation: tutorial-illuminate 1.2s ease-in-out infinite;
+        box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.75), 0 0 24px rgba(126, 217, 87, 0.6);
+      }
+
+      @keyframes tutorial-illuminate {
+        0%,
+        100% {
+          box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.6), 0 0 18px rgba(126, 217, 87, 0.45);
+        }
+        50% {
+          box-shadow: 0 0 0 6px rgba(255, 140, 66, 0.7), 0 0 28px rgba(255, 140, 66, 0.6);
+        }
+      }
+
+      .tutorial-route-pulse {
+        animation: tutorial-route-pulse 1.8s ease-in-out infinite;
+      }
+
+      @keyframes tutorial-route-pulse {
+        0%,
+        100% {
+          filter: brightness(1);
+        }
+        50% {
+          filter: brightness(1.35);
+        }
       }
 
       .is-tutorial-disabled {
@@ -1355,9 +1392,11 @@
       let tutorialTransitionInProgress = false;
       let tutorialHighlightedRouteId = null;
       let tutorialHighlightedElement = null;
+      let tutorialHighlightedElementOptions = { illuminate: false };
       let tutorialPreviousFocus = null;
       let tutorialOverlayMode = 'hidden';
       let tutorialLastActivityTimestamp = 0;
+      let tutorialPreviousViewMode = null;
 
       const LOCATIONS = [
         { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg' },
@@ -3224,7 +3263,6 @@
         hideTooltip({ force: true });
 
         await loadRoutes();
-        showWelcomeCallout();
       }
 
       function clearTutorialPromptTimer() {
@@ -3245,6 +3283,7 @@
         tutorialPromptButton.classList.remove('hidden');
         tutorialPromptButton.setAttribute('aria-hidden', 'false');
         tutorialPromptTimeoutId = null;
+        resetTutorialInactivityTimer();
       }
 
       function hideTutorialPromptButton() {
@@ -3342,16 +3381,29 @@
         tutorialDescription.appendChild(fragment);
       }
 
-      function highlightTutorialElement(element) {
-        if (tutorialHighlightedElement && tutorialHighlightedElement !== element) {
-          tutorialHighlightedElement.classList.remove('tutorial-highlight');
+      function highlightTutorialElement(element, options = {}) {
+        const shouldIlluminate = options?.illuminate === true;
+
+        if (tutorialHighlightedElement) {
+          if (tutorialHighlightedElement !== element || !element) {
+            tutorialHighlightedElement.classList.remove('tutorial-highlight');
+            tutorialHighlightedElement.classList.remove('tutorial-illuminated');
+            tutorialHighlightedElementOptions = { illuminate: false };
+          } else if (tutorialHighlightedElementOptions.illuminate !== shouldIlluminate) {
+            tutorialHighlightedElement.classList.toggle('tutorial-illuminated', shouldIlluminate);
+            tutorialHighlightedElementOptions = { illuminate: shouldIlluminate };
+            return;
+          }
         }
 
         if (element && element.classList) {
           element.classList.add('tutorial-highlight');
+          element.classList.toggle('tutorial-illuminated', shouldIlluminate);
           tutorialHighlightedElement = element;
+          tutorialHighlightedElementOptions = { illuminate: shouldIlluminate };
         } else {
           tutorialHighlightedElement = null;
+          tutorialHighlightedElementOptions = { illuminate: false };
         }
       }
 
@@ -3467,6 +3519,31 @@
         hideTooltip({ force: true });
       }
 
+      function setTutorialOverlayAlignment(alignment = 'center') {
+        if (!tutorialOverlay) {
+          return;
+        }
+
+        const shouldAlignBottom = alignment === 'bottom';
+        tutorialOverlay.classList.toggle('is-bottom-aligned', shouldAlignBottom);
+      }
+
+      function startTutorialRoutePulse() {
+        if (!canvas) {
+          return;
+        }
+
+        canvas.classList.add('tutorial-route-pulse');
+      }
+
+      function stopTutorialRoutePulse() {
+        if (!canvas) {
+          return;
+        }
+
+        canvas.classList.remove('tutorial-route-pulse');
+      }
+
       const tutorialSteps = [
         {
           title: 'Welcome to Ascend',
@@ -3475,6 +3552,7 @@
             'Use this public view to browse climbs and see what sets are available right now.',
           ],
           onEnter: () => {
+            setTutorialOverlayAlignment('center');
             highlightTutorialElement(null);
             hideTooltip({ force: true });
           },
@@ -3489,11 +3567,17 @@
             'You\'ll see the setter, description, and consensus grade gathered from other climbers.',
           ],
           onEnter: async () => {
+            setTutorialOverlayAlignment('bottom');
             highlightTutorialElement(null);
             await showTutorialRouteTooltip();
+            if (tutorialHighlightedRouteId) {
+              startTutorialRoutePulse();
+            }
           },
           onExit: () => {
+            stopTutorialRoutePulse();
             closeTutorialRouteTooltip();
+            setTutorialOverlayAlignment('center');
           },
         },
         {
@@ -3503,12 +3587,21 @@
             'It\'s perfect when you want to scan the wall by difficulty at a glance.',
           ],
           onEnter: () => {
+            setTutorialOverlayAlignment('center');
             if (viewToggleButton) {
-              highlightTutorialElement(viewToggleButton);
+              tutorialPreviousViewMode = viewMode;
+              if (viewMode !== VIEW_MODE_GRADE_COLORS) {
+                setViewMode(VIEW_MODE_GRADE_COLORS);
+              }
+              highlightTutorialElement(viewToggleButton, { illuminate: true });
             }
           },
           onExit: () => {
             highlightTutorialElement(null);
+            if (tutorialPreviousViewMode && tutorialPreviousViewMode !== viewMode) {
+              setViewMode(tutorialPreviousViewMode);
+            }
+            tutorialPreviousViewMode = null;
           },
         },
         {
@@ -3518,8 +3611,9 @@
             'Each wall has its own background and set of climbs to explore.',
           ],
           onEnter: () => {
+            setTutorialOverlayAlignment('center');
             if (locationButton) {
-              highlightTutorialElement(locationButton);
+              highlightTutorialElement(locationButton, { illuminate: true });
             }
           },
           onExit: () => {
@@ -3533,8 +3627,9 @@
             'Members can record ascents and personal grades once they\'re logged in.',
           ],
           onEnter: () => {
+            setTutorialOverlayAlignment('center');
             if (loginButton) {
-              highlightTutorialElement(loginButton);
+              highlightTutorialElement(loginButton, { illuminate: true });
             }
           },
           onExit: () => {
@@ -3548,8 +3643,9 @@
             'It\'s a handy refresher whenever you want to revisit what each tool does.',
           ],
           onEnter: () => {
+            setTutorialOverlayAlignment('center');
             if (infoButton) {
-              highlightTutorialElement(infoButton);
+              highlightTutorialElement(infoButton, { illuminate: true });
             }
           },
           onExit: () => {
@@ -3642,6 +3738,8 @@
         }
 
         highlightTutorialElement(null);
+        stopTutorialRoutePulse();
+        setTutorialOverlayAlignment('center');
         closeTutorialRouteTooltip();
 
         if (tutorialTitle) {
@@ -3679,6 +3777,9 @@
           tutorialProgress.classList.remove('hidden');
         }
 
+        stopTutorialRoutePulse();
+        setTutorialOverlayAlignment('center');
+
         hideTutorialPromptButton();
         clearTutorialPromptTimer();
         disableInteractiveElementsForTutorial();
@@ -3713,6 +3814,8 @@
 
         highlightTutorialElement(null);
         closeTutorialRouteTooltip();
+        stopTutorialRoutePulse();
+        setTutorialOverlayAlignment('center');
         restoreInteractiveElementsAfterTutorial();
         hideTutorialPromptButton();
 
@@ -3729,6 +3832,8 @@
         tutorialOverlayMode = 'hidden';
         highlightTutorialElement(null);
         closeTutorialRouteTooltip();
+        stopTutorialRoutePulse();
+        setTutorialOverlayAlignment('center');
         closeTutorialOverlay();
         hideTutorialPromptButton();
         resetTutorialInactivityTimer();
