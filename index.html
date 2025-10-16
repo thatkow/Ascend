@@ -999,6 +999,8 @@
       let awaitingInfoTargetSelection = false;
       let activeInfoCallout = null;
       let pendingInfoRepositionFrame = null;
+      let ephemeralCalloutDismissTimer = null;
+      let hasShownWelcomeCallout = false;
 
       const LOCATIONS = [
         { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg' },
@@ -1034,6 +1036,11 @@
         if (pendingInfoRepositionFrame) {
           cancelAnimationFrame(pendingInfoRepositionFrame);
           pendingInfoRepositionFrame = null;
+        }
+
+        if (ephemeralCalloutDismissTimer) {
+          clearTimeout(ephemeralCalloutDismissTimer);
+          ephemeralCalloutDismissTimer = null;
         }
 
         container.innerHTML = '';
@@ -1236,6 +1243,48 @@
         };
       }
 
+      function buildWelcomeCallout() {
+        if (!infoButton || !isElementVisible(infoButton)) {
+          return null;
+        }
+
+        const callout = createBasicCallout('Welcome to Ascend', [
+          'Explore the wall to discover climbs and track your progress.',
+          'Tap a route to study beta, log your ascent, and compare community grades.',
+        ]);
+
+        callout.setAttribute('role', 'status');
+        callout.tabIndex = 0;
+        callout.addEventListener('click', () => {
+          if (activeInfoCallout?.element === callout) {
+            clearInfoHighlights();
+          }
+        });
+
+        return {
+          target: infoButton,
+          element: callout,
+          options: { placement: 'bottom', offset: 12, margin: 20 },
+        };
+      }
+
+      function showWelcomeCallout() {
+        if (hasShownWelcomeCallout || infoModeActive) {
+          return;
+        }
+
+        const entry = buildWelcomeCallout();
+        if (!entry) {
+          return;
+        }
+
+        hasShownWelcomeCallout = true;
+
+        requestAnimationFrame(() => {
+          showTemporaryInfoCallout(entry, 11000);
+        });
+      }
+
       function positionCallout(entry) {
         if (!entry?.target || !entry?.element) {
           return;
@@ -1313,6 +1362,26 @@
             positionCallout(entry);
           }
         });
+      }
+
+      function showTemporaryInfoCallout(entry, duration = 8000) {
+        if (!entry) {
+          return;
+        }
+
+        showInfoCallout(entry);
+
+        if (ephemeralCalloutDismissTimer) {
+          clearTimeout(ephemeralCalloutDismissTimer);
+        }
+
+        const timeout = Number.isFinite(duration) && duration > 0 ? duration : 8000;
+        ephemeralCalloutDismissTimer = window.setTimeout(() => {
+          ephemeralCalloutDismissTimer = null;
+          if (activeInfoCallout === entry) {
+            clearInfoHighlights();
+          }
+        }, timeout);
       }
 
       function setInfoButtonActiveState(active) {
@@ -2735,8 +2804,13 @@
 
           updateNavigationForRole(role);
           appContent.classList.remove('hidden');
-          await loadAscents({ userId: user.uid, username: currentUsername });
-          await loadRoutes();
+
+          try {
+            await loadAscents({ userId: user.uid, username: currentUsername });
+            await loadRoutes();
+          } finally {
+            showWelcomeCallout();
+          }
         } else {
           authOverlay.classList.remove('hidden');
           appContent.classList.add('hidden');
@@ -2756,6 +2830,7 @@
           ascendedRoutes.clear();
           routeGrades.clear();
           routeMedianGrades = new Map();
+          hasShownWelcomeCallout = false;
           hideTooltip({ force: true });
           redraw();
         }
@@ -3356,7 +3431,7 @@
         if (!isFocused) {
           focusButton.classList.add('is-quiet');
         }
-        focusButton.textContent = isFocused ? 'Show all routes' : 'Focus';
+        focusButton.textContent = isFocused ? 'Remove focus' : 'Focus';
         focusButton.setAttribute('aria-pressed', isFocused ? 'true' : 'false');
         focusButton.dataset.infoTarget = 'route-focus';
         focusButton.addEventListener('click', (event) => {
