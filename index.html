@@ -718,6 +718,20 @@
         font-weight: 600;
       }
 
+      .grade-input-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: stretch;
+      }
+
+      .grade-input-row label {
+        flex: 1;
+      }
+
+      .grade-input-row input[type='number'] {
+        flex: 1;
+      }
+
       .grade-form input[type='number'] {
         border-radius: 0.65rem;
         border: 1px solid #fff;
@@ -734,6 +748,41 @@
       .grade-note {
         font-size: 0.75rem;
         color: var(--tooltip-foreground, #fff);
+      }
+
+      .route-tooltip .tooltip-close-button {
+        width: 40px;
+        min-width: 40px;
+        border-radius: 0.65rem;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        background: rgba(0, 0, 0, 0.25);
+        color: var(--tooltip-foreground, #fff);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+
+      .route-tooltip .tooltip-close-button:hover,
+      .route-tooltip .tooltip-close-button:focus-visible {
+        border-color: rgba(255, 255, 255, 0.6);
+        background: rgba(255, 255, 255, 0.2);
+        color: #0b0f03;
+        box-shadow: 0 0 0 0.15rem rgba(255, 255, 255, 0.2);
+      }
+
+      .route-tooltip .tooltip-close-button svg {
+        width: 16px;
+        height: 16px;
+        display: block;
+      }
+
+      .route-tooltip .grade-close-row {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 0.75rem;
       }
 
     </style>
@@ -1128,6 +1177,65 @@
         };
       }
 
+      function buildRouteAscentCallout(context = {}) {
+        const target = context?.target instanceof Element ? context.target : null;
+        if (!target || !isElementVisible(target)) {
+          return null;
+        }
+
+        const isMarkedAscended = target.getAttribute('aria-pressed') === 'true';
+        const title = isMarkedAscended ? 'Marked ascended' : 'Not ascended';
+        const callout = createBasicCallout(title, [
+          'Toggle this when you send the climb to track your personal ascents.',
+          'Turn it off again to keep projects on your list.',
+        ]);
+
+        return {
+          target,
+          element: callout,
+          options: { placement: 'top', offset: 12 },
+        };
+      }
+
+      function buildRouteFocusCallout(context = {}) {
+        const target = context?.target instanceof Element ? context.target : null;
+        if (!target || !isElementVisible(target)) {
+          return null;
+        }
+
+        const isFocused = target.getAttribute('aria-pressed') === 'true';
+        const callout = createBasicCallout('Focus view', [
+          isFocused
+            ? 'All routes are visible again. Toggle Focus to isolate a single climb.'
+            : 'Show only this route to inspect its holds without distractions.',
+          'Use it to study beta before hopping back to the full wall.',
+        ]);
+
+        return {
+          target,
+          element: callout,
+          options: { placement: 'top', offset: 12 },
+        };
+      }
+
+      function buildRouteGradeCallout(context = {}) {
+        const target = context?.target instanceof Element ? context.target : null;
+        if (!target || !isElementVisible(target)) {
+          return null;
+        }
+
+        const callout = createBasicCallout('Your grade', [
+          'This is your personal grade — how you think the climb feels.',
+          'Your grade helps shape the community average shown in the top right.',
+        ]);
+
+        return {
+          target,
+          element: callout,
+          options: { placement: 'top', offset: 12 },
+        };
+      }
+
       function positionCallout(entry) {
         if (!entry?.target || !entry?.element) {
           return;
@@ -1264,7 +1372,7 @@
         }
       }
 
-      function handleInfoRequestFor(targetKey, event) {
+      function handleInfoRequestFor(targetKey, event, context = {}) {
         if (!infoModeActive || !awaitingInfoTargetSelection) {
           return false;
         }
@@ -1293,6 +1401,15 @@
             break;
           case 'sign-out':
             entry = buildSignOutCallout();
+            break;
+          case 'route-ascent':
+            entry = buildRouteAscentCallout(context);
+            break;
+          case 'route-focus':
+            entry = buildRouteFocusCallout(context);
+            break;
+          case 'route-grade':
+            entry = buildRouteGradeCallout(context);
             break;
           default:
             break;
@@ -2135,6 +2252,57 @@
         });
       }
 
+      document.addEventListener(
+        'pointerdown',
+        (event) => {
+          if (!infoModeActive || !awaitingInfoTargetSelection) {
+            return;
+          }
+
+          const targetElement =
+            event.target instanceof Element ? event.target.closest('[data-info-target]') : null;
+          if (!targetElement) {
+            return;
+          }
+
+          const infoKey = targetElement.getAttribute('data-info-target');
+          if (!infoKey) {
+            return;
+          }
+
+          handleInfoRequestFor(infoKey, event, { target: targetElement });
+        },
+        true,
+      );
+
+      document.addEventListener(
+        'keydown',
+        (event) => {
+          if (!infoModeActive || !awaitingInfoTargetSelection) {
+            return;
+          }
+
+          const key = event.key;
+          if (key !== 'Enter' && key !== ' ' && key !== 'Spacebar') {
+            return;
+          }
+
+          const targetElement =
+            event.target instanceof Element ? event.target.closest('[data-info-target]') : null;
+          if (!targetElement) {
+            return;
+          }
+
+          const infoKey = targetElement.getAttribute('data-info-target');
+          if (!infoKey) {
+            return;
+          }
+
+          handleInfoRequestFor(infoKey, event, { target: targetElement });
+        },
+        true,
+      );
+
       renderLocationOptions();
 
       const wallKeyFromQuery = getWallKeyFromQuery();
@@ -2838,6 +3006,35 @@
         return typeof stored === 'number' && Number.isFinite(stored) ? stored : null;
       }
 
+      function createTooltipCloseButton() {
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'tooltip-close-button';
+        closeButton.setAttribute('aria-label', 'Close route details');
+        closeButton.setAttribute('title', 'Close route details');
+        closeButton.innerHTML = `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M6.34 6.34a1 1 0 0 1 1.32-.08l.1.08L12 10.59l4.24-4.25a1 1 0 0 1 1.5 1.32l-.08.1L13.41 12l4.25 4.24a1 1 0 0 1-1.32 1.5l-.1-.08L12 13.41l-4.24 4.25a1 1 0 0 1-1.5-1.32l.08-.1L10.59 12 6.34 7.76a1 1 0 0 1 0-1.42Z"
+              fill="currentColor"
+            />
+          </svg>
+        `;
+        closeButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          hideTooltip({ force: true });
+        });
+        return closeButton;
+      }
+
+      function buildTooltipCloseRow() {
+        const row = document.createElement('div');
+        row.className = 'grade-close-row';
+        row.appendChild(createTooltipCloseButton());
+        return row;
+      }
+
       function buildGradeControls(route) {
         if (!route || !route.id) {
           return null;
@@ -2864,9 +3061,16 @@
         const existingGrade = getUserGradeForRoute(route.id);
         gradeInput.value = existingGrade !== null ? String(existingGrade) : '';
         gradeInput.placeholder = '—';
+        gradeInput.dataset.infoTarget = 'route-grade';
+
         gradeLabel.appendChild(gradeInput);
 
-        gradeForm.appendChild(gradeLabel);
+        const gradeInputRow = document.createElement('div');
+        gradeInputRow.className = 'grade-input-row';
+        gradeInputRow.appendChild(gradeLabel);
+        gradeInputRow.appendChild(createTooltipCloseButton());
+
+        gradeForm.appendChild(gradeInputRow);
 
         let isSubmittingGrade = false;
         let lastSubmittedValue = gradeInput.value.trim();
@@ -3086,6 +3290,7 @@
 
         const fragment = document.createDocumentFragment();
         const ariaLines = [];
+        let closeControlsAppended = false;
 
         const displayTitle = (route.title || route.id || '').trim();
         if (displayTitle) {
@@ -3135,6 +3340,7 @@
           actionButton.className = 'tooltip-action-button ascend-toggle';
           actionButton.setAttribute('aria-pressed', isAscended ? 'true' : 'false');
           actionButton.textContent = isAscended ? 'Ascended' : 'Not ascended';
+          actionButton.dataset.infoTarget = 'route-ascent';
           actionButton.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -3152,6 +3358,7 @@
         }
         focusButton.textContent = isFocused ? 'Show all routes' : 'Focus';
         focusButton.setAttribute('aria-pressed', isFocused ? 'true' : 'false');
+        focusButton.dataset.infoTarget = 'route-focus';
         focusButton.addEventListener('click', (event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -3194,7 +3401,13 @@
           const gradeControls = buildGradeControls(route);
           if (gradeControls) {
             fragment.appendChild(gradeControls);
+            closeControlsAppended = true;
           }
+        }
+
+        if (!closeControlsAppended) {
+          const closeRow = buildTooltipCloseRow();
+          fragment.appendChild(closeRow);
         }
 
         tooltip.replaceChildren(fragment);
@@ -4323,7 +4536,7 @@
 
         if (entry && entry.route) {
           showTooltip(entry.route, point.x, point.y, { pin: true });
-        } else {
+        } else if (!pinnedRouteId) {
           hideTooltip({ force: true });
         }
       }
@@ -4338,6 +4551,10 @@
         }
 
         if (tooltip.contains(event.target)) {
+          return;
+        }
+
+        if (pinnedRouteId) {
           return;
         }
 
