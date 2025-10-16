@@ -42,6 +42,43 @@
       -webkit-overflow-scrolling: touch;
     }
 
+    .canvas-utility-buttons {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      z-index: 18;
+      pointer-events: none;
+    }
+
+    .canvas-utility-buttons button {
+      pointer-events: auto;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 999px;
+      padding: 0.55rem 1.25rem;
+      background: rgba(0, 0, 0, 0.65);
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+        border-color 0.2s ease;
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(6px);
+    }
+
+    .canvas-utility-buttons button:hover,
+    .canvas-utility-buttons button:focus-visible {
+      outline: none;
+      transform: translateY(-1px);
+      background: rgba(0, 0, 0, 0.85);
+      border-color: rgba(255, 255, 255, 0.55);
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+    }
+
     .canvas-toolbar {
       position: fixed;
       top: 50%;
@@ -826,6 +863,9 @@
   </div>
 
   <div id="appContent" class="hidden">
+    <div class="canvas-utility-buttons" aria-label="Canvas controls">
+      <button id="resetZoomButton" type="button">Reset zoom</button>
+    </div>
     <div class="canvas-container">
       <canvas id="drawingCanvas"></canvas>
     </div>
@@ -1251,6 +1291,7 @@
     const canvas = document.getElementById('drawingCanvas');
     const controlPanel = document.querySelector('.control-panel');
     const canvasToolbar = document.querySelector('.canvas-toolbar');
+    const resetZoomButton = document.getElementById('resetZoomButton');
     const drawingToggle = document.getElementById('drawingToggle');
     const panelSidebar = document.getElementById('panelSidebar');
     const climberViewButton = document.getElementById('climberViewButton');
@@ -3861,6 +3902,7 @@
         } else if (isCanvasScrollable) {
           canvasContainer.scrollLeft = 0;
         }
+        canvasContainer.scrollTop = 0;
       }
 
       const safePreviousWidth = previousWidth || width;
@@ -3884,6 +3926,27 @@
 
       isCanvasScrollable = enableScroll;
       redraw();
+    }
+
+    function resetCanvasZoom() {
+      if (!canvas || !canvasContainer) {
+        return;
+      }
+
+      if (ctx && typeof ctx.setTransform === 'function') {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+      }
+
+      resizeCanvas();
+
+      if (canvasContainer.classList.contains('scrollable')) {
+        const maxScrollLeft = Math.max(0, canvasContainer.scrollWidth - canvasContainer.clientWidth);
+        canvasContainer.scrollLeft = Math.max(0, maxScrollLeft / 2);
+      } else {
+        canvasContainer.scrollLeft = 0;
+      }
+
+      canvasContainer.scrollTop = 0;
     }
 
     function redraw() {
@@ -5297,6 +5360,12 @@
     }
 
     canvas.addEventListener('click', addPoint);
+    if (resetZoomButton) {
+      resetZoomButton.addEventListener('click', () => {
+        resetCanvasZoom();
+      });
+    }
+
     window.addEventListener('resize', resizeCanvas);
 
     clearButton.addEventListener('click', clearCanvas);
