@@ -57,22 +57,28 @@
       .canvas-utility-buttons {
         position: fixed;
         top: 1rem;
-        left: 1rem;
+        right: 1rem;
+        left: auto;
         display: flex;
         flex-direction: column;
+        align-items: flex-end;
         gap: 0.75rem;
         z-index: 15;
         pointer-events: none;
+      }
+
+      .canvas-utility-buttons[hidden] {
+        display: none !important;
       }
 
       .canvas-utility-buttons button {
         pointer-events: auto;
         border: 1px solid rgba(255, 255, 255, 0.35);
         border-radius: 999px;
-        padding: 0.55rem 1.25rem;
+        padding: 0.35rem 0.65rem;
         background: rgba(0, 0, 0, 0.65);
         color: #fff;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         font-weight: 600;
         letter-spacing: 0.04em;
         cursor: pointer;
@@ -80,6 +86,17 @@
           border-color 0.2s ease;
         box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
         backdrop-filter: blur(6px);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
+      }
+
+      .canvas-utility-buttons button .reset-zoom-label {
+        display: inline-flex;
+        transform: rotate(90deg);
+        transform-origin: center;
+        white-space: nowrap;
       }
 
       .canvas-utility-buttons button:hover,
@@ -195,25 +212,53 @@
         align-items: center;
       }
 
-      .location-button {
-        border: 1px solid rgba(255, 255, 255, 0.35);
-        border-radius: 999px;
-        padding: 0.6rem 1.25rem;
-        font-size: 0.9rem;
-        font-weight: 700;
+      .icon-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.32);
+        background: rgba(0, 0, 0, 0.6);
+        color: #f3f3f3;
         cursor: pointer;
-        background: linear-gradient(135deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.2));
-        color: #fff;
+        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
         backdrop-filter: blur(6px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease,
+          background 0.2s ease, color 0.2s ease;
+      }
+
+      .icon-button svg {
+        width: 22px;
+        height: 22px;
+        display: block;
+        fill: currentColor;
+      }
+
+      .icon-button:hover,
+      .icon-button:focus-visible {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+        border-color: rgba(255, 255, 255, 0.55);
+        background: rgba(0, 0, 0, 0.75);
+        color: #fff;
+        outline: none;
+      }
+
+      .location-button {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05));
+        color: #121212;
+      }
+
+      .location-button svg {
+        stroke: currentColor;
       }
 
       .location-button:hover,
       .location-button:focus-visible {
-        transform: translateY(-1px);
-        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
-        outline: none;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.12));
+        color: #070707;
       }
 
       .location-modal {
@@ -418,44 +463,12 @@
       }
 
       .nav-links a {
-        padding: 0.55rem 0.95rem;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.18);
-        color: #0c1905;
-        font-size: 0.85rem;
-        font-weight: 600;
         text-decoration: none;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.45));
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-      }
-
-      .nav-links a:hover,
-      .nav-links a:focus-visible {
-        transform: translateY(-1px);
-        box-shadow: 0 10px 22px rgba(255, 255, 255, 0.25);
-        outline: none;
+        color: inherit;
       }
 
       .sign-out {
-        border: 1px solid rgba(255, 255, 255, 0.35);
-        border-radius: 999px;
-        padding: 0.6rem 1.25rem;
-        font-size: 0.9rem;
-        font-weight: 700;
-        cursor: pointer;
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08));
-        color: #fff;
-        backdrop-filter: blur(6px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-      }
-
-      .sign-out:hover,
-      .sign-out:focus-visible {
-        transform: translateY(-1px);
-        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
-        outline: none;
+        color: #fefefe;
       }
 
       .route-tooltip {
@@ -680,11 +693,43 @@
     </div>
     <div id="appContent" class="app hidden" aria-live="polite">
       <header class="app-header">
-        <button id="locationButton" class="location-button" type="button" aria-haspopup="dialog">
-          Select wall
+        <button
+          id="locationButton"
+          class="icon-button location-button"
+          type="button"
+          aria-haspopup="dialog"
+          aria-label="Select wall"
+          title="Select wall"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.5" />
+            <path
+              d="M12 5.5v13M5.5 12h13"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+            />
+            <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+          </svg>
+          <span class="sr-only icon-button-label">Select wall</span>
         </button>
         <nav id="navLinks" class="nav-links" aria-label="Available pages">
-          <a id="setterLink" class="hidden" href="setter.html">Setter Tools</a>
+          <a
+            id="setterLink"
+            class="icon-button hidden"
+            href="setter.html"
+            aria-label="Setter tools"
+            title="Setter tools"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M20.5 6.5 18.5 8.5 15.5 5.5 17.5 3.5 16.2 2.2 12.7 5.7 14.4 7.4 6.7 15.1c-.8.8-.8 2.1 0 2.9.8.8 2.1.8 2.9 0l7.7-7.7 1.7 1.7 3.5-3.5Z"
+                fill="currentColor"
+              />
+            </svg>
+            <span class="sr-only">Setter tools</span>
+          </a>
         </nav>
         <div class="info-wrapper">
           <button
@@ -718,10 +763,42 @@
             <p class="sr-only">Example grade bars: grade 7 is shortest, grade 13 is taller, and grade 25 is tallest.</p>
           </div>
         </div>
-        <button id="signOutButton" class="sign-out">Sign out</button>
+        <button
+          id="signOutButton"
+          class="icon-button sign-out"
+          type="button"
+          aria-label="Sign out"
+          title="Sign out"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <rect
+              x="6"
+              y="3"
+              width="8.5"
+              height="18"
+              rx="1.5"
+              ry="1.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+            />
+            <path
+              d="M12.5 12h7m0 0-2.6-2.6M19.5 12l-2.6 2.6"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <circle cx="9.75" cy="12" r="1" fill="currentColor" />
+          </svg>
+          <span class="sr-only">Sign out</span>
+        </button>
       </header>
-      <div class="canvas-utility-buttons" aria-label="Canvas controls">
-        <button id="resetZoomButton" type="button">Reset zoom</button>
+      <div class="canvas-utility-buttons" aria-label="Canvas controls" hidden>
+        <button id="resetZoomButton" type="button">
+          <span class="reset-zoom-label">Reset zoom</span>
+        </button>
       </div>
       <div class="canvas-container">
         <canvas id="previewCanvas" aria-hidden="true"></canvas>
@@ -802,6 +879,7 @@
       const locationModal = document.getElementById('locationModal');
       const locationOptions = document.getElementById('locationOptions');
       const locationModalClose = document.getElementById('locationModalClose');
+      const canvasUtilityButtons = document.querySelector('.canvas-utility-buttons');
       const resetZoomButton = document.getElementById('resetZoomButton');
 
       const LOCATIONS = [
@@ -1182,7 +1260,13 @@
           return;
         }
 
-        locationButton.textContent = currentLocation?.name || 'Select wall';
+        const label = currentLocation?.name || 'Select wall';
+        const labelTarget = locationButton.querySelector('.icon-button-label');
+        if (labelTarget) {
+          labelTarget.textContent = label;
+        }
+        locationButton.setAttribute('aria-label', label);
+        locationButton.setAttribute('title', label);
       }
 
       function updateLocationOptionsState() {
@@ -1999,6 +2083,35 @@
       const DEFAULT_CANVAS_ASPECT_RATIO = 1536 / 1024;
       let canvasAspectRatio = DEFAULT_CANVAS_ASPECT_RATIO;
       let isHorizontalScrollEnabled = false;
+
+      function isCanvasVerticallyZoomed() {
+        if (window.visualViewport && typeof window.visualViewport.scale === 'number') {
+          if (Math.abs(window.visualViewport.scale - 1) > 0.01) {
+            return true;
+          }
+        }
+
+        if (!canvasContainer) {
+          return false;
+        }
+
+        const verticalOverflow = canvasContainer.scrollHeight - canvasContainer.clientHeight;
+        if (verticalOverflow > 1) {
+          return true;
+        }
+
+        return Math.abs(canvasContainer.scrollTop) > 1;
+      }
+
+      function updateResetZoomButtonState() {
+        if (!canvasUtilityButtons) {
+          return;
+        }
+
+        const isZoomed = isCanvasVerticallyZoomed();
+        canvasUtilityButtons.hidden = !isZoomed;
+        canvasUtilityButtons.setAttribute('aria-hidden', String(!isZoomed));
+      }
 
       let allRoutes = [];
       let routes = [];
@@ -2995,7 +3108,17 @@
         };
       }
 
-      function resizeCanvas() {
+      function resizeCanvas(options) {
+        const preserveHorizontalScroll =
+          options && typeof options === 'object' && 'preserveHorizontalScroll' in options
+            ? Boolean(options.preserveHorizontalScroll)
+            : false;
+
+        let previousScrollLeft = 0;
+        if (preserveHorizontalScroll && canvasContainer) {
+          previousScrollLeft = canvasContainer.scrollLeft;
+        }
+
         const { width, height, enableScroll } = computeCanvasDimensions();
 
         if (canvasContainer) {
@@ -3010,19 +3133,33 @@
         if (canvasContainer) {
           if (enableScroll) {
             const maxScrollLeft = Math.max(0, width - window.innerWidth);
-            if (!isHorizontalScrollEnabled) {
+            if (preserveHorizontalScroll) {
+              const clampedScrollLeft = Math.min(Math.max(previousScrollLeft, 0), maxScrollLeft);
+              canvasContainer.scrollLeft = clampedScrollLeft;
+            } else if (!isHorizontalScrollEnabled) {
               canvasContainer.scrollLeft = Math.max(0, maxScrollLeft / 2);
             } else if (canvasContainer.scrollLeft > maxScrollLeft) {
               canvasContainer.scrollLeft = maxScrollLeft;
             }
+          } else if (!enableScroll && preserveHorizontalScroll) {
+            const maxScrollLeft = Math.max(
+              0,
+              canvasContainer.scrollWidth - canvasContainer.clientWidth,
+            );
+            const clampedScrollLeft = Math.min(Math.max(previousScrollLeft, 0), maxScrollLeft);
+            canvasContainer.scrollLeft = clampedScrollLeft;
           } else if (isHorizontalScrollEnabled) {
             canvasContainer.scrollLeft = 0;
           }
-          canvasContainer.scrollTop = 0;
+
+          if (!preserveHorizontalScroll) {
+            canvasContainer.scrollTop = 0;
+          }
         }
 
         isHorizontalScrollEnabled = enableScroll;
         redraw();
+        updateResetZoomButtonState();
       }
 
       function resetCanvasZoom() {
@@ -3030,20 +3167,20 @@
           return;
         }
 
+        const previousScrollLeft = canvasContainer.scrollLeft;
+
         if (ctx && typeof ctx.setTransform === 'function') {
           ctx.setTransform(1, 0, 0, 1, 0, 0);
         }
 
-        resizeCanvas();
+        resizeCanvas({ preserveHorizontalScroll: true });
 
-        if (canvasContainer.classList.contains('scrollable')) {
-          const maxScrollLeft = Math.max(0, canvasContainer.scrollWidth - canvasContainer.clientWidth);
-          canvasContainer.scrollLeft = Math.max(0, maxScrollLeft / 2);
-        } else {
-          canvasContainer.scrollLeft = 0;
-        }
-
+        const maxScrollLeft = Math.max(0, canvasContainer.scrollWidth - canvasContainer.clientWidth);
+        const clampedScrollLeft = Math.min(Math.max(previousScrollLeft, 0), maxScrollLeft);
+        canvasContainer.scrollLeft = clampedScrollLeft;
         canvasContainer.scrollTop = 0;
+
+        updateResetZoomButtonState();
       }
 
       function redraw() {
@@ -3921,6 +4058,19 @@
         document.addEventListener('mousedown', handleDocumentPointerDown);
         document.addEventListener('touchstart', handleDocumentPointerDown);
       }
+
+      if (canvasContainer) {
+        canvasContainer.addEventListener('scroll', updateResetZoomButtonState, {
+          passive: true,
+        });
+      }
+
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', updateResetZoomButtonState);
+        window.visualViewport.addEventListener('scroll', updateResetZoomButtonState);
+      }
+
+      updateResetZoomButtonState();
 
       if (resetZoomButton) {
         resetZoomButton.addEventListener('click', () => {
