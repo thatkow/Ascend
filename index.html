@@ -490,29 +490,26 @@
         margin-top: 0.75rem;
         display: flex;
         align-items: flex-end;
-        gap: 0.45rem;
-        height: 48px;
+        gap: 0.18rem;
+        height: 52px;
         padding: 0 0.15rem;
       }
 
       .info-callout-chart-bar {
         flex: 1;
-        border-radius: 0.45rem 0.45rem 0 0;
-      }
-
-      .info-callout-chart-bar.bar-easy {
-        height: 45%;
+        min-width: 0.15rem;
+        border-radius: 0.4rem 0.4rem 0 0;
         background: #2f9e44;
+        height: 45%;
+        opacity: 0.95;
       }
 
-      .info-callout-chart-bar.bar-medium {
-        height: 72%;
-        background: #facc15;
+      .info-callout-chart-bar:first-child {
+        border-top-left-radius: 0.45rem;
       }
 
-      .info-callout-chart-bar.bar-hard {
-        height: 100%;
-        background: #ef4444;
+      .info-callout-chart-bar:last-child {
+        border-top-right-radius: 0.45rem;
       }
 
       .nav-links {
@@ -1016,17 +1013,25 @@
       function createGradeChartElement() {
         const chart = document.createElement('div');
         chart.className = 'info-callout-chart';
+        chart.setAttribute('aria-hidden', 'true');
 
-        const easyBar = document.createElement('span');
-        easyBar.className = 'info-callout-chart-bar bar-easy';
+        const gradeEntries = Array.from(GRADE_COLOR_MAP.entries());
+        const totalGrades = gradeEntries.length;
+        const minimumHeight = 22;
+        const maximumHeight = 100;
+        const heightRange = maximumHeight - minimumHeight;
 
-        const mediumBar = document.createElement('span');
-        mediumBar.className = 'info-callout-chart-bar bar-medium';
+        gradeEntries.forEach(([grade, color], index) => {
+          const bar = document.createElement('span');
+          bar.className = 'info-callout-chart-bar';
+          const relative = totalGrades > 1 ? index / (totalGrades - 1) : 0;
+          const heightPercent = minimumHeight + relative * heightRange;
+          bar.style.height = `${heightPercent}%`;
+          bar.style.backgroundColor = color;
+          bar.dataset.grade = String(grade);
+          chart.appendChild(bar);
+        });
 
-        const hardBar = document.createElement('span');
-        hardBar.className = 'info-callout-chart-bar bar-hard';
-
-        chart.append(easyBar, mediumBar, hardBar);
         return chart;
       }
 
@@ -1053,7 +1058,7 @@
         const lines = showingGradeColors
           ? [
               'Routes are tinted by difficulty right now.',
-              'Short green bars mark easier climbs, medium yellow bars highlight moderates, and tall red bars flag the hardest routes.',
+              'The spectrum below runs from the easiest greens on the left to the hardest reds on the right, covering every grade color.',
             ]
           : [
               'Routes are showing the color of each hold set.',
