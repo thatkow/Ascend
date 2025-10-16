@@ -74,7 +74,7 @@
         justify-content: center;
         box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
         z-index: 20;
-        animation: tutorial-bounce 2.4s ease-in-out infinite;
+        animation: tutorial-bounce 1.2s ease-in-out infinite;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
       }
 
@@ -101,7 +101,7 @@
           );
         }
         50% {
-          transform: translate(-50%, calc(-100% / 3));
+          transform: translate(-50%, calc(-200% / 3));
           background-color: #ff8c42;
           background-image: none;
         }
@@ -120,7 +120,7 @@
         align-items: center;
         justify-content: center;
         padding: 1.5rem;
-        background: rgba(8, 12, 9, 0.75);
+        background: rgba(8, 12, 9, 0);
         backdrop-filter: blur(2px);
         z-index: 30;
       }
@@ -217,21 +217,21 @@
       }
 
       .tutorial-highlight {
-        box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.65), 0 0 20px rgba(126, 217, 87, 0.45);
+        box-shadow: 0 0 0 5px rgba(126, 217, 87, 0.75), 0 0 26px rgba(126, 217, 87, 0.6);
       }
 
       .tutorial-illuminated {
         animation: tutorial-illuminate 1.2s ease-in-out infinite;
-        box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.75), 0 0 24px rgba(126, 217, 87, 0.6);
+        box-shadow: 0 0 0 7px rgba(126, 217, 87, 0.85), 0 0 36px rgba(126, 217, 87, 0.7);
       }
 
       @keyframes tutorial-illuminate {
         0%,
         100% {
-          box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.6), 0 0 18px rgba(126, 217, 87, 0.45);
+          box-shadow: 0 0 0 6px rgba(126, 217, 87, 0.7), 0 0 28px rgba(126, 217, 87, 0.55);
         }
         50% {
-          box-shadow: 0 0 0 6px rgba(255, 140, 66, 0.7), 0 0 28px rgba(255, 140, 66, 0.6);
+          box-shadow: 0 0 0 10px rgba(255, 140, 66, 0.85), 0 0 42px rgba(255, 140, 66, 0.75);
         }
       }
 
@@ -4825,12 +4825,13 @@
         const minLeft = halfWidth + minHorizontalMargin;
         const maxLeft = window.innerWidth - halfWidth - minHorizontalMargin;
         const desiredLeft = window.innerWidth / 2;
-        const clampedLeft = maxLeft < minLeft ? window.innerWidth / 2 : Math.min(maxLeft, Math.max(minLeft, desiredLeft));
+        const clampedLeft =
+          maxLeft < minLeft ? window.innerWidth / 2 : Math.min(maxLeft, Math.max(minLeft, desiredLeft));
 
         const minVerticalMargin = 12;
         const maxTop = window.innerHeight - tooltipHeight - minVerticalMargin;
         const safeMaxTop = maxTop < minVerticalMargin ? Math.max(minVerticalMargin, maxTop) : maxTop;
-        const desiredTop = (window.innerHeight - tooltipHeight) / 2;
+        const desiredTop = tutorialActive ? minVerticalMargin : (window.innerHeight - tooltipHeight) / 2;
         const clampedTop = Math.min(safeMaxTop, Math.max(minVerticalMargin, desiredTop));
 
         tooltip.style.left = `${clampedLeft}px`;
