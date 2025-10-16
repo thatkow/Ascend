@@ -44,46 +44,58 @@
 
     .canvas-toolbar {
       position: fixed;
-      top: 1rem;
-      right: calc(var(--control-panel-offset, 0px) + 1rem);
+      top: 50%;
+      left: 0.75rem;
       display: flex;
       align-items: center;
-      justify-content: flex-end;
+      justify-content: center;
       z-index: 16;
-      gap: 0.75rem;
       pointer-events: none;
+      transform: translateY(-50%);
     }
 
     .drawing-toggle {
       pointer-events: auto;
       border: 1px solid rgba(255, 255, 255, 0.25);
-      background: rgba(0, 0, 0, 0.65);
-      color: #f5f5f5;
-      border-radius: 999px;
-      padding: 0.5rem 1rem;
+      background: #991b1b;
+      color: #fff3f3;
+      border-radius: 0.65rem;
+      padding: 0.75rem 1.75rem;
       font-size: 0.75rem;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease,
-        box-shadow 0.2s ease;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        box-shadow 0.2s ease, transform 0.2s ease;
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      white-space: nowrap;
     }
 
     .drawing-toggle:hover,
     .drawing-toggle:focus-visible {
       outline: none;
       border-color: rgba(255, 255, 255, 0.45);
-      background: rgba(0, 0, 0, 0.8);
-      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+      background: #b91c1c;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
     }
 
     .drawing-toggle[aria-pressed='true'] {
-      background: #7ed957;
+      background: #15803d;
       color: #0d1405;
       border-color: rgba(255, 255, 255, 0.6);
-      box-shadow: 0 12px 28px rgba(126, 217, 87, 0.35);
+      box-shadow: 0 16px 32px rgba(21, 128, 61, 0.35);
+    }
+
+    .drawing-toggle[aria-pressed='true']:hover,
+    .drawing-toggle[aria-pressed='true']:focus-visible {
+      background: #16a34a;
+      color: #031406;
     }
 
     canvas {
@@ -91,7 +103,20 @@
       height: 100%;
       width: auto;
       min-width: 100%;
+      cursor: grab;
+      transition: cursor 0.15s ease;
+    }
+
+    canvas[data-drawing-enabled='true'] {
       cursor: crosshair;
+    }
+
+    canvas[data-drawing-enabled='true'][data-pan-modifier='true'] {
+      cursor: grab;
+    }
+
+    canvas.is-panning {
+      cursor: grabbing;
     }
 
     .control-panel {
@@ -1762,8 +1787,175 @@
         return;
       }
 
+      const label = isDrawingEnabled ? 'Disable drawing' : 'Enable drawing';
       drawingToggle.setAttribute('aria-pressed', String(isDrawingEnabled));
-      drawingToggle.textContent = isDrawingEnabled ? 'Disable drawing' : 'Enable drawing';
+      drawingToggle.textContent = label;
+      drawingToggle.setAttribute('title', label);
+
+      if (canvas) {
+        canvas.setAttribute('data-drawing-enabled', String(isDrawingEnabled));
+      }
+    };
+
+    const isInteractiveElement = (element) => {
+      if (!element) {
+        return false;
+      }
+
+      const candidate = element instanceof Element ? element : element.parentElement;
+      if (!candidate) {
+        return false;
+      }
+
+      if (candidate.isContentEditable) {
+        return true;
+      }
+
+      if (typeof candidate.closest === 'function') {
+        if (candidate.closest('[contenteditable="true"]')) {
+          return true;
+        }
+
+        if (candidate.closest('input, textarea, select, button, a')) {
+          return true;
+        }
+      }
+
+      const tagName = typeof candidate.tagName === 'string' ? candidate.tagName.toLowerCase() : '';
+      return (
+        tagName === 'input' ||
+        tagName === 'textarea' ||
+        tagName === 'select' ||
+        tagName === 'button' ||
+        tagName === 'a'
+      );
+    };
+
+    const updatePanModifierState = (active) => {
+      isPanModifierActive = Boolean(active);
+
+      if (!canvas) {
+        return;
+      }
+
+      if (isPanModifierActive) {
+        canvas.setAttribute('data-pan-modifier', 'true');
+      } else {
+        canvas.removeAttribute('data-pan-modifier');
+      }
+    };
+
+    const hasScrollableCanvasArea = () => {
+      if (!canvasContainer) {
+        return false;
+      }
+
+      if (isCanvasScrollable) {
+        return true;
+      }
+
+      return (
+        canvasContainer.scrollWidth > canvasContainer.clientWidth ||
+        canvasContainer.scrollHeight > canvasContainer.clientHeight
+      );
+    };
+
+    const beginCanvasPan = (event) => {
+      if (!canvasContainer || !canvas || !hasScrollableCanvasArea()) {
+        return false;
+      }
+
+      isPointerPanning = true;
+      panPointerId = event.pointerId;
+      panPointerButton = event.button;
+      panStartScrollLeft = canvasContainer.scrollLeft;
+      panStartScrollTop = canvasContainer.scrollTop;
+      panOriginX = event.clientX;
+      panOriginY = event.clientY;
+      shouldIgnoreNextClick = event.button === 0;
+
+      canvas.classList.add('is-panning');
+
+      if (typeof canvas.setPointerCapture === 'function') {
+        try {
+          canvas.setPointerCapture(event.pointerId);
+        } catch (error) {
+          // Ignore pointer capture errors (e.g., unsupported platforms).
+        }
+      }
+
+      if (typeof event.preventDefault === 'function') {
+        event.preventDefault();
+      }
+
+      return true;
+    };
+
+    const moveCanvasPan = (event) => {
+      if (!isPointerPanning || event.pointerId !== panPointerId || !canvasContainer) {
+        return;
+      }
+
+      const deltaX = event.clientX - panOriginX;
+      const deltaY = event.clientY - panOriginY;
+
+      canvasContainer.scrollLeft = panStartScrollLeft - deltaX;
+      canvasContainer.scrollTop = panStartScrollTop - deltaY;
+    };
+
+    const endCanvasPan = () => {
+      if (!isPointerPanning) {
+        return;
+      }
+
+      if (
+        canvas &&
+        panPointerId !== null &&
+        typeof canvas.hasPointerCapture === 'function' &&
+        canvas.hasPointerCapture(panPointerId)
+      ) {
+        try {
+          canvas.releasePointerCapture(panPointerId);
+        } catch (error) {
+          // Ignore pointer capture release errors.
+        }
+      }
+
+      canvas?.classList.remove('is-panning');
+
+      if (panPointerButton !== 0) {
+        shouldIgnoreNextClick = false;
+      }
+
+      isPointerPanning = false;
+      panPointerId = null;
+      panPointerButton = 0;
+    };
+
+    const handleCanvasPointerDown = (event) => {
+      const isPrimaryButton = event.button === 0;
+      const isMiddleButton = event.button === 1;
+      const panWithPrimary = isPrimaryButton && (!isDrawingEnabled || isPanModifierActive);
+
+      if (isMiddleButton || panWithPrimary) {
+        if (beginCanvasPan(event)) {
+          return;
+        }
+      }
+
+      shouldIgnoreNextClick = false;
+    };
+
+    const handleCanvasPointerMove = (event) => {
+      moveCanvasPan(event);
+    };
+
+    const handleCanvasPointerEnd = (event) => {
+      if (!isPointerPanning || event.pointerId !== panPointerId) {
+        return;
+      }
+
+      endCanvasPan();
     };
 
     deleteButton.disabled = true;
@@ -1775,8 +1967,6 @@
       roleUsernameInput.disabled = true;
     }
 
-    const canvasContainer = document.querySelector('.canvas-container');
-    const canvas = document.getElementById('drawingCanvas');
     const ctx = canvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
     const pathTypeSelect = document.getElementById('pathTypeSelect');
@@ -2605,6 +2795,15 @@
     let isCanvasScrollable = false;
     let isCreatingWall = false;
     let isDeletingWall = false;
+    let isPointerPanning = false;
+    let panPointerId = null;
+    let panPointerButton = 0;
+    let panStartScrollLeft = 0;
+    let panStartScrollTop = 0;
+    let panOriginX = 0;
+    let panOriginY = 0;
+    let shouldIgnoreNextClick = false;
+    let isPanModifierActive = false;
 
     if (drawingToggle) {
       updateDrawingToggle();
@@ -2612,6 +2811,44 @@
         isDrawingEnabled = !isDrawingEnabled;
         updateDrawingToggle();
       });
+    }
+
+    window.addEventListener('keydown', (event) => {
+      if (event.code !== 'Space') {
+        return;
+      }
+
+      if (event.repeat) {
+        event.preventDefault();
+        return;
+      }
+
+      if (isInteractiveElement(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      updatePanModifierState(true);
+    });
+
+    window.addEventListener('keyup', (event) => {
+      if (event.code !== 'Space') {
+        return;
+      }
+
+      updatePanModifierState(false);
+    });
+
+    window.addEventListener('blur', () => {
+      updatePanModifierState(false);
+    });
+
+    if (canvas) {
+      canvas.addEventListener('pointerdown', handleCanvasPointerDown);
+      canvas.addEventListener('pointermove', handleCanvasPointerMove);
+      canvas.addEventListener('pointerup', handleCanvasPointerEnd);
+      canvas.addEventListener('pointercancel', handleCanvasPointerEnd);
+      canvas.addEventListener('pointerleave', handleCanvasPointerEnd);
     }
 
     const routesCache = new Map();
@@ -4580,6 +4817,11 @@
     }
 
     function addPoint(event) {
+      if (shouldIgnoreNextClick) {
+        shouldIgnoreNextClick = false;
+        return;
+      }
+
       if (!isDrawingEnabled) {
         return;
       }
