@@ -34,6 +34,7 @@
       width: 100vw;
       height: 100vh;
       overflow: hidden;
+      touch-action: none;
     }
 
     .canvas-container.scrollable {
@@ -2108,7 +2109,7 @@
     };
 
     const beginCanvasPan = (event) => {
-      if (!canvasContainer || !canvas || !hasScrollableCanvasArea()) {
+      if (!canvasContainer || !canvas || !hasScrollableCanvasArea() || isPinchZooming) {
         return false;
       }
 
@@ -2139,7 +2140,7 @@
     };
 
     const moveCanvasPan = (event) => {
-      if (!isPointerPanning || event.pointerId !== panPointerId || !canvasContainer) {
+      if (!isPointerPanning || event.pointerId !== panPointerId || !canvasContainer || isPinchZooming) {
         return;
       }
 
@@ -2180,6 +2181,10 @@
     };
 
     const handleCanvasPointerDown = (event) => {
+      if (isPinchZooming) {
+        return;
+      }
+
       const isPrimaryButton = event.button === 0;
       const isMiddleButton = event.button === 1;
       const panWithPrimary = isPrimaryButton && (!isDrawingEnabled || isPanModifierActive);
@@ -2194,10 +2199,18 @@
     };
 
     const handleCanvasPointerMove = (event) => {
+      if (isPinchZooming) {
+        return;
+      }
+
       moveCanvasPan(event);
     };
 
     const handleCanvasPointerEnd = (event) => {
+      if (isPinchZooming) {
+        return;
+      }
+
       if (!isPointerPanning || event.pointerId !== panPointerId) {
         return;
       }
@@ -3114,6 +3127,14 @@
     window.addEventListener('blur', () => {
       updatePanModifierState(false);
     });
+
+    if ('PointerEvent' in window && canvas) {
+      canvas.addEventListener('pointerdown', handleZoomPointerDown, { passive: false });
+      canvas.addEventListener('pointermove', handleZoomPointerMove, { passive: false });
+      canvas.addEventListener('pointerup', handleZoomPointerEnd);
+      canvas.addEventListener('pointercancel', handleZoomPointerEnd);
+      canvas.addEventListener('pointerout', handleZoomPointerEnd);
+    }
 
     if (canvas) {
       canvas.addEventListener('pointerdown', handleCanvasPointerDown);
@@ -4084,24 +4105,31 @@
 
     const DEFAULT_CANVAS_ASPECT_RATIO = 1536 / 1024;
     let canvasAspectRatio = DEFAULT_CANVAS_ASPECT_RATIO;
+    const MIN_CANVAS_ZOOM = 1;
+    const MAX_CANVAS_ZOOM = 3;
+    let canvasZoom = 1;
+    let hasVerticalOverflow = false;
+    const activeZoomPointers = new Map();
+    let pinchStartDistance = null;
+    let pinchStartZoom = 1;
+    let isPinchZooming = false;
 
     function isCanvasVerticallyZoomed() {
-      if (window.visualViewport && typeof window.visualViewport.scale === 'number') {
-        if (Math.abs(window.visualViewport.scale - 1) > 0.01) {
-          return true;
-        }
+      if (canvasZoom > 1.001) {
+        return true;
       }
 
       if (!canvasContainer) {
         return false;
       }
 
-      const verticalOverflow = canvasContainer.scrollHeight - canvasContainer.clientHeight;
-      if (verticalOverflow > 1) {
-        return true;
+      if (hasVerticalOverflow) {
+        if (Math.abs(canvasContainer.scrollTop) > 1) {
+          return true;
+        }
       }
 
-      return Math.abs(canvasContainer.scrollTop) > 1;
+      return false;
     }
 
     function updateResetZoomButtonState() {
@@ -4120,6 +4148,49 @@
           setterInfoButton.setAttribute('aria-label', 'Show canvas tips');
           setterInfoButton.setAttribute('title', 'Show tips');
         }
+      }
+    }
+
+    function getPointerDistance(a, b) {
+      if (!a || !b) {
+        return 0;
+      }
+
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      return Math.hypot(dx, dy);
+    }
+
+    function computePinchCenter() {
+      if (!activeZoomPointers.size) {
+        return null;
+      }
+
+      let totalX = 0;
+      let totalY = 0;
+      activeZoomPointers.forEach((value) => {
+        totalX += value.x;
+        totalY += value.y;
+      });
+
+      const count = activeZoomPointers.size;
+      if (!count) {
+        return null;
+      }
+
+      return { x: totalX / count, y: totalY / count };
+    }
+
+    function refreshPinchBaseline() {
+      if (activeZoomPointers.size >= 2) {
+        const iterator = activeZoomPointers.values();
+        const first = iterator.next().value;
+        const second = iterator.next().value;
+        pinchStartDistance = getPointerDistance(first, second);
+        pinchStartZoom = canvasZoom;
+      } else {
+        pinchStartDistance = null;
+        pinchStartZoom = canvasZoom;
       }
     }
 
@@ -4144,59 +4215,99 @@
       };
     }
 
-    function resizeCanvas(options) {
-      const preserveHorizontalScroll =
-        options && typeof options === 'object' && 'preserveHorizontalScroll' in options
-          ? Boolean(options.preserveHorizontalScroll)
-          : false;
+    function resizeCanvas(options = {}) {
+      const preserveHorizontalScroll = Boolean(options.preserveHorizontalScroll);
+      const preserveVerticalScroll = Boolean(options.preserveVerticalScroll);
+      const focus =
+        options && typeof options === 'object' && options.focus &&
+        typeof options.focus.x === 'number' &&
+        typeof options.focus.y === 'number'
+          ? { x: options.focus.x, y: options.focus.y }
+          : null;
 
-      const previousWidth = canvas.width || 0;
-      const previousHeight = canvas.height || 0;
+      const previousWidth = typeof canvas?.width === 'number' ? canvas.width : 0;
+      const previousHeight = typeof canvas?.height === 'number' ? canvas.height : 0;
+
       let previousScrollLeft = 0;
-      if (preserveHorizontalScroll && canvasContainer) {
+      let previousScrollTop = 0;
+      let containerWidth = 0;
+      let containerHeight = 0;
+      let focusOffsetX = 0;
+      let focusOffsetY = 0;
+      let focusRatioX = 0;
+      let focusRatioY = 0;
+      let scrollRatioX = 0;
+      let scrollRatioY = 0;
+
+      if (canvasContainer) {
         previousScrollLeft = canvasContainer.scrollLeft;
+        previousScrollTop = canvasContainer.scrollTop;
+        containerWidth = canvasContainer.clientWidth;
+        containerHeight = canvasContainer.clientHeight;
+
+        if (focus && previousWidth > 0 && previousHeight > 0) {
+          const rect = canvas.getBoundingClientRect();
+          focusOffsetX = focus.x - rect.left;
+          focusOffsetY = focus.y - rect.top;
+          focusRatioX = (previousScrollLeft + focusOffsetX) / previousWidth;
+          focusRatioY = (previousScrollTop + focusOffsetY) / previousHeight;
+        } else if (previousWidth > 0 && previousHeight > 0) {
+          scrollRatioX = previousScrollLeft / previousWidth;
+          scrollRatioY = previousScrollTop / previousHeight;
+        }
+      } else {
+        containerWidth = window.innerWidth;
+        containerHeight = window.innerHeight;
       }
 
-      const { width, height, enableScroll } = computeCanvasDimensions();
+      const { width: baseWidth, height: baseHeight, enableScroll } = computeCanvasDimensions();
+      const scaledWidth = Math.max(1, Math.round(baseWidth * canvasZoom));
+      const scaledHeight = Math.max(1, Math.round(baseHeight * canvasZoom));
+
+      const allowHorizontalScroll = enableScroll || scaledWidth - containerWidth > 1;
+      const allowVerticalScroll = scaledHeight - containerHeight > 1;
 
       if (canvasContainer) {
-        canvasContainer.classList.toggle('scrollable', enableScroll);
+        canvasContainer.classList.toggle('scrollable', allowHorizontalScroll);
       }
 
-      canvas.width = width;
-      canvas.height = height;
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
+      canvas.width = scaledWidth;
+      canvas.height = scaledHeight;
+      canvas.style.width = `${scaledWidth}px`;
+      canvas.style.height = `${scaledHeight}px`;
 
       if (canvasContainer) {
-        if (enableScroll) {
-          const maxScrollLeft = Math.max(0, width - window.innerWidth);
-          if (preserveHorizontalScroll) {
-            const clampedScrollLeft = Math.min(Math.max(previousScrollLeft, 0), maxScrollLeft);
-            canvasContainer.scrollLeft = clampedScrollLeft;
+        const maxScrollLeft = Math.max(0, scaledWidth - containerWidth);
+        const maxScrollTop = Math.max(0, scaledHeight - containerHeight);
+
+        let nextScrollLeft = previousScrollLeft;
+        let nextScrollTop = previousScrollTop;
+
+        if (focus && previousWidth > 0 && previousHeight > 0) {
+          nextScrollLeft = focusRatioX * scaledWidth - focusOffsetX;
+          nextScrollTop = focusRatioY * scaledHeight - focusOffsetY;
+        } else {
+          if (preserveHorizontalScroll && previousWidth > 0) {
+            nextScrollLeft = scrollRatioX * scaledWidth;
+          } else if (!allowHorizontalScroll) {
+            nextScrollLeft = 0;
           } else if (!isCanvasScrollable) {
-            canvasContainer.scrollLeft = Math.max(0, maxScrollLeft / 2);
-          } else if (canvasContainer.scrollLeft > maxScrollLeft) {
-            canvasContainer.scrollLeft = maxScrollLeft;
+            nextScrollLeft = Math.max(0, maxScrollLeft / 2);
           }
-        } else if (!enableScroll && preserveHorizontalScroll) {
-          const maxScrollLeft = Math.max(
-            0,
-            canvasContainer.scrollWidth - canvasContainer.clientWidth,
-          );
-          const clampedScrollLeft = Math.min(Math.max(previousScrollLeft, 0), maxScrollLeft);
-          canvasContainer.scrollLeft = clampedScrollLeft;
-        } else if (isCanvasScrollable) {
-          canvasContainer.scrollLeft = 0;
+
+          if (preserveVerticalScroll && previousHeight > 0) {
+            nextScrollTop = scrollRatioY * scaledHeight;
+          } else if (!allowVerticalScroll) {
+            nextScrollTop = 0;
+          }
         }
 
-        if (!preserveHorizontalScroll) {
-          canvasContainer.scrollTop = 0;
-        }
+        canvasContainer.scrollLeft = Math.min(Math.max(nextScrollLeft, 0), maxScrollLeft);
+        canvasContainer.scrollTop = Math.min(Math.max(nextScrollTop, 0), maxScrollTop);
       }
 
-      const safePreviousWidth = previousWidth || width;
-      const safePreviousHeight = previousHeight || height;
+      const safePreviousWidth = previousWidth || scaledWidth;
+      const safePreviousHeight = previousHeight || scaledHeight;
 
       if (loadedNormalizedPoints) {
         points.length = 0;
@@ -4214,13 +4325,47 @@
         points.push(...scaledPoints);
       }
 
-      isCanvasScrollable = enableScroll;
+      isCanvasScrollable = allowHorizontalScroll;
+      hasVerticalOverflow = allowVerticalScroll;
       redraw();
       updateResetZoomButtonState();
     }
 
+    function setCanvasZoom(nextZoom, options = {}) {
+      const clampedZoom = Math.min(Math.max(Number(nextZoom) || 1, MIN_CANVAS_ZOOM), MAX_CANVAS_ZOOM);
+      if (Math.abs(clampedZoom - canvasZoom) < 0.001) {
+        return;
+      }
+
+      const preserveHorizontalScroll =
+        options && typeof options === 'object' && 'preserveHorizontalScroll' in options
+          ? Boolean(options.preserveHorizontalScroll)
+          : true;
+      const preserveVerticalScroll =
+        options && typeof options === 'object' && 'preserveVerticalScroll' in options
+          ? Boolean(options.preserveVerticalScroll)
+          : true;
+
+      const focusX =
+        options && typeof options === 'object' && typeof options.focusX === 'number'
+          ? options.focusX
+          : null;
+      const focusY =
+        options && typeof options === 'object' && typeof options.focusY === 'number'
+          ? options.focusY
+          : null;
+      const focus = focusX !== null && focusY !== null ? { x: focusX, y: focusY } : null;
+
+      canvasZoom = clampedZoom;
+      resizeCanvas({
+        preserveHorizontalScroll,
+        preserveVerticalScroll,
+        focus,
+      });
+    }
+
     function resetCanvasZoom() {
-      if (!canvas || !canvasContainer) {
+      if (!canvasContainer) {
         return;
       }
 
@@ -4230,6 +4375,7 @@
         ctx.setTransform(1, 0, 0, 1, 0, 0);
       }
 
+      canvasZoom = 1;
       resizeCanvas({ preserveHorizontalScroll: true });
 
       const maxScrollLeft = Math.max(0, canvasContainer.scrollWidth - canvasContainer.clientWidth);
@@ -4238,6 +4384,92 @@
       canvasContainer.scrollTop = 0;
 
       updateResetZoomButtonState();
+    }
+
+    function handleCanvasWheel(event) {
+      if (!canvas || !canvasContainer) {
+        return;
+      }
+
+      if (!event.ctrlKey && !event.metaKey) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const delta = typeof event.deltaY === 'number' ? event.deltaY : 0;
+      const zoomFactor = Math.exp(-delta * 0.0025);
+      const nextZoom = canvasZoom * zoomFactor;
+
+      setCanvasZoom(nextZoom, {
+        focusX: event.clientX,
+        focusY: event.clientY,
+        preserveHorizontalScroll: true,
+        preserveVerticalScroll: true,
+      });
+    }
+
+    function handleZoomPointerDown(event) {
+      if (event.pointerType !== 'touch') {
+        return;
+      }
+
+      activeZoomPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      refreshPinchBaseline();
+
+      if (activeZoomPointers.size >= 2) {
+        isPinchZooming = true;
+        shouldIgnoreNextClick = true;
+        endCanvasPan();
+        event.preventDefault();
+      }
+    }
+
+    function handleZoomPointerMove(event) {
+      if (!activeZoomPointers.has(event.pointerId)) {
+        return;
+      }
+
+      activeZoomPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+      if (activeZoomPointers.size >= 2 && pinchStartDistance) {
+        const iterator = activeZoomPointers.values();
+        const first = iterator.next().value;
+        const second = iterator.next().value;
+        const distance = getPointerDistance(first, second);
+        if (distance > 0 && pinchStartDistance > 0) {
+          const ratio = distance / pinchStartDistance;
+          const nextZoom = pinchStartZoom * ratio;
+          const center = computePinchCenter();
+          if (center) {
+            setCanvasZoom(nextZoom, {
+              focusX: center.x,
+              focusY: center.y,
+              preserveHorizontalScroll: true,
+              preserveVerticalScroll: true,
+            });
+            pinchStartZoom = canvasZoom;
+            pinchStartDistance = distance;
+          }
+        }
+
+        isPinchZooming = true;
+        event.preventDefault();
+      }
+    }
+
+    function handleZoomPointerEnd(event) {
+      if (activeZoomPointers.has(event.pointerId)) {
+        activeZoomPointers.delete(event.pointerId);
+      }
+
+      if (activeZoomPointers.size >= 2) {
+        refreshPinchBaseline();
+      } else {
+        pinchStartDistance = null;
+        pinchStartZoom = canvasZoom;
+        isPinchZooming = false;
+      }
     }
 
     function redraw() {
@@ -5178,6 +5410,10 @@
         return;
       }
 
+      if (isPinchZooming) {
+        return;
+      }
+
       if (!isDrawingEnabled) {
         return;
       }
@@ -5653,6 +5889,7 @@
     canvas.addEventListener('click', addPoint);
 
     if (canvasContainer) {
+      canvasContainer.addEventListener('wheel', handleCanvasWheel, { passive: false });
       canvasContainer.addEventListener('scroll', updateResetZoomButtonState, {
         passive: true,
       });
