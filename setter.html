@@ -508,6 +508,10 @@
       transition: transform 0.2s ease, box-shadow 0.2s ease;
       width: 100%;
       text-align: center;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
       margin-bottom: 0.75rem;
     }
 
@@ -552,8 +556,17 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.35rem;
+      gap: 0.45rem;
       width: 100%;
+    }
+
+    .button-icon {
+      font-size: 1.05rem;
+      line-height: 1;
+    }
+
+    .button-label {
+      line-height: 1;
     }
 
     .global-action-button:hover,
@@ -777,6 +790,10 @@
       font-size: 1rem;
       cursor: pointer;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
     }
 
     .auth-submit:hover {
@@ -1172,46 +1189,6 @@
                   step="1"
                 />
               </label>
-              <label class="control-field">
-                <span>Grade bar base height (px)</span>
-                <input
-                  id="gradeBarBaseHeightInput"
-                  type="number"
-                  min="0"
-                  max="1000"
-                  step="1"
-                />
-              </label>
-              <label class="control-field">
-                <span>Grade bar max height (px)</span>
-                <input
-                  id="gradeBarMaxHeightInput"
-                  type="number"
-                  min="0"
-                  max="1000"
-                  step="1"
-                />
-              </label>
-              <label class="control-field">
-                <span>Grade bar width (px)</span>
-                <input
-                  id="gradeBarWidthInput"
-                  type="number"
-                  min="4"
-                  max="160"
-                  step="1"
-                />
-              </label>
-              <label class="control-field">
-                <span>Grade bar transparency</span>
-                <input
-                  id="gradeBarTransparencyInput"
-                  type="number"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                />
-              </label>
               <button id="saveAppearanceButton" class="appearance-save-button" type="button">
                 Save Appearance
               </button>
@@ -1232,9 +1209,12 @@
             <div class="control-section">
               <div class="global-actions">
                 <button id="climberViewButton" class="global-action-button" type="button">
-                  Climber View
+                  <span class="button-label">Climber View</span>
                 </button>
-                <button id="signOutButton" class="global-action-button" type="button">Sign Out</button>
+                <button id="signOutButton" class="global-action-button" type="button">
+                  <span class="button-icon" aria-hidden="true">🚪</span>
+                  <span class="button-label">Sign Out</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1255,7 +1235,8 @@
                   aria-haspopup="dialog"
                   aria-expanded="false"
                 >
-                  Select wall
+                  <span class="button-icon" aria-hidden="true">📍</span>
+                  <span class="button-label">Select wall</span>
                 </button>
               </div>
             </div>
@@ -1274,7 +1255,10 @@
                   autocomplete="off"
                 />
               </label>
-              <button id="createWallButton" class="location-button" type="button">Create wall</button>
+              <button id="createWallButton" class="location-button" type="button">
+                <span class="button-icon" aria-hidden="true">📍</span>
+                <span class="button-label">Create wall</span>
+              </button>
               <button
                 id="deleteWallButton"
                 class="location-button delete-wall-button"
@@ -1299,7 +1283,10 @@
   <div id="unauthorizedNotice" class="unauthorized hidden" role="alert">
     <p><strong>Access denied.</strong> Your account does not have permission to use the setter tools.</p>
     <p>You can return to the <a id="previewLink" href="index.html">preview page</a> or contact a setter for help.</p>
-    <button id="unauthorizedSignOut" class="auth-submit" type="button">Sign Out</button>
+    <button id="unauthorizedSignOut" class="auth-submit" type="button">
+      <span class="button-icon" aria-hidden="true">🚪</span>
+      <span class="button-label">Sign Out</span>
+    </button>
   </div>
 
   <p id="routeStatus" class="status-message hidden" role="status" aria-live="polite"></p>
@@ -1389,6 +1376,7 @@
     const grantSetterButton = document.getElementById('grantSetterButton');
     const roleStatusMessage = document.getElementById('roleStatusMessage');
     const locationButton = document.getElementById('locationButton');
+    const locationButtonLabel = locationButton?.querySelector('.button-label');
     const locationModal = document.getElementById('locationModal');
     const locationOptions = document.getElementById('locationOptions');
     const locationModalClose = document.getElementById('locationModalClose');
@@ -1619,11 +1607,13 @@
     const backgroundImage = new Image();
 
     const updateLocationButtonLabel = () => {
-      if (!locationButton) {
-        return;
+      const labelText = currentLocation?.name || 'Select wall';
+      if (locationButtonLabel) {
+        locationButtonLabel.textContent = labelText;
       }
-
-      locationButton.textContent = currentLocation?.name || 'Select wall';
+      if (locationButton) {
+        locationButton.setAttribute('aria-label', `Select wall: ${labelText}`);
+      }
     };
 
     const updateLocationOptionsState = () => {
@@ -5966,7 +5956,8 @@
               ? data.username
               : '';
           let effectiveLower = normalizeUsername(storedLowerRaw);
-          const trimmedRole = typeof data.role === 'string' ? data.role.trim() : 'default';
+          const trimmedRole =
+            typeof data.role === 'string' ? data.role.trim().toLowerCase() : 'default';
           const mergedData = {
             ...data,
             role: trimmedRole,
@@ -6039,7 +6030,9 @@
 
       try {
         const ensuredRole = await ensureUserRole(user, normalizedUsername);
-        return typeof ensuredRole?.role === 'string' ? ensuredRole.role.trim() : 'default';
+        return typeof ensuredRole?.role === 'string'
+          ? ensuredRole.role.trim().toLowerCase()
+          : 'default';
       } catch (error) {
         console.error('Failed to fetch user role:', error);
         return 'default';
