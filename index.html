@@ -335,7 +335,16 @@
       .info-button {
         width: 40px;
         height: 40px;
-        border: 2px solid rgba(126, 217, 87, 0.6);
+        border: 2px solid rgba(255, 255, 255, 0.35);
+        background: linear-gradient(135deg, rgba(36, 36, 36, 0.9), rgba(92, 92, 92, 0.45));
+        color: #f8fafc;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease,
+          background 0.2s ease, color 0.2s ease;
+      }
+
+      .info-button.is-active {
+        border-color: rgba(126, 217, 87, 0.65);
         background: #7ed957;
         color: #0c1905;
         box-shadow: 0 8px 22px rgba(126, 217, 87, 0.35);
@@ -344,12 +353,23 @@
       .info-button:hover,
       .info-button:focus-visible {
         transform: translateY(-2px);
+      }
+
+      .info-button:not(.is-active):hover,
+      .info-button:not(.is-active):focus-visible {
+        border-color: rgba(255, 255, 255, 0.55);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+        outline: none;
+      }
+
+      .info-button.is-active:hover,
+      .info-button.is-active:focus-visible {
         box-shadow: 0 12px 28px rgba(126, 217, 87, 0.45);
         border-color: rgba(126, 217, 87, 0.9);
         outline: none;
       }
 
-      .info-button:focus-visible {
+      .info-button.is-active:focus-visible {
         box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.25), 0 12px 28px rgba(126, 217, 87, 0.45);
       }
 
@@ -747,6 +767,7 @@
             type="button"
             aria-label="Learn about Ascend"
             aria-haspopup="dialog"
+            aria-pressed="false"
             aria-expanded="false"
             aria-controls="infoPopover"
             title="Learn about Ascend"
@@ -766,8 +787,8 @@
             aria-label="About Ascend"
             tabindex="-1"
           >
-            <p>Header highlights explain what each control does.</p>
-            <p>Callouts cover the grade toggle, setter tools (when available), and wall selector—toggle the info button again or press Escape to hide them.</p>
+            <p>Tap a header button to learn what it does.</p>
+            <p>The next button you press will open its tooltip and close this message.</p>
           </div>
         </div>
         <button
@@ -926,7 +947,8 @@
 
       let infoHighlightsContainer = null;
       let infoModeActive = false;
-      let infoCalloutEntries = [];
+      let awaitingInfoTargetSelection = false;
+      let activeInfoCallout = null;
       let pendingInfoRepositionFrame = null;
 
       const LOCATIONS = [
@@ -967,7 +989,7 @@
 
         container.innerHTML = '';
         container.classList.add('hidden');
-        infoCalloutEntries = [];
+        activeInfoCallout = null;
       }
 
       function createBasicCallout(title, lines = []) {
@@ -1122,51 +1144,8 @@
         entry.element.style.setProperty('--callout-arrow-offset', `${arrowOffset}px`);
       }
 
-      function refreshInfoHighlights() {
-        if (!infoModeActive) {
-          return;
-        }
-
-        const container = ensureInfoHighlightsContainer();
-        if (!container) {
-          return;
-        }
-
-        container.innerHTML = '';
-        infoCalloutEntries = [];
-
-        const callouts = [buildViewModeCallout(), buildSetterCallout(), buildLocationCallout()].filter(Boolean);
-        if (!callouts.length) {
-          container.classList.add('hidden');
-          return;
-        }
-
-        container.classList.remove('hidden');
-
-        callouts.forEach((entry) => {
-          container.appendChild(entry.element);
-          infoCalloutEntries.push(entry);
-        });
-
-        requestAnimationFrame(() => {
-          infoCalloutEntries.forEach((entry) => {
-            positionCallout(entry);
-          });
-        });
-      }
-
-      function repositionInfoHighlights() {
-        if (!infoModeActive || !infoCalloutEntries.length) {
-          return;
-        }
-
-        infoCalloutEntries.forEach((entry) => {
-          positionCallout(entry);
-        });
-      }
-
       function scheduleInfoHighlightsReposition() {
-        if (!infoModeActive) {
+        if (!activeInfoCallout) {
           return;
         }
 
@@ -1176,25 +1155,58 @@
 
         pendingInfoRepositionFrame = requestAnimationFrame(() => {
           pendingInfoRepositionFrame = null;
-          repositionInfoHighlights();
+          if (activeInfoCallout) {
+            positionCallout(activeInfoCallout);
+          }
         });
       }
 
-      function activateInfoMode() {
-        if (infoModeActive) {
-          refreshInfoHighlights();
-        } else {
-          infoModeActive = true;
+      function showInfoCallout(entry) {
+        if (!entry?.element) {
+          return;
         }
 
         const container = ensureInfoHighlightsContainer();
-        if (container) {
-          container.classList.remove('hidden');
+        if (!container) {
+          return;
         }
 
-        if (infoButton) {
-          infoButton.setAttribute('aria-expanded', 'true');
+        container.innerHTML = '';
+        container.classList.remove('hidden');
+        container.appendChild(entry.element);
+        activeInfoCallout = entry;
+
+        requestAnimationFrame(() => {
+          if (activeInfoCallout === entry) {
+            positionCallout(entry);
+          }
+        });
+      }
+
+      function setInfoButtonActiveState(active) {
+        if (!infoButton) {
+          return;
         }
+
+        infoButton.setAttribute('aria-pressed', active ? 'true' : 'false');
+        infoButton.setAttribute('aria-expanded', active ? 'true' : 'false');
+        infoButton.classList.toggle('is-active', active);
+      }
+
+      function hideInfoPopover() {
+        if (!infoPopover) {
+          return;
+        }
+
+        infoPopover.classList.add('hidden');
+        infoPopover.setAttribute('aria-hidden', 'true');
+      }
+
+      function activateInfoMode() {
+        infoModeActive = true;
+        awaitingInfoTargetSelection = true;
+        setInfoButtonActiveState(true);
+        clearInfoHighlights();
 
         if (infoPopover) {
           infoPopover.classList.remove('hidden');
@@ -1203,36 +1215,70 @@
             infoPopover.focus({ preventScroll: true });
           }
         }
-
-        refreshInfoHighlights();
-        scheduleInfoHighlightsReposition();
       }
 
-      function deactivateInfoMode() {
-        if (!infoModeActive) {
-          return;
+      function deactivateInfoMode({ clearCallout = false } = {}) {
+        awaitingInfoTargetSelection = false;
+
+        if (infoModeActive) {
+          infoModeActive = false;
         }
 
-        infoModeActive = false;
+        setInfoButtonActiveState(false);
+        hideInfoPopover();
 
-        if (infoButton) {
-          infoButton.setAttribute('aria-expanded', 'false');
+        if (clearCallout) {
+          clearInfoHighlights();
         }
-
-        if (infoPopover) {
-          infoPopover.classList.add('hidden');
-          infoPopover.setAttribute('aria-hidden', 'true');
-        }
-
-        clearInfoHighlights();
       }
 
       function toggleInfoMode() {
         if (infoModeActive) {
-          deactivateInfoMode();
+          deactivateInfoMode({ clearCallout: true });
         } else {
           activateInfoMode();
         }
+      }
+
+      function handleInfoRequestFor(targetKey, event) {
+        if (!infoModeActive || !awaitingInfoTargetSelection) {
+          return false;
+        }
+
+        awaitingInfoTargetSelection = false;
+
+        if (event) {
+          if (typeof event.preventDefault === 'function') {
+            event.preventDefault();
+          }
+          if (typeof event.stopPropagation === 'function') {
+            event.stopPropagation();
+          }
+        }
+
+        let entry = null;
+        switch (targetKey) {
+          case 'view-toggle':
+            entry = buildViewModeCallout();
+            break;
+          case 'setter-link':
+            entry = buildSetterCallout();
+            break;
+          case 'location':
+            entry = buildLocationCallout();
+            break;
+          default:
+            break;
+        }
+
+        if (entry) {
+          showInfoCallout(entry);
+          deactivateInfoMode({ clearCallout: false });
+        } else {
+          deactivateInfoMode({ clearCallout: true });
+        }
+
+        return true;
       }
 
       const PATH_TYPE_BREZER = 'brezer';
@@ -1673,9 +1719,6 @@
         viewMode = normalized;
         syncViewModeState();
         updateViewToggleButton();
-        if (infoModeActive) {
-          refreshInfoHighlights();
-        }
         hideTooltip({ force: true });
         if (canvas) {
           canvas.style.cursor = '';
@@ -2107,16 +2150,39 @@
 
       if (locationButton) {
         locationButton.addEventListener('click', (event) => {
+          if (handleInfoRequestFor('location', event)) {
+            return;
+          }
+          if (activeInfoCallout?.target === locationButton) {
+            clearInfoHighlights();
+          }
           event.preventDefault();
           openLocationModal();
         });
       }
 
       if (viewToggleButton) {
-        viewToggleButton.addEventListener('click', () => {
+        viewToggleButton.addEventListener('click', (event) => {
+          if (handleInfoRequestFor('view-toggle', event)) {
+            return;
+          }
+          if (activeInfoCallout?.target === viewToggleButton) {
+            clearInfoHighlights();
+          }
           const nextMode =
             viewMode === VIEW_MODE_HOLD_COLORS ? VIEW_MODE_GRADE_COLORS : VIEW_MODE_HOLD_COLORS;
           setViewMode(nextMode);
+        });
+      }
+
+      if (setterLink) {
+        setterLink.addEventListener('click', (event) => {
+          if (handleInfoRequestFor('setter-link', event)) {
+            return;
+          }
+          if (activeInfoCallout?.target === setterLink) {
+            clearInfoHighlights();
+          }
         });
       }
 
@@ -2142,7 +2208,12 @@
         if (event.key === 'Escape') {
           closeLocationModal();
           if (infoModeActive) {
-            deactivateInfoMode();
+            deactivateInfoMode({ clearCallout: true });
+            if (infoButton) {
+              infoButton.focus();
+            }
+          } else if (activeInfoCallout) {
+            clearInfoHighlights();
             if (infoButton) {
               infoButton.focus();
             }
@@ -2424,9 +2495,15 @@
 
         function updateNavigationForRole(role) {
           updateSetterLinkHref();
-          setterLink.classList.toggle('hidden', role !== 'setter');
-          if (infoModeActive) {
-            refreshInfoHighlights();
+          if (!setterLink) {
+            return;
+          }
+
+          const shouldHideSetterLink = role !== 'setter';
+          setterLink.classList.toggle('hidden', shouldHideSetterLink);
+
+          if (shouldHideSetterLink && activeInfoCallout?.target === setterLink) {
+            clearInfoHighlights();
           }
         }
 
@@ -2462,7 +2539,9 @@
           appContent.classList.add('hidden');
           setterLink.classList.add('hidden');
           if (infoModeActive) {
-            deactivateInfoMode();
+            deactivateInfoMode({ clearCallout: true });
+          } else if (activeInfoCallout) {
+            clearInfoHighlights();
           }
           authForm.reset();
           setAuthMode('login');
