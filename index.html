@@ -395,10 +395,104 @@
         font-size: 0.85rem;
         line-height: 1.4;
         text-align: left;
+        pointer-events: auto;
       }
 
       .info-popover p {
         color: rgba(255, 255, 255, 0.85);
+      }
+
+      .info-popover p + p {
+        margin-top: 0.5rem;
+      }
+
+      .info-highlights {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 40;
+      }
+
+      .info-callout {
+        --info-callout-bg: rgba(10, 16, 11, 0.94);
+        --info-callout-border: rgba(126, 217, 87, 0.55);
+        position: absolute;
+        min-width: 200px;
+        max-width: 260px;
+        padding: 0.85rem 1rem;
+        border-radius: 0.85rem;
+        background: var(--info-callout-bg);
+        border: 1px solid var(--info-callout-border);
+        color: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.45);
+        transform: translate(-50%, 0);
+        pointer-events: none;
+        line-height: 1.45;
+      }
+
+      .info-callout::before {
+        content: '';
+        position: absolute;
+        width: 0;
+        height: 0;
+        border: 10px solid transparent;
+        left: var(--callout-arrow-offset, 50%);
+        transform: translateX(-50%);
+      }
+
+      .info-callout[data-arrow='top']::before {
+        top: -18px;
+        border-bottom-color: var(--info-callout-bg);
+      }
+
+      .info-callout[data-arrow='bottom']::before {
+        bottom: -18px;
+        border-top-color: var(--info-callout-bg);
+      }
+
+      .info-callout strong {
+        display: block;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        margin-bottom: 0.35rem;
+      }
+
+      .info-callout p {
+        font-size: 0.82rem;
+        color: rgba(255, 255, 255, 0.88);
+      }
+
+      .info-callout p + p {
+        margin-top: 0.4rem;
+      }
+
+      .info-callout-chart {
+        margin-top: 0.75rem;
+        display: flex;
+        align-items: flex-end;
+        gap: 0.45rem;
+        height: 48px;
+        padding: 0 0.15rem;
+      }
+
+      .info-callout-chart-bar {
+        flex: 1;
+        border-radius: 0.45rem 0.45rem 0 0;
+      }
+
+      .info-callout-chart-bar.bar-easy {
+        height: 45%;
+        background: #2f9e44;
+      }
+
+      .info-callout-chart-bar.bar-medium {
+        height: 72%;
+        background: #facc15;
+      }
+
+      .info-callout-chart-bar.bar-hard {
+        height: 100%;
+        background: #ef4444;
       }
 
       .nav-links {
@@ -670,9 +764,10 @@
             aria-modal="false"
             aria-hidden="true"
             aria-label="About Ascend"
+            tabindex="-1"
           >
-            <p>Track which climbs you have completed.</p>
-            <p>Switch the view to highlight each route by its grade color or by the hold color you assigned.</p>
+            <p>Header highlights explain what each control does.</p>
+            <p>Callouts cover the grade toggle, setter tools (when available), and wall selector—toggle the info button again or press Escape to hide them.</p>
           </div>
         </div>
         <button
@@ -829,6 +924,11 @@
       const locationOptions = document.getElementById('locationOptions');
       const locationModalClose = document.getElementById('locationModalClose');
 
+      let infoHighlightsContainer = null;
+      let infoModeActive = false;
+      let infoCalloutEntries = [];
+      let pendingInfoRepositionFrame = null;
+
       const LOCATIONS = [
         { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg' },
         { key: 'old-wall', name: 'Old Wall', image: './location/Old Wall.jpg' },
@@ -836,6 +936,304 @@
 
       const LOCATION_STORAGE_KEY = 'ascend.selectedWall';
       const WALL_QUERY_PARAM = 'wall';
+
+      function ensureInfoHighlightsContainer() {
+        if (infoHighlightsContainer && document.body?.contains(infoHighlightsContainer)) {
+          return infoHighlightsContainer;
+        }
+
+        if (!document.body) {
+          return null;
+        }
+
+        const container = document.createElement('div');
+        container.id = 'infoHighlights';
+        container.className = 'info-highlights hidden';
+        document.body.appendChild(container);
+        infoHighlightsContainer = container;
+        return container;
+      }
+
+      function clearInfoHighlights() {
+        const container = ensureInfoHighlightsContainer();
+        if (!container) {
+          return;
+        }
+
+        if (pendingInfoRepositionFrame) {
+          cancelAnimationFrame(pendingInfoRepositionFrame);
+          pendingInfoRepositionFrame = null;
+        }
+
+        container.innerHTML = '';
+        container.classList.add('hidden');
+        infoCalloutEntries = [];
+      }
+
+      function createBasicCallout(title, lines = []) {
+        const callout = document.createElement('div');
+        callout.className = 'info-callout';
+
+        if (title) {
+          const heading = document.createElement('strong');
+          heading.textContent = title;
+          callout.appendChild(heading);
+        }
+
+        lines
+          .filter((line) => typeof line === 'string' && line.trim().length)
+          .forEach((line) => {
+            const paragraph = document.createElement('p');
+            paragraph.textContent = line;
+            callout.appendChild(paragraph);
+          });
+
+        return callout;
+      }
+
+      function createGradeChartElement() {
+        const chart = document.createElement('div');
+        chart.className = 'info-callout-chart';
+
+        const easyBar = document.createElement('span');
+        easyBar.className = 'info-callout-chart-bar bar-easy';
+
+        const mediumBar = document.createElement('span');
+        mediumBar.className = 'info-callout-chart-bar bar-medium';
+
+        const hardBar = document.createElement('span');
+        hardBar.className = 'info-callout-chart-bar bar-hard';
+
+        chart.append(easyBar, mediumBar, hardBar);
+        return chart;
+      }
+
+      function isElementVisible(element) {
+        if (!element) {
+          return false;
+        }
+
+        if (element.classList?.contains('hidden')) {
+          return false;
+        }
+
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      }
+
+      function buildViewModeCallout() {
+        if (!viewToggleButton) {
+          return null;
+        }
+
+        const showingGradeColors = viewMode === VIEW_MODE_GRADE_COLORS;
+        const title = showingGradeColors ? 'Grade colors' : 'Hold colors';
+        const lines = showingGradeColors
+          ? [
+              'Routes are tinted by difficulty right now.',
+              'Short green bars mark easier climbs, medium yellow bars highlight moderates, and tall red bars flag the hardest routes.',
+            ]
+          : [
+              'Routes are showing the color of each hold set.',
+              'Toggle to reveal grade colors and compare difficulty at a glance.',
+            ];
+
+        const callout = createBasicCallout(title, lines);
+        if (showingGradeColors) {
+          callout.appendChild(createGradeChartElement());
+        }
+
+        return {
+          target: viewToggleButton,
+          element: callout,
+          options: { placement: 'bottom', offset: 14 },
+        };
+      }
+
+      function buildSetterCallout() {
+        if (!setterLink || !isElementVisible(setterLink)) {
+          return null;
+        }
+
+        const callout = createBasicCallout('Setter tools', [
+          'Open the route-setting workspace to draw climbs for this wall.',
+        ]);
+
+        return {
+          target: setterLink,
+          element: callout,
+          options: { placement: 'bottom', offset: 14 },
+        };
+      }
+
+      function buildLocationCallout() {
+        if (!locationButton) {
+          return null;
+        }
+
+        const callout = createBasicCallout('Wall selector', [
+          'Choose a different wall or angle to load its background and routes.',
+        ]);
+
+        return {
+          target: locationButton,
+          element: callout,
+          options: { placement: 'bottom', offset: 14 },
+        };
+      }
+
+      function positionCallout(entry) {
+        if (!entry?.target || !entry?.element) {
+          return;
+        }
+
+        const targetRect = entry.target.getBoundingClientRect();
+        if (targetRect.width === 0 && targetRect.height === 0) {
+          entry.element.style.opacity = '0';
+          return;
+        }
+
+        entry.element.style.opacity = '1';
+
+        const placement = entry.options?.placement === 'top' ? 'top' : 'bottom';
+        const offset = Number.isFinite(entry.options?.offset) ? entry.options.offset : 14;
+        const margin = Number.isFinite(entry.options?.margin) ? entry.options.margin : 16;
+        const targetCenterX = targetRect.left + targetRect.width / 2;
+
+        if (placement === 'top') {
+          entry.element.dataset.arrow = 'bottom';
+          entry.element.style.top = `${targetRect.top - offset}px`;
+          entry.element.style.transform = 'translate(-50%, -100%)';
+        } else {
+          entry.element.dataset.arrow = 'top';
+          entry.element.style.top = `${targetRect.bottom + offset}px`;
+          entry.element.style.transform = 'translate(-50%, 0)';
+        }
+
+        const calloutRect = entry.element.getBoundingClientRect();
+        const calloutWidth = calloutRect.width;
+        const minCenter = margin + calloutWidth / 2;
+        const maxCenter = window.innerWidth - margin - calloutWidth / 2;
+        const clampedCenter = clamp(targetCenterX, minCenter, maxCenter);
+        entry.element.style.left = `${clampedCenter}px`;
+
+        const updatedRect = entry.element.getBoundingClientRect();
+        const arrowOffset = clamp(targetCenterX - updatedRect.left, 12, updatedRect.width - 12);
+        entry.element.style.setProperty('--callout-arrow-offset', `${arrowOffset}px`);
+      }
+
+      function refreshInfoHighlights() {
+        if (!infoModeActive) {
+          return;
+        }
+
+        const container = ensureInfoHighlightsContainer();
+        if (!container) {
+          return;
+        }
+
+        container.innerHTML = '';
+        infoCalloutEntries = [];
+
+        const callouts = [buildViewModeCallout(), buildSetterCallout(), buildLocationCallout()].filter(Boolean);
+        if (!callouts.length) {
+          container.classList.add('hidden');
+          return;
+        }
+
+        container.classList.remove('hidden');
+
+        callouts.forEach((entry) => {
+          container.appendChild(entry.element);
+          infoCalloutEntries.push(entry);
+        });
+
+        requestAnimationFrame(() => {
+          infoCalloutEntries.forEach((entry) => {
+            positionCallout(entry);
+          });
+        });
+      }
+
+      function repositionInfoHighlights() {
+        if (!infoModeActive || !infoCalloutEntries.length) {
+          return;
+        }
+
+        infoCalloutEntries.forEach((entry) => {
+          positionCallout(entry);
+        });
+      }
+
+      function scheduleInfoHighlightsReposition() {
+        if (!infoModeActive) {
+          return;
+        }
+
+        if (pendingInfoRepositionFrame) {
+          cancelAnimationFrame(pendingInfoRepositionFrame);
+        }
+
+        pendingInfoRepositionFrame = requestAnimationFrame(() => {
+          pendingInfoRepositionFrame = null;
+          repositionInfoHighlights();
+        });
+      }
+
+      function activateInfoMode() {
+        if (infoModeActive) {
+          refreshInfoHighlights();
+        } else {
+          infoModeActive = true;
+        }
+
+        const container = ensureInfoHighlightsContainer();
+        if (container) {
+          container.classList.remove('hidden');
+        }
+
+        if (infoButton) {
+          infoButton.setAttribute('aria-expanded', 'true');
+        }
+
+        if (infoPopover) {
+          infoPopover.classList.remove('hidden');
+          infoPopover.setAttribute('aria-hidden', 'false');
+          if (typeof infoPopover.focus === 'function') {
+            infoPopover.focus({ preventScroll: true });
+          }
+        }
+
+        refreshInfoHighlights();
+        scheduleInfoHighlightsReposition();
+      }
+
+      function deactivateInfoMode() {
+        if (!infoModeActive) {
+          return;
+        }
+
+        infoModeActive = false;
+
+        if (infoButton) {
+          infoButton.setAttribute('aria-expanded', 'false');
+        }
+
+        if (infoPopover) {
+          infoPopover.classList.add('hidden');
+          infoPopover.setAttribute('aria-hidden', 'true');
+        }
+
+        clearInfoHighlights();
+      }
+
+      function toggleInfoMode() {
+        if (infoModeActive) {
+          deactivateInfoMode();
+        } else {
+          activateInfoMode();
+        }
+      }
 
       const PATH_TYPE_BREZER = 'brezer';
       const PATH_TYPE_POINT = 'point';
@@ -1275,6 +1673,9 @@
         viewMode = normalized;
         syncViewModeState();
         updateViewToggleButton();
+        if (infoModeActive) {
+          refreshInfoHighlights();
+        }
         hideTooltip({ force: true });
         if (canvas) {
           canvas.style.cursor = '';
@@ -1650,53 +2051,17 @@
         tooltip.style.setProperty('--tooltip-border-color', border);
       }
 
-      function closeInfoPopover() {
-        if (!infoPopover) {
-          return;
-        }
-
-        if (!infoPopover.classList.contains('hidden')) {
-          infoPopover.classList.add('hidden');
-          infoPopover.setAttribute('aria-hidden', 'true');
-          if (infoButton) {
-            infoButton.setAttribute('aria-expanded', 'false');
-          }
-        }
-      }
-
-      function toggleInfoPopover() {
-        if (!infoPopover || !infoButton) {
-          return;
-        }
-
-        const isHidden = infoPopover.classList.contains('hidden');
-        if (isHidden) {
-          infoPopover.classList.remove('hidden');
-          infoPopover.setAttribute('aria-hidden', 'false');
-          infoButton.setAttribute('aria-expanded', 'true');
-        } else {
-          closeInfoPopover();
-        }
-      }
-
-      if (infoButton && infoPopover) {
+      if (infoButton) {
         infoButton.addEventListener('click', (event) => {
+          event.preventDefault();
           event.stopPropagation();
-          toggleInfoPopover();
+          toggleInfoMode();
         });
+      }
 
+      if (infoPopover) {
         infoPopover.addEventListener('click', (event) => {
           event.stopPropagation();
-        });
-
-        document.addEventListener('click', () => {
-          closeInfoPopover();
-        });
-
-        document.addEventListener('keydown', (event) => {
-          if (event.key === 'Escape') {
-            closeInfoPopover();
-          }
         });
       }
 
@@ -1770,9 +2135,18 @@
         });
       }
 
+      window.addEventListener('resize', scheduleInfoHighlightsReposition);
+      window.addEventListener('scroll', scheduleInfoHighlightsReposition, true);
+
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
           closeLocationModal();
+          if (infoModeActive) {
+            deactivateInfoMode();
+            if (infoButton) {
+              infoButton.focus();
+            }
+          }
         }
       });
 
@@ -2048,10 +2422,13 @@
         }
       }
 
-      function updateNavigationForRole(role) {
-        updateSetterLinkHref();
-        setterLink.classList.toggle('hidden', role !== 'setter');
-      }
+        function updateNavigationForRole(role) {
+          updateSetterLinkHref();
+          setterLink.classList.toggle('hidden', role !== 'setter');
+          if (infoModeActive) {
+            refreshInfoHighlights();
+          }
+        }
 
       onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -2084,6 +2461,9 @@
           authOverlay.classList.remove('hidden');
           appContent.classList.add('hidden');
           setterLink.classList.add('hidden');
+          if (infoModeActive) {
+            deactivateInfoMode();
+          }
           authForm.reset();
           setAuthMode('login');
           routes = [];
