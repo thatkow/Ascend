@@ -42,6 +42,50 @@
       -webkit-overflow-scrolling: touch;
     }
 
+    .canvas-toolbar {
+      position: fixed;
+      top: 1rem;
+      right: calc(var(--control-panel-offset, 0px) + 1rem);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      z-index: 16;
+      gap: 0.75rem;
+      pointer-events: none;
+    }
+
+    .drawing-toggle {
+      pointer-events: auto;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(0, 0, 0, 0.65);
+      color: #f5f5f5;
+      border-radius: 999px;
+      padding: 0.5rem 1rem;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease,
+        box-shadow 0.2s ease;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    .drawing-toggle:hover,
+    .drawing-toggle:focus-visible {
+      outline: none;
+      border-color: rgba(255, 255, 255, 0.45);
+      background: rgba(0, 0, 0, 0.8);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .drawing-toggle[aria-pressed='true'] {
+      background: #7ed957;
+      color: #0d1405;
+      border-color: rgba(255, 255, 255, 0.6);
+      box-shadow: 0 12px 28px rgba(126, 217, 87, 0.35);
+    }
+
     canvas {
       display: block;
       height: 100%;
@@ -760,6 +804,16 @@
     <div class="canvas-container">
       <canvas id="drawingCanvas"></canvas>
     </div>
+    <div class="canvas-toolbar" aria-hidden="false">
+      <button
+        id="drawingToggle"
+        class="drawing-toggle"
+        type="button"
+        aria-pressed="false"
+      >
+        Enable drawing
+      </button>
+    </div>
     <div class="control-panel" data-expanded="true">
       <div id="panelSidebar" class="panel-sidebar">
         <div
@@ -1169,6 +1223,8 @@
     const deleteButton = document.getElementById('deleteButton');
     const routeStatus = document.getElementById('routeStatus');
     const controlPanel = document.querySelector('.control-panel');
+    const canvasToolbar = document.querySelector('.canvas-toolbar');
+    const drawingToggle = document.getElementById('drawingToggle');
     const panelSidebar = document.getElementById('panelSidebar');
     const climberViewButton = document.getElementById('climberViewButton');
     const previewLink = document.getElementById('previewLink');
@@ -1209,6 +1265,7 @@
     const PATH_TYPE_POINT = 'point';
     const PATH_TYPE_RECTANGLE = 'rectangle';
     const DEFAULT_PATH_TYPE = PATH_TYPE_BREZER;
+    const BREZER_REMOVAL_RADIUS = 20;
     const MIN_POINT_DIAMETER = 12;
     const MAX_POINT_DIAMETER = 160;
     const DEFAULT_POINT_DIAMETER = 48;
@@ -1675,6 +1732,38 @@
       if (Number.isFinite(width) && width > 0) {
         controlPanel.style.setProperty('--toggle-visible-width', `${Math.ceil(width)}px`);
       }
+
+      let panelOffset = 0;
+      if (controlPanel) {
+        const panelRect = controlPanel.getBoundingClientRect();
+        if (Number.isFinite(panelRect.width) && panelRect.width > 0) {
+          panelOffset = Math.ceil(panelRect.width);
+        }
+
+        const isExpanded = controlPanel.getAttribute('data-expanded') !== 'false';
+        if (!isExpanded) {
+          const storedToggleWidth =
+            controlPanel.style.getPropertyValue('--toggle-visible-width') ||
+            window.getComputedStyle(controlPanel).getPropertyValue('--toggle-visible-width');
+          const parsedToggleWidth = storedToggleWidth ? parseFloat(storedToggleWidth) : NaN;
+          if (Number.isFinite(parsedToggleWidth) && parsedToggleWidth > 0) {
+            panelOffset = Math.ceil(parsedToggleWidth);
+          }
+        }
+      }
+
+      if (canvasToolbar) {
+        canvasToolbar.style.setProperty('--control-panel-offset', `${panelOffset}px`);
+      }
+    };
+
+    const updateDrawingToggle = () => {
+      if (!drawingToggle) {
+        return;
+      }
+
+      drawingToggle.setAttribute('aria-pressed', String(isDrawingEnabled));
+      drawingToggle.textContent = isDrawingEnabled ? 'Disable drawing' : 'Enable drawing';
     };
 
     deleteButton.disabled = true;
@@ -2493,6 +2582,7 @@
     const points = [];
     let strokeColor = sanitizeColor(colorPicker.value || '#ffde59');
     let pathType = DEFAULT_PATH_TYPE;
+    let isDrawingEnabled = false;
     let pointDiameter = DEFAULT_POINT_DIAMETER;
     let rectangleWidth = DEFAULT_RECTANGLE_WIDTH;
     let rectangleHeight = DEFAULT_RECTANGLE_HEIGHT;
@@ -2515,6 +2605,14 @@
     let isCanvasScrollable = false;
     let isCreatingWall = false;
     let isDeletingWall = false;
+
+    if (drawingToggle) {
+      updateDrawingToggle();
+      drawingToggle.addEventListener('click', () => {
+        isDrawingEnabled = !isDrawingEnabled;
+        updateDrawingToggle();
+      });
+    }
 
     const routesCache = new Map();
     let routeMedianGrades = new Map();
@@ -4482,10 +4580,24 @@
     }
 
     function addPoint(event) {
+      if (!isDrawingEnabled) {
+        return;
+      }
+
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
       const currentPathType = normalizePathType(pathType);
+      if (currentPathType === PATH_TYPE_BREZER) {
+        const removalIndex = findPointIndexNear(x, y, points, BREZER_REMOVAL_RADIUS);
+        if (removalIndex >= 0) {
+          points.splice(removalIndex, 1);
+          loadedNormalizedPoints = null;
+          redraw();
+          markUnsavedChange();
+          return;
+        }
+      }
       if (currentPathType === PATH_TYPE_POINT || currentPathType === PATH_TYPE_RECTANGLE) {
         const detectionRadius =
           currentPathType === PATH_TYPE_RECTANGLE
