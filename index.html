@@ -1078,7 +1078,6 @@
         getAuth,
         onAuthStateChanged,
         signInWithEmailAndPassword,
-        signInAnonymously,
         createUserWithEmailAndPassword,
         signOut,
         updateProfile,
@@ -1103,38 +1102,6 @@
       const auth = getAuth(firebaseApp);
 
       const db = getFirestore(firebaseApp);
-
-      let anonymousAccessPromise = null;
-      let anonymousAccessEnabled = false;
-      let anonymousAccessFailed = false;
-
-      function ensureAnonymousAccess() {
-        if (anonymousAccessEnabled) {
-          return Promise.resolve(true);
-        }
-
-        if (anonymousAccessFailed) {
-          return Promise.resolve(false);
-        }
-
-        if (!anonymousAccessPromise) {
-          anonymousAccessPromise = signInAnonymously(auth)
-            .then(() => {
-              anonymousAccessEnabled = true;
-              return true;
-            })
-            .catch((error) => {
-              console.error('Failed to enable guest access:', error);
-              anonymousAccessFailed = true;
-              return false;
-            })
-            .finally(() => {
-              anonymousAccessPromise = null;
-            });
-        }
-
-        return anonymousAccessPromise;
-      }
 
       const authOverlay = document.getElementById('authOverlay');
       const appContent = document.getElementById('appContent');
@@ -3038,8 +3005,6 @@
       }
 
       onAuthStateChanged(auth, async (user) => {
-        anonymousAccessEnabled = Boolean(user?.isAnonymous);
-
         if (user && !user.isAnonymous) {
           if (authOverlay) {
             authOverlay.classList.add('hidden');
@@ -3076,13 +3041,6 @@
           }
 
           return;
-        }
-
-        if (!user) {
-          const anonymousResult = await ensureAnonymousAccess();
-          if (anonymousResult) {
-            return;
-          }
         }
 
         await presentGuestExperience();
