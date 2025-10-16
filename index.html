@@ -181,20 +181,31 @@
         display: block;
       }
 
+      .view-toggle {
+        position: relative;
+      }
+
+      .view-toggle .view-toggle-icon {
+        display: none;
+        width: 20px;
+        height: 20px;
+      }
+
+      .view-toggle .view-toggle-icon svg {
+        width: 100%;
+        height: 100%;
+      }
+
+      .view-toggle[aria-pressed='false'] .view-toggle-icon-grade,
+      .view-toggle[aria-pressed='true'] .view-toggle-icon-difficulty {
+        display: block;
+      }
+
       .header-icon-button:hover,
       .header-icon-button:focus-visible {
         transform: translateY(-1px);
         box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
         outline: none;
-      }
-
-      .button-icon {
-        font-size: 1.05rem;
-        line-height: 1;
-      }
-
-      .button-label {
-        line-height: 1;
       }
 
       .view-toggle[aria-pressed='true'] {
@@ -315,16 +326,28 @@
       }
 
       .info-wrapper {
-        position: relative;
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        z-index: 6;
         display: flex;
-        align-items: center;
-        justify-content: center;
+        align-items: flex-start;
+        justify-content: flex-start;
       }
 
       .info-button {
         width: 40px;
         height: 40px;
-        border: 2px solid rgba(126, 217, 87, 0.6);
+        border: 2px solid rgba(255, 255, 255, 0.35);
+        background: linear-gradient(135deg, rgba(36, 36, 36, 0.9), rgba(92, 92, 92, 0.45));
+        color: #f8fafc;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease,
+          background 0.2s ease, color 0.2s ease;
+      }
+
+      .info-button.is-active {
+        border-color: rgba(126, 217, 87, 0.65);
         background: #7ed957;
         color: #0c1905;
         box-shadow: 0 8px 22px rgba(126, 217, 87, 0.35);
@@ -333,12 +356,23 @@
       .info-button:hover,
       .info-button:focus-visible {
         transform: translateY(-2px);
+      }
+
+      .info-button:not(.is-active):hover,
+      .info-button:not(.is-active):focus-visible {
+        border-color: rgba(255, 255, 255, 0.55);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+        outline: none;
+      }
+
+      .info-button.is-active:hover,
+      .info-button.is-active:focus-visible {
         box-shadow: 0 12px 28px rgba(126, 217, 87, 0.45);
         border-color: rgba(126, 217, 87, 0.9);
         outline: none;
       }
 
-      .info-button:focus-visible {
+      .info-button.is-active:focus-visible {
         box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.25), 0 12px 28px rgba(126, 217, 87, 0.45);
       }
 
@@ -372,7 +406,7 @@
       .info-popover {
         position: absolute;
         top: calc(100% + 0.75rem);
-        right: 0;
+        left: 0;
         width: min(280px, 70vw);
         padding: 0.9rem 1rem;
         border-radius: 0.75rem;
@@ -384,10 +418,101 @@
         font-size: 0.85rem;
         line-height: 1.4;
         text-align: left;
+        pointer-events: auto;
       }
 
       .info-popover p {
         color: rgba(255, 255, 255, 0.85);
+      }
+
+      .info-popover p + p {
+        margin-top: 0.5rem;
+      }
+
+      .info-highlights {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 40;
+      }
+
+      .info-callout {
+        --info-callout-bg: rgba(10, 16, 11, 0.94);
+        --info-callout-border: rgba(126, 217, 87, 0.55);
+        position: absolute;
+        min-width: 200px;
+        max-width: 260px;
+        padding: 0.85rem 1rem;
+        border-radius: 0.85rem;
+        background: var(--info-callout-bg);
+        border: 1px solid var(--info-callout-border);
+        color: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.45);
+        transform: translate(-50%, 0);
+        pointer-events: none;
+        line-height: 1.45;
+      }
+
+      .info-callout::before {
+        content: '';
+        position: absolute;
+        width: 0;
+        height: 0;
+        border: 10px solid transparent;
+        left: var(--callout-arrow-offset, 50%);
+        transform: translateX(-50%);
+      }
+
+      .info-callout[data-arrow='top']::before {
+        top: -18px;
+        border-bottom-color: var(--info-callout-bg);
+      }
+
+      .info-callout[data-arrow='bottom']::before {
+        bottom: -18px;
+        border-top-color: var(--info-callout-bg);
+      }
+
+      .info-callout strong {
+        display: block;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        margin-bottom: 0.35rem;
+      }
+
+      .info-callout p {
+        font-size: 0.82rem;
+        color: rgba(255, 255, 255, 0.88);
+      }
+
+      .info-callout p + p {
+        margin-top: 0.4rem;
+      }
+
+      .info-callout-chart {
+        margin-top: 0.75rem;
+        display: flex;
+        align-items: flex-end;
+        gap: 0.18rem;
+        height: 52px;
+        padding: 0 0.15rem;
+      }
+
+      .info-callout-chart-bar {
+        flex: 1;
+        min-width: 0.15rem;
+        border-radius: 0.4rem 0.4rem 0 0;
+        background: #2f9e44;
+        height: 45%;
+        opacity: 0.95;
+      }
+
+      .info-callout-chart-bar:first-child {
+        border-top-left-radius: 0.45rem;
+      }
+
+      .info-callout-chart-bar:last-child {
+        border-top-right-radius: 0.45rem;
       }
 
       .nav-links {
@@ -455,6 +580,14 @@
       .route-tooltip.visible {
         opacity: 1;
         transform: translate(-50%, 0);
+      }
+
+      .route-tooltip .tooltip-header {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.5rem;
+        margin-bottom: 0.35rem;
       }
 
       .route-tooltip .tooltip-title {
@@ -593,6 +726,20 @@
         font-weight: 600;
       }
 
+      .grade-input-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: stretch;
+      }
+
+      .grade-input-row label {
+        flex: 1;
+      }
+
+      .grade-input-row input[type='number'] {
+        flex: 1;
+      }
+
       .grade-form input[type='number'] {
         border-radius: 0.65rem;
         border: 1px solid #fff;
@@ -609,6 +756,36 @@
       .grade-note {
         font-size: 0.75rem;
         color: var(--tooltip-foreground, #fff);
+      }
+
+      .route-tooltip .tooltip-close-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.15rem;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        background: rgba(0, 0, 0, 0.25);
+        color: var(--tooltip-foreground, #fff);
+        font-size: 1rem;
+        line-height: 1;
+        min-width: 0;
+        transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+
+      .route-tooltip .tooltip-close-button:hover,
+      .route-tooltip .tooltip-close-button:focus-visible {
+        border-color: rgba(255, 255, 255, 0.6);
+        background: rgba(255, 255, 255, 0.2);
+        color: #0b0f03;
+        box-shadow: 0 0 0 0.15rem rgba(255, 255, 255, 0.2);
+      }
+
+      .route-tooltip .tooltip-close-button svg {
+        width: 1em;
+        height: 1em;
+        display: block;
       }
 
     </style>
@@ -634,37 +811,63 @@
       </form>
     </div>
     <div id="appContent" class="app hidden" aria-live="polite">
-      <header class="app-header">
-        <div class="info-wrapper">
-          <button
-            id="infoButton"
-            class="header-icon-button info-button"
-            type="button"
-            aria-label="Learn about Ascend"
-            aria-haspopup="dialog"
-            aria-expanded="false"
-            aria-controls="infoPopover"
-            title="Learn about Ascend"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
-              <rect x="11" y="10" width="2" height="7" rx="1" />
-              <circle cx="12" cy="7" r="1.5" />
-            </svg>
-            <span class="sr-only">Learn about Ascend</span>
-          </button>
-          <div
-            id="infoPopover"
-            class="info-popover hidden"
-            role="dialog"
-            aria-modal="false"
-            aria-hidden="true"
-            aria-label="About Ascend"
-          >
-            <p>Track which climbs you have completed.</p>
-            <p>Switch the view to highlight each route by its grade color or by the hold color you assigned.</p>
-          </div>
+      <div class="info-wrapper">
+        <button
+          id="infoButton"
+          class="header-icon-button info-button"
+          type="button"
+          aria-label="Learn about Ascend"
+          aria-haspopup="dialog"
+          aria-pressed="false"
+          aria-expanded="false"
+          aria-controls="infoPopover"
+          title="Learn about Ascend"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
+            <rect x="11" y="10" width="2" height="7" rx="1" />
+            <circle cx="12" cy="7" r="1.5" />
+          </svg>
+        </button>
+        <div
+          id="infoPopover"
+          class="info-popover hidden"
+          role="dialog"
+          aria-modal="false"
+          aria-hidden="true"
+          aria-label="About Ascend"
+          tabindex="-1"
+        >
+          <p>Tap a header button to learn what it does.</p>
+          <p>The next button you press will open its tooltip and close this message.</p>
         </div>
+      </div>
+      <header class="app-header">
+        <button
+          id="viewToggle"
+          class="header-icon-button view-toggle"
+          type="button"
+          aria-pressed="false"
+          aria-label="Show Grade Colors"
+          title="Show Grade Colors"
+        >
+          <span class="view-toggle-icon view-toggle-icon-grade" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path
+                d="M6 19a3 3 0 0 1 0-6h12a2 2 0 0 0 0-4H8a4 4 0 0 1 0-8h10v2H8a2 2 0 0 0 0 4h10a4 4 0 0 1 0 8H6a1 1 0 0 0 0 2h12v2H6a3 3 0 0 1-3-3Z"
+                fill="currentColor"
+              />
+            </svg>
+          </span>
+          <span class="view-toggle-icon view-toggle-icon-difficulty" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <rect x="5" y="13.5" width="3.5" height="6" rx="1.75" fill="#2f9e44" />
+              <rect x="10.25" y="9.5" width="3.5" height="10" rx="1.75" fill="#facc15" />
+              <rect x="15.5" y="5" width="3.5" height="14.5" rx="1.75" fill="#ef4444" />
+              <rect x="4" y="20" width="16" height="1.5" rx="0.75" fill="#ffffff" fill-opacity="0.55" />
+            </svg>
+          </span>
+        </button>
         <a
           id="setterLink"
           class="header-icon-button setter-link hidden"
@@ -682,7 +885,6 @@
               fill="currentColor"
             />
           </svg>
-          <span class="sr-only">Open setter tools</span>
         </a>
         <button
           id="locationButton"
@@ -698,7 +900,6 @@
               fill="currentColor"
             />
           </svg>
-          <span class="sr-only">Select wall</span>
         </button>
         <button
           id="signOutButton"
@@ -713,7 +914,6 @@
               fill="currentColor"
             />
           </svg>
-          <span class="sr-only">Sign out</span>
         </button>
       </header>
       <div class="canvas-container">
@@ -792,11 +992,18 @@
       const infoButton = document.getElementById('infoButton');
       const infoPopover = document.getElementById('infoPopover');
       const locationButton = document.getElementById('locationButton');
-      const locationButtonLabel = locationButton?.querySelector('.button-label');
       const viewToggleButton = document.getElementById('viewToggle');
       const locationModal = document.getElementById('locationModal');
       const locationOptions = document.getElementById('locationOptions');
       const locationModalClose = document.getElementById('locationModalClose');
+
+      let infoHighlightsContainer = null;
+      let infoModeActive = false;
+      let awaitingInfoTargetSelection = false;
+      let activeInfoCallout = null;
+      let pendingInfoRepositionFrame = null;
+      let ephemeralCalloutDismissTimer = null;
+      let hasShownWelcomeCallout = false;
 
       const LOCATIONS = [
         { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg' },
@@ -805,6 +1012,490 @@
 
       const LOCATION_STORAGE_KEY = 'ascend.selectedWall';
       const WALL_QUERY_PARAM = 'wall';
+
+      function ensureInfoHighlightsContainer() {
+        if (infoHighlightsContainer && document.body?.contains(infoHighlightsContainer)) {
+          return infoHighlightsContainer;
+        }
+
+        if (!document.body) {
+          return null;
+        }
+
+        const container = document.createElement('div');
+        container.id = 'infoHighlights';
+        container.className = 'info-highlights hidden';
+        document.body.appendChild(container);
+        infoHighlightsContainer = container;
+        return container;
+      }
+
+      function clearInfoHighlights() {
+        const container = ensureInfoHighlightsContainer();
+        if (!container) {
+          return;
+        }
+
+        if (pendingInfoRepositionFrame) {
+          cancelAnimationFrame(pendingInfoRepositionFrame);
+          pendingInfoRepositionFrame = null;
+        }
+
+        if (ephemeralCalloutDismissTimer) {
+          clearTimeout(ephemeralCalloutDismissTimer);
+          ephemeralCalloutDismissTimer = null;
+        }
+
+        container.innerHTML = '';
+        container.classList.add('hidden');
+        activeInfoCallout = null;
+      }
+
+      function createBasicCallout(title, lines = []) {
+        const callout = document.createElement('div');
+        callout.className = 'info-callout';
+
+        if (title) {
+          const heading = document.createElement('strong');
+          heading.textContent = title;
+          callout.appendChild(heading);
+        }
+
+        lines
+          .filter((line) => typeof line === 'string' && line.trim().length)
+          .forEach((line) => {
+            const paragraph = document.createElement('p');
+            paragraph.textContent = line;
+            callout.appendChild(paragraph);
+          });
+
+        return callout;
+      }
+
+      function createGradeChartElement() {
+        const chart = document.createElement('div');
+        chart.className = 'info-callout-chart';
+        chart.setAttribute('aria-hidden', 'true');
+
+        const gradeEntries = Array.from(GRADE_COLOR_MAP.entries());
+        const totalGrades = gradeEntries.length;
+        const minimumHeight = 22;
+        const maximumHeight = 100;
+        const heightRange = maximumHeight - minimumHeight;
+
+        gradeEntries.forEach(([grade, color], index) => {
+          const bar = document.createElement('span');
+          bar.className = 'info-callout-chart-bar';
+          const relative = totalGrades > 1 ? index / (totalGrades - 1) : 0;
+          const heightPercent = minimumHeight + relative * heightRange;
+          bar.style.height = `${heightPercent}%`;
+          bar.style.backgroundColor = color;
+          bar.dataset.grade = String(grade);
+          chart.appendChild(bar);
+        });
+
+        return chart;
+      }
+
+      function isElementVisible(element) {
+        if (!element) {
+          return false;
+        }
+
+        if (element.classList?.contains('hidden')) {
+          return false;
+        }
+
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      }
+
+      function buildViewModeCallout() {
+        if (!viewToggleButton) {
+          return null;
+        }
+
+        const showingGradeColors = viewMode === VIEW_MODE_GRADE_COLORS;
+        const title = showingGradeColors ? 'Grade colors' : 'Hold colors';
+        const lines = showingGradeColors
+          ? [
+              'Routes are tinted by difficulty right now.',
+              'The spectrum below runs from the easiest greens on the left to the hardest reds on the right, covering every grade color.',
+            ]
+          : [
+              'Routes are showing the color of each hold set.',
+              'Toggle to reveal grade colors and compare difficulty at a glance.',
+            ];
+
+        const callout = createBasicCallout(title, lines);
+        if (showingGradeColors) {
+          callout.appendChild(createGradeChartElement());
+        }
+
+        return {
+          target: viewToggleButton,
+          element: callout,
+          options: { placement: 'bottom', offset: 14 },
+        };
+      }
+
+      function buildSetterCallout() {
+        if (!setterLink || !isElementVisible(setterLink)) {
+          return null;
+        }
+
+        const callout = createBasicCallout('Setter tools', [
+          'Open the route-setting workspace to draw climbs for this wall.',
+        ]);
+
+        return {
+          target: setterLink,
+          element: callout,
+          options: { placement: 'bottom', offset: 14 },
+        };
+      }
+
+      function buildLocationCallout() {
+        if (!locationButton) {
+          return null;
+        }
+
+        const callout = createBasicCallout('Wall selector', [
+          'Choose a different wall or angle to load its background and routes.',
+        ]);
+
+        return {
+          target: locationButton,
+          element: callout,
+          options: { placement: 'bottom', offset: 14 },
+        };
+      }
+
+      function buildSignOutCallout() {
+        if (!signOutButton || !isElementVisible(signOutButton)) {
+          return null;
+        }
+
+        const callout = createBasicCallout('Sign out', [
+          'Log out of Ascend and return to the sign-in screen.',
+        ]);
+
+        return {
+          target: signOutButton,
+          element: callout,
+          options: { placement: 'bottom', offset: 14 },
+        };
+      }
+
+      function buildRouteAscentCallout(context = {}) {
+        const target = context?.target instanceof Element ? context.target : null;
+        if (!target || !isElementVisible(target)) {
+          return null;
+        }
+
+        const isMarkedAscended = target.getAttribute('aria-pressed') === 'true';
+        const title = isMarkedAscended ? 'Marked ascended' : 'Not ascended';
+        const callout = createBasicCallout(title, [
+          'Toggle this when you send the climb to track your personal ascents.',
+          'Turn it off again to keep projects on your list.',
+        ]);
+
+        return {
+          target,
+          element: callout,
+          options: { placement: 'top', offset: 12 },
+        };
+      }
+
+      function buildRouteFocusCallout(context = {}) {
+        const target = context?.target instanceof Element ? context.target : null;
+        if (!target || !isElementVisible(target)) {
+          return null;
+        }
+
+        const isFocused = target.getAttribute('aria-pressed') === 'true';
+        const callout = createBasicCallout('Focus view', [
+          isFocused
+            ? 'All routes are visible again. Toggle Focus to isolate a single climb.'
+            : 'Show only this route to inspect its holds without distractions.',
+          'Use it to study beta before hopping back to the full wall.',
+        ]);
+
+        return {
+          target,
+          element: callout,
+          options: { placement: 'top', offset: 12 },
+        };
+      }
+
+      function buildRouteGradeCallout(context = {}) {
+        const target = context?.target instanceof Element ? context.target : null;
+        if (!target || !isElementVisible(target)) {
+          return null;
+        }
+
+        const callout = createBasicCallout('Your grade', [
+          'This is your personal grade — how you think the climb feels.',
+          'Your grade helps shape the community average shown in the top right.',
+        ]);
+
+        return {
+          target,
+          element: callout,
+          options: { placement: 'top', offset: 12 },
+        };
+      }
+
+      function buildWelcomeCallout() {
+        if (!infoButton || !isElementVisible(infoButton)) {
+          return null;
+        }
+
+        const callout = createBasicCallout('Welcome to Ascend', [
+          'Explore the wall to discover climbs and track your progress.',
+          'Tap a route to study beta, log your ascent, and compare community grades.',
+        ]);
+
+        callout.setAttribute('role', 'status');
+        callout.tabIndex = 0;
+        callout.addEventListener('click', () => {
+          if (activeInfoCallout?.element === callout) {
+            clearInfoHighlights();
+          }
+        });
+
+        return {
+          target: infoButton,
+          element: callout,
+          options: { placement: 'bottom', offset: 12, margin: 20 },
+        };
+      }
+
+      function showWelcomeCallout() {
+        if (hasShownWelcomeCallout || infoModeActive) {
+          return;
+        }
+
+        const entry = buildWelcomeCallout();
+        if (!entry) {
+          return;
+        }
+
+        hasShownWelcomeCallout = true;
+
+        requestAnimationFrame(() => {
+          showTemporaryInfoCallout(entry, 11000);
+        });
+      }
+
+      function positionCallout(entry) {
+        if (!entry?.target || !entry?.element) {
+          return;
+        }
+
+        const targetRect = entry.target.getBoundingClientRect();
+        if (targetRect.width === 0 && targetRect.height === 0) {
+          entry.element.style.opacity = '0';
+          return;
+        }
+
+        entry.element.style.opacity = '1';
+
+        const placement = entry.options?.placement === 'top' ? 'top' : 'bottom';
+        const offset = Number.isFinite(entry.options?.offset) ? entry.options.offset : 14;
+        const margin = Number.isFinite(entry.options?.margin) ? entry.options.margin : 16;
+        const targetCenterX = targetRect.left + targetRect.width / 2;
+
+        if (placement === 'top') {
+          entry.element.dataset.arrow = 'bottom';
+          entry.element.style.top = `${targetRect.top - offset}px`;
+          entry.element.style.transform = 'translate(-50%, -100%)';
+        } else {
+          entry.element.dataset.arrow = 'top';
+          entry.element.style.top = `${targetRect.bottom + offset}px`;
+          entry.element.style.transform = 'translate(-50%, 0)';
+        }
+
+        const calloutRect = entry.element.getBoundingClientRect();
+        const calloutWidth = calloutRect.width;
+        const minCenter = margin + calloutWidth / 2;
+        const maxCenter = window.innerWidth - margin - calloutWidth / 2;
+        const clampedCenter = clamp(targetCenterX, minCenter, maxCenter);
+        entry.element.style.left = `${clampedCenter}px`;
+
+        const updatedRect = entry.element.getBoundingClientRect();
+        const arrowOffset = clamp(targetCenterX - updatedRect.left, 12, updatedRect.width - 12);
+        entry.element.style.setProperty('--callout-arrow-offset', `${arrowOffset}px`);
+      }
+
+      function scheduleInfoHighlightsReposition() {
+        if (!activeInfoCallout) {
+          return;
+        }
+
+        if (pendingInfoRepositionFrame) {
+          cancelAnimationFrame(pendingInfoRepositionFrame);
+        }
+
+        pendingInfoRepositionFrame = requestAnimationFrame(() => {
+          pendingInfoRepositionFrame = null;
+          if (activeInfoCallout) {
+            positionCallout(activeInfoCallout);
+          }
+        });
+      }
+
+      function showInfoCallout(entry) {
+        if (!entry?.element) {
+          return;
+        }
+
+        const container = ensureInfoHighlightsContainer();
+        if (!container) {
+          return;
+        }
+
+        container.innerHTML = '';
+        container.classList.remove('hidden');
+        container.appendChild(entry.element);
+        activeInfoCallout = entry;
+
+        requestAnimationFrame(() => {
+          if (activeInfoCallout === entry) {
+            positionCallout(entry);
+          }
+        });
+      }
+
+      function showTemporaryInfoCallout(entry, duration = 8000) {
+        if (!entry) {
+          return;
+        }
+
+        showInfoCallout(entry);
+
+        if (ephemeralCalloutDismissTimer) {
+          clearTimeout(ephemeralCalloutDismissTimer);
+        }
+
+        const timeout = Number.isFinite(duration) && duration > 0 ? duration : 8000;
+        ephemeralCalloutDismissTimer = window.setTimeout(() => {
+          ephemeralCalloutDismissTimer = null;
+          if (activeInfoCallout === entry) {
+            clearInfoHighlights();
+          }
+        }, timeout);
+      }
+
+      function setInfoButtonActiveState(active) {
+        if (!infoButton) {
+          return;
+        }
+
+        infoButton.setAttribute('aria-pressed', active ? 'true' : 'false');
+        infoButton.setAttribute('aria-expanded', active ? 'true' : 'false');
+        infoButton.classList.toggle('is-active', active);
+      }
+
+      function hideInfoPopover() {
+        if (!infoPopover) {
+          return;
+        }
+
+        infoPopover.classList.add('hidden');
+        infoPopover.setAttribute('aria-hidden', 'true');
+      }
+
+      function activateInfoMode() {
+        infoModeActive = true;
+        awaitingInfoTargetSelection = true;
+        setInfoButtonActiveState(true);
+        clearInfoHighlights();
+
+        if (infoPopover) {
+          infoPopover.classList.remove('hidden');
+          infoPopover.setAttribute('aria-hidden', 'false');
+          if (typeof infoPopover.focus === 'function') {
+            infoPopover.focus({ preventScroll: true });
+          }
+        }
+      }
+
+      function deactivateInfoMode({ clearCallout = false } = {}) {
+        awaitingInfoTargetSelection = false;
+
+        if (infoModeActive) {
+          infoModeActive = false;
+        }
+
+        setInfoButtonActiveState(false);
+        hideInfoPopover();
+
+        if (clearCallout) {
+          clearInfoHighlights();
+        }
+      }
+
+      function toggleInfoMode() {
+        if (infoModeActive) {
+          deactivateInfoMode({ clearCallout: true });
+        } else {
+          activateInfoMode();
+        }
+      }
+
+      function handleInfoRequestFor(targetKey, event, context = {}) {
+        if (!infoModeActive || !awaitingInfoTargetSelection) {
+          return false;
+        }
+
+        awaitingInfoTargetSelection = false;
+
+        if (event) {
+          if (typeof event.preventDefault === 'function') {
+            event.preventDefault();
+          }
+          if (typeof event.stopPropagation === 'function') {
+            event.stopPropagation();
+          }
+        }
+
+        let entry = null;
+        switch (targetKey) {
+          case 'view-toggle':
+            entry = buildViewModeCallout();
+            break;
+          case 'setter-link':
+            entry = buildSetterCallout();
+            break;
+          case 'location':
+            entry = buildLocationCallout();
+            break;
+          case 'sign-out':
+            entry = buildSignOutCallout();
+            break;
+          case 'route-ascent':
+            entry = buildRouteAscentCallout(context);
+            break;
+          case 'route-focus':
+            entry = buildRouteFocusCallout(context);
+            break;
+          case 'route-grade':
+            entry = buildRouteGradeCallout(context);
+            break;
+          default:
+            break;
+        }
+
+        if (entry) {
+          showInfoCallout(entry);
+          deactivateInfoMode({ clearCallout: false });
+        } else {
+          deactivateInfoMode({ clearCallout: true });
+        }
+
+        return true;
+      }
 
       const PATH_TYPE_BREZER = 'brezer';
       const PATH_TYPE_POINT = 'point';
@@ -1209,9 +1900,6 @@
 
       function updateLocationButtonLabel() {
         const labelText = currentLocation?.name || 'Select wall';
-        if (locationButtonLabel) {
-          locationButtonLabel.textContent = labelText;
-        }
         if (locationButton) {
           locationButton.setAttribute('aria-label', `Select wall: ${labelText}`);
         }
@@ -1231,8 +1919,10 @@
         }
 
         const showingGradeColors = viewMode === VIEW_MODE_GRADE_COLORS;
+        const labelText = showingGradeColors ? 'Show Hold Colors' : 'Show Grade Colors';
         viewToggleButton.setAttribute('aria-pressed', showingGradeColors ? 'true' : 'false');
-        viewToggleButton.textContent = showingGradeColors ? 'Show Hold Colors' : 'Show Grade Colors';
+        viewToggleButton.setAttribute('aria-label', labelText);
+        viewToggleButton.setAttribute('title', labelText);
       }
 
       function setViewMode(mode) {
@@ -1620,55 +2310,70 @@
         tooltip.style.setProperty('--tooltip-border-color', border);
       }
 
-      function closeInfoPopover() {
-        if (!infoPopover) {
-          return;
-        }
-
-        if (!infoPopover.classList.contains('hidden')) {
-          infoPopover.classList.add('hidden');
-          infoPopover.setAttribute('aria-hidden', 'true');
-          if (infoButton) {
-            infoButton.setAttribute('aria-expanded', 'false');
-          }
-        }
-      }
-
-      function toggleInfoPopover() {
-        if (!infoPopover || !infoButton) {
-          return;
-        }
-
-        const isHidden = infoPopover.classList.contains('hidden');
-        if (isHidden) {
-          infoPopover.classList.remove('hidden');
-          infoPopover.setAttribute('aria-hidden', 'false');
-          infoButton.setAttribute('aria-expanded', 'true');
-        } else {
-          closeInfoPopover();
-        }
-      }
-
-      if (infoButton && infoPopover) {
+      if (infoButton) {
         infoButton.addEventListener('click', (event) => {
+          event.preventDefault();
           event.stopPropagation();
-          toggleInfoPopover();
+          toggleInfoMode();
         });
+      }
 
+      if (infoPopover) {
         infoPopover.addEventListener('click', (event) => {
           event.stopPropagation();
         });
-
-        document.addEventListener('click', () => {
-          closeInfoPopover();
-        });
-
-        document.addEventListener('keydown', (event) => {
-          if (event.key === 'Escape') {
-            closeInfoPopover();
-          }
-        });
       }
+
+      document.addEventListener(
+        'pointerdown',
+        (event) => {
+          if (!infoModeActive || !awaitingInfoTargetSelection) {
+            return;
+          }
+
+          const targetElement =
+            event.target instanceof Element ? event.target.closest('[data-info-target]') : null;
+          if (!targetElement) {
+            return;
+          }
+
+          const infoKey = targetElement.getAttribute('data-info-target');
+          if (!infoKey) {
+            return;
+          }
+
+          handleInfoRequestFor(infoKey, event, { target: targetElement });
+        },
+        true,
+      );
+
+      document.addEventListener(
+        'keydown',
+        (event) => {
+          if (!infoModeActive || !awaitingInfoTargetSelection) {
+            return;
+          }
+
+          const key = event.key;
+          if (key !== 'Enter' && key !== ' ' && key !== 'Spacebar') {
+            return;
+          }
+
+          const targetElement =
+            event.target instanceof Element ? event.target.closest('[data-info-target]') : null;
+          if (!targetElement) {
+            return;
+          }
+
+          const infoKey = targetElement.getAttribute('data-info-target');
+          if (!infoKey) {
+            return;
+          }
+
+          handleInfoRequestFor(infoKey, event, { target: targetElement });
+        },
+        true,
+      );
 
       renderLocationOptions();
 
@@ -1712,16 +2417,39 @@
 
       if (locationButton) {
         locationButton.addEventListener('click', (event) => {
+          if (handleInfoRequestFor('location', event)) {
+            return;
+          }
+          if (activeInfoCallout?.target === locationButton) {
+            clearInfoHighlights();
+          }
           event.preventDefault();
           openLocationModal();
         });
       }
 
       if (viewToggleButton) {
-        viewToggleButton.addEventListener('click', () => {
+        viewToggleButton.addEventListener('click', (event) => {
+          if (handleInfoRequestFor('view-toggle', event)) {
+            return;
+          }
+          if (activeInfoCallout?.target === viewToggleButton) {
+            clearInfoHighlights();
+          }
           const nextMode =
             viewMode === VIEW_MODE_HOLD_COLORS ? VIEW_MODE_GRADE_COLORS : VIEW_MODE_HOLD_COLORS;
           setViewMode(nextMode);
+        });
+      }
+
+      if (setterLink) {
+        setterLink.addEventListener('click', (event) => {
+          if (handleInfoRequestFor('setter-link', event)) {
+            return;
+          }
+          if (activeInfoCallout?.target === setterLink) {
+            clearInfoHighlights();
+          }
         });
       }
 
@@ -1740,9 +2468,23 @@
         });
       }
 
+      window.addEventListener('resize', scheduleInfoHighlightsReposition);
+      window.addEventListener('scroll', scheduleInfoHighlightsReposition, true);
+
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
           closeLocationModal();
+          if (infoModeActive) {
+            deactivateInfoMode({ clearCallout: true });
+            if (infoButton) {
+              infoButton.focus();
+            }
+          } else if (activeInfoCallout) {
+            clearInfoHighlights();
+            if (infoButton) {
+              infoButton.focus();
+            }
+          }
         }
       });
 
@@ -1909,11 +2651,19 @@
         }
       });
 
-      signOutButton.addEventListener('click', () => {
-        signOut(auth).catch((error) => {
-          console.error('Failed to sign out:', error);
+      if (signOutButton) {
+        signOutButton.addEventListener('click', (event) => {
+          if (handleInfoRequestFor('sign-out', event)) {
+            return;
+          }
+          if (activeInfoCallout?.target === signOutButton) {
+            clearInfoHighlights();
+          }
+          signOut(auth).catch((error) => {
+            console.error('Failed to sign out:', error);
+          });
         });
-      });
+      }
 
       async function ensureUserRole(user, username) {
         if (!user) {
@@ -2018,10 +2768,19 @@
         }
       }
 
-      function updateNavigationForRole(role) {
-        updateSetterLinkHref();
-        setterLink.classList.toggle('hidden', role !== 'setter');
-      }
+        function updateNavigationForRole(role) {
+          updateSetterLinkHref();
+          if (!setterLink) {
+            return;
+          }
+
+          const shouldHideSetterLink = role !== 'setter';
+          setterLink.classList.toggle('hidden', shouldHideSetterLink);
+
+          if (shouldHideSetterLink && activeInfoCallout?.target === setterLink) {
+            clearInfoHighlights();
+          }
+        }
 
       onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -2048,12 +2807,22 @@
 
           updateNavigationForRole(role);
           appContent.classList.remove('hidden');
-          await loadAscents({ userId: user.uid, username: currentUsername });
-          await loadRoutes();
+
+          try {
+            await loadAscents({ userId: user.uid, username: currentUsername });
+            await loadRoutes();
+          } finally {
+            showWelcomeCallout();
+          }
         } else {
           authOverlay.classList.remove('hidden');
           appContent.classList.add('hidden');
           setterLink.classList.add('hidden');
+          if (infoModeActive) {
+            deactivateInfoMode({ clearCallout: true });
+          } else if (activeInfoCallout) {
+            clearInfoHighlights();
+          }
           authForm.reset();
           setAuthMode('login');
           routes = [];
@@ -2064,6 +2833,7 @@
           ascendedRoutes.clear();
           routeGrades.clear();
           routeMedianGrades = new Map();
+          hasShownWelcomeCallout = false;
           hideTooltip({ force: true });
           redraw();
         }
@@ -2314,6 +3084,28 @@
         return typeof stored === 'number' && Number.isFinite(stored) ? stored : null;
       }
 
+      function createTooltipCloseButton() {
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'tooltip-close-button';
+        closeButton.setAttribute('aria-label', 'Close route details');
+        closeButton.setAttribute('title', 'Close route details');
+        closeButton.innerHTML = `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M6.34 6.34a1 1 0 0 1 1.32-.08l.1.08L12 10.59l4.24-4.25a1 1 0 0 1 1.5 1.32l-.08.1L13.41 12l4.25 4.24a1 1 0 0 1-1.32 1.5l-.1-.08L12 13.41l-4.24 4.25a1 1 0 0 1-1.5-1.32l.08-.1L10.59 12 6.34 7.76a1 1 0 0 1 0-1.42Z"
+              fill="currentColor"
+            />
+          </svg>
+        `;
+        closeButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          hideTooltip({ force: true });
+        });
+        return closeButton;
+      }
+
       function buildGradeControls(route) {
         if (!route || !route.id) {
           return null;
@@ -2340,9 +3132,15 @@
         const existingGrade = getUserGradeForRoute(route.id);
         gradeInput.value = existingGrade !== null ? String(existingGrade) : '';
         gradeInput.placeholder = '—';
+        gradeInput.dataset.infoTarget = 'route-grade';
+
         gradeLabel.appendChild(gradeInput);
 
-        gradeForm.appendChild(gradeLabel);
+        const gradeInputRow = document.createElement('div');
+        gradeInputRow.className = 'grade-input-row';
+        gradeInputRow.appendChild(gradeLabel);
+
+        gradeForm.appendChild(gradeInputRow);
 
         let isSubmittingGrade = false;
         let lastSubmittedValue = gradeInput.value.trim();
@@ -2563,13 +3361,18 @@
         const fragment = document.createDocumentFragment();
         const ariaLines = [];
 
+        const header = document.createElement('div');
+        header.className = 'tooltip-header';
+        header.appendChild(createTooltipCloseButton());
+
         const displayTitle = (route.title || route.id || '').trim();
-        if (displayTitle) {
-          const titleLine = document.createElement('strong');
-          titleLine.className = 'tooltip-title';
-          titleLine.textContent = displayTitle;
-          fragment.appendChild(titleLine);
-          ariaLines.push(displayTitle);
+        const titleLine = document.createElement('strong');
+        titleLine.className = 'tooltip-title';
+        titleLine.textContent = displayTitle || 'Route details';
+        header.appendChild(titleLine);
+        fragment.appendChild(header);
+        if (titleLine.textContent) {
+          ariaLines.push(titleLine.textContent);
         }
 
         const medianGrade =
@@ -2611,6 +3414,7 @@
           actionButton.className = 'tooltip-action-button ascend-toggle';
           actionButton.setAttribute('aria-pressed', isAscended ? 'true' : 'false');
           actionButton.textContent = isAscended ? 'Ascended' : 'Not ascended';
+          actionButton.dataset.infoTarget = 'route-ascent';
           actionButton.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -2626,8 +3430,9 @@
         if (!isFocused) {
           focusButton.classList.add('is-quiet');
         }
-        focusButton.textContent = isFocused ? 'Show all routes' : 'Focus';
+        focusButton.textContent = isFocused ? 'Remove focus' : 'Focus';
         focusButton.setAttribute('aria-pressed', isFocused ? 'true' : 'false');
+        focusButton.dataset.infoTarget = 'route-focus';
         focusButton.addEventListener('click', (event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -3799,7 +4604,7 @@
 
         if (entry && entry.route) {
           showTooltip(entry.route, point.x, point.y, { pin: true });
-        } else {
+        } else if (!pinnedRouteId) {
           hideTooltip({ force: true });
         }
       }
@@ -3814,6 +4619,10 @@
         }
 
         if (tooltip.contains(event.target)) {
+          return;
+        }
+
+        if (pinnedRouteId) {
           return;
         }
 
