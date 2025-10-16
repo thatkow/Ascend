@@ -231,10 +231,38 @@
         display: none !important;
       }
 
+      .progression-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(3px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+        z-index: 20;
+      }
+
+      .progression-modal.hidden {
+        display: none !important;
+      }
+
       .location-modal-content {
         background: rgba(18, 18, 18, 0.95);
         border-radius: 1.25rem;
         width: min(720px, 92vw);
+        max-height: 90vh;
+        padding: 1.5rem;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+
+      .progression-modal-content {
+        background: rgba(18, 18, 18, 0.95);
+        border-radius: 1.25rem;
+        width: min(540px, 92vw);
         max-height: 90vh;
         padding: 1.5rem;
         box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
@@ -251,6 +279,18 @@
       }
 
       .location-modal-title {
+        font-size: 1.35rem;
+        font-weight: 700;
+      }
+
+      .progression-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .progression-modal-title {
         font-size: 1.35rem;
         font-weight: 700;
       }
@@ -278,10 +318,104 @@
         outline: none;
       }
 
+      .progression-modal-close {
+        border: none;
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 1.4rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s ease, background 0.2s ease;
+      }
+
+      .progression-modal-close:hover,
+      .progression-modal-close:focus-visible {
+        transform: translateY(-1px);
+        background: rgba(255, 255, 255, 0.25);
+        outline: none;
+      }
+
       .location-options {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: 1rem;
+      }
+
+      .progression-description {
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.95rem;
+      }
+
+      .progression-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        overflow-y: auto;
+        padding-right: 0.25rem;
+      }
+
+      .progression-entry {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        border-radius: 0.85rem;
+        background: rgba(255, 255, 255, 0.08);
+        cursor: pointer;
+        transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .progression-entry:hover {
+        background: rgba(255, 255, 255, 0.14);
+        transform: translateY(-1px);
+      }
+
+      .progression-entry:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+        background: rgba(255, 255, 255, 0.16);
+      }
+
+      .progression-entry.is-focused {
+        background: rgba(255, 255, 255, 0.18);
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.45);
+      }
+
+      .progression-entry-grade {
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        min-width: 3ch;
+        text-align: right;
+      }
+
+      .progression-entry-name {
+        font-size: 1rem;
+        font-weight: 600;
+      }
+
+      .progression-entry-status {
+        font-size: 1.15rem;
+        width: 1.5rem;
+        text-align: center;
+        color: rgba(255, 255, 255, 0.45);
+      }
+
+      .progression-entry-status.is-ascended {
+        color: #7ed957;
+      }
+
+      .progression-empty-message {
+        text-align: center;
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.95rem;
+        padding: 2rem 0;
       }
 
       .location-option {
@@ -868,6 +1002,23 @@
             </svg>
           </span>
         </button>
+        <button
+          id="progressionButton"
+          class="header-icon-button progression-button"
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-label="View progression"
+          title="View progression"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 4a1 1 0 0 1 1-1h1.5a1 1 0 0 1 0 2H6v14h15v2H5a1 1 0 0 1-1-1V4Z" fill="currentColor" />
+            <path
+              d="m10.2 12.8 2.3 2.3 5.2-5.2a1 1 0 0 1 1.4 1.4l-5.9 5.9a1 1 0 0 1-1.4 0l-3-3a1 1 0 0 1 1.4-1.4Z"
+              fill="currentColor"
+            />
+          </svg>
+        </button>
         <a
           id="setterLink"
           class="header-icon-button setter-link hidden"
@@ -927,6 +1078,34 @@
       aria-live="polite"
       aria-hidden="true"
     ></div>
+    <div
+      id="progressionModal"
+      class="progression-modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-hidden="true"
+      aria-labelledby="progressionModalTitle"
+    >
+      <div class="progression-modal-content">
+        <div class="progression-modal-header">
+          <h2 id="progressionModalTitle" class="progression-modal-title">Progression</h2>
+          <button
+            id="progressionModalClose"
+            class="progression-modal-close"
+            type="button"
+            aria-label="Close progression"
+            title="Close progression"
+          >
+            ×
+          </button>
+        </div>
+        <p class="progression-description">
+          Track your climbs at a glance. Routes are sorted by their grade number with ascended climbs
+          highlighted.
+        </p>
+        <div id="progressionList" class="progression-list" role="list"></div>
+      </div>
+    </div>
     <div
       id="locationModal"
       class="location-modal hidden"
@@ -993,9 +1172,13 @@
       const infoPopover = document.getElementById('infoPopover');
       const locationButton = document.getElementById('locationButton');
       const viewToggleButton = document.getElementById('viewToggle');
+      const progressionButton = document.getElementById('progressionButton');
       const locationModal = document.getElementById('locationModal');
       const locationOptions = document.getElementById('locationOptions');
       const locationModalClose = document.getElementById('locationModalClose');
+      const progressionModal = document.getElementById('progressionModal');
+      const progressionModalClose = document.getElementById('progressionModalClose');
+      const progressionList = document.getElementById('progressionList');
 
       let infoHighlightsContainer = null;
       let infoModeActive = false;
@@ -1166,6 +1349,23 @@
 
         return {
           target: locationButton,
+          element: callout,
+          options: { placement: 'bottom', offset: 14 },
+        };
+      }
+
+      function buildProgressionCallout() {
+        if (!progressionButton) {
+          return null;
+        }
+
+        const callout = createBasicCallout('Progression tracker', [
+          'Open a sortable list of every visible climb.',
+          'Completed routes show a green tick beside their grade.',
+        ]);
+
+        return {
+          target: progressionButton,
           element: callout,
           options: { placement: 'bottom', offset: 14 },
         };
@@ -1470,6 +1670,9 @@
             break;
           case 'location':
             entry = buildLocationCallout();
+            break;
+          case 'progression':
+            entry = buildProgressionCallout();
             break;
           case 'sign-out':
             entry = buildSignOutCallout();
@@ -2442,6 +2645,23 @@
         });
       }
 
+      if (progressionButton) {
+        progressionButton.addEventListener('click', (event) => {
+          if (handleInfoRequestFor('progression', event)) {
+            return;
+          }
+          if (activeInfoCallout?.target === progressionButton) {
+            clearInfoHighlights();
+          }
+          event.preventDefault();
+          if (isProgressionModalOpen()) {
+            closeProgressionModal();
+          } else {
+            openProgressionModal();
+          }
+        });
+      }
+
       if (setterLink) {
         setterLink.addEventListener('click', (event) => {
           if (handleInfoRequestFor('setter-link', event)) {
@@ -2468,12 +2688,28 @@
         });
       }
 
+      if (progressionModalClose) {
+        progressionModalClose.addEventListener('click', (event) => {
+          event.preventDefault();
+          closeProgressionModal();
+        });
+      }
+
+      if (progressionModal) {
+        progressionModal.addEventListener('click', (event) => {
+          if (event.target === progressionModal) {
+            closeProgressionModal();
+          }
+        });
+      }
+
       window.addEventListener('resize', scheduleInfoHighlightsReposition);
       window.addEventListener('scroll', scheduleInfoHighlightsReposition, true);
 
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
           closeLocationModal();
+          closeProgressionModal();
           if (infoModeActive) {
             deactivateInfoMode({ clearCallout: true });
             if (infoButton) {
@@ -2863,6 +3099,7 @@
       const routeGrades = new Map();
       let userAscentDetails = new Map();
       let routeMedianGrades = new Map();
+      let progressionPreviouslyFocusedElement = null;
 
       function synchroniseAscentsWithRoutes(options = {}) {
         const { shouldRedraw = true } = options;
@@ -2870,6 +3107,7 @@
         routeGrades.clear();
 
         if (!Array.isArray(routes) || routes.length === 0) {
+          renderProgressionList();
           if (shouldRedraw) {
             redraw();
           }
@@ -2894,6 +3132,8 @@
             ascendedRoutes.add(route.id);
           }
         });
+
+        renderProgressionList();
 
         if (shouldRedraw) {
           redraw();
@@ -3073,6 +3313,226 @@
         }
 
         return Number.isInteger(value) ? String(value) : value.toFixed(1);
+      }
+
+      function resolveProgressionGradeValue(route) {
+        if (!route) {
+          return null;
+        }
+
+        if (typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)) {
+          return route.medianGrade;
+        }
+
+        const stored = routeGrades.get(route.id);
+        if (typeof stored === 'number' && Number.isFinite(stored)) {
+          return stored;
+        }
+
+        return null;
+      }
+
+      function renderProgressionList() {
+        if (!progressionList) {
+          return;
+        }
+
+        progressionList.innerHTML = '';
+
+        const desiredLocation = normalizeLocationName(currentLocation?.name);
+        const fallbackLocation = normalizeLocationName(DEFAULT_LOCATION?.name);
+        const targetLocation = desiredLocation || fallbackLocation || null;
+
+        const relevantRoutes = Array.isArray(routes)
+          ? routes.filter((route) => {
+              if (!route) {
+                return false;
+              }
+
+              if (!targetLocation) {
+                return true;
+              }
+
+              const routeLocationKey =
+                typeof route.locationKey === 'string' && route.locationKey
+                  ? route.locationKey
+                  : normalizeLocationName(route.location);
+
+              return routeLocationKey === targetLocation;
+            })
+          : [];
+
+        if (!relevantRoutes.length) {
+          const emptyMessage = document.createElement('p');
+          emptyMessage.className = 'progression-empty-message';
+          emptyMessage.textContent = 'No routes available for this wall yet.';
+          progressionList.appendChild(emptyMessage);
+          return;
+        }
+
+        const sorted = relevantRoutes.slice().sort((routeA, routeB) => {
+          const gradeA = resolveProgressionGradeValue(routeA);
+          const gradeB = resolveProgressionGradeValue(routeB);
+
+          if (gradeA === null && gradeB === null) {
+            const nameA = (routeA.title || routeA.id || '').toLowerCase();
+            const nameB = (routeB.title || routeB.id || '').toLowerCase();
+            return nameA.localeCompare(nameB);
+          }
+
+          if (gradeA === null) {
+            return 1;
+          }
+
+          if (gradeB === null) {
+            return -1;
+          }
+
+          if (gradeA !== gradeB) {
+            return gradeA - gradeB;
+          }
+
+          const nameA = (routeA.title || routeA.id || '').toLowerCase();
+          const nameB = (routeB.title || routeB.id || '').toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
+
+        sorted.forEach((route) => {
+          if (!route) {
+            return;
+          }
+
+          const listItem = document.createElement('div');
+          listItem.className = 'progression-entry';
+          listItem.setAttribute('role', 'listitem');
+          listItem.setAttribute('tabindex', '0');
+
+          if (route.id) {
+            listItem.dataset.routeId = route.id;
+          }
+
+          const isFocused = typeof route.id === 'string' && route.id === focusedRouteId;
+          if (isFocused) {
+            listItem.classList.add('is-focused');
+            listItem.setAttribute('aria-current', 'true');
+          }
+
+          const grade = document.createElement('span');
+          grade.className = 'progression-entry-grade';
+          const gradeValue = resolveProgressionGradeValue(route);
+          grade.textContent = formatGradeDisplay(gradeValue);
+
+          const gradeColor = getRouteGradeColor(route);
+          if (gradeColor) {
+            grade.style.color = gradeColor;
+          }
+
+          listItem.appendChild(grade);
+
+          const details = document.createElement('div');
+          const title = document.createElement('span');
+          title.className = 'progression-entry-name';
+          title.textContent = route.title || route.id || 'Untitled route';
+
+          if (gradeColor) {
+            title.style.color = gradeColor;
+          }
+
+          details.appendChild(title);
+          listItem.appendChild(details);
+
+          const status = document.createElement('span');
+          status.className = 'progression-entry-status';
+          const isAscended = Boolean(route.id && ascendedRoutes.has(route.id));
+
+          if (isAscended) {
+            status.textContent = '✓';
+            status.classList.add('is-ascended');
+            status.setAttribute('aria-label', 'Ascended');
+            status.setAttribute('title', 'Ascended');
+          } else {
+            status.textContent = '';
+            status.setAttribute('aria-hidden', 'true');
+          }
+
+          listItem.appendChild(status);
+
+          listItem.addEventListener('click', (event) => {
+            event.preventDefault();
+            focusRoute(route);
+          });
+
+          listItem.addEventListener('keydown', (event) => {
+            const { key } = event;
+            if (key === 'Enter' || key === ' ' || key === 'Spacebar') {
+              event.preventDefault();
+              focusRoute(route);
+            }
+          });
+
+          progressionList.appendChild(listItem);
+        });
+      }
+
+      function isProgressionModalOpen() {
+        if (!progressionModal) {
+          return false;
+        }
+
+        return !progressionModal.classList.contains('hidden');
+      }
+
+      function closeProgressionModal() {
+        if (!progressionModal) {
+          return;
+        }
+
+        progressionModal.classList.add('hidden');
+        progressionModal.setAttribute('aria-hidden', 'true');
+
+        if (progressionButton) {
+          progressionButton.setAttribute('aria-expanded', 'false');
+        }
+
+        document.removeEventListener('keydown', handleProgressionKeydown, true);
+
+        if (progressionPreviouslyFocusedElement && typeof progressionPreviouslyFocusedElement.focus === 'function') {
+          progressionPreviouslyFocusedElement.focus();
+        }
+        progressionPreviouslyFocusedElement = null;
+      }
+
+      function handleProgressionKeydown(event) {
+        if (event.key === 'Escape' && isProgressionModalOpen()) {
+          event.preventDefault();
+          closeProgressionModal();
+        }
+      }
+
+      function openProgressionModal() {
+        if (!progressionModal) {
+          return;
+        }
+
+        renderProgressionList();
+
+        progressionPreviouslyFocusedElement =
+          document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+        progressionModal.classList.remove('hidden');
+        progressionModal.setAttribute('aria-hidden', 'false');
+
+        if (progressionButton) {
+          progressionButton.setAttribute('aria-expanded', 'true');
+        }
+
+        document.addEventListener('keydown', handleProgressionKeydown, true);
+
+        const focusTarget =
+          progressionModalClose && typeof progressionModalClose.focus === 'function'
+            ? progressionModalClose
+            : progressionModal;
+        focusTarget.focus();
       }
 
       function getUserGradeForRoute(routeId) {
@@ -3560,19 +4020,64 @@
         pinnedPosition = null;
       }
 
-      function toggleRouteFocus(route) {
+      function setRouteFocus(route, shouldFocus) {
         if (!route || typeof route.id !== 'string') {
           return;
         }
 
-        const shouldFocus = focusedRouteId !== route.id;
-        focusedRouteId = shouldFocus ? route.id : null;
+        const nextFocusedId = shouldFocus ? route.id : null;
+        const shouldRestoreProgressionFocus = Boolean(
+          shouldFocus && progressionList && isProgressionModalOpen()
+        );
+
+        if (focusedRouteId === nextFocusedId) {
+          redraw();
+
+          if (tooltip && tooltip.classList.contains('visible') && activeRouteId === route.id) {
+            updateTooltipContent(route);
+          }
+
+          renderProgressionList();
+
+          if (shouldRestoreProgressionFocus) {
+            const entry = progressionList.querySelector(
+              `[data-route-id="${route.id}"]`,
+            );
+            if (entry && typeof entry.focus === 'function') {
+              entry.focus();
+            }
+          }
+          return;
+        }
+
+        focusedRouteId = nextFocusedId;
 
         redraw();
 
         if (tooltip && tooltip.classList.contains('visible') && activeRouteId === route.id) {
           updateTooltipContent(route);
         }
+
+        renderProgressionList();
+
+        if (shouldRestoreProgressionFocus) {
+          const entry = progressionList.querySelector(`[data-route-id="${route.id}"]`);
+          if (entry && typeof entry.focus === 'function') {
+            entry.focus();
+          }
+        }
+      }
+
+      function focusRoute(route) {
+        setRouteFocus(route, true);
+      }
+
+      function toggleRouteFocus(route) {
+        if (!route || typeof route.id !== 'string') {
+          return;
+        }
+
+        setRouteFocus(route, focusedRouteId !== route.id);
       }
 
       function extractClientPoint(event) {
@@ -3808,6 +4313,7 @@
           routes = [];
           focusedRouteId = null;
           routeMedianGrades = new Map();
+          renderProgressionList();
           redraw();
         }
       }
