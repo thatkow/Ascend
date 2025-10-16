@@ -42,12 +42,224 @@
       -webkit-overflow-scrolling: touch;
     }
 
+    .sidebar-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .panel-icon-button {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease,
+        border-color 0.2s ease;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+      padding: 0;
+    }
+
+    .panel-icon-button svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+
+    .panel-toggle-button {
+      background: rgba(255, 255, 255, 0.25);
+      color: #111;
+      border-color: rgba(255, 255, 255, 0.55);
+    }
+
+    .panel-toggle-button:hover,
+    .panel-toggle-button:focus-visible {
+      background: rgba(255, 255, 255, 0.35);
+      color: #0a0a0a;
+    }
+
+    .panel-toggle-icon {
+      display: none;
+      width: 16px;
+      height: 16px;
+    }
+
+    .panel-toggle-icon svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .control-panel[data-expanded='true'] #panelToggle .panel-toggle-icon-close {
+      display: block;
+    }
+
+    .control-panel[data-expanded='false'] #panelToggle .panel-toggle-icon-open {
+      display: block;
+    }
+
+    .panel-icon-button:hover,
+    .panel-icon-button:focus-visible {
+      transform: translateY(-2px);
+      background: rgba(255, 255, 255, 0.18);
+      border-color: rgba(255, 255, 255, 0.45);
+      outline: none;
+      box-shadow: 0 12px 26px rgba(0, 0, 0, 0.4);
+    }
+
+    .panel-icon-button:focus-visible {
+      box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.25), 0 12px 26px rgba(0, 0, 0, 0.4);
+    }
+
+    .panel-icon-button.info-button {
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      background: linear-gradient(135deg, rgba(36, 36, 36, 0.9), rgba(92, 92, 92, 0.45));
+      color: #f8fafc;
+      transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease,
+        border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .panel-icon-button.info-button:hover,
+    .panel-icon-button.info-button:focus-visible {
+      border-color: rgba(255, 255, 255, 0.55);
+      background: linear-gradient(135deg, rgba(60, 60, 60, 0.95), rgba(120, 120, 120, 0.45));
+    }
+
+    .panel-icon-button.info-button.is-active {
+      border-color: rgba(126, 217, 87, 0.6);
+      background: #7ed957;
+      color: #0c1905;
+      box-shadow: 0 8px 22px rgba(126, 217, 87, 0.35);
+    }
+
+    .panel-icon-button.info-button.is-active:hover,
+    .panel-icon-button.info-button.is-active:focus-visible {
+      border-color: rgba(126, 217, 87, 0.9);
+      background: #8ae064;
+      color: #0c1905;
+    }
+
+    .panel-icon-button.drawing-toggle[aria-pressed='true'] {
+      background: #15803d;
+      border-color: rgba(255, 255, 255, 0.45);
+      color: #0d1405;
+      box-shadow: 0 16px 32px rgba(21, 128, 61, 0.35);
+    }
+
+    .panel-icon-button.drawing-toggle[aria-pressed='true']:hover,
+    .panel-icon-button.drawing-toggle[aria-pressed='true']:focus-visible {
+      background: #1c8f48;
+      color: #031406;
+    }
+
+    .info-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .info-popover {
+      position: absolute;
+      top: 0;
+      left: calc(100% + 0.75rem);
+      transform: none;
+      width: min(240px, 70vw);
+      padding: 0.9rem 1rem;
+      border-radius: 0.75rem;
+      background: rgba(0, 0, 0, 0.85);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      line-height: 1.4;
+      text-align: left;
+      z-index: 20;
+    }
+
+    .info-popover p {
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .welcome-callout {
+      position: fixed;
+      z-index: 60;
+      min-width: min(280px, 80vw);
+      max-width: min(360px, 80vw);
+      padding: 1rem 1.1rem;
+      border-radius: 0.85rem;
+      background: rgba(10, 16, 11, 0.94);
+      border: 1px solid rgba(126, 217, 87, 0.55);
+      box-shadow: 0 18px 42px rgba(0, 0, 0, 0.45);
+      color: #f8fafc;
+      line-height: 1.5;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      pointer-events: auto;
+    }
+
+    .welcome-callout::before {
+      content: '';
+      position: absolute;
+      width: 0;
+      height: 0;
+      border: 10px solid transparent;
+    }
+
+    .welcome-callout[data-arrow='top']::before {
+      top: -20px;
+      left: var(--callout-arrow-offset, 28px);
+      border-bottom-color: rgba(10, 16, 11, 0.94);
+    }
+
+    .welcome-callout[data-arrow='bottom']::before {
+      bottom: -20px;
+      left: var(--callout-arrow-offset, 28px);
+      border-top-color: rgba(10, 16, 11, 0.94);
+    }
+
+    .welcome-callout strong {
+      font-size: 0.95rem;
+      letter-spacing: 0.01em;
+    }
+
+    .welcome-callout p {
+      font-size: 0.85rem;
+      color: rgba(248, 250, 252, 0.9);
+    }
+
+    .welcome-callout p + p {
+      margin-top: 0.35rem;
+    }
+
     canvas {
       display: block;
       height: 100%;
       width: auto;
       min-width: 100%;
+      cursor: grab;
+      transition: cursor 0.15s ease;
+    }
+
+    canvas[data-drawing-enabled='true'] {
       cursor: crosshair;
+    }
+
+    canvas[data-drawing-enabled='true'][data-pan-modifier='true'] {
+      cursor: grab;
+    }
+
+    canvas.is-panning {
+      cursor: grabbing;
     }
 
     .control-panel {
@@ -59,7 +271,7 @@
       align-items: stretch;
       gap: 0;
       z-index: 12;
-      --toggle-visible-width: 52px;
+      --toggle-visible-width: 36px;
       transition: transform 0.25s ease;
       transform: translateX(0);
     }
@@ -72,7 +284,7 @@
       gap: 0.85rem;
       align-self: center;
       order: 1;
-      padding: 1.5rem 0.75rem;
+      padding: 1rem 0.5rem;
       background: rgba(0, 0, 0, 0.6);
       border-radius: 0.85rem 0 0 0.85rem;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -81,43 +293,27 @@
     .panel-tablist {
       display: flex;
       flex-direction: column;
-      align-items: stretch;
+      align-items: center;
       justify-content: center;
-      gap: 0.85rem;
-      width: 100%;
+      gap: 0.6rem;
     }
 
     .panel-tab {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
       border: none;
-      background: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.1);
       color: #fff;
-      writing-mode: vertical-rl;
-      text-orientation: mixed;
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      padding: 1.5rem 0.65rem;
-      border-radius: 0.65rem;
-      cursor: pointer;
-      transition: background 0.2s ease, transform 0.2s ease, color 0.2s ease,
-        box-shadow 0.2s ease;
     }
 
     .panel-tab:hover,
     .panel-tab:focus-visible {
-      background: rgba(255, 255, 255, 0.2);
-      transform: translateX(-1px);
-      outline: none;
-      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
+      background: rgba(255, 255, 255, 0.22);
     }
 
     .panel-tab[aria-selected='true'] {
       background: rgba(255, 255, 255, 0.85);
       color: #111;
-      box-shadow: 0 12px 26px rgba(255, 255, 255, 0.45);
+      border-color: rgba(255, 255, 255, 0.75);
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
     }
 
     .panel-sidebar::after {
@@ -135,7 +331,7 @@
       width: min(320px, 92vw);
       max-width: 360px;
       height: 100vh;
-      padding: 2rem 1.25rem;
+      padding: 2rem 1.25rem 4rem;
       background: rgba(0, 0, 0, 0.55);
       backdrop-filter: blur(8px);
       border-radius: 1rem 0 0 1rem;
@@ -180,6 +376,37 @@
       flex-direction: column;
       gap: 0.35rem;
       font-size: 0.85rem;
+    }
+
+    [data-help-text] {
+      position: relative;
+    }
+
+    .help-tooltip {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 0.4rem;
+      padding: 0.45rem 0.6rem;
+      border-radius: 0.75rem;
+      background: rgba(15, 15, 15, 0.94);
+      border: 1px solid rgba(126, 217, 87, 0.45);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 0.72rem;
+      line-height: 1.4;
+      max-width: 260px;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      pointer-events: none;
+      z-index: 30;
+    }
+
+    [data-help-text].showing-help > .help-tooltip {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
     }
 
     .control-field span {
@@ -384,6 +611,10 @@
       transition: transform 0.2s ease, box-shadow 0.2s ease;
       width: 100%;
       text-align: center;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
       margin-bottom: 0.75rem;
     }
 
@@ -428,8 +659,17 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.35rem;
+      gap: 0.45rem;
       width: 100%;
+    }
+
+    .button-icon {
+      font-size: 1.05rem;
+      line-height: 1;
+    }
+
+    .button-label {
+      line-height: 1;
     }
 
     .global-action-button:hover,
@@ -653,6 +893,10 @@
       font-size: 1rem;
       cursor: pointer;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
     }
 
     .auth-submit:hover {
@@ -762,6 +1006,83 @@
     </div>
     <div class="control-panel" data-expanded="true">
       <div id="panelSidebar" class="panel-sidebar">
+        <div class="sidebar-actions">
+          <button
+            id="panelToggle"
+            class="panel-icon-button panel-toggle-button"
+            type="button"
+            aria-pressed="false"
+            aria-label="Hide menu"
+            title="Hide menu"
+          >
+            <span class="panel-toggle-icon panel-toggle-icon-close" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path
+                  d="M6.34 6.34a1 1 0 0 1 1.32-.08l.1.08L12 10.59l4.24-4.25a1 1 0 0 1 1.5 1.32l-.08.1L13.41 12l4.25 4.24a1 1 0 0 1-1.32 1.5l-.1-.08L12 13.41l-4.24 4.25a1 1 0 0 1-1.5-1.32l.08-.1L10.59 12 6.34 7.76a1 1 0 0 1 0-1.42Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+            <span class="panel-toggle-icon panel-toggle-icon-open" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path
+                  d="M9.29 5.29a1 1 0 0 1 1.42 0l5 5a1 1 0 0 1 .08 1.32l-.08.1-5 5a1 1 0 0 1-1.5-1.32l.08-.1L13.59 12 9.3 7.7a1 1 0 0 1-.08-1.32Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+            <span class="sr-only">Hide menu</span>
+          </button>
+          <div class="info-wrapper">
+            <button
+              id="infoButton"
+              class="panel-icon-button info-button"
+              type="button"
+              aria-label="Learn about setter tools"
+              aria-haspopup="dialog"
+              aria-pressed="false"
+              aria-expanded="false"
+              aria-controls="infoPopover"
+              title="Learn about setter tools"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
+                <rect x="11" y="10" width="2" height="7" rx="1" />
+                <circle cx="12" cy="7" r="1.5" />
+              </svg>
+              <span class="sr-only">Learn about setter tools</span>
+            </button>
+            <div
+              id="infoPopover"
+              class="info-popover hidden"
+              role="dialog"
+              aria-modal="false"
+              aria-hidden="true"
+              aria-label="About Ascend"
+              tabindex="-1"
+            >
+              <p>Select any setter control to learn what it does.</p>
+              <p>The next control you activate will show its tooltip and close this message.</p>
+            </div>
+          </div>
+          <button
+            id="drawingToggle"
+            class="panel-icon-button drawing-toggle"
+            type="button"
+            aria-pressed="false"
+            aria-label="Enable drawing"
+            title="Enable drawing"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M4 15.75V20h4.25l11.1-11.1a1 1 0 0 0 0-1.42L17.52 5.65a1 1 0 0 0-1.41 0L4 17.66Z"
+                fill="currentColor"
+              />
+              <path d="m16.08 4.22 3.7 3.7 1.41-1.41a1 1 0 0 0 0-1.42l-2.28-2.28a1 1 0 0 0-1.42 0l-1.41 1.41Z" fill="currentColor" />
+            </svg>
+            <span class="sr-only">Enable drawing</span>
+          </button>
+        </div>
         <div
           id="panelTablist"
           class="panel-tablist"
@@ -771,36 +1092,60 @@
         >
           <button
             id="routesTabButton"
-            class="panel-tab"
+            class="panel-icon-button panel-tab"
             type="button"
             role="tab"
             aria-selected="true"
             aria-controls="routesTab"
             data-target="routesTab"
+            aria-label="Routes"
+            title="Routes"
           >
-            Routes
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M6 19a3 3 0 0 1 0-6h12a2 2 0 0 0 0-4H8a4 4 0 0 1 0-8h10v2H8a2 2 0 0 0 0 4h10a4 4 0 0 1 0 8H6a1 1 0 0 0 0 2h12v2H6a3 3 0 0 1-3-3Z"
+                fill="currentColor"
+              />
+            </svg>
+            <span class="sr-only">Routes</span>
           </button>
           <button
             id="wallsTabButton"
-            class="panel-tab"
+            class="panel-icon-button panel-tab"
             type="button"
             role="tab"
             aria-selected="false"
             aria-controls="wallsTab"
             data-target="wallsTab"
+            aria-label="Walls"
+            title="Walls"
           >
-            Walls
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M12 2a7 7 0 0 1 7 7c0 4.42-4.56 9.52-6.38 11.34a0.88 0.88 0 0 1-1.24 0C9.56 18.52 5 13.42 5 9a7 7 0 0 1 7-7Zm0 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"
+                fill="currentColor"
+              />
+            </svg>
+            <span class="sr-only">Walls</span>
           </button>
           <button
             id="configurationTabButton"
-            class="panel-tab"
+            class="panel-icon-button panel-tab"
             type="button"
             role="tab"
             aria-selected="false"
             aria-controls="configurationTab"
             data-target="configurationTab"
+            aria-label="Configuration"
+            title="Configuration"
           >
-            Configuration
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M21.53 14.47 18 10.94V7.5a1 1 0 0 0-1-1h-3.44L11 3.94a2 2 0 0 0-2.83 0L7 5.12a1 1 0 0 0 0 1.41l2.83 2.83-6.72 6.72a2 2 0 0 0 0 2.83l1.41 1.41a2 2 0 0 0 2.83 0l6.72-6.72 2.83 2.83a1 1 0 0 0 1.41 0l1.18-1.18a2 2 0 0 0 .04-2.78Z"
+                fill="currentColor"
+              />
+            </svg>
+            <span class="sr-only">Configuration</span>
           </button>
         </div>
       </div>
@@ -814,35 +1159,35 @@
             aria-hidden="false"
           >
             <div class="control-section">
-              <label class="control-field">
+              <label class="control-field" data-help-text="Select a saved route to edit or choose the new option to start fresh.">
                 <span>Saved routes</span>
                 <select id="routeSelector">
                   <option value="">Create new route…</option>
                 </select>
               </label>
-              <label class="control-field">
+              <label class="control-field" data-help-text="Enter the setter name that should appear to climbers.">
                 <span>Setter</span>
                 <input id="routeSetterInput" type="text" placeholder="setter name" autocomplete="off" />
               </label>
-              <label class="control-field">
+              <label class="control-field" data-help-text="Provide a clear title that climbers will see in the list.">
                 <span>Title</span>
                 <input id="routeTitleInput" type="text" placeholder="Route title" autocomplete="off" />
               </label>
-              <label class="control-field">
+              <label class="control-field" data-help-text="Add beta notes or important information about the climb.">
                 <span>Description</span>
                 <textarea id="routeDescriptionInput" placeholder="Describe the climb"></textarea>
               </label>
-              <label class="control-field">
+              <label class="control-field" data-help-text="Record when the route was set to manage rotations.">
                 <span>Date set</span>
                 <input id="routeDateSetInput" type="datetime-local" />
               </label>
             </div>
             <div class="control-section">
-              <label class="control-field">
+              <label class="control-field" data-help-text="Choose the colour used to draw this route on the wall preview.">
                 <span>Stroke colour</span>
                 <input type="color" id="colorPicker" value="#ffde59" />
               </label>
-              <label class="control-field">
+              <label class="control-field" data-help-text="Switch between freeform lines, single points, or rectangles while drawing.">
                 <span>Path</span>
                 <select id="pathTypeSelect">
                   <option value="brezer">Brezer</option>
@@ -856,6 +1201,7 @@
                 type="button"
                 aria-expanded="false"
                 aria-controls="advancedColorPicker"
+                data-help-text="Open the colour wheel to fine tune hue, saturation, and brightness."
               >
                 Open colour wheel
               </button>
@@ -863,6 +1209,7 @@
                 id="advancedColorPicker"
                 class="color-wheel hidden"
                 aria-hidden="true"
+                data-help-text="Drag in the wheel or adjust the slider to refine the stroke colour."
               >
                 <div class="color-wheel-canvas-wrapper">
                   <canvas
@@ -879,7 +1226,7 @@
                 <p id="colorWheelHint" class="color-wheel-hint">
                   Drag on the wheel or use the arrow keys to adjust hue and saturation.
                 </p>
-                <div class="color-lightness-control">
+                <div class="color-lightness-control" data-help-text="Use the slider to brighten or darken the selected colour.">
                   <label for="colorLightnessSlider">Lightness</label>
                   <input id="colorLightnessSlider" type="range" min="0" max="100" value="50" />
                 </div>
@@ -888,9 +1235,9 @@
                   <code id="colorWheelValue">#FFDE59</code>
                 </div>
               </div>
-              <button id="saveButton" type="button">Save route</button>
-              <button id="deleteButton" type="button">Delete route</button>
-              <button id="clearButton" type="button">Clear drawing</button>
+              <button id="saveButton" type="button" data-help-text="Save the current drawing and route details.">Save route</button>
+              <button id="deleteButton" type="button" data-help-text="Delete the selected route permanently.">Delete route</button>
+              <button id="clearButton" type="button" data-help-text="Remove every drawn shape from the canvas.">Clear drawing</button>
             </div>
           </div>
           <div
@@ -901,7 +1248,12 @@
             aria-hidden="true"
           >
             <div class="control-section">
-              <label id="pointDiameterField" class="control-field">
+              <h3 class="control-section-title">Appearance</h3>
+              <label
+                id="pointDiameterField"
+                class="control-field"
+                data-help-text="Set the diameter for point holds drawn on this wall."
+              >
                 <span>
                   Point diameter
                   <span id="pointDiameterValue"></span>
@@ -915,7 +1267,11 @@
                   value="48"
                 />
               </label>
-              <label id="rectangleWidthField" class="control-field">
+              <label
+                id="rectangleWidthField"
+                class="control-field"
+                data-help-text="Adjust the width of rectangle holds when using the rectangle path."
+              >
                 <span>
                   Rectangle width
                   <span id="rectangleWidthValue"></span>
@@ -929,7 +1285,11 @@
                   value="80"
                 />
               </label>
-              <label id="rectangleHeightField" class="control-field">
+              <label
+                id="rectangleHeightField"
+                class="control-field"
+                data-help-text="Adjust the height of rectangle holds when using the rectangle path."
+              >
                 <span>
                   Rectangle height
                   <span id="rectangleHeightValue"></span>
@@ -943,7 +1303,11 @@
                   value="60"
                 />
               </label>
-              <label id="unfocusedTransparencyField" class="control-field">
+              <label
+                id="unfocusedTransparencyField"
+                class="control-field"
+                data-help-text="Control how transparent inactive routes appear for climbers."
+              >
                 <span>Unfocused transparency</span>
                 <input
                   id="unfocusedTransparencySlider"
@@ -954,69 +1318,24 @@
                   value="25"
                 />
               </label>
-            </div>
-            <div class="control-section">
-              <h3 class="control-section-title">Appearance</h3>
-              <label class="control-field">
-                <span>Point diameter (px)</span>
-                <input
-                  id="appearancePointDiameterInput"
-                  type="number"
-                  min="12"
-                  max="160"
-                  step="1"
-                />
-              </label>
-              <label class="control-field">
-                <span>Grade bar base height (px)</span>
-                <input
-                  id="gradeBarBaseHeightInput"
-                  type="number"
-                  min="0"
-                  max="1000"
-                  step="1"
-                />
-              </label>
-              <label class="control-field">
-                <span>Grade bar max height (px)</span>
-                <input
-                  id="gradeBarMaxHeightInput"
-                  type="number"
-                  min="0"
-                  max="1000"
-                  step="1"
-                />
-              </label>
-              <label class="control-field">
-                <span>Grade bar width (px)</span>
-                <input
-                  id="gradeBarWidthInput"
-                  type="number"
-                  min="4"
-                  max="160"
-                  step="1"
-                />
-              </label>
-              <label class="control-field">
-                <span>Grade bar transparency</span>
-                <input
-                  id="gradeBarTransparencyInput"
-                  type="number"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                />
-              </label>
-              <button id="saveAppearanceButton" class="appearance-save-button" type="button">
+              <button
+                id="saveAppearanceButton"
+                class="appearance-save-button"
+                type="button"
+                data-help-text="Save these appearance defaults for the current wall."
+              >
                 Save Appearance
               </button>
             </div>
             <div class="control-section">
-              <label class="control-field">
-                <span>Grant setter access</span>
+              <h3 class="control-section-title">Grant setter access</h3>
+              <label class="control-field" data-help-text="Enter the username that should receive setter permissions.">
+                <span>Username</span>
                 <input id="roleUsernameInput" type="text" placeholder="username" autocomplete="off" />
               </label>
-              <button id="grantSetterButton" type="button">Grant setter role</button>
+              <button id="grantSetterButton" type="button" data-help-text="Grant setter permissions to the username above.">
+                Grant setter role
+              </button>
               <p
                 id="roleStatusMessage"
                 class="status-message hidden"
@@ -1025,11 +1344,25 @@
               ></p>
             </div>
             <div class="control-section">
+              <h3 class="control-section-title">Session actions</h3>
               <div class="global-actions">
-                <button id="climberViewButton" class="global-action-button" type="button">
-                  Climber View
+                <button
+                  id="climberViewButton"
+                  class="global-action-button"
+                  type="button"
+                  data-help-text="Open the climber preview using the active wall."
+                >
+                  <span class="button-label">Climber View</span>
                 </button>
-                <button id="signOutButton" class="global-action-button" type="button">Sign Out</button>
+                <button
+                  id="signOutButton"
+                  class="global-action-button"
+                  type="button"
+                  data-help-text="Sign out of the setter tools."
+                >
+                  <span class="button-icon" aria-hidden="true">🚪</span>
+                  <span class="button-label">Sign Out</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1049,18 +1382,20 @@
                   type="button"
                   aria-haspopup="dialog"
                   aria-expanded="false"
+                  data-help-text="Open the wall picker to switch backgrounds."
                 >
-                  Select wall
+                  <span class="button-icon" aria-hidden="true">📍</span>
+                  <span class="button-label">Select wall</span>
                 </button>
               </div>
             </div>
             <div class="control-section">
               <h3 class="control-section-title">Create new wall</h3>
-              <label class="control-field">
+              <label class="control-field" data-help-text="Name shown in the wall selector for setters and climbers.">
                 <span>Wall name</span>
                 <input id="newWallNameInput" type="text" placeholder="e.g. Cave Wall" autocomplete="off" />
               </label>
-              <label class="control-field">
+              <label class="control-field" data-help-text="Provide an image path or URL for the wall background.">
                 <span>Background image URL</span>
                 <input
                   id="newWallImageInput"
@@ -1069,11 +1404,20 @@
                   autocomplete="off"
                 />
               </label>
-              <button id="createWallButton" class="location-button" type="button">Create wall</button>
+              <button
+                id="createWallButton"
+                class="location-button"
+                type="button"
+                data-help-text="Create a wall using the name and background above."
+              >
+                <span class="button-icon" aria-hidden="true">📍</span>
+                <span class="button-label">Create wall</span>
+              </button>
               <button
                 id="deleteWallButton"
                 class="location-button delete-wall-button"
                 type="button"
+                data-help-text="Remove the currently selected wall."
               >
                 Delete Wall
               </button>
@@ -1094,7 +1438,10 @@
   <div id="unauthorizedNotice" class="unauthorized hidden" role="alert">
     <p><strong>Access denied.</strong> Your account does not have permission to use the setter tools.</p>
     <p>You can return to the <a id="previewLink" href="index.html">preview page</a> or contact a setter for help.</p>
-    <button id="unauthorizedSignOut" class="auth-submit" type="button">Sign Out</button>
+    <button id="unauthorizedSignOut" class="auth-submit" type="button">
+      <span class="button-icon" aria-hidden="true">🚪</span>
+      <span class="button-label">Sign Out</span>
+    </button>
   </div>
 
   <p id="routeStatus" class="status-message hidden" role="status" aria-live="polite"></p>
@@ -1151,6 +1498,8 @@
 
     const authOverlay = document.getElementById('authOverlay');
     const appContent = document.getElementById('appContent');
+    const canvasContainer = document.querySelector('.canvas-container');
+    const canvas = document.getElementById('drawingCanvas');
     const authForm = document.getElementById('authForm');
     const authUsername = document.getElementById('authUsername');
     const authPassword = document.getElementById('authPassword');
@@ -1169,7 +1518,11 @@
     const deleteButton = document.getElementById('deleteButton');
     const routeStatus = document.getElementById('routeStatus');
     const controlPanel = document.querySelector('.control-panel');
+    const drawingToggle = document.getElementById('drawingToggle');
     const panelSidebar = document.getElementById('panelSidebar');
+    const panelToggleButton = document.getElementById('panelToggle');
+    const infoButton = document.getElementById('infoButton');
+    const infoPopover = document.getElementById('infoPopover');
     const climberViewButton = document.getElementById('climberViewButton');
     const previewLink = document.getElementById('previewLink');
     const previewLinkBaseHref = previewLink?.getAttribute('href') || 'index.html';
@@ -1179,6 +1532,7 @@
     const grantSetterButton = document.getElementById('grantSetterButton');
     const roleStatusMessage = document.getElementById('roleStatusMessage');
     const locationButton = document.getElementById('locationButton');
+    const locationButtonLabel = locationButton?.querySelector('.button-label');
     const locationModal = document.getElementById('locationModal');
     const locationOptions = document.getElementById('locationOptions');
     const locationModalClose = document.getElementById('locationModalClose');
@@ -1197,6 +1551,11 @@
     const deleteWallButton = document.getElementById('deleteWallButton');
     const createWallStatus = document.getElementById('createWallStatus');
 
+    let welcomeCalloutElement = null;
+    let welcomeCalloutTimer = null;
+    let hasShownWelcomeCallout = false;
+    let pendingWelcomeCalloutFrame = null;
+
     const LOCATIONS = [
       { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg' },
       { key: 'old-wall', name: 'Old Wall', image: './location/Old Wall.jpg' },
@@ -1209,6 +1568,7 @@
     const PATH_TYPE_POINT = 'point';
     const PATH_TYPE_RECTANGLE = 'rectangle';
     const DEFAULT_PATH_TYPE = PATH_TYPE_BREZER;
+    const BREZER_REMOVAL_RADIUS = 20;
     const MIN_POINT_DIAMETER = 12;
     const MAX_POINT_DIAMETER = 160;
     const DEFAULT_POINT_DIAMETER = 48;
@@ -1408,11 +1768,13 @@
     const backgroundImage = new Image();
 
     const updateLocationButtonLabel = () => {
-      if (!locationButton) {
-        return;
+      const labelText = currentLocation?.name || 'Select wall';
+      if (locationButtonLabel) {
+        locationButtonLabel.textContent = labelText;
       }
-
-      locationButton.textContent = currentLocation?.name || 'Select wall';
+      if (locationButton) {
+        locationButton.setAttribute('aria-label', `Select wall: ${labelText}`);
+      }
     };
 
     const updateLocationOptionsState = () => {
@@ -1487,6 +1849,8 @@
         const isActive = panel.id === targetId;
         panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
       });
+
+      updateHelpTooltips();
     }
 
     const updateBackgroundForCurrentLocation = () => {
@@ -1512,6 +1876,7 @@
         locationModal.classList.add('hidden');
         locationModal.setAttribute('aria-hidden', 'true');
         locationButton?.setAttribute('aria-expanded', 'false');
+        updateHelpTooltips();
       }
     };
 
@@ -1523,6 +1888,8 @@
       locationModal.classList.remove('hidden');
       locationModal.setAttribute('aria-hidden', 'false');
       locationButton?.setAttribute('aria-expanded', 'true');
+      registerHelpTargets(locationModal);
+      updateHelpTooltips();
       updateLocationOptionsState();
     };
 
@@ -1628,6 +1995,7 @@
         button.className = 'location-option';
         button.dataset.locationKey = location.key;
         button.setAttribute('role', 'option');
+        button.dataset.helpText = `Switch to ${location.name}`;
 
         const preview = document.createElement('div');
         preview.className = 'location-option-preview';
@@ -1645,6 +2013,9 @@
 
         locationOptions.appendChild(button);
       });
+
+      registerHelpTargets(locationOptions);
+      updateHelpTooltips();
 
       updateLocationOptionsState();
       updateDeleteWallButtonState();
@@ -1675,6 +2046,526 @@
       if (Number.isFinite(width) && width > 0) {
         controlPanel.style.setProperty('--toggle-visible-width', `${Math.ceil(width)}px`);
       }
+
+      let panelOffset = 0;
+      if (controlPanel) {
+        const panelRect = controlPanel.getBoundingClientRect();
+        if (Number.isFinite(panelRect.width) && panelRect.width > 0) {
+          panelOffset = Math.ceil(panelRect.width);
+        }
+
+        const isExpanded = controlPanel.getAttribute('data-expanded') !== 'false';
+        if (!isExpanded) {
+          const storedToggleWidth =
+            controlPanel.style.getPropertyValue('--toggle-visible-width') ||
+            window.getComputedStyle(controlPanel).getPropertyValue('--toggle-visible-width');
+          const parsedToggleWidth = storedToggleWidth ? parseFloat(storedToggleWidth) : NaN;
+          if (Number.isFinite(parsedToggleWidth) && parsedToggleWidth > 0) {
+            panelOffset = Math.ceil(parsedToggleWidth);
+          }
+        }
+      }
+
+      scheduleWelcomeCalloutReposition();
+    };
+
+    const updateDrawingToggle = () => {
+      if (!drawingToggle) {
+        return;
+      }
+
+      const label = isDrawingEnabled ? 'Disable drawing' : 'Enable drawing';
+      drawingToggle.setAttribute('aria-pressed', String(isDrawingEnabled));
+      const labelTarget = drawingToggle.querySelector('.sr-only');
+      if (labelTarget) {
+        labelTarget.textContent = label;
+      }
+      drawingToggle.setAttribute('aria-label', label);
+      drawingToggle.setAttribute('title', label);
+
+      if (canvas) {
+        canvas.setAttribute('data-drawing-enabled', String(isDrawingEnabled));
+      }
+    };
+
+    function setDrawingEnabled(value) {
+      const next = Boolean(value);
+      if (isDrawingEnabled === next) {
+        return;
+      }
+      isDrawingEnabled = next;
+      updateDrawingToggle();
+    }
+
+    function ensureWelcomeCalloutElement() {
+      if (welcomeCalloutElement) {
+        return welcomeCalloutElement;
+      }
+
+      const callout = document.createElement('div');
+      callout.className = 'welcome-callout';
+      callout.dataset.arrow = 'top';
+      callout.setAttribute('role', 'status');
+      callout.tabIndex = 0;
+
+      const heading = document.createElement('strong');
+      heading.textContent = 'Welcome setter';
+      callout.appendChild(heading);
+
+      const summary = document.createElement('p');
+      summary.textContent = 'Build and manage climbs from this workspace.';
+      callout.appendChild(summary);
+
+      const guidance = document.createElement('p');
+      guidance.textContent =
+        'Draw routes, fine-tune appearance, and publish updates so climbers see the latest beta.';
+      callout.appendChild(guidance);
+
+      callout.addEventListener('click', (event) => {
+        event.stopPropagation();
+        dismissWelcomeCallout();
+      });
+
+      welcomeCalloutElement = callout;
+      return welcomeCalloutElement;
+    }
+
+    function dismissWelcomeCallout() {
+      if (pendingWelcomeCalloutFrame) {
+        cancelAnimationFrame(pendingWelcomeCalloutFrame);
+        pendingWelcomeCalloutFrame = null;
+      }
+
+      if (welcomeCalloutTimer) {
+        clearTimeout(welcomeCalloutTimer);
+        welcomeCalloutTimer = null;
+      }
+
+      if (welcomeCalloutElement?.parentElement) {
+        welcomeCalloutElement.parentElement.removeChild(welcomeCalloutElement);
+      }
+    }
+
+    function positionWelcomeCallout() {
+      if (!welcomeCalloutElement || !welcomeCalloutElement.isConnected || !infoButton) {
+        return;
+      }
+
+      const targetRect = infoButton.getBoundingClientRect();
+      if (targetRect.width === 0 && targetRect.height === 0) {
+        welcomeCalloutElement.style.opacity = '0';
+        return;
+      }
+
+      welcomeCalloutElement.style.opacity = '1';
+      welcomeCalloutElement.dataset.arrow = 'top';
+
+      const offset = 12;
+      const margin = 16;
+      const targetCenter = targetRect.left + targetRect.width / 2;
+
+      welcomeCalloutElement.style.top = `${targetRect.bottom + offset}px`;
+      welcomeCalloutElement.style.left = `${targetCenter}px`;
+      welcomeCalloutElement.style.transform = 'translate(-50%, 0)';
+
+      const calloutRect = welcomeCalloutElement.getBoundingClientRect();
+      const minCenter = margin + calloutRect.width / 2;
+      const maxCenter = window.innerWidth - margin - calloutRect.width / 2;
+      const clampedCenter = clamp(targetCenter, minCenter, maxCenter);
+      welcomeCalloutElement.style.left = `${clampedCenter}px`;
+
+      const updatedRect = welcomeCalloutElement.getBoundingClientRect();
+      const arrowOffset = clamp(targetCenter - updatedRect.left, 12, updatedRect.width - 12);
+      welcomeCalloutElement.style.setProperty('--callout-arrow-offset', `${arrowOffset}px`);
+    }
+
+    function scheduleWelcomeCalloutReposition() {
+      if (!welcomeCalloutElement || !welcomeCalloutElement.isConnected) {
+        return;
+      }
+
+      if (pendingWelcomeCalloutFrame) {
+        cancelAnimationFrame(pendingWelcomeCalloutFrame);
+      }
+
+      pendingWelcomeCalloutFrame = requestAnimationFrame(() => {
+        pendingWelcomeCalloutFrame = null;
+        positionWelcomeCallout();
+      });
+    }
+
+    function showWelcomeCallout() {
+      if (hasShownWelcomeCallout || infoModeActive || !infoButton) {
+        return;
+      }
+
+      const callout = ensureWelcomeCalloutElement();
+      if (!callout) {
+        return;
+      }
+
+      hasShownWelcomeCallout = true;
+
+      if (!document.body.contains(callout)) {
+        document.body.appendChild(callout);
+      }
+
+      positionWelcomeCallout();
+      requestAnimationFrame(positionWelcomeCallout);
+
+      if (welcomeCalloutTimer) {
+        clearTimeout(welcomeCalloutTimer);
+      }
+
+      welcomeCalloutTimer = window.setTimeout(() => {
+        welcomeCalloutTimer = null;
+        dismissWelcomeCallout();
+      }, 11000);
+    }
+
+    function registerHelpTargets(root = document) {
+      if (!root || typeof root.querySelectorAll !== 'function') {
+        return;
+      }
+
+      const directMatch =
+        root instanceof Element && root.matches('[data-help-text]') ? [root] : [];
+      const candidates = [...directMatch, ...root.querySelectorAll('[data-help-text]')];
+      candidates.forEach((element) => {
+        if (helpTargets.has(element)) {
+          return;
+        }
+        if (infoButton && infoButton.contains(element)) {
+          return;
+        }
+        const text = element.dataset?.helpText;
+        if (!text) {
+          return;
+        }
+        const tooltip = document.createElement('span');
+        tooltip.className = 'help-tooltip';
+        tooltip.textContent = text;
+        tooltip.setAttribute('role', 'note');
+        tooltip.hidden = true;
+        element.appendChild(tooltip);
+        helpTargets.set(element, tooltip);
+      });
+    }
+
+    function isElementVisible(element) {
+      if (!element || !element.isConnected) {
+        return false;
+      }
+      if (element.closest('.hidden')) {
+        return false;
+      }
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    }
+
+    function updateHelpTooltips() {
+      if (!activeHelpEntry) {
+        return;
+      }
+
+      const { element } = activeHelpEntry;
+      if (!element || !element.isConnected) {
+        clearActiveHelpTooltip();
+        return;
+      }
+
+      if (!helpTargets.has(element)) {
+        registerHelpTargets(element);
+      }
+
+      const tooltip = helpTargets.get(element);
+      if (!tooltip) {
+        clearActiveHelpTooltip();
+        return;
+      }
+
+      activeHelpEntry.tooltip = tooltip;
+
+      const activePanel = document.querySelector('.tab-panel[aria-hidden="false"]');
+      const panelCollapsed = controlPanel?.getAttribute('data-expanded') === 'false';
+      const modalAncestor = element.closest('.location-modal');
+      const inVisibleModal = Boolean(
+        modalAncestor && !modalAncestor.classList.contains('hidden'),
+      );
+      const insideControlPanel = controlPanel ? controlPanel.contains(element) : false;
+      const inActivePanel = activePanel ? activePanel.contains(element) : true;
+      const visible = isElementVisible(element);
+      const shouldShow =
+        visible &&
+        (!panelCollapsed || !insideControlPanel) &&
+        (inActivePanel || inVisibleModal || (!activePanel && visible));
+
+      element.classList.toggle('showing-help', shouldShow);
+      tooltip.hidden = !shouldShow;
+    }
+
+    function setInfoButtonActiveState(active) {
+      if (!infoButton) {
+        return;
+      }
+
+      const label = active ? 'Hide setter help' : 'Learn about setter tools';
+      infoButton.setAttribute('aria-label', label);
+      infoButton.setAttribute('title', label);
+      infoButton.setAttribute('aria-pressed', active ? 'true' : 'false');
+      infoButton.setAttribute('aria-expanded', active ? 'true' : 'false');
+      infoButton.classList.toggle('is-active', active);
+
+      const srTarget = infoButton.querySelector('.sr-only');
+      if (srTarget) {
+        srTarget.textContent = label;
+      }
+    }
+
+    function showInfoPopover() {
+      if (!infoPopover) {
+        return;
+      }
+
+      infoPopover.classList.remove('hidden');
+      infoPopover.setAttribute('aria-hidden', 'false');
+      if (typeof infoPopover.focus === 'function') {
+        infoPopover.focus({ preventScroll: true });
+      }
+    }
+
+    function hideInfoPopover() {
+      if (!infoPopover) {
+        return;
+      }
+
+      infoPopover.classList.add('hidden');
+      infoPopover.setAttribute('aria-hidden', 'true');
+    }
+
+    function clearActiveHelpTooltip() {
+      if (!activeHelpEntry) {
+        return;
+      }
+
+      const { element, tooltip } = activeHelpEntry;
+      if (element) {
+        element.classList.remove('showing-help');
+      }
+      if (tooltip) {
+        tooltip.hidden = true;
+      }
+      activeHelpEntry = null;
+    }
+
+    function showHelpTooltipForElement(element) {
+      if (!element) {
+        return null;
+      }
+
+      registerHelpTargets(element);
+      const tooltip = helpTargets.get(element);
+      if (!tooltip) {
+        return null;
+      }
+
+      if (activeHelpEntry && activeHelpEntry.element !== element) {
+        clearActiveHelpTooltip();
+      }
+
+      activeHelpEntry = { element, tooltip };
+      updateHelpTooltips();
+      return activeHelpEntry;
+    }
+
+    function activateInfoMode() {
+      if (infoModeActive) {
+        return;
+      }
+
+      dismissWelcomeCallout();
+
+      infoModeActive = true;
+      awaitingHelpTargetSelection = true;
+      clearActiveHelpTooltip();
+      setInfoButtonActiveState(true);
+      showInfoPopover();
+    }
+
+    function deactivateInfoMode({ clearTooltip = false } = {}) {
+      awaitingHelpTargetSelection = false;
+
+      if (infoModeActive) {
+        infoModeActive = false;
+      }
+
+      setInfoButtonActiveState(false);
+      hideInfoPopover();
+
+      if (clearTooltip) {
+        clearActiveHelpTooltip();
+      }
+    }
+
+    const isInteractiveElement = (element) => {
+      if (!element) {
+        return false;
+      }
+
+      const candidate = element instanceof Element ? element : element.parentElement;
+      if (!candidate) {
+        return false;
+      }
+
+      if (candidate.isContentEditable) {
+        return true;
+      }
+
+      if (typeof candidate.closest === 'function') {
+        if (candidate.closest('[contenteditable="true"]')) {
+          return true;
+        }
+
+        if (candidate.closest('input, textarea, select, button, a')) {
+          return true;
+        }
+      }
+
+      const tagName = typeof candidate.tagName === 'string' ? candidate.tagName.toLowerCase() : '';
+      return (
+        tagName === 'input' ||
+        tagName === 'textarea' ||
+        tagName === 'select' ||
+        tagName === 'button' ||
+        tagName === 'a'
+      );
+    };
+
+    const updatePanModifierState = (active) => {
+      isPanModifierActive = Boolean(active);
+
+      if (!canvas) {
+        return;
+      }
+
+      if (isPanModifierActive) {
+        canvas.setAttribute('data-pan-modifier', 'true');
+      } else {
+        canvas.removeAttribute('data-pan-modifier');
+      }
+    };
+
+    const hasScrollableCanvasArea = () => {
+      if (!canvasContainer) {
+        return false;
+      }
+
+      if (isCanvasScrollable) {
+        return true;
+      }
+
+      return (
+        canvasContainer.scrollWidth > canvasContainer.clientWidth ||
+        canvasContainer.scrollHeight > canvasContainer.clientHeight
+      );
+    };
+
+    const beginCanvasPan = (event) => {
+      if (!canvasContainer || !canvas || !hasScrollableCanvasArea()) {
+        return false;
+      }
+
+      isPointerPanning = true;
+      panPointerId = event.pointerId;
+      panPointerButton = event.button;
+      panStartScrollLeft = canvasContainer.scrollLeft;
+      panStartScrollTop = canvasContainer.scrollTop;
+      panOriginX = event.clientX;
+      panOriginY = event.clientY;
+      shouldIgnoreNextClick = event.button === 0;
+
+      canvas.classList.add('is-panning');
+
+      if (typeof canvas.setPointerCapture === 'function') {
+        try {
+          canvas.setPointerCapture(event.pointerId);
+        } catch (error) {
+          // Ignore pointer capture errors (e.g., unsupported platforms).
+        }
+      }
+
+      if (typeof event.preventDefault === 'function') {
+        event.preventDefault();
+      }
+
+      return true;
+    };
+
+    const moveCanvasPan = (event) => {
+      if (!isPointerPanning || event.pointerId !== panPointerId || !canvasContainer) {
+        return;
+      }
+
+      const deltaX = event.clientX - panOriginX;
+      const deltaY = event.clientY - panOriginY;
+
+      canvasContainer.scrollLeft = panStartScrollLeft - deltaX;
+      canvasContainer.scrollTop = panStartScrollTop - deltaY;
+    };
+
+    const endCanvasPan = () => {
+      if (!isPointerPanning) {
+        return;
+      }
+
+      if (
+        canvas &&
+        panPointerId !== null &&
+        typeof canvas.hasPointerCapture === 'function' &&
+        canvas.hasPointerCapture(panPointerId)
+      ) {
+        try {
+          canvas.releasePointerCapture(panPointerId);
+        } catch (error) {
+          // Ignore pointer capture release errors.
+        }
+      }
+
+      canvas?.classList.remove('is-panning');
+
+      if (panPointerButton !== 0) {
+        shouldIgnoreNextClick = false;
+      }
+
+      isPointerPanning = false;
+      panPointerId = null;
+      panPointerButton = 0;
+    };
+
+    const handleCanvasPointerDown = (event) => {
+      const isPrimaryButton = event.button === 0;
+      const isMiddleButton = event.button === 1;
+      const panWithPrimary = isPrimaryButton && (!isDrawingEnabled || isPanModifierActive);
+
+      if (isMiddleButton || panWithPrimary) {
+        if (beginCanvasPan(event)) {
+          return;
+        }
+      }
+
+      shouldIgnoreNextClick = false;
+    };
+
+    const handleCanvasPointerMove = (event) => {
+      moveCanvasPan(event);
+    };
+
+    const handleCanvasPointerEnd = (event) => {
+      if (!isPointerPanning || event.pointerId !== panPointerId) {
+        return;
+      }
+
+      endCanvasPan();
     };
 
     deleteButton.disabled = true;
@@ -1686,8 +2577,6 @@
       roleUsernameInput.disabled = true;
     }
 
-    const canvasContainer = document.querySelector('.canvas-container');
-    const canvas = document.getElementById('drawingCanvas');
     const ctx = canvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
     const pathTypeSelect = document.getElementById('pathTypeSelect');
@@ -1717,6 +2606,7 @@
     const colorWheelSwatch = document.getElementById('colorWheelSwatch');
     const clearButton = document.getElementById('clearButton');
     const saveButton = document.getElementById('saveButton');
+    const cancelRouteButton = document.getElementById('cancelRouteButton');
 
     const SYNTHETIC_EMAIL_DOMAIN = 'users.anuascend.local';
     const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
@@ -2493,6 +3383,7 @@
     const points = [];
     let strokeColor = sanitizeColor(colorPicker.value || '#ffde59');
     let pathType = DEFAULT_PATH_TYPE;
+    let isDrawingEnabled = false;
     let pointDiameter = DEFAULT_POINT_DIAMETER;
     let rectangleWidth = DEFAULT_RECTANGLE_WIDTH;
     let rectangleHeight = DEFAULT_RECTANGLE_HEIGHT;
@@ -2515,10 +3406,89 @@
     let isCanvasScrollable = false;
     let isCreatingWall = false;
     let isDeletingWall = false;
+    let isPointerPanning = false;
+    let panPointerId = null;
+    let panPointerButton = 0;
+    let panStartScrollLeft = 0;
+    let panStartScrollTop = 0;
+    let panOriginX = 0;
+    let panOriginY = 0;
+    let shouldIgnoreNextClick = false;
+    let isPanModifierActive = false;
+    const helpTargets = new Map();
+    let infoModeActive = false;
+    let awaitingHelpTargetSelection = false;
+    let activeHelpEntry = null;
+
+    registerHelpTargets(document);
+    setInfoButtonActiveState(false);
+    updateHelpTooltips();
+
+    if (drawingToggle) {
+      updateDrawingToggle();
+      drawingToggle.addEventListener('click', () => {
+        setDrawingEnabled(!isDrawingEnabled);
+      });
+    }
+
+    window.addEventListener('keydown', (event) => {
+      if (event.code !== 'Space') {
+        return;
+      }
+
+      if (event.repeat) {
+        event.preventDefault();
+        return;
+      }
+
+      if (isInteractiveElement(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      updatePanModifierState(true);
+    });
+
+    window.addEventListener('keyup', (event) => {
+      if (event.code !== 'Space') {
+        return;
+      }
+
+      updatePanModifierState(false);
+    });
+
+    window.addEventListener('blur', () => {
+      updatePanModifierState(false);
+    });
+
+    if (canvas) {
+      canvas.addEventListener('pointerdown', handleCanvasPointerDown);
+      canvas.addEventListener('pointermove', handleCanvasPointerMove);
+      canvas.addEventListener('pointerup', handleCanvasPointerEnd);
+      canvas.addEventListener('pointercancel', handleCanvasPointerEnd);
+      canvas.addEventListener('pointerleave', handleCanvasPointerEnd);
+    }
 
     const routesCache = new Map();
     let routeMedianGrades = new Map();
     let queuedGradeBarOverlays = [];
+
+    const updatePanelToggleState = () => {
+      if (!panelToggleButton || !controlPanel) {
+        return;
+      }
+
+      const expanded = controlPanel.getAttribute('data-expanded') !== 'false';
+      const label = expanded ? 'Hide menu' : 'Show menu';
+      const pressed = !expanded;
+      panelToggleButton.setAttribute('aria-label', label);
+      panelToggleButton.setAttribute('title', label);
+      panelToggleButton.setAttribute('aria-pressed', String(pressed));
+      const srTarget = panelToggleButton.querySelector('.sr-only');
+      if (srTarget) {
+        srTarget.textContent = label;
+      }
+    };
 
     const setPanelExpanded = (value) => {
       if (!controlPanel) {
@@ -2527,6 +3497,8 @@
 
       const expanded = Boolean(value);
       controlPanel.setAttribute('data-expanded', String(expanded));
+      updatePanelToggleState();
+      updateHelpTooltips();
     };
 
     if (controlPanel) {
@@ -2541,6 +3513,97 @@
         resizeObserver.observe(panelSidebar);
       }
     }
+
+    window.addEventListener('resize', scheduleWelcomeCalloutReposition);
+    window.addEventListener('scroll', scheduleWelcomeCalloutReposition, true);
+
+    if (panelToggleButton) {
+      panelToggleButton.addEventListener('click', () => {
+        const isExpanded = controlPanel?.getAttribute('data-expanded') !== 'false';
+        setPanelExpanded(!isExpanded);
+        requestAnimationFrame(updatePanelMeasurements);
+      });
+    }
+
+    if (infoButton && infoPopover) {
+      infoButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (infoModeActive) {
+          deactivateInfoMode({ clearTooltip: true });
+        } else {
+          activateInfoMode();
+        }
+      });
+
+      infoPopover.addEventListener('click', (event) => {
+        event.stopPropagation();
+      });
+    }
+
+    document.addEventListener(
+      'pointerdown',
+      (event) => {
+        if (!welcomeCalloutElement || !welcomeCalloutElement.isConnected) {
+          return;
+        }
+
+        if (welcomeCalloutElement.contains(event.target)) {
+          return;
+        }
+
+        dismissWelcomeCallout();
+      },
+      true,
+    );
+
+    document.addEventListener(
+      'click',
+      (event) => {
+        if (!infoModeActive || !awaitingHelpTargetSelection) {
+          return;
+        }
+
+        const target = event.target instanceof Element ? event.target : null;
+        if (!target) {
+          deactivateInfoMode({ clearTooltip: true });
+          return;
+        }
+
+        if ((infoButton && infoButton.contains(target)) || (infoPopover && infoPopover.contains(target))) {
+          return;
+        }
+
+        const helpElement = target.closest('[data-help-text]');
+        if (helpElement) {
+          event.preventDefault();
+          event.stopPropagation();
+          const entry = showHelpTooltipForElement(helpElement);
+          deactivateInfoMode({ clearTooltip: !entry });
+        } else {
+          deactivateInfoMode({ clearTooltip: true });
+        }
+      },
+      true,
+    );
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        dismissWelcomeCallout();
+
+        if (infoModeActive) {
+          deactivateInfoMode({ clearTooltip: true });
+          if (infoButton) {
+            infoButton.focus();
+          }
+        } else if (activeHelpEntry) {
+          clearActiveHelpTooltip();
+          if (infoButton) {
+            infoButton.focus();
+          }
+        }
+      }
+    });
 
     renderLocationOptions();
 
@@ -2899,6 +3962,8 @@
           updateColorWheelMarker();
           updateLightnessSliderGradient();
         }
+
+        updateHelpTooltips();
       });
     }
 
@@ -3618,218 +4683,11 @@
       return sum / valid.length;
     }
 
-    function queueGradeBarOverlay({
-      routePoints = [],
-      color = '#ffde59',
-      alpha = 1,
-      medianGrade = null,
-      baseHeight = DEFAULT_GRADE_BAR_BASE_HEIGHT,
-      maxHeight = DEFAULT_GRADE_BAR_MAX_HEIGHT,
-      width = DEFAULT_GRADE_BAR_WIDTH,
-      transparency = DEFAULT_GRADE_BAR_TRANSPARENCY,
-      isAscended = false,
-    } = {}) {
-      if (!Array.isArray(routePoints) || !routePoints.length) {
-        return;
-      }
-
-      const averageX = calculateAverageXFromCanvasPoints(routePoints);
-      if (!Number.isFinite(averageX)) {
-        return;
-      }
-
-      const normalizedBaseHeight = normalizeGradeBarHeight(baseHeight, DEFAULT_GRADE_BAR_BASE_HEIGHT);
-      const normalizedMaxHeight = Math.max(
-        normalizedBaseHeight,
-        normalizeGradeBarHeight(maxHeight, DEFAULT_GRADE_BAR_MAX_HEIGHT),
-      );
-      const normalizedWidth = Math.min(
-        Math.max(normalizeGradeBarWidth(width), MIN_GRADE_BAR_WIDTH),
-        canvas.width,
-      );
-      const normalizedTransparency = normalizeGradeBarTransparency(transparency);
-      const gradeValue =
-        typeof medianGrade === 'number' && Number.isFinite(medianGrade)
-          ? clamp(medianGrade, MIN_GRADE_VALUE, MAX_GRADE_VALUE)
-          : null;
-      const gradeRatio =
-        gradeValue === null
-          ? 0
-          : clamp(gradeValue / MAX_GRADE_VALUE, 0, 1);
-      const targetHeight =
-        gradeValue === null
-          ? normalizedBaseHeight
-          : normalizedBaseHeight + (normalizedMaxHeight - normalizedBaseHeight) * gradeRatio;
-      const height = Math.min(Math.max(targetHeight, normalizedBaseHeight), normalizedMaxHeight);
-      const bottom = canvas.height;
-      const top = Math.max(0, bottom - height);
-      const resolvedAlpha = Math.max(0, Math.min(1, alpha * normalizedTransparency));
-
-      queuedGradeBarOverlays.push({
-        desiredCenter: averageX,
-        width: normalizedWidth,
-        top,
-        bottom,
-        color,
-        alpha: resolvedAlpha,
-        gradeValue,
-        isAscended: Boolean(gradeValue !== null && isAscended),
-      });
+    function queueGradeBarOverlay() {
+      queuedGradeBarOverlays = [];
     }
 
     function renderQueuedGradeBarOverlays() {
-      if (!Array.isArray(queuedGradeBarOverlays) || !queuedGradeBarOverlays.length) {
-        queuedGradeBarOverlays = [];
-        return;
-      }
-
-      const canvasWidth = canvas.width;
-      const canvasHeight = canvas.height;
-      if (canvasWidth <= 0 || canvasHeight <= 0) {
-        queuedGradeBarOverlays = [];
-        return;
-      }
-
-      const centerX = canvasWidth / 2;
-      const entries = queuedGradeBarOverlays
-        .map((entry, index) => {
-          const width = Math.max(1, Math.min(Number(entry?.width) || 0, canvasWidth));
-          if (!Number.isFinite(width) || width <= 0) {
-            return null;
-          }
-
-          const desiredCenter = Number(entry?.desiredCenter);
-          if (!Number.isFinite(desiredCenter)) {
-            return null;
-          }
-
-          const halfWidth = width / 2;
-          const clampedCenter = clamp(desiredCenter, halfWidth, Math.max(halfWidth, canvasWidth - halfWidth));
-
-          return {
-            index,
-            original: entry,
-            width,
-            halfWidth,
-            clampedCenter,
-          };
-        })
-        .filter(Boolean);
-
-      if (!entries.length) {
-        queuedGradeBarOverlays = [];
-        return;
-      }
-
-      const leftEntries = entries
-        .filter((entry) => entry.clampedCenter <= centerX)
-        .sort((a, b) => b.clampedCenter - a.clampedCenter);
-      const rightEntries = entries
-        .filter((entry) => entry.clampedCenter > centerX)
-        .sort((a, b) => a.clampedCenter - b.clampedCenter);
-
-      const placements = new Map();
-
-      let leftBoundary = centerX;
-      for (const entry of leftEntries) {
-        let rightEdge = Math.min(leftBoundary, entry.clampedCenter + entry.halfWidth);
-        let leftEdge = rightEdge - entry.width;
-
-        if (leftEdge < 0) {
-          leftEdge = 0;
-          rightEdge = entry.width;
-        }
-
-        if (rightEdge > leftBoundary) {
-          rightEdge = leftBoundary;
-          leftEdge = rightEdge - entry.width;
-          if (leftEdge < 0) {
-            leftEdge = 0;
-            rightEdge = entry.width;
-          }
-        }
-
-        leftBoundary = Math.max(0, leftEdge);
-        placements.set(entry.index, {
-          ...entry,
-          left: leftEdge,
-          right: rightEdge,
-        });
-      }
-
-      let rightBoundary = centerX;
-      for (const entry of rightEntries) {
-        let leftEdge = Math.max(rightBoundary, entry.clampedCenter - entry.halfWidth);
-        let rightEdge = leftEdge + entry.width;
-
-        if (rightEdge > canvasWidth) {
-          rightEdge = canvasWidth;
-          leftEdge = rightEdge - entry.width;
-        }
-
-        if (leftEdge < rightBoundary) {
-          leftEdge = rightBoundary;
-          rightEdge = leftEdge + entry.width;
-          if (rightEdge > canvasWidth) {
-            rightEdge = canvasWidth;
-            leftEdge = rightEdge - entry.width;
-          }
-        }
-
-        rightBoundary = Math.min(canvasWidth, rightEdge);
-        placements.set(entry.index, {
-          ...entry,
-          left: leftEdge,
-          right: rightEdge,
-        });
-      }
-
-      for (let i = 0; i < queuedGradeBarOverlays.length; i += 1) {
-        const placement = placements.get(i);
-        if (!placement) {
-          continue;
-        }
-
-        const { original, left, right } = placement;
-        const actualLeft = Math.max(0, Math.min(canvasWidth, left));
-        const actualRight = Math.max(actualLeft, Math.min(canvasWidth, right));
-        const actualWidth = Math.max(1, actualRight - actualLeft);
-        const height = Math.max(0, Math.min(canvasHeight, original.bottom) - Math.max(0, original.top));
-        if (height <= 0) {
-          continue;
-        }
-
-        ctx.save();
-        ctx.globalAlpha = original.alpha;
-
-        const strokeWidth = Math.max(2, Math.round(actualWidth * 0.18));
-        ctx.lineWidth = strokeWidth;
-        ctx.lineJoin = 'miter';
-        ctx.lineCap = 'butt';
-        ctx.strokeStyle = original.color;
-
-        if (original.gradeValue === null) {
-          const dashLength = Math.max(4, actualWidth * 0.6);
-          ctx.setLineDash([dashLength, dashLength]);
-        } else {
-          ctx.setLineDash([]);
-        }
-
-        if (original.isAscended) {
-          ctx.fillStyle = original.color;
-          ctx.fillRect(actualLeft, original.top, actualWidth, height);
-        }
-
-        const halfStroke = strokeWidth / 2;
-        const insetLeft = actualLeft + halfStroke;
-        const insetTop = original.top + halfStroke;
-        const insetWidth = Math.max(1, actualWidth - strokeWidth);
-        const insetHeight = Math.max(1, height - strokeWidth);
-
-        ctx.strokeRect(insetLeft, insetTop, insetWidth, insetHeight);
-        ctx.restore();
-      }
-
       queuedGradeBarOverlays = [];
     }
 
@@ -4482,10 +5340,29 @@
     }
 
     function addPoint(event) {
+      if (shouldIgnoreNextClick) {
+        shouldIgnoreNextClick = false;
+        return;
+      }
+
+      if (!isDrawingEnabled) {
+        return;
+      }
+
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
       const currentPathType = normalizePathType(pathType);
+      if (currentPathType === PATH_TYPE_BREZER) {
+        const removalIndex = findPointIndexNear(x, y, points, BREZER_REMOVAL_RADIUS);
+        if (removalIndex >= 0) {
+          points.splice(removalIndex, 1);
+          loadedNormalizedPoints = null;
+          redraw();
+          markUnsavedChange();
+          return;
+        }
+      }
       if (currentPathType === PATH_TYPE_POINT || currentPathType === PATH_TYPE_RECTANGLE) {
         const detectionRadius =
           currentPathType === PATH_TYPE_RECTANGLE
@@ -4585,6 +5462,7 @@
       strokeColor = '#ffde59';
       colorPicker.value = strokeColor;
       syncAdvancedColorPicker(strokeColor);
+      setDrawingEnabled(false);
       const wallSettings = getWallSettingsForLocation(getCurrentLocationKey());
       pathType = DEFAULT_PATH_TYPE;
       pointDiameter = wallSettings.pointDiameter;
@@ -4709,6 +5587,7 @@
       }
 
       const previousRouteKey = currentRouteKey;
+      setDrawingEnabled(false);
 
       if (points.length < 2) {
         setStatus('Add at least two points to define the route.', 'error');
@@ -4945,10 +5824,16 @@
 
     clearButton.addEventListener('click', clearCanvas);
     saveButton.addEventListener('click', saveRoute);
+    if (cancelRouteButton) {
+      cancelRouteButton.addEventListener('click', () => {
+        setDrawingEnabled(false);
+      });
+    }
     deleteButton.addEventListener('click', deleteCurrentRoute);
     routeSelector.addEventListener('change', async (event) => {
       const selectedKey = event.target.value;
       if (!selectedKey) {
+        setDrawingEnabled(false);
         prepareNewRoute('Creating a new route.');
         return;
       }
@@ -5432,7 +6317,8 @@
               ? data.username
               : '';
           let effectiveLower = normalizeUsername(storedLowerRaw);
-          const trimmedRole = typeof data.role === 'string' ? data.role.trim() : 'default';
+          const trimmedRole =
+            typeof data.role === 'string' ? data.role.trim().toLowerCase() : 'default';
           const mergedData = {
             ...data,
             role: trimmedRole,
@@ -5505,7 +6391,9 @@
 
       try {
         const ensuredRole = await ensureUserRole(user, normalizedUsername);
-        return typeof ensuredRole?.role === 'string' ? ensuredRole.role.trim() : 'default';
+        return typeof ensuredRole?.role === 'string'
+          ? ensuredRole.role.trim().toLowerCase()
+          : 'default';
       } catch (error) {
         console.error('Failed to fetch user role:', error);
         return 'default';
@@ -5520,6 +6408,8 @@
       clearStatus();
       setRoleControlsEnabled(false);
       resetRoleManagementUI('Setter access required to manage roles.');
+      dismissWelcomeCallout();
+      hasShownWelcomeCallout = false;
     }
 
     function handleAuthorized() {
@@ -5560,6 +6450,8 @@
 
         handleAuthorized();
 
+        showWelcomeCallout();
+
         try {
           await loadRoutesList(currentRouteKey);
           if (currentRouteKey && routesCache.has(currentRouteKey)) {
@@ -5584,6 +6476,8 @@
         setRoleControlsEnabled(false);
         resetRoleManagementUI();
         setAuthMode('login');
+        dismissWelcomeCallout();
+        hasShownWelcomeCallout = false;
       }
     });
 
