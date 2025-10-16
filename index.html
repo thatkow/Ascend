@@ -158,7 +158,10 @@
         align-items: center;
       }
 
-      .location-button {
+      .location-button,
+      .view-toggle,
+      .sign-out,
+      .nav-links a {
         border: 1px solid rgba(255, 255, 255, 0.35);
         border-radius: 999px;
         padding: 0.6rem 1.25rem;
@@ -170,13 +173,41 @@
         backdrop-filter: blur(6px);
         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
         transition: transform 0.2s ease, box-shadow 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        text-decoration: none;
+        line-height: 1;
       }
 
       .location-button:hover,
-      .location-button:focus-visible {
+      .location-button:focus-visible,
+      .view-toggle:hover,
+      .view-toggle:focus-visible,
+      .sign-out:hover,
+      .sign-out:focus-visible,
+      .nav-links a:hover,
+      .nav-links a:focus-visible {
         transform: translateY(-1px);
         box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
         outline: none;
+      }
+
+      .button-icon {
+        font-size: 1.05rem;
+        line-height: 1;
+      }
+
+      .button-label {
+        line-height: 1;
+      }
+
+      .view-toggle[aria-pressed='true'] {
+        background: linear-gradient(135deg, rgba(126, 217, 87, 0.85), rgba(126, 217, 87, 0.4));
+        color: #0f1a08;
+        border-color: rgba(126, 217, 87, 0.65);
+        box-shadow: 0 10px 24px rgba(126, 217, 87, 0.35);
       }
 
       .location-modal {
@@ -349,18 +380,31 @@
       .info-popover .grade-bar-demo {
         display: flex;
         align-items: flex-end;
-        gap: 0.55rem;
-        margin-top: 0.2rem;
+        justify-content: center;
+        gap: 0.65rem;
+        margin-top: 0.25rem;
+        height: 110px;
       }
 
       .info-popover .grade-bar-demo-bar {
         position: relative;
         --grade-value: 10;
-        width: 0.65rem;
-        height: calc(0.8rem + var(--grade-value) * 0.08rem);
-        border-radius: 0.35rem 0.35rem 0 0;
-        background: linear-gradient(180deg, rgba(126, 217, 87, 0.9), rgba(126, 217, 87, 0.35));
-        border: 1px solid rgba(126, 217, 87, 0.9);
+        width: 0.8rem;
+        height: 100%;
+        border-radius: 0.45rem;
+        background: rgba(126, 217, 87, 0.18);
+        border: 1px solid rgba(126, 217, 87, 0.55);
+        overflow: hidden;
+      }
+
+      .info-popover .grade-bar-demo-bar::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: min(100%, calc(20% + var(--grade-value) * 2.4%));
+        background: linear-gradient(180deg, rgba(126, 217, 87, 0.9), rgba(126, 217, 87, 0.4));
       }
 
       .info-popover .grade-bar-demo-bar::after {
@@ -381,44 +425,20 @@
       }
 
       .nav-links a {
-        padding: 0.55rem 0.95rem;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.18);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.55));
         color: #0c1905;
-        font-size: 0.85rem;
-        font-weight: 600;
-        text-decoration: none;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.45));
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border-color: rgba(255, 255, 255, 0.65);
+        box-shadow: 0 10px 22px rgba(255, 255, 255, 0.25);
       }
 
       .nav-links a:hover,
       .nav-links a:focus-visible {
-        transform: translateY(-1px);
-        box-shadow: 0 10px 22px rgba(255, 255, 255, 0.25);
-        outline: none;
+        box-shadow: 0 14px 28px rgba(255, 255, 255, 0.35);
       }
 
       .sign-out {
-        border: 1px solid rgba(255, 255, 255, 0.35);
-        border-radius: 999px;
-        padding: 0.6rem 1.25rem;
-        font-size: 0.9rem;
-        font-weight: 700;
-        cursor: pointer;
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08));
-        color: #fff;
-        backdrop-filter: blur(6px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-      }
-
-      .sign-out:hover,
-      .sign-out:focus-visible {
-        transform: translateY(-1px);
-        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
-        outline: none;
+        background: linear-gradient(135deg, rgba(220, 38, 38, 0.85), rgba(153, 27, 27, 0.65));
+        border-color: rgba(248, 113, 113, 0.75);
       }
 
       .route-tooltip {
@@ -644,11 +664,18 @@
     <div id="appContent" class="app hidden" aria-live="polite">
       <header class="app-header">
         <button id="locationButton" class="location-button" type="button" aria-haspopup="dialog">
-          Select wall
+          <span class="button-icon" aria-hidden="true">📍</span>
+          <span class="button-label">Select wall</span>
         </button>
         <nav id="navLinks" class="nav-links" aria-label="Available pages">
-          <a id="setterLink" class="hidden" href="setter.html">Setter Tools</a>
+          <a id="setterLink" class="hidden" href="setter.html">
+            <span class="button-icon" aria-hidden="true">🔧</span>
+            <span class="button-label">Setter Tools</span>
+          </a>
         </nav>
+        <button id="viewToggle" class="view-toggle" type="button" aria-pressed="false">
+          Show Grades
+        </button>
         <div class="info-wrapper">
           <button
             id="infoButton"
@@ -670,18 +697,22 @@
             aria-label="About Ascend"
           >
             <p>Track which climbs you have completed.</p>
-            <p>
-              Grade bars grow taller for harder climbs. Here's how grades compare:
-            </p>
+            <p>Grade bars fill from the bottom as climbs get harder. Here's how grades compare:</p>
             <div class="grade-bar-demo" aria-hidden="true">
               <div class="grade-bar-demo-bar" data-grade="7" style="--grade-value: 7"></div>
               <div class="grade-bar-demo-bar" data-grade="13" style="--grade-value: 13"></div>
               <div class="grade-bar-demo-bar" data-grade="25" style="--grade-value: 25"></div>
             </div>
-            <p class="sr-only">Example grade bars: grade 7 is shortest, grade 13 is taller, and grade 25 is tallest.</p>
+            <p class="sr-only">
+              Example grade bars: grade 7 fills the least, grade 13 fills more, and grade 25 nearly fills the
+              column.
+            </p>
           </div>
         </div>
-        <button id="signOutButton" class="sign-out">Sign out</button>
+        <button id="signOutButton" class="sign-out" type="button">
+          <span class="button-icon" aria-hidden="true">🚪</span>
+          <span class="button-label">Sign out</span>
+        </button>
       </header>
       <div class="canvas-container">
         <canvas id="previewCanvas" aria-hidden="true"></canvas>
@@ -759,6 +790,8 @@
       const infoButton = document.getElementById('infoButton');
       const infoPopover = document.getElementById('infoPopover');
       const locationButton = document.getElementById('locationButton');
+      const locationButtonLabel = locationButton?.querySelector('.button-label');
+      const viewToggleButton = document.getElementById('viewToggle');
       const locationModal = document.getElementById('locationModal');
       const locationOptions = document.getElementById('locationOptions');
       const locationModalClose = document.getElementById('locationModalClose');
@@ -796,6 +829,8 @@
       const MAX_UNFOCUSED_TRANSPARENCY = 1;
       const DEFAULT_UNFOCUSED_TRANSPARENCY = 0.25;
       const WALL_COLLECTION = 'walls';
+      const VIEW_MODE_ROUTES = 'routes';
+      const VIEW_MODE_GRADES = 'grades';
 
       function normalizePathType(value) {
         if (typeof value === 'string') {
@@ -1133,15 +1168,52 @@
 
       let backgroundReady = false;
       let backgroundImageSource = '';
+      let viewMode = VIEW_MODE_ROUTES;
 
       const backgroundImage = new Image();
 
       function updateLocationButtonLabel() {
-        if (!locationButton) {
+        const labelText = currentLocation?.name || 'Select wall';
+        if (locationButtonLabel) {
+          locationButtonLabel.textContent = labelText;
+        }
+        if (locationButton) {
+          locationButton.setAttribute('aria-label', `Select wall: ${labelText}`);
+        }
+      }
+
+      function syncViewModeState() {
+        if (!document.body) {
+          return;
+        }
+        document.body.classList.toggle('view-mode-grades', viewMode === VIEW_MODE_GRADES);
+        document.body.classList.toggle('view-mode-routes', viewMode === VIEW_MODE_ROUTES);
+      }
+
+      function updateViewToggleButton() {
+        if (!viewToggleButton) {
           return;
         }
 
-        locationButton.textContent = currentLocation?.name || 'Select wall';
+        const showingGrades = viewMode === VIEW_MODE_GRADES;
+        viewToggleButton.setAttribute('aria-pressed', showingGrades ? 'true' : 'false');
+        viewToggleButton.textContent = showingGrades ? 'Show Routes' : 'Show Grades';
+      }
+
+      function setViewMode(mode) {
+        const normalized = mode === VIEW_MODE_GRADES ? VIEW_MODE_GRADES : VIEW_MODE_ROUTES;
+        if (viewMode === normalized) {
+          return;
+        }
+
+        viewMode = normalized;
+        syncViewModeState();
+        updateViewToggleButton();
+        hideTooltip({ force: true });
+        if (canvas) {
+          canvas.style.cursor = '';
+        }
+        redraw();
       }
 
       function updateLocationOptionsState() {
@@ -1609,6 +1681,13 @@
         });
       }
 
+      if (viewToggleButton) {
+        viewToggleButton.addEventListener('click', () => {
+          const nextMode = viewMode === VIEW_MODE_ROUTES ? VIEW_MODE_GRADES : VIEW_MODE_ROUTES;
+          setViewMode(nextMode);
+        });
+      }
+
       if (locationModalClose) {
         locationModalClose.addEventListener('click', (event) => {
           event.preventDefault();
@@ -1822,7 +1901,9 @@
               : '';
           let effectiveLower = normalizeUsername(storedLowerRaw);
           const trimmedRole =
-            typeof existingData.role === 'string' ? existingData.role.trim() : 'default';
+            typeof existingData.role === 'string'
+              ? existingData.role.trim().toLowerCase()
+              : 'default';
           const mergedData = {
             ...existingData,
             role: trimmedRole,
@@ -1891,7 +1972,9 @@
 
         try {
           const ensuredRole = await ensureUserRole(user, normalizedUsername);
-          return typeof ensuredRole?.role === 'string' ? ensuredRole.role.trim() : 'default';
+          return typeof ensuredRole?.role === 'string'
+            ? ensuredRole.role.trim().toLowerCase()
+            : 'default';
         } catch (error) {
           console.error('Failed to fetch user role:', error);
           return 'default';
@@ -1954,6 +2037,9 @@
       const canvasContainer = document.querySelector('.canvas-container');
       const canvas = document.getElementById('previewCanvas');
       const ctx = canvas.getContext('2d');
+
+      syncViewModeState();
+      updateViewToggleButton();
 
       const DEFAULT_CANVAS_ASPECT_RATIO = 1536 / 1024;
       let canvasAspectRatio = DEFAULT_CANVAS_ASPECT_RATIO;
@@ -2649,6 +2735,9 @@
       }
 
       function getGradeBarEntryAtClientPoint(clientX, clientY) {
+        if (viewMode !== VIEW_MODE_GRADES) {
+          return null;
+        }
         if (!gradeBarEntries.length) {
           return null;
         }
@@ -3057,7 +3146,12 @@
             isFocused,
           });
         });
-        renderQueuedGradeBarOverlays();
+        if (viewMode === VIEW_MODE_GRADES) {
+          renderQueuedGradeBarOverlays();
+        } else {
+          gradeBarEntries = [];
+          queuedGradeBarOverlays = [];
+        }
 
         if (pinnedRoute && tooltip) {
           updateTooltipContent(pinnedRoute);
@@ -3370,6 +3464,11 @@
           return;
         }
 
+        const canvasHeight = Math.max(0, canvas.height);
+        if (canvasHeight <= 0) {
+          return;
+        }
+
         const normalizedBaseHeight = normalizeGradeBarHeight(
           baseHeight,
           DEFAULT_GRADE_BAR_BASE_HEIGHT,
@@ -3394,12 +3493,10 @@
             ? normalizedBaseHeight
             : normalizedBaseHeight +
               (normalizedMaxHeight - normalizedBaseHeight) * gradeRatio;
-        const height = Math.min(
-          Math.max(targetHeight, normalizedBaseHeight),
-          normalizedMaxHeight,
+        const clampedFillHeight = Math.min(
+          canvasHeight,
+          Math.max(normalizedBaseHeight, Math.min(targetHeight, normalizedMaxHeight)),
         );
-        const bottom = canvas.height;
-        const top = Math.max(0, bottom - height);
         const resolvedAlpha = Math.max(
           0,
           Math.min(1, alpha * normalizedTransparency),
@@ -3409,11 +3506,12 @@
           route,
           desiredCenter: averageX,
           width: normalizedWidth,
-          top,
-          bottom,
+          top: 0,
+          bottom: canvasHeight,
           color,
           alpha: resolvedAlpha,
           gradeValue,
+          gradeFillHeight: clampedFillHeight,
           isAscended: Boolean(gradeValue !== null && isAscended),
         });
       }
@@ -3530,6 +3628,11 @@
           return;
         }
 
+        if (viewMode === VIEW_MODE_GRADES) {
+          drawGradeBar(route, gradeBarPoints, strokeColor, routeAlpha);
+          return;
+        }
+
         const pointDiameter = normalizePointDiameter(route.pointDiameter);
         const rectangleWidth = normalizeRectangleSize(route.rectangleWidth, DEFAULT_RECTANGLE_WIDTH);
         const rectangleHeight = normalizeRectangleSize(route.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT);
@@ -3603,11 +3706,15 @@
           ctx.restore();
         }
         ctx.restore();
-
-        drawGradeBar(route, gradeBarPoints, strokeColor, routeAlpha);
       }
 
       function renderQueuedGradeBarOverlays() {
+        if (viewMode !== VIEW_MODE_GRADES) {
+          queuedGradeBarOverlays = [];
+          gradeBarEntries = [];
+          return;
+        }
+
         if (!Array.isArray(queuedGradeBarOverlays) || !queuedGradeBarOverlays.length) {
           queuedGradeBarOverlays = [];
           return;
@@ -3737,25 +3844,37 @@
             continue;
           }
 
-          ctx.save();
-          ctx.globalAlpha = original.alpha;
-
           const strokeWidth = Math.max(2, Math.round(actualWidth * 0.18));
+          const fillHeight = Math.max(
+            0,
+            Math.min(Number(original.gradeFillHeight) || 0, height),
+          );
+          const fillTop = Math.max(actualTop, actualBottom - fillHeight);
+
+          ctx.save();
+          ctx.setLineDash([]);
           ctx.lineWidth = strokeWidth;
-          ctx.lineJoin = 'miter';
-          ctx.lineCap = 'butt';
+          ctx.lineJoin = 'round';
+          ctx.lineCap = 'round';
           ctx.strokeStyle = original.color;
 
+          const baseFillAlpha = Math.max(0.15, original.alpha * 0.3);
+          ctx.globalAlpha = baseFillAlpha;
+          ctx.fillStyle = original.color;
+          ctx.fillRect(actualLeft, actualTop, actualWidth, height);
+
+          if (original.isAscended) {
+            ctx.globalAlpha = Math.min(1, original.alpha + 0.25);
+            ctx.fillRect(actualLeft, actualTop, actualWidth, height);
+          } else if (fillHeight > 0) {
+            ctx.globalAlpha = original.alpha;
+            ctx.fillRect(actualLeft, fillTop, actualWidth, fillHeight);
+          }
+
+          ctx.globalAlpha = original.alpha;
           if (original.gradeValue === null) {
             const dashLength = Math.max(4, actualWidth * 0.6);
             ctx.setLineDash([dashLength, dashLength]);
-          } else {
-            ctx.setLineDash([]);
-          }
-
-          if (original.isAscended) {
-            ctx.fillStyle = original.color;
-            ctx.fillRect(actualLeft, actualTop, actualWidth, height);
           }
 
           const halfStroke = strokeWidth / 2;
@@ -3776,6 +3895,8 @@
             bottom: actualTop + height,
             width: actualWidth,
             height,
+            gradeFillTop: fillTop,
+            gradeFillHeight: fillHeight,
           });
         }
 
@@ -3790,6 +3911,14 @@
             canvas.style.cursor = '';
             return;
           }
+        }
+
+        if (viewMode !== VIEW_MODE_GRADES) {
+          canvas.style.cursor = '';
+          if (!pinnedRouteId) {
+            hideTooltip();
+          }
+          return;
         }
 
         const entry = getGradeBarEntryAtClientPoint(event.clientX, event.clientY);
@@ -3812,6 +3941,9 @@
       }
 
       function handleCanvasPointerDown(event) {
+        if (viewMode !== VIEW_MODE_GRADES) {
+          return;
+        }
         const point = extractClientPoint(event);
         if (!point) {
           return;
