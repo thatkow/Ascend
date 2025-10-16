@@ -6028,6 +6028,7 @@
     }
 
     let authMode = 'login';
+    let shouldPreserveAuthInputs = false;
 
     function setAuthMode(mode) {
       authMode = mode;
@@ -6369,7 +6370,11 @@
         unauthorizedNotice.classList.add('hidden');
         routeSelector.disabled = true;
         deleteButton.disabled = true;
-        authForm.reset();
+        if (shouldPreserveAuthInputs) {
+          shouldPreserveAuthInputs = false;
+        } else {
+          authForm.reset();
+        }
         prepareNewRoute();
         clearStatus();
         setRoleControlsEnabled(false);
@@ -6423,13 +6428,18 @@
           return;
         }
 
+        shouldPreserveAuthInputs = true;
         setAuthMode('login');
         authUsername.value = usernameFromQuery;
         authPassword.value = passwordFromQuery;
 
         window.setTimeout(() => {
           try {
-            authForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            if (typeof authForm.requestSubmit === 'function') {
+              authForm.requestSubmit();
+            } else {
+              authForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            }
           } catch (error) {
             console.warn('Unable to trigger automatic sign-in:', error);
           }
