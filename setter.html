@@ -51,8 +51,12 @@
       height: 32px;
       border-radius: 50%;
       border: none;
-      background-color: #2f7e13;
-      background-image: none;
+      background-color: rgba(126, 217, 87, 0.95);
+      background-image: linear-gradient(
+        135deg,
+        rgba(126, 217, 87, 0.95),
+        rgba(63, 142, 45, 0.95)
+      );
       color: #0b1a05;
       font-size: 1.15rem;
       font-weight: 700;
@@ -65,7 +69,7 @@
       z-index: 20;
       animation: tutorial-bounce 1.2s ease-in-out infinite;
       transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
-        background-image 0.2s ease;
+        background-image 0.2s ease, color 0.2s ease;
     }
 
     .tutorial-prompt:hover,
@@ -81,28 +85,37 @@
 
     .tutorial-prompt.is-static {
       animation: none;
-      background-color: #2f7e13;
+      transform: translate(-50%, 0);
+      background-color: #3f454d;
       background-image: none;
+      color: #f4f5f7;
     }
 
     .tutorial-prompt.is-static:hover,
     .tutorial-prompt.is-static:focus-visible {
       transform: translate(-50%, -4px) scale(1.02);
-      background-color: #2f7e13;
+      background-color: #3f454d;
       background-image: none;
+      color: #f4f5f7;
     }
 
     @keyframes tutorial-bounce {
       0%,
       100% {
         transform: translate(-50%, 0);
-        background-color: #2f7e13;
-        background-image: none;
+        background-color: rgba(126, 217, 87, 0.95);
+        background-image: linear-gradient(
+          135deg,
+          rgba(126, 217, 87, 0.95),
+          rgba(63, 142, 45, 0.95)
+        );
+        color: #0b1a05;
       }
       50% {
         transform: translate(-50%, calc(-400% / 3));
-        background-color: #bd0306;
+        background-color: #ff8c42;
         background-image: none;
+        color: #0b1a05;
       }
     }
 
@@ -1941,21 +1954,25 @@
     let tutorialPreviousTabId = null;
     let tutorialSecondaryActionMode = 'back';
     const LEGACY_SETTER_TUTORIAL_PROMPT_STORAGE_KEY = 'ascend.setter.tutorial.dismissed';
-    const SETTER_TUTORIAL_PROMPT_STORAGE_KEY = 'ascend.setter.tutorial.prompt.hidden';
+    const LEGACY_SETTER_TUTORIAL_PROMPT_HIDDEN_STORAGE_KEY = 'ascend.setter.tutorial.prompt.hidden';
     const SETTER_TUTORIAL_COMPLETED_STORAGE_KEY = 'ascend.setter.tutorial.prompt.completed';
-    let tutorialPromptDismissed = false;
     let tutorialPromptCompleted = false;
     try {
-      if (window.localStorage?.getItem(LEGACY_SETTER_TUTORIAL_PROMPT_STORAGE_KEY) === 'true') {
+      const legacyDismissed =
+        window.localStorage?.getItem(LEGACY_SETTER_TUTORIAL_PROMPT_STORAGE_KEY) === 'true';
+      const legacyHidden =
+        window.localStorage?.getItem(LEGACY_SETTER_TUTORIAL_PROMPT_HIDDEN_STORAGE_KEY) === 'true';
+
+      if (legacyDismissed || legacyHidden) {
         window.localStorage?.removeItem(LEGACY_SETTER_TUTORIAL_PROMPT_STORAGE_KEY);
+        window.localStorage?.removeItem(LEGACY_SETTER_TUTORIAL_PROMPT_HIDDEN_STORAGE_KEY);
+        window.localStorage?.setItem(SETTER_TUTORIAL_COMPLETED_STORAGE_KEY, 'true');
       }
-      tutorialPromptDismissed =
-        window.localStorage?.getItem(SETTER_TUTORIAL_PROMPT_STORAGE_KEY) === 'true';
+
       tutorialPromptCompleted =
         window.localStorage?.getItem(SETTER_TUTORIAL_COMPLETED_STORAGE_KEY) === 'true';
     } catch (error) {
       console.warn('Unable to read setter tutorial prompt state:', error);
-      tutorialPromptDismissed = false;
       tutorialPromptCompleted = false;
     }
 
@@ -2862,7 +2879,7 @@
     }
 
     function showTutorialPrompt() {
-      if (!tutorialPromptButton || tutorialPromptDismissed) {
+      if (!tutorialPromptButton) {
         return;
       }
 
@@ -2883,19 +2900,17 @@
       }
 
       tutorialPromptButton.classList.add('hidden');
+      tutorialPromptButton.classList.remove('is-static');
       tutorialPromptButton.setAttribute('aria-hidden', 'true');
       tutorialPromptButton.setAttribute('aria-expanded', 'true');
     }
 
-    function persistTutorialPromptState(dismissed) {
+    function clearLegacyTutorialPromptState() {
       try {
-        if (dismissed) {
-          window.localStorage?.setItem(SETTER_TUTORIAL_PROMPT_STORAGE_KEY, 'true');
-        } else {
-          window.localStorage?.removeItem(SETTER_TUTORIAL_PROMPT_STORAGE_KEY);
-        }
+        window.localStorage?.removeItem(LEGACY_SETTER_TUTORIAL_PROMPT_STORAGE_KEY);
+        window.localStorage?.removeItem(LEGACY_SETTER_TUTORIAL_PROMPT_HIDDEN_STORAGE_KEY);
       } catch (error) {
-        console.warn('Unable to persist setter tutorial prompt state:', error);
+        console.warn('Unable to clear legacy setter tutorial prompt state:', error);
       }
     }
 
@@ -3166,6 +3181,8 @@
       tutorialStepIndex = -1;
       tutorialTransitionInProgress = false;
       tutorialSecondaryActionMode = 'back';
+      tutorialPromptCompleted = false;
+      persistTutorialPromptCompletion(false);
 
       if (tutorialProgress) {
         tutorialProgress.classList.remove('hidden');
@@ -3186,8 +3203,7 @@
         if (suppressPrompt) {
           hideTutorialPrompt();
         } else {
-          tutorialPromptDismissed = false;
-          persistTutorialPromptState(false);
+          clearLegacyTutorialPromptState();
           markTutorialPromptCompleted();
           showTutorialPrompt();
         }
@@ -3230,8 +3246,7 @@
       if (suppressPrompt) {
         hideTutorialPrompt();
       } else {
-        tutorialPromptDismissed = false;
-        persistTutorialPromptState(false);
+        clearLegacyTutorialPromptState();
         markTutorialPromptCompleted();
         showTutorialPrompt();
       }
@@ -4450,9 +4465,10 @@
 
       tutorialPromptButton.addEventListener('contextmenu', (event) => {
         event.preventDefault();
-        tutorialPromptDismissed = true;
-        persistTutorialPromptState(true);
-        hideTutorialPrompt();
+        clearLegacyTutorialPromptState();
+        tutorialPromptCompleted = true;
+        persistTutorialPromptCompletion(true);
+        showTutorialPrompt();
       });
     }
 
@@ -7477,11 +7493,7 @@
       setRoleControlsEnabled(true);
       clearRoleStatus();
       if (!tutorialActive) {
-        if (tutorialPromptDismissed) {
-          hideTutorialPrompt();
-        } else {
-          showTutorialPrompt();
-        }
+        showTutorialPrompt();
       }
     }
 
