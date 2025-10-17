@@ -42,6 +42,227 @@
       -webkit-overflow-scrolling: touch;
     }
 
+    .tutorial-prompt {
+      position: fixed;
+      left: 50%;
+      bottom: 1.5rem;
+      transform: translate(-50%, 0);
+      width: 3.5rem;
+      height: 3.5rem;
+      border-radius: 50%;
+      border: none;
+      background-color: rgba(126, 217, 87, 0.95);
+      background-image: linear-gradient(135deg, rgba(126, 217, 87, 0.95), rgba(63, 142, 45, 0.95));
+      color: #0b1a05;
+      font-size: 1.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-items: center;
+      justify-content: center;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+      z-index: 20;
+      animation: tutorial-bounce 1.2s ease-in-out infinite;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .tutorial-prompt:hover,
+    .tutorial-prompt:focus-visible {
+      transform: translate(-50%, -6px) scale(1.02);
+      box-shadow: 0 22px 48px rgba(0, 0, 0, 0.55);
+      outline: none;
+    }
+
+    .tutorial-prompt:focus-visible {
+      box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.45), 0 22px 48px rgba(0, 0, 0, 0.55);
+    }
+
+    @keyframes tutorial-bounce {
+      0%,
+      100% {
+        transform: translate(-50%, 0);
+        background-color: rgba(126, 217, 87, 0.95);
+        background-image: linear-gradient(
+          135deg,
+          rgba(126, 217, 87, 0.95),
+          rgba(63, 142, 45, 0.95)
+        );
+      }
+      50% {
+        transform: translate(-50%, calc(-200% / 3));
+        background-color: #ff8c42;
+        background-image: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .tutorial-prompt {
+        animation: none;
+      }
+    }
+
+    .tutorial-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      background: rgba(8, 12, 9, 0);
+      z-index: 30;
+    }
+
+    .tutorial-overlay.is-bottom-aligned {
+      align-items: flex-end;
+    }
+
+    .tutorial-overlay.is-bottom-aligned .tutorial-card {
+      margin-bottom: clamp(1.5rem, 8vh, 4rem);
+    }
+
+    .tutorial-card {
+      width: min(520px, 100%);
+      background: rgba(12, 18, 15, 0.95);
+      border-radius: 1rem;
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.15rem;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(126, 217, 87, 0.2);
+    }
+
+    .tutorial-progress {
+      font-size: 0.85rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: rgba(126, 217, 87, 0.8);
+    }
+
+    .tutorial-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .tutorial-description {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      color: rgba(248, 250, 252, 0.92);
+      font-size: 0.98rem;
+      line-height: 1.55;
+    }
+
+    .tutorial-description p {
+      margin: 0;
+    }
+
+    .tutorial-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: flex-end;
+    }
+
+    .tutorial-button {
+      border-radius: 999px;
+      border: none;
+      padding: 0.65rem 1.4rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+        color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .tutorial-primary {
+      background: #7ed957;
+      color: #0c1a07;
+      box-shadow: 0 12px 22px rgba(126, 217, 87, 0.3);
+    }
+
+    .tutorial-primary:hover,
+    .tutorial-primary:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 30px rgba(126, 217, 87, 0.35);
+      outline: none;
+    }
+
+    .tutorial-secondary {
+      background: rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .tutorial-secondary:hover,
+    .tutorial-secondary:focus-visible {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 34px rgba(0, 0, 0, 0.4);
+      outline: none;
+    }
+
+    .tutorial-highlight {
+      position: relative;
+      z-index: 50;
+      outline: 3px solid rgba(126, 217, 87, 0.9);
+      border-radius: 1rem;
+    }
+
+    .tutorial-illuminated {
+      animation: tutorial-illuminate 1.2s ease-in-out infinite;
+    }
+
+    .tutorial-pointer {
+      position: fixed;
+      width: 102px;
+      height: 162px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 60;
+      transform: translate(-50%, 0);
+    }
+
+    .tutorial-pointer.hidden {
+      display: none;
+    }
+
+    .tutorial-pointer svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+      animation: tutorial-pointer-bounce 1.05s ease-in-out infinite;
+    }
+
+    @media (max-width: 768px) {
+      .tutorial-pointer {
+        width: 51px;
+        height: 81px;
+      }
+    }
+
+    @keyframes tutorial-pointer-bounce {
+      0%,
+      100% {
+        transform: translateY(4px);
+      }
+      50% {
+        transform: translateY(-6px);
+      }
+    }
+
+    @keyframes tutorial-illuminate {
+      0%,
+      100% {
+        box-shadow: 0 0 0 6px rgba(126, 217, 87, 0.7), 0 0 28px rgba(126, 217, 87, 0.55);
+      }
+      50% {
+        box-shadow: 0 0 0 10px rgba(255, 140, 66, 0.85), 0 0 42px rgba(255, 140, 66, 0.75);
+      }
+    }
+
     .sidebar-actions {
       display: flex;
       flex-direction: column;
@@ -1528,6 +1749,52 @@
     </div>
   </div>
 
+  <button
+    id="tutorialPromptButton"
+    class="tutorial-prompt hidden"
+    type="button"
+    aria-label="Open tutorial"
+    title="Open tutorial"
+    aria-hidden="true"
+    data-tutorial-exempt="true"
+  >
+    ?
+  </button>
+  <div
+    id="tutorialOverlay"
+    class="tutorial-overlay hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+    aria-labelledby="tutorialTitle"
+    aria-describedby="tutorialDescription"
+    data-tutorial-exempt="true"
+  >
+    <div id="tutorialDialogCard" class="tutorial-card" role="document" tabindex="-1">
+      <div id="tutorialProgress" class="tutorial-progress hidden" aria-live="polite"></div>
+      <h2 id="tutorialTitle" class="tutorial-title"></h2>
+      <div id="tutorialDescription" class="tutorial-description"></div>
+      <div class="tutorial-actions">
+        <button
+          id="tutorialSecondaryAction"
+          class="tutorial-button tutorial-secondary hidden"
+          type="button"
+          data-tutorial-exempt="true"
+        >
+          Back
+        </button>
+        <button
+          id="tutorialPrimaryAction"
+          class="tutorial-button tutorial-primary"
+          type="button"
+          data-tutorial-exempt="true"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import {
@@ -1627,8 +1894,26 @@
     const createWallStatus = document.getElementById('createWallStatus');
     const wallVisibilityToggleWrapper = document.getElementById('wallVisibilityToggleWrapper');
     const wallVisibilityToggle = document.getElementById('wallVisibilityToggle');
+    const tutorialPromptButton = document.getElementById('tutorialPromptButton');
+    const tutorialOverlay = document.getElementById('tutorialOverlay');
+    const tutorialDialogCard = document.getElementById('tutorialDialogCard');
+    const tutorialTitle = document.getElementById('tutorialTitle');
+    const tutorialDescription = document.getElementById('tutorialDescription');
+    const tutorialPrimaryAction = document.getElementById('tutorialPrimaryAction');
+    const tutorialSecondaryAction = document.getElementById('tutorialSecondaryAction');
+    const tutorialProgress = document.getElementById('tutorialProgress');
 
     let isUpdatingWallVisibility = false;
+    let tutorialPointer = null;
+    let tutorialPointerTarget = null;
+    let tutorialHighlightedElement = null;
+    let tutorialHighlightedElementOptions = { illuminate: false };
+    let tutorialPreviousFocus = null;
+    let tutorialActive = false;
+    let tutorialTransitionInProgress = false;
+    let tutorialStepIndex = -1;
+    let tutorialSteps = [];
+    let tutorialPreviousTabId = null;
 
     const LOCATIONS = [
       { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
@@ -2354,6 +2639,524 @@
       }
       const rect = element.getBoundingClientRect();
       return rect.width > 0 && rect.height > 0;
+    }
+
+    function setTutorialDescriptionContent(content = []) {
+      if (!tutorialDescription) {
+        return;
+      }
+
+      tutorialDescription.innerHTML = '';
+
+      const fragment = document.createDocumentFragment();
+      const items = Array.isArray(content) ? content : [content];
+
+      items.forEach((item) => {
+        if (typeof item === 'string') {
+          const paragraph = document.createElement('p');
+          paragraph.textContent = item;
+          fragment.appendChild(paragraph);
+          return;
+        }
+
+        if (typeof item === 'function') {
+          try {
+            const result = item();
+            if (result instanceof Node) {
+              fragment.appendChild(result);
+              return;
+            }
+
+            if (typeof result === 'string') {
+              const paragraph = document.createElement('p');
+              paragraph.textContent = result;
+              fragment.appendChild(paragraph);
+            }
+          } catch (error) {
+            console.warn('Unable to render tutorial content item:', error);
+          }
+          return;
+        }
+
+        if (item instanceof Node) {
+          fragment.appendChild(item);
+        }
+      });
+
+      tutorialDescription.appendChild(fragment);
+    }
+
+    function ensureTutorialPointer() {
+      if (tutorialPointer) {
+        return tutorialPointer;
+      }
+
+      tutorialPointer = document.createElement('div');
+      tutorialPointer.className = 'tutorial-pointer hidden';
+      tutorialPointer.setAttribute('aria-hidden', 'true');
+      tutorialPointer.innerHTML =
+        '<svg viewBox="0 0 64 96" role="presentation" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path fill="#27b4db" d="M32 0l32 36H44v56H20V36H0z"/></svg>';
+      document.body.appendChild(tutorialPointer);
+
+      return tutorialPointer;
+    }
+
+    function updateTutorialPointerPosition() {
+      if (!tutorialPointer || tutorialPointer.classList.contains('hidden')) {
+        return;
+      }
+
+      if (!tutorialPointerTarget || !isElementVisible(tutorialPointerTarget)) {
+        hideTutorialPointer();
+        return;
+      }
+
+      const rect = tutorialPointerTarget.getBoundingClientRect();
+      const verticalOffset = 12;
+
+      tutorialPointer.style.left = `${rect.left + rect.width / 2}px`;
+      tutorialPointer.style.top = `${rect.bottom + verticalOffset}px`;
+    }
+
+    function showTutorialPointerFor(element) {
+      if (!(element instanceof HTMLElement) || !isElementVisible(element)) {
+        hideTutorialPointer();
+        return;
+      }
+
+      ensureTutorialPointer();
+
+      tutorialPointerTarget = element;
+      tutorialPointer.classList.remove('hidden');
+      tutorialPointer.setAttribute('aria-hidden', 'false');
+      updateTutorialPointerPosition();
+    }
+
+    function hideTutorialPointer() {
+      if (!tutorialPointer) {
+        tutorialPointerTarget = null;
+        return;
+      }
+
+      tutorialPointerTarget = null;
+      tutorialPointer.classList.add('hidden');
+      tutorialPointer.setAttribute('aria-hidden', 'true');
+    }
+
+    window.addEventListener('resize', updateTutorialPointerPosition);
+    window.addEventListener('scroll', updateTutorialPointerPosition, true);
+
+    function highlightTutorialElement(element, options = {}) {
+      const shouldIlluminate = options?.illuminate === true;
+
+      if (tutorialHighlightedElement) {
+        if (tutorialHighlightedElement !== element || !element) {
+          tutorialHighlightedElement.classList.remove('tutorial-highlight');
+          tutorialHighlightedElement.classList.remove('tutorial-illuminated');
+          tutorialHighlightedElementOptions = { illuminate: false };
+        } else if (tutorialHighlightedElementOptions.illuminate !== shouldIlluminate) {
+          tutorialHighlightedElement.classList.toggle('tutorial-illuminated', shouldIlluminate);
+          tutorialHighlightedElementOptions = { illuminate: shouldIlluminate };
+          return;
+        } else {
+          return;
+        }
+      }
+
+      if (element instanceof HTMLElement) {
+        element.classList.add('tutorial-highlight');
+        element.classList.toggle('tutorial-illuminated', shouldIlluminate);
+        tutorialHighlightedElement = element;
+        tutorialHighlightedElementOptions = { illuminate: shouldIlluminate };
+      } else {
+        tutorialHighlightedElement = null;
+        tutorialHighlightedElementOptions = { illuminate: false };
+      }
+    }
+
+    function setTutorialOverlayAlignment(alignment = 'center') {
+      if (!tutorialOverlay) {
+        return;
+      }
+
+      const shouldAlignBottom = alignment === 'bottom';
+      tutorialOverlay.classList.toggle('is-bottom-aligned', shouldAlignBottom);
+    }
+
+    function openTutorialOverlay() {
+      if (!tutorialOverlay) {
+        return;
+      }
+
+      tutorialPreviousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+      tutorialOverlay.classList.remove('hidden');
+      tutorialOverlay.setAttribute('aria-hidden', 'false');
+
+      if (tutorialDialogCard && typeof tutorialDialogCard.focus === 'function') {
+        tutorialDialogCard.focus();
+      }
+    }
+
+    function closeTutorialOverlay() {
+      if (!tutorialOverlay) {
+        return;
+      }
+
+      tutorialOverlay.classList.add('hidden');
+      tutorialOverlay.setAttribute('aria-hidden', 'true');
+
+      if (tutorialPreviousFocus && typeof tutorialPreviousFocus.focus === 'function') {
+        tutorialPreviousFocus.focus();
+      }
+
+      tutorialPreviousFocus = null;
+    }
+
+    function showTutorialPrompt() {
+      if (!tutorialPromptButton) {
+        return;
+      }
+
+      tutorialPromptButton.classList.remove('hidden');
+      tutorialPromptButton.setAttribute('aria-hidden', 'false');
+      tutorialPromptButton.setAttribute('aria-expanded', 'false');
+    }
+
+    function hideTutorialPrompt() {
+      if (!tutorialPromptButton) {
+        return;
+      }
+
+      tutorialPromptButton.classList.add('hidden');
+      tutorialPromptButton.setAttribute('aria-hidden', 'true');
+      tutorialPromptButton.setAttribute('aria-expanded', 'true');
+    }
+
+    function attachTutorialKeydown() {
+      document.addEventListener('keydown', handleTutorialKeydown, true);
+    }
+
+    function detachTutorialKeydown() {
+      document.removeEventListener('keydown', handleTutorialKeydown, true);
+    }
+
+    function renderTutorialStep() {
+      if (!tutorialActive) {
+        return;
+      }
+
+      const step = tutorialSteps[tutorialStepIndex];
+      if (!step) {
+        return;
+      }
+
+      if (tutorialTitle) {
+        tutorialTitle.textContent = step.title || '';
+      }
+
+      setTutorialDescriptionContent(step.body || []);
+
+      if (tutorialProgress) {
+        tutorialProgress.textContent = `Step ${tutorialStepIndex + 1} of ${tutorialSteps.length}`;
+        tutorialProgress.classList.toggle('hidden', tutorialSteps.length <= 1);
+      }
+
+      if (tutorialPrimaryAction) {
+        tutorialPrimaryAction.textContent =
+          tutorialStepIndex === tutorialSteps.length - 1 ? 'Finish' : 'Next';
+      }
+
+      if (tutorialSecondaryAction) {
+        tutorialSecondaryAction.textContent = 'Back';
+        tutorialSecondaryAction.classList.toggle('hidden', tutorialStepIndex <= 0);
+      }
+    }
+
+    function buildSetterTutorialSteps() {
+      const steps = [
+        {
+          title: 'Welcome to the setter workspace',
+          body: [
+            'Design, update, and publish climbs from here. The wall preview on the left responds instantly as you draw or tweak route details.',
+            'Use the sidebar tabs to switch between saved routes, manage walls, and adjust how problems appear to climbers.',
+          ],
+          onEnter: () => {
+            setTutorialOverlayAlignment('center');
+            highlightTutorialElement(null);
+            hideTutorialPointer();
+            deactivateInfoMode({ clearTooltip: true });
+          },
+          onExit: () => {
+            highlightTutorialElement(null);
+          },
+        },
+        {
+          title: 'Routes panel',
+          body: [
+            'Select existing problems or start fresh, then fill in setter info, descriptions, and notes for climbers.',
+            'Pick colours, change path types, and save or clear drawings while you iterate on new ideas.',
+          ],
+          onEnter: () => {
+            setTutorialOverlayAlignment('bottom');
+            activateTab('routesTab');
+            if (routesTabButton && isElementVisible(routesTabButton)) {
+              highlightTutorialElement(routesTabButton, { illuminate: true });
+              showTutorialPointerFor(routesTabButton);
+            } else {
+              highlightTutorialElement(null);
+              hideTutorialPointer();
+            }
+          },
+          onExit: () => {
+            hideTutorialPointer();
+            highlightTutorialElement(null);
+          },
+        },
+        {
+          title: 'Walls panel',
+          body: [
+            'Switch the active wall, create new backgrounds, or temporarily hide a wall from climbers.',
+            'Use it to manage rotations and keep your wall list tidy as sets change over time.',
+          ],
+          onEnter: () => {
+            setTutorialOverlayAlignment('bottom');
+            activateTab('wallsTab');
+            if (wallsTabButton && isElementVisible(wallsTabButton)) {
+              highlightTutorialElement(wallsTabButton, { illuminate: true });
+              showTutorialPointerFor(wallsTabButton);
+            } else {
+              highlightTutorialElement(null);
+              hideTutorialPointer();
+            }
+          },
+          onExit: () => {
+            hideTutorialPointer();
+            highlightTutorialElement(null);
+          },
+        },
+        {
+          title: 'Configuration panel',
+          body: [
+            'Tune how holds render by adjusting point sizes, rectangle dimensions, and transparency defaults.',
+            'Save appearance settings so climbers see consistent visuals across every wall you manage.',
+          ],
+          onEnter: () => {
+            setTutorialOverlayAlignment('bottom');
+            activateTab('configurationTab');
+            if (configurationTabButton && isElementVisible(configurationTabButton)) {
+              highlightTutorialElement(configurationTabButton, { illuminate: true });
+              showTutorialPointerFor(configurationTabButton);
+            } else {
+              highlightTutorialElement(null);
+              hideTutorialPointer();
+            }
+          },
+          onExit: () => {
+            hideTutorialPointer();
+            highlightTutorialElement(null);
+          },
+        },
+        {
+          title: 'Enable drawing',
+          body: [
+            'Toggle drawing mode when you want to sketch new holds or edit existing shapes directly on the wall.',
+            'Switch it off to pan around freely or inspect details without leaving stray marks behind.',
+          ],
+          onEnter: () => {
+            setTutorialOverlayAlignment('bottom');
+            if (drawingToggle && isElementVisible(drawingToggle)) {
+              highlightTutorialElement(drawingToggle, { illuminate: true });
+              showTutorialPointerFor(drawingToggle);
+            } else {
+              highlightTutorialElement(null);
+              hideTutorialPointer();
+            }
+          },
+          onExit: () => {
+            hideTutorialPointer();
+            highlightTutorialElement(null);
+          },
+        },
+        {
+          title: 'Info mode',
+          body: [
+            'Tap the info button any time for quick tooltips explaining each control in the sidebar.',
+            'Info mode stays active until you toggle it off, so you can explore every setting at your own pace.',
+          ],
+          onEnter: () => {
+            setTutorialOverlayAlignment('bottom');
+            deactivateInfoMode({ clearTooltip: true });
+            if (infoButton && isElementVisible(infoButton)) {
+              highlightTutorialElement(infoButton, { illuminate: true });
+              showTutorialPointerFor(infoButton);
+            } else {
+              highlightTutorialElement(null);
+              hideTutorialPointer();
+            }
+          },
+          onExit: () => {
+            hideTutorialPointer();
+            highlightTutorialElement(null);
+          },
+        },
+      ];
+
+      return steps;
+    }
+
+    async function goToTutorialStep(index) {
+      if (!tutorialActive || tutorialTransitionInProgress) {
+        return;
+      }
+
+      if (index < 0 || index >= tutorialSteps.length) {
+        return;
+      }
+
+      tutorialTransitionInProgress = true;
+
+      if (tutorialStepIndex >= 0 && tutorialStepIndex < tutorialSteps.length) {
+        const currentStep = tutorialSteps[tutorialStepIndex];
+        if (currentStep && typeof currentStep.onExit === 'function') {
+          try {
+            await currentStep.onExit();
+          } catch (error) {
+            console.warn('Tutorial step cleanup failed:', error);
+          }
+        }
+      }
+
+      tutorialStepIndex = index;
+      renderTutorialStep();
+
+      const nextStep = tutorialSteps[tutorialStepIndex];
+      if (nextStep && typeof nextStep.onEnter === 'function') {
+        try {
+          await nextStep.onEnter();
+        } catch (error) {
+          console.warn('Tutorial step setup failed:', error);
+        }
+      }
+
+      tutorialTransitionInProgress = false;
+
+      if (tutorialPrimaryAction) {
+        tutorialPrimaryAction.focus();
+      }
+    }
+
+    async function startTutorial() {
+      if (tutorialActive) {
+        return;
+      }
+
+      tutorialSteps = buildSetterTutorialSteps();
+      if (!Array.isArray(tutorialSteps) || tutorialSteps.length === 0) {
+        return;
+      }
+
+      const activeTabButton = tabButtons.find((button) => button?.getAttribute('aria-selected') === 'true');
+      tutorialPreviousTabId = activeTabButton?.dataset?.target || null;
+
+      tutorialActive = true;
+      tutorialStepIndex = -1;
+      tutorialTransitionInProgress = false;
+
+      if (tutorialProgress) {
+        tutorialProgress.classList.remove('hidden');
+      }
+
+      hideTutorialPrompt();
+      setTutorialOverlayAlignment('center');
+      openTutorialOverlay();
+      attachTutorialKeydown();
+
+      await goToTutorialStep(0);
+    }
+
+    async function finishTutorial(options = {}) {
+      const suppressPrompt = options?.suppressPrompt === true;
+
+      if (!tutorialActive && !tutorialTransitionInProgress) {
+        if (suppressPrompt) {
+          hideTutorialPrompt();
+        }
+        tutorialPreviousTabId = null;
+        return;
+      }
+
+      tutorialTransitionInProgress = true;
+
+      if (tutorialStepIndex >= 0 && tutorialStepIndex < tutorialSteps.length) {
+        const finalStep = tutorialSteps[tutorialStepIndex];
+        if (finalStep && typeof finalStep.onExit === 'function') {
+          try {
+            await finalStep.onExit();
+          } catch (error) {
+            console.warn('Tutorial completion cleanup failed:', error);
+          }
+        }
+      }
+
+      tutorialActive = false;
+      tutorialStepIndex = -1;
+      tutorialTransitionInProgress = false;
+      tutorialSteps = [];
+
+      highlightTutorialElement(null);
+      hideTutorialPointer();
+      setTutorialOverlayAlignment('center');
+
+      if (tutorialProgress) {
+        tutorialProgress.classList.add('hidden');
+      }
+
+      closeTutorialOverlay();
+      detachTutorialKeydown();
+
+      if (suppressPrompt) {
+        hideTutorialPrompt();
+      } else {
+        showTutorialPrompt();
+      }
+
+      if (tutorialPreviousTabId) {
+        activateTab(tutorialPreviousTabId);
+      } else {
+        activateTab('routesTab');
+      }
+
+      tutorialPreviousTabId = null;
+    }
+
+    function handleTutorialKeydown(event) {
+      if (!tutorialActive) {
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        void finishTutorial();
+        return;
+      }
+
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        if (tutorialStepIndex >= tutorialSteps.length - 1) {
+          void finishTutorial();
+        } else {
+          void goToTutorialStep(tutorialStepIndex + 1);
+        }
+        return;
+      }
+
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        if (tutorialStepIndex > 0) {
+          void goToTutorialStep(tutorialStepIndex - 1);
+        }
+      }
     }
 
     function updateHelpTooltips() {
@@ -3522,6 +4325,44 @@
       updateDrawingToggle();
       drawingToggle.addEventListener('click', () => {
         setDrawingEnabled(!isDrawingEnabled);
+      });
+    }
+
+    if (tutorialPromptButton) {
+      tutorialPromptButton.addEventListener('click', () => {
+        void startTutorial();
+      });
+    }
+
+    if (tutorialPrimaryAction) {
+      tutorialPrimaryAction.addEventListener('click', () => {
+        if (!tutorialActive) {
+          return;
+        }
+
+        if (tutorialStepIndex >= tutorialSteps.length - 1) {
+          void finishTutorial();
+        } else {
+          void goToTutorialStep(tutorialStepIndex + 1);
+        }
+      });
+    }
+
+    if (tutorialSecondaryAction) {
+      tutorialSecondaryAction.addEventListener('click', () => {
+        if (!tutorialActive || tutorialStepIndex <= 0) {
+          return;
+        }
+
+        void goToTutorialStep(tutorialStepIndex - 1);
+      });
+    }
+
+    if (tutorialOverlay) {
+      tutorialOverlay.addEventListener('click', (event) => {
+        if (event.target === tutorialOverlay) {
+          void finishTutorial();
+        }
       });
     }
 
@@ -6486,6 +7327,7 @@
       clearStatus();
       setRoleControlsEnabled(false);
       resetRoleManagementUI('Setter access required to manage roles.');
+      void finishTutorial({ suppressPrompt: true });
     }
 
     function handleAuthorized() {
@@ -6494,6 +7336,9 @@
       routeSelector.disabled = false;
       setRoleControlsEnabled(true);
       clearRoleStatus();
+      if (!tutorialActive) {
+        showTutorialPrompt();
+      }
     }
 
     onAuthStateChanged(auth, async (user) => {
@@ -6550,6 +7395,7 @@
         setRoleControlsEnabled(false);
         resetRoleManagementUI();
         setAuthMode('login');
+        void finishTutorial({ suppressPrompt: true });
       }
     });
 
