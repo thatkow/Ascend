@@ -109,7 +109,8 @@
       align-items: center;
       justify-content: center;
       padding: 1.5rem;
-      background: rgba(8, 12, 9, 0);
+      background-color: transparent;
+      backdrop-filter: none;
       z-index: 30;
     }
 
@@ -1914,6 +1915,7 @@
     let tutorialStepIndex = -1;
     let tutorialSteps = [];
     let tutorialPreviousTabId = null;
+    let tutorialPromptDismissed = false;
 
     const LOCATIONS = [
       { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
@@ -2814,7 +2816,7 @@
     }
 
     function showTutorialPrompt() {
-      if (!tutorialPromptButton) {
+      if (!tutorialPromptButton || tutorialPromptDismissed) {
         return;
       }
 
@@ -3079,9 +3081,11 @@
       const suppressPrompt = options?.suppressPrompt === true;
 
       if (!tutorialActive && !tutorialTransitionInProgress) {
-        if (suppressPrompt) {
-          hideTutorialPrompt();
+        if (!suppressPrompt) {
+          tutorialPromptDismissed = true;
         }
+
+        hideTutorialPrompt();
         tutorialPreviousTabId = null;
         return;
       }
@@ -3115,11 +3119,11 @@
       closeTutorialOverlay();
       detachTutorialKeydown();
 
-      if (suppressPrompt) {
-        hideTutorialPrompt();
-      } else {
-        showTutorialPrompt();
+      if (!suppressPrompt) {
+        tutorialPromptDismissed = true;
       }
+
+      hideTutorialPrompt();
 
       if (tutorialPreviousTabId) {
         activateTab(tutorialPreviousTabId);
