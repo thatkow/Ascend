@@ -1431,15 +1431,6 @@
       let activeInfoCallout = null;
       let pendingInfoRepositionFrame = null;
       let ephemeralCalloutDismissTimer = null;
-      let hasShownWelcomeCallout = false;
-      let welcomeCalloutActivationHandler = null;
-      let welcomeCalloutActivationTimeoutId = null;
-      const welcomeCalloutActivationEvents = [
-        { type: 'pointerdown', options: { passive: true } },
-        { type: 'touchstart', options: { passive: true } },
-        { type: 'keydown', options: false },
-        { type: 'focusin', options: false },
-      ];
       let tutorialPromptTimeoutId = null;
       let tutorialPromptVisible = false;
       let tutorialInviteOpen = false;
@@ -1717,93 +1708,6 @@
         };
       }
 
-      function buildWelcomeCallout() {
-        if (!infoButton || !isElementVisible(infoButton)) {
-          return null;
-        }
-
-        const callout = createBasicCallout('Welcome to Ascend', [
-          'Explore the wall to discover climbs and track your progress.',
-          'Tap a route to study beta, log your ascent, and compare community grades.',
-        ]);
-
-        callout.setAttribute('role', 'status');
-        callout.tabIndex = 0;
-        callout.addEventListener('click', () => {
-          if (activeInfoCallout?.element === callout) {
-            clearInfoHighlights();
-          }
-        });
-
-        return {
-          target: infoButton,
-          element: callout,
-          options: { placement: 'bottom', offset: 12, margin: 20 },
-        };
-      }
-
-      function cancelScheduledWelcomeCallout() {
-        if (welcomeCalloutActivationTimeoutId !== null) {
-          window.clearTimeout(welcomeCalloutActivationTimeoutId);
-          welcomeCalloutActivationTimeoutId = null;
-        }
-
-        if (!welcomeCalloutActivationHandler) {
-          return;
-        }
-
-        welcomeCalloutActivationEvents.forEach(({ type, options }) => {
-          window.removeEventListener(type, welcomeCalloutActivationHandler, options);
-        });
-
-        welcomeCalloutActivationHandler = null;
-      }
-
-      function scheduleWelcomeCallout() {
-        if (hasShownWelcomeCallout || infoModeActive || welcomeCalloutActivationHandler) {
-          return;
-        }
-
-        welcomeCalloutActivationHandler = () => {
-          cancelScheduledWelcomeCallout();
-
-          if (hasShownWelcomeCallout || infoModeActive) {
-            return;
-          }
-
-          welcomeCalloutActivationTimeoutId = window.setTimeout(() => {
-            welcomeCalloutActivationTimeoutId = null;
-
-            if (!hasShownWelcomeCallout && !infoModeActive) {
-              showWelcomeCallout();
-            }
-          }, 400);
-        };
-
-        welcomeCalloutActivationEvents.forEach(({ type, options }) => {
-          window.addEventListener(type, welcomeCalloutActivationHandler, options);
-        });
-      }
-
-      function showWelcomeCallout() {
-        cancelScheduledWelcomeCallout();
-
-        if (hasShownWelcomeCallout || infoModeActive) {
-          return;
-        }
-
-        const entry = buildWelcomeCallout();
-        if (!entry) {
-          return;
-        }
-
-        hasShownWelcomeCallout = true;
-
-        requestAnimationFrame(() => {
-          showTemporaryInfoCallout(entry, 11000);
-        });
-      }
-
       function positionCallout(entry) {
         if (!entry?.target || !entry?.element) {
           return;
@@ -1923,7 +1827,6 @@
       }
 
       function activateInfoMode() {
-        cancelScheduledWelcomeCallout();
         infoModeActive = true;
         awaitingInfoTargetSelection = true;
         setInfoButtonActiveState(true);
@@ -1952,9 +1855,6 @@
           clearInfoHighlights();
         }
 
-        if (!hasShownWelcomeCallout) {
-          scheduleWelcomeCallout();
-        }
       }
 
       function toggleInfoMode() {
@@ -3441,12 +3341,9 @@
         routeGrades.clear();
         userAscentDetails = new Map();
         routeMedianGrades = new Map();
-        hasShownWelcomeCallout = false;
-        cancelScheduledWelcomeCallout();
         hideTooltip({ force: true });
 
         await loadRoutes();
-        scheduleWelcomeCallout();
       }
 
       function clearTutorialPromptTimer() {
@@ -4249,12 +4146,8 @@
           updateNavigationForRole(role);
           appContent.classList.remove('hidden');
 
-          try {
-            await loadAscents({ userId: user.uid, username: currentUsername });
-            await loadRoutes();
-          } finally {
-            scheduleWelcomeCallout();
-          }
+          await loadAscents({ userId: user.uid, username: currentUsername });
+          await loadRoutes();
 
           return;
         }

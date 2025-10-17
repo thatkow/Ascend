@@ -1628,18 +1628,6 @@
     const wallVisibilityToggleWrapper = document.getElementById('wallVisibilityToggleWrapper');
     const wallVisibilityToggle = document.getElementById('wallVisibilityToggle');
 
-    let welcomeCalloutElement = null;
-    let welcomeCalloutTimer = null;
-    let hasShownWelcomeCallout = false;
-    let pendingWelcomeCalloutFrame = null;
-    let welcomeCalloutActivationHandler = null;
-    let welcomeCalloutActivationTimeoutId = null;
-    const welcomeCalloutActivationEvents = [
-      { type: 'pointerdown', options: { passive: true } },
-      { type: 'touchstart', options: { passive: true } },
-      { type: 'keydown', options: false },
-      { type: 'focusin', options: false },
-    ];
     let isUpdatingWallVisibility = false;
 
     const LOCATIONS = [
@@ -2298,7 +2286,6 @@
         }
       }
 
-      scheduleWelcomeCalloutReposition();
     };
 
     const updateDrawingToggle = () => {
@@ -2327,179 +2314,6 @@
       }
       isDrawingEnabled = next;
       updateDrawingToggle();
-    }
-
-    function ensureWelcomeCalloutElement() {
-      if (welcomeCalloutElement) {
-        return welcomeCalloutElement;
-      }
-
-      const callout = document.createElement('div');
-      callout.className = 'welcome-callout';
-      callout.dataset.arrow = 'top';
-      callout.setAttribute('role', 'status');
-      callout.tabIndex = 0;
-
-      const heading = document.createElement('strong');
-      heading.textContent = 'Welcome setter';
-      callout.appendChild(heading);
-
-      const summary = document.createElement('p');
-      summary.textContent = 'Build and manage climbs from this workspace.';
-      callout.appendChild(summary);
-
-      const guidance = document.createElement('p');
-      guidance.textContent =
-        'Draw routes, fine-tune appearance, and publish updates so climbers see the latest beta.';
-      callout.appendChild(guidance);
-
-      callout.addEventListener('click', (event) => {
-        event.stopPropagation();
-        dismissWelcomeCallout();
-      });
-
-      welcomeCalloutElement = callout;
-      return welcomeCalloutElement;
-    }
-
-    function dismissWelcomeCallout() {
-      cancelScheduledWelcomeCallout();
-
-      if (pendingWelcomeCalloutFrame) {
-        cancelAnimationFrame(pendingWelcomeCalloutFrame);
-        pendingWelcomeCalloutFrame = null;
-      }
-
-      if (welcomeCalloutTimer) {
-        clearTimeout(welcomeCalloutTimer);
-        welcomeCalloutTimer = null;
-      }
-
-      if (welcomeCalloutElement?.parentElement) {
-        welcomeCalloutElement.parentElement.removeChild(welcomeCalloutElement);
-      }
-    }
-
-    function positionWelcomeCallout() {
-      if (!welcomeCalloutElement || !welcomeCalloutElement.isConnected || !infoButton) {
-        return;
-      }
-
-      const targetRect = infoButton.getBoundingClientRect();
-      if (targetRect.width === 0 && targetRect.height === 0) {
-        welcomeCalloutElement.style.opacity = '0';
-        return;
-      }
-
-      welcomeCalloutElement.style.opacity = '1';
-      welcomeCalloutElement.dataset.arrow = 'top';
-
-      const offset = 12;
-      const margin = 16;
-      const targetCenter = targetRect.left + targetRect.width / 2;
-
-      welcomeCalloutElement.style.top = `${targetRect.bottom + offset}px`;
-      welcomeCalloutElement.style.left = `${targetCenter}px`;
-      welcomeCalloutElement.style.transform = 'translate(-50%, 0)';
-
-      const calloutRect = welcomeCalloutElement.getBoundingClientRect();
-      const minCenter = margin + calloutRect.width / 2;
-      const maxCenter = window.innerWidth - margin - calloutRect.width / 2;
-      const clampedCenter = clamp(targetCenter, minCenter, maxCenter);
-      welcomeCalloutElement.style.left = `${clampedCenter}px`;
-
-      const updatedRect = welcomeCalloutElement.getBoundingClientRect();
-      const arrowOffset = clamp(targetCenter - updatedRect.left, 12, updatedRect.width - 12);
-      welcomeCalloutElement.style.setProperty('--callout-arrow-offset', `${arrowOffset}px`);
-    }
-
-    function scheduleWelcomeCalloutReposition() {
-      if (!welcomeCalloutElement || !welcomeCalloutElement.isConnected) {
-        return;
-      }
-
-      if (pendingWelcomeCalloutFrame) {
-        cancelAnimationFrame(pendingWelcomeCalloutFrame);
-      }
-
-      pendingWelcomeCalloutFrame = requestAnimationFrame(() => {
-        pendingWelcomeCalloutFrame = null;
-        positionWelcomeCallout();
-      });
-    }
-
-    function cancelScheduledWelcomeCallout() {
-      if (welcomeCalloutActivationTimeoutId !== null) {
-        window.clearTimeout(welcomeCalloutActivationTimeoutId);
-        welcomeCalloutActivationTimeoutId = null;
-      }
-
-      if (!welcomeCalloutActivationHandler) {
-        return;
-      }
-
-      welcomeCalloutActivationEvents.forEach(({ type, options }) => {
-        window.removeEventListener(type, welcomeCalloutActivationHandler, options);
-      });
-
-      welcomeCalloutActivationHandler = null;
-    }
-
-    function scheduleWelcomeCallout() {
-      if (hasShownWelcomeCallout || infoModeActive || welcomeCalloutActivationHandler) {
-        return;
-      }
-
-      welcomeCalloutActivationHandler = () => {
-        cancelScheduledWelcomeCallout();
-
-        if (hasShownWelcomeCallout || infoModeActive) {
-          return;
-        }
-
-        welcomeCalloutActivationTimeoutId = window.setTimeout(() => {
-          welcomeCalloutActivationTimeoutId = null;
-
-          if (!hasShownWelcomeCallout && !infoModeActive) {
-            showWelcomeCallout();
-          }
-        }, 400);
-      };
-
-      welcomeCalloutActivationEvents.forEach(({ type, options }) => {
-        window.addEventListener(type, welcomeCalloutActivationHandler, options);
-      });
-    }
-
-    function showWelcomeCallout() {
-      cancelScheduledWelcomeCallout();
-
-      if (hasShownWelcomeCallout || infoModeActive || !infoButton) {
-        return;
-      }
-
-      const callout = ensureWelcomeCalloutElement();
-      if (!callout) {
-        return;
-      }
-
-      hasShownWelcomeCallout = true;
-
-      if (!document.body.contains(callout)) {
-        document.body.appendChild(callout);
-      }
-
-      positionWelcomeCallout();
-      requestAnimationFrame(positionWelcomeCallout);
-
-      if (welcomeCalloutTimer) {
-        clearTimeout(welcomeCalloutTimer);
-      }
-
-      welcomeCalloutTimer = window.setTimeout(() => {
-        welcomeCalloutTimer = null;
-        dismissWelcomeCallout();
-      }, 11000);
     }
 
     function registerHelpTargets(root = document) {
@@ -2662,9 +2476,6 @@
         return;
       }
 
-      cancelScheduledWelcomeCallout();
-      dismissWelcomeCallout();
-
       infoModeActive = true;
       awaitingHelpTargetSelection = true;
       clearActiveHelpTooltip();
@@ -2684,10 +2495,6 @@
 
       if (clearTooltip) {
         clearActiveHelpTooltip();
-      }
-
-      if (!hasShownWelcomeCallout) {
-        scheduleWelcomeCallout();
       }
     }
 
@@ -3801,9 +3608,6 @@
       }
     }
 
-    window.addEventListener('resize', scheduleWelcomeCalloutReposition);
-    window.addEventListener('scroll', scheduleWelcomeCalloutReposition, true);
-
     if (panelToggleButton) {
       panelToggleButton.addEventListener('click', () => {
         const isExpanded = controlPanel?.getAttribute('data-expanded') !== 'false';
@@ -3827,22 +3631,6 @@
         event.stopPropagation();
       });
     }
-
-    document.addEventListener(
-      'pointerdown',
-      (event) => {
-        if (!welcomeCalloutElement || !welcomeCalloutElement.isConnected) {
-          return;
-        }
-
-        if (welcomeCalloutElement.contains(event.target)) {
-          return;
-        }
-
-        dismissWelcomeCallout();
-      },
-      true,
-    );
 
     document.addEventListener(
       'click',
@@ -3876,8 +3664,6 @@
 
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
-        dismissWelcomeCallout();
-
         if (infoModeActive) {
           deactivateInfoMode({ clearTooltip: true });
           if (infoButton) {
@@ -6700,8 +6486,6 @@
       clearStatus();
       setRoleControlsEnabled(false);
       resetRoleManagementUI('Setter access required to manage roles.');
-      dismissWelcomeCallout();
-      hasShownWelcomeCallout = false;
     }
 
     function handleAuthorized() {
@@ -6742,8 +6526,6 @@
 
         handleAuthorized();
 
-        scheduleWelcomeCallout();
-
         try {
           await loadRoutesList(currentRouteKey);
           if (currentRouteKey && routesCache.has(currentRouteKey)) {
@@ -6768,8 +6550,6 @@
         setRoleControlsEnabled(false);
         resetRoleManagementUI();
         setAuthMode('login');
-        dismissWelcomeCallout();
-        hasShownWelcomeCallout = false;
       }
     });
 
