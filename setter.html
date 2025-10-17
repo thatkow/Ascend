@@ -1632,6 +1632,14 @@
                   <span class="button-label">Climber View</span>
                 </button>
                 <button
+                  id="personalDashboardButton"
+                  class="global-action-button"
+                  type="button"
+                  data-help-text="Jump to your personal dashboard to review ascents and progress."
+                >
+                  <span class="button-label">Personal Dashboard</span>
+                </button>
+                <button
                   id="signOutButton"
                   class="global-action-button"
                   type="button"
@@ -1855,6 +1863,7 @@
     const infoButton = document.getElementById('infoButton');
     const infoPopover = document.getElementById('infoPopover');
     const climberViewButton = document.getElementById('climberViewButton');
+    const personalDashboardButton = document.getElementById('personalDashboardButton');
     const previewLink = document.getElementById('previewLink');
     const previewLinkBaseHref = previewLink?.getAttribute('href') || 'index.html';
     const climberViewBaseHref = 'index.html';
@@ -5010,6 +5019,12 @@
         const targetHref = buildWallAwareHref(climberViewBaseHref, activeKey);
         const destination = targetHref || climberViewTargetHref || climberViewBaseHref;
         window.location.href = destination;
+      });
+    }
+
+    if (personalDashboardButton) {
+      personalDashboardButton.addEventListener('click', () => {
+        window.location.href = 'personal.html';
       });
     }
 
