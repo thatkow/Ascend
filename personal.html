@@ -54,205 +54,6 @@
         -webkit-overflow-scrolling: touch;
       }
 
-      .tutorial-prompt {
-        position: fixed;
-        left: 50%;
-        bottom: 1.5rem;
-        transform: translate(-50%, 0);
-        width: 3.5rem;
-        height: 3.5rem;
-        border-radius: 50%;
-        border: none;
-        background-color: rgba(126, 217, 87, 0.95);
-        background-image: linear-gradient(135deg, rgba(126, 217, 87, 0.95), rgba(63, 142, 45, 0.95));
-        color: #0b1a05;
-        font-size: 1.75rem;
-        font-weight: 700;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
-        z-index: 20;
-        animation: tutorial-bounce 1.2s ease-in-out infinite;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-      }
-
-      .tutorial-prompt:hover,
-      .tutorial-prompt:focus-visible {
-        transform: translate(-50%, -6px) scale(1.02);
-        box-shadow: 0 22px 48px rgba(0, 0, 0, 0.55);
-        outline: none;
-      }
-
-      .tutorial-prompt:focus-visible {
-        box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.45), 0 22px 48px rgba(0, 0, 0, 0.55);
-      }
-
-      @keyframes tutorial-bounce {
-        0%,
-        100% {
-          transform: translate(-50%, 0);
-          background-color: rgba(126, 217, 87, 0.95);
-          background-image: linear-gradient(
-            135deg,
-            rgba(126, 217, 87, 0.95),
-            rgba(63, 142, 45, 0.95)
-          );
-        }
-        50% {
-          transform: translate(-50%, calc(-200% / 3));
-          background-color: #ff8c42;
-          background-image: none;
-        }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        .tutorial-prompt {
-          animation: none;
-        }
-      }
-
-      .tutorial-overlay {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 1.5rem;
-        background: rgba(8, 12, 9, 0);
-        z-index: 30;
-      }
-
-      .tutorial-overlay.is-bottom-aligned {
-        align-items: flex-end;
-      }
-
-      .tutorial-overlay.is-bottom-aligned .tutorial-card {
-        margin-bottom: clamp(1.5rem, 8vh, 4rem);
-      }
-
-      .tutorial-card {
-        width: min(520px, 100%);
-        background: rgba(12, 18, 15, 0.95);
-        border-radius: 1rem;
-        padding: 1.75rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1.15rem;
-        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55);
-        border: 1px solid rgba(126, 217, 87, 0.2);
-      }
-
-      .tutorial-progress {
-        font-size: 0.85rem;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: rgba(126, 217, 87, 0.8);
-      }
-
-      .tutorial-title {
-        font-size: 1.35rem;
-        font-weight: 700;
-        line-height: 1.3;
-      }
-
-      .tutorial-description {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-        color: rgba(248, 250, 252, 0.92);
-        font-size: 0.98rem;
-        line-height: 1.55;
-      }
-
-      .tutorial-description p {
-        margin: 0;
-      }
-
-      .tutorial-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        justify-content: flex-end;
-      }
-
-      .tutorial-button {
-        border-radius: 999px;
-        border: none;
-        padding: 0.65rem 1.4rem;
-        font-size: 0.95rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
-          color 0.2s ease, border-color 0.2s ease;
-      }
-
-      .tutorial-primary {
-        background: #7ed957;
-        color: #0c1a07;
-        box-shadow: 0 12px 22px rgba(126, 217, 87, 0.3);
-      }
-
-      .tutorial-primary:hover,
-      .tutorial-primary:focus-visible {
-        transform: translateY(-1px);
-        box-shadow: 0 18px 30px rgba(126, 217, 87, 0.35);
-        outline: none;
-      }
-
-      .tutorial-secondary {
-        background: transparent;
-        color: rgba(248, 250, 252, 0.9);
-        border: 1px solid rgba(248, 250, 252, 0.3);
-      }
-
-      .tutorial-secondary:hover,
-      .tutorial-secondary:focus-visible {
-        transform: translateY(-1px);
-        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
-        outline: none;
-        border-color: rgba(248, 250, 252, 0.6);
-      }
-
-      .tutorial-highlight {
-        box-shadow: 0 0 0 5px rgba(126, 217, 87, 0.75), 0 0 26px rgba(126, 217, 87, 0.6);
-      }
-
-      .tutorial-illuminated {
-        animation: tutorial-illuminate 1.2s ease-in-out infinite;
-        box-shadow: 0 0 0 7px rgba(126, 217, 87, 0.85), 0 0 36px rgba(126, 217, 87, 0.7);
-      }
-
-      @keyframes tutorial-illuminate {
-        0%,
-        100% {
-          box-shadow: 0 0 0 6px rgba(126, 217, 87, 0.7), 0 0 28px rgba(126, 217, 87, 0.55);
-        }
-        50% {
-          box-shadow: 0 0 0 10px rgba(255, 140, 66, 0.85), 0 0 42px rgba(255, 140, 66, 0.75);
-        }
-      }
-
-      .tutorial-route-pulse {
-        animation: tutorial-route-pulse 1.8s ease-in-out infinite;
-      }
-
-      @keyframes tutorial-route-pulse {
-        0%,
-        100% {
-          filter: brightness(1);
-        }
-        50% {
-          filter: brightness(1.35);
-        }
-      }
-
-      .is-tutorial-disabled {
-        pointer-events: none !important;
-        opacity: 0.55 !important;
-      }
-
       canvas {
         display: block;
         height: 100%;
@@ -732,16 +533,16 @@
         backdrop-filter: blur(6px);
       }
 
-      .login-link {
-        background: linear-gradient(135deg, rgba(126, 217, 87, 0.85), rgba(126, 217, 87, 0.55));
-        color: #0f1a08;
-        border-color: rgba(183, 244, 153, 0.65);
+      .sign-out {
+        background: linear-gradient(135deg, rgba(255, 116, 116, 0.85), rgba(255, 116, 116, 0.55));
+        color: #2d0a0a;
+        border-color: rgba(255, 180, 180, 0.65);
       }
 
-      .login-link:hover,
-      .login-link:focus-visible {
-        border-color: rgba(206, 248, 178, 0.9);
-        background: linear-gradient(135deg, rgba(126, 217, 87, 0.95), rgba(126, 217, 87, 0.65));
+      .sign-out:hover,
+      .sign-out:focus-visible {
+        border-color: rgba(255, 200, 200, 0.85);
+        background: linear-gradient(135deg, rgba(255, 116, 116, 0.95), rgba(255, 116, 116, 0.65));
       }
 
       .info-popover {
@@ -874,9 +675,9 @@
         box-shadow: 0 14px 28px rgba(255, 255, 255, 0.35);
       }
 
-      .login-link {
-        background: linear-gradient(135deg, rgba(126, 217, 87, 0.85), rgba(126, 217, 87, 0.6));
-        border-color: rgba(183, 244, 153, 0.7);
+      .sign-out {
+        background: linear-gradient(135deg, rgba(220, 38, 38, 0.85), rgba(153, 27, 27, 0.65));
+        border-color: rgba(248, 113, 113, 0.75);
       }
 
       .route-tooltip {
@@ -1132,14 +933,7 @@
     </style>
   </head>
   <body>
-    <div
-      id="authOverlay"
-      class="auth-overlay hidden"
-      role="dialog"
-      aria-modal="true"
-      aria-hidden="true"
-      aria-labelledby="authTitle"
-    >
+    <div id="authOverlay" class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <form id="authForm" class="auth-card">
         <h1 id="authTitle">Sign in to continue</h1>
         <label class="auth-field">
@@ -1158,7 +952,7 @@
         </p>
       </form>
     </div>
-    <div id="appContent" class="app" aria-live="polite">
+    <div id="appContent" class="app hidden" aria-live="polite">
       <div class="info-wrapper">
         <button
           id="infoButton"
@@ -1217,6 +1011,41 @@
           </span>
         </button>
         <button
+          id="progressionButton"
+          class="header-icon-button progression-button"
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-label="View progression"
+          title="View progression"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 4a1 1 0 0 1 1-1h1.5a1 1 0 0 1 0 2H6v14h15v2H5a1 1 0 0 1-1-1V4Z" fill="currentColor" />
+            <path
+              d="m10.2 12.8 2.3 2.3 5.2-5.2a1 1 0 0 1 1.4 1.4l-5.9 5.9a1 1 0 0 1-1.4 0l-3-3a1 1 0 0 1 1.4-1.4Z"
+              fill="currentColor"
+            />
+          </svg>
+        </button>
+        <a
+          id="setterLink"
+          class="header-icon-button setter-link hidden"
+          href="setter.html"
+          aria-label="Open setter tools"
+          title="Open setter tools"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M10.5 4.5a3 3 0 0 1 3.87 2.88l3.13 3.12-2.12 2.13-3.13-3.13a3 3 0 1 1-4.75-3.44l2.12 2.12 1.41-1.41Z"
+              fill="currentColor"
+            />
+            <path
+              d="M6.34 14.34 9.66 17.66a2 2 0 0 1 0 2.83l-.83.83a2 2 0 0 1-2.83 0L2.68 17.2a1 1 0 0 1 0-1.41l2.25-2.25a1 1 0 0 1 1.41 0Z"
+              fill="currentColor"
+            />
+          </svg>
+        </a>
+        <button
           id="locationButton"
           class="header-icon-button walls-button"
           type="button"
@@ -1231,67 +1060,23 @@
             />
           </svg>
         </button>
-        <a
-          id="loginButton"
-          class="header-icon-button login-link"
-          href="personal.html"
-          aria-label="Log in"
-          title="Log in"
+        <button
+          id="signOutButton"
+          class="header-icon-button sign-out"
+          type="button"
+          aria-label="Sign out"
+          title="Sign out"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path
-              d="M11 4a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-3h2v2h5V5h-5v2h-2V4Z"
-              fill="currentColor"
-            />
-            <path
-              d="m5.7 11.3 2.3-2.3 1.4 1.4L8.83 11H14v2H8.83l0.57 0.59-1.4 1.41-2.3-2.3a1 1 0 0 1 0-1.4Z"
+              d="M13 4a1 1 0 0 1 1-1h6v18h-6a1 1 0 0 1-1-1V4Zm-2.29 4.29 1.42 1.42L9.83 12l2.3 2.29-1.42 1.42L6 12l4.71-3.71Z"
               fill="currentColor"
             />
           </svg>
-        </a>
+        </button>
       </header>
       <div class="canvas-container">
         <canvas id="previewCanvas" aria-hidden="true"></canvas>
-      </div>
-    </div>
-    <button
-      id="tutorialPromptButton"
-      class="tutorial-prompt hidden"
-      type="button"
-      aria-label="Open tutorial"
-      aria-hidden="true"
-      title="Show a quick tour"
-      data-tutorial-exempt="true"
-    >
-      ?
-    </button>
-    <div
-      id="tutorialOverlay"
-      class="tutorial-overlay hidden"
-      role="dialog"
-      aria-modal="true"
-      aria-hidden="true"
-      aria-labelledby="tutorialTitle"
-      aria-describedby="tutorialDescription"
-    >
-      <div id="tutorialDialogCard" class="tutorial-card" role="document" tabindex="-1">
-        <div id="tutorialProgress" class="tutorial-progress hidden" aria-live="polite"></div>
-        <h2 id="tutorialTitle" class="tutorial-title"></h2>
-        <div id="tutorialDescription" class="tutorial-description"></div>
-        <div class="tutorial-actions">
-          <button
-            id="tutorialSecondaryAction"
-            class="tutorial-button tutorial-secondary hidden"
-            type="button"
-            data-tutorial-exempt="true"
-          ></button>
-          <button
-            id="tutorialPrimaryAction"
-            class="tutorial-button tutorial-primary"
-            type="button"
-            data-tutorial-exempt="true"
-          ></button>
-        </div>
       </div>
     </div>
     <div
@@ -1301,6 +1086,34 @@
       aria-live="polite"
       aria-hidden="true"
     ></div>
+    <div
+      id="progressionModal"
+      class="progression-modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-hidden="true"
+      aria-labelledby="progressionModalTitle"
+    >
+      <div class="progression-modal-content">
+        <div class="progression-modal-header">
+          <h2 id="progressionModalTitle" class="progression-modal-title">Progression</h2>
+          <button
+            id="progressionModalClose"
+            class="progression-modal-close"
+            type="button"
+            aria-label="Close progression"
+            title="Close progression"
+          >
+            ×
+          </button>
+        </div>
+        <p class="progression-description">
+          Track your climbs at a glance. Routes are sorted by their grade number with ascended climbs
+          highlighted.
+        </p>
+        <div id="progressionList" class="progression-list" role="list"></div>
+      </div>
+    </div>
     <div
       id="locationModal"
       class="location-modal hidden"
@@ -1359,7 +1172,7 @@
       const authTitle = document.getElementById('authTitle');
       const authSwitchLabel = document.getElementById('authSwitchLabel');
       const toggleAuthModeButton = document.getElementById('toggleAuthMode');
-      const loginButton = document.getElementById('loginButton');
+      const signOutButton = document.getElementById('signOutButton');
       const setterLink = document.getElementById('setterLink');
       const setterLinkBaseHref = setterLink?.getAttribute('href') || 'setter.html';
       const tooltip = document.getElementById('routeTooltip');
@@ -1374,14 +1187,6 @@
       const progressionModal = document.getElementById('progressionModal');
       const progressionModalClose = document.getElementById('progressionModalClose');
       const progressionList = document.getElementById('progressionList');
-      const tutorialPromptButton = document.getElementById('tutorialPromptButton');
-      const tutorialOverlay = document.getElementById('tutorialOverlay');
-      const tutorialDialogCard = document.getElementById('tutorialDialogCard');
-      const tutorialTitle = document.getElementById('tutorialTitle');
-      const tutorialDescription = document.getElementById('tutorialDescription');
-      const tutorialPrimaryAction = document.getElementById('tutorialPrimaryAction');
-      const tutorialSecondaryAction = document.getElementById('tutorialSecondaryAction');
-      const tutorialProgress = document.getElementById('tutorialProgress');
 
       let infoHighlightsContainer = null;
       let infoModeActive = false;
@@ -1390,20 +1195,6 @@
       let pendingInfoRepositionFrame = null;
       let ephemeralCalloutDismissTimer = null;
       let hasShownWelcomeCallout = false;
-      let tutorialPromptTimeoutId = null;
-      let tutorialPromptVisible = false;
-      let tutorialInviteOpen = false;
-      let tutorialActive = false;
-      let tutorialCompleted = false;
-      let tutorialStepIndex = -1;
-      let tutorialTransitionInProgress = false;
-      let tutorialHighlightedRouteId = null;
-      let tutorialHighlightedElement = null;
-      let tutorialHighlightedElementOptions = { illuminate: false };
-      let tutorialPreviousFocus = null;
-      let tutorialOverlayMode = 'hidden';
-      let tutorialLastActivityTimestamp = 0;
-      let tutorialPreviousViewMode = null;
 
       const LOCATIONS = [
         { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
@@ -1416,6 +1207,18 @@
 
       const LOCATION_STORAGE_KEY = 'ascend.selectedWall';
       const WALL_QUERY_PARAM = 'wall';
+
+      async function signOutAndRedirectToIndex() {
+        try {
+          await signOut(auth);
+        } catch (error) {
+          console.error('Failed to sign out:', error);
+          return false;
+        }
+
+        window.location.href = 'index.html';
+        return true;
+      }
 
       function ensureInfoHighlightsContainer() {
         if (infoHighlightsContainer && document.body?.contains(infoHighlightsContainer)) {
@@ -1592,17 +1395,17 @@
         };
       }
 
-      function buildLoginCallout() {
-        if (!loginButton || !isElementVisible(loginButton)) {
+      function buildSignOutCallout() {
+        if (!signOutButton || !isElementVisible(signOutButton)) {
           return null;
         }
 
-        const callout = createBasicCallout('Log in', [
-          'Visit your personal dashboard to sign in or manage ascents.',
+        const callout = createBasicCallout('Sign out', [
+          'Log out of Ascend and return to the sign-in screen.',
         ]);
 
         return {
-          target: loginButton,
+          target: signOutButton,
           element: callout,
           options: { placement: 'bottom', offset: 14 },
         };
@@ -1895,8 +1698,8 @@
           case 'progression':
             entry = buildProgressionCallout();
             break;
-          case 'log-in':
-            entry = buildLoginCallout();
+          case 'sign-out':
+            entry = buildSignOutCallout();
             break;
           case 'route-ascent':
             entry = buildRouteAscentCallout(context);
@@ -2561,7 +2364,10 @@
 
           const label = document.createElement('span');
           label.className = 'location-option-label';
-          label.textContent = location.name;
+          const name = document.createElement('span');
+          name.className = 'location-option-name';
+          name.textContent = location.name;
+          label.appendChild(name);
           button.appendChild(label);
 
           button.addEventListener('click', () => {
@@ -3177,15 +2983,15 @@
         }
       });
 
-      if (loginButton) {
-        loginButton.addEventListener('click', (event) => {
-          if (handleInfoRequestFor('log-in', event)) {
+      if (signOutButton) {
+        signOutButton.addEventListener('click', async (event) => {
+          if (handleInfoRequestFor('sign-out', event)) {
             return;
           }
-          if (activeInfoCallout?.target === loginButton) {
+          if (activeInfoCallout?.target === signOutButton) {
             clearInfoHighlights();
           }
-          // Allow default navigation to the personal dashboard.
+          await signOutAndRedirectToIndex();
         });
       }
 
@@ -3292,721 +3098,23 @@
         }
       }
 
-      function updateNavigationForRole(role) {
-        updateSetterLinkHref();
-        if (!setterLink) {
-          return;
-        }
-
-        const shouldHideSetterLink = role !== 'setter';
-        setterLink.classList.toggle('hidden', shouldHideSetterLink);
-
-        if (shouldHideSetterLink && activeInfoCallout?.target === setterLink) {
-          clearInfoHighlights();
-        }
-      }
-
-      async function presentGuestExperience() {
-        if (authOverlay) {
-          authOverlay.classList.add('hidden');
-          authOverlay.setAttribute('aria-hidden', 'true');
-        }
-
-        appContent.classList.remove('hidden');
-        updateNavigationForRole('default');
-
-        if (setterLink) {
-          setterLink.classList.add('hidden');
-        }
-
-        if (infoModeActive) {
-          deactivateInfoMode({ clearCallout: true });
-        } else if (activeInfoCallout) {
-          clearInfoHighlights();
-        }
-
-        authForm?.reset();
-        if (authError) {
-          authError.textContent = '';
-        }
-        setAuthMode('login');
-
-        focusedRouteId = null;
-        currentUser = null;
-        currentUsername = '';
-        authenticatedUsernameClaim = '';
-        ascendedRoutes.clear();
-        routeGrades.clear();
-        userAscentDetails = new Map();
-        routeMedianGrades = new Map();
-        hasShownWelcomeCallout = false;
-        hideTooltip({ force: true });
-
-        await loadRoutes();
-      }
-
-      function clearTutorialPromptTimer() {
-        if (tutorialPromptTimeoutId !== null) {
-          clearTimeout(tutorialPromptTimeoutId);
-          tutorialPromptTimeoutId = null;
-        }
-      }
-
-      function showTutorialPrompt() {
-        clearTutorialPromptTimer();
-
-        if (!tutorialPromptButton || tutorialPromptVisible || tutorialActive || tutorialInviteOpen || tutorialCompleted) {
-          return;
-        }
-
-        tutorialPromptVisible = true;
-        tutorialPromptButton.classList.remove('hidden');
-        tutorialPromptButton.setAttribute('aria-hidden', 'false');
-        tutorialPromptTimeoutId = null;
-        resetTutorialInactivityTimer();
-      }
-
-      function hideTutorialPromptButton() {
-        if (!tutorialPromptButton) {
-          return;
-        }
-
-        tutorialPromptVisible = false;
-        tutorialPromptButton.classList.add('hidden');
-        tutorialPromptButton.setAttribute('aria-hidden', 'true');
-      }
-
-      function resetTutorialInactivityTimer() {
-        if (tutorialCompleted || tutorialActive || tutorialInviteOpen) {
-          return;
-        }
-
-        clearTutorialPromptTimer();
-        tutorialPromptTimeoutId = window.setTimeout(() => {
-          showTutorialPrompt();
-        }, 60000);
-      }
-
-      function registerTutorialActivity() {
-        if (tutorialCompleted || tutorialActive || tutorialInviteOpen) {
-          return;
-        }
-
-        const now = Date.now();
-        if (now - tutorialLastActivityTimestamp < 1000) {
-          return;
-        }
-
-        tutorialLastActivityTimestamp = now;
-
-        if (tutorialPromptVisible) {
-          return;
-        }
-
-        resetTutorialInactivityTimer();
-      }
-
-      function openTutorialOverlay() {
-        if (!tutorialOverlay || !tutorialDialogCard) {
-          return;
-        }
-
-        tutorialPreviousFocus =
-          document.activeElement instanceof HTMLElement ? document.activeElement : null;
-
-        tutorialOverlay.classList.remove('hidden');
-        tutorialOverlay.setAttribute('aria-hidden', 'false');
-
-        window.setTimeout(() => {
-          tutorialDialogCard.focus();
-        }, 0);
-      }
-
-      function closeTutorialOverlay() {
-        if (!tutorialOverlay) {
-          return;
-        }
-
-        tutorialOverlay.classList.add('hidden');
-        tutorialOverlay.setAttribute('aria-hidden', 'true');
-
-        if (tutorialPreviousFocus && typeof tutorialPreviousFocus.focus === 'function') {
-          tutorialPreviousFocus.focus();
-        }
-
-        tutorialPreviousFocus = null;
-      }
-
-      function setTutorialDescriptionContent(lines) {
-        if (!tutorialDescription) {
-          return;
-        }
-
-        tutorialDescription.innerHTML = '';
-
-        if (!Array.isArray(lines)) {
-          return;
-        }
-
-        const fragment = document.createDocumentFragment();
-
-        lines
-          .filter((line) => typeof line === 'string' && line.trim().length)
-          .forEach((line) => {
-            const paragraph = document.createElement('p');
-            paragraph.textContent = line.trim();
-            fragment.appendChild(paragraph);
-          });
-
-        tutorialDescription.appendChild(fragment);
-      }
-
-      function highlightTutorialElement(element, options = {}) {
-        const shouldIlluminate = options?.illuminate === true;
-
-        if (tutorialHighlightedElement) {
-          if (tutorialHighlightedElement !== element || !element) {
-            tutorialHighlightedElement.classList.remove('tutorial-highlight');
-            tutorialHighlightedElement.classList.remove('tutorial-illuminated');
-            tutorialHighlightedElementOptions = { illuminate: false };
-          } else if (tutorialHighlightedElementOptions.illuminate !== shouldIlluminate) {
-            tutorialHighlightedElement.classList.toggle('tutorial-illuminated', shouldIlluminate);
-            tutorialHighlightedElementOptions = { illuminate: shouldIlluminate };
-            return;
-          }
-        }
-
-        if (element && element.classList) {
-          element.classList.add('tutorial-highlight');
-          element.classList.toggle('tutorial-illuminated', shouldIlluminate);
-          tutorialHighlightedElement = element;
-          tutorialHighlightedElementOptions = { illuminate: shouldIlluminate };
-        } else {
-          tutorialHighlightedElement = null;
-          tutorialHighlightedElementOptions = { illuminate: false };
-        }
-      }
-
-      function disableInteractiveElementsForTutorial() {
-        const interactiveElements = document.querySelectorAll('button, a, [role="button"]');
-
-        interactiveElements.forEach((element) => {
-          if (!(element instanceof HTMLElement)) {
+        function updateNavigationForRole(role) {
+          updateSetterLinkHref();
+          if (!setterLink) {
             return;
           }
 
-          if (element.dataset.tutorialExempt === 'true') {
-            return;
-          }
+          const shouldHideSetterLink = role !== 'setter';
+          setterLink.classList.toggle('hidden', shouldHideSetterLink);
 
-          if (element instanceof HTMLButtonElement) {
-            element.dataset.tutorialWasDisabled = element.disabled ? 'true' : 'false';
-            element.disabled = true;
-          } else {
-            const alreadyDisabled = element.getAttribute('aria-disabled') === 'true';
-            element.dataset.tutorialWasDisabled = alreadyDisabled ? 'true' : 'false';
-            element.setAttribute('aria-disabled', 'true');
-          }
-
-          element.classList.add('is-tutorial-disabled');
-        });
-      }
-
-      function restoreInteractiveElementsAfterTutorial() {
-        const interactiveElements = document.querySelectorAll('button, a, [role="button"]');
-
-        interactiveElements.forEach((element) => {
-          if (!(element instanceof HTMLElement)) {
-            return;
-          }
-
-          if (element.dataset.tutorialExempt === 'true') {
-            return;
-          }
-
-          const wasDisabled = element.dataset.tutorialWasDisabled === 'true';
-
-          if (element instanceof HTMLButtonElement) {
-            if (!wasDisabled) {
-              element.disabled = false;
-            }
-          } else if (!wasDisabled) {
-            element.removeAttribute('aria-disabled');
-          }
-
-          element.classList.remove('is-tutorial-disabled');
-          delete element.dataset.tutorialWasDisabled;
-        });
-      }
-
-      async function ensureRoutesAvailableForTutorial() {
-        if (Array.isArray(routes) && routes.length) {
-          return routes;
-        }
-
-        if (Array.isArray(allRoutes) && allRoutes.length) {
-          return allRoutes;
-        }
-
-        try {
-          await loadRoutes();
-        } catch (error) {
-          console.warn('Unable to refresh routes for tutorial:', error);
-        }
-
-        if (Array.isArray(routes) && routes.length) {
-          return routes;
-        }
-
-        if (Array.isArray(allRoutes) && allRoutes.length) {
-          return allRoutes;
-        }
-
-        return [];
-      }
-
-      async function showTutorialRouteTooltip() {
-        const availableRoutes = await ensureRoutesAvailableForTutorial();
-        if (!Array.isArray(availableRoutes) || availableRoutes.length === 0) {
-          return;
-        }
-
-        const targetRoute = availableRoutes.find((route) => route && typeof route.id === 'string');
-        if (!targetRoute) {
-          return;
-        }
-
-        tutorialHighlightedRouteId = targetRoute.id;
-        focusRoute(targetRoute);
-        showTooltip(targetRoute, window.innerWidth / 2, window.innerHeight / 2, { pin: true });
-      }
-
-      function closeTutorialRouteTooltip() {
-        if (tutorialHighlightedRouteId) {
-          const targetRoute =
-            (Array.isArray(routes) ? routes : []).find((route) => route?.id === tutorialHighlightedRouteId) ||
-            (Array.isArray(allRoutes) ? allRoutes : []).find((route) => route?.id === tutorialHighlightedRouteId);
-
-          if (targetRoute) {
-            setRouteFocus(targetRoute, false);
-          } else if (focusedRouteId === tutorialHighlightedRouteId) {
-            focusedRouteId = null;
-            redraw();
+          if (shouldHideSetterLink && activeInfoCallout?.target === setterLink) {
+            clearInfoHighlights();
           }
         }
-
-        tutorialHighlightedRouteId = null;
-        hideTooltip({ force: true });
-      }
-
-      function setTutorialOverlayAlignment(alignment = 'center') {
-        if (!tutorialOverlay) {
-          return;
-        }
-
-        const shouldAlignBottom = alignment === 'bottom';
-        tutorialOverlay.classList.toggle('is-bottom-aligned', shouldAlignBottom);
-      }
-
-      function startTutorialRoutePulse() {
-        if (!canvas) {
-          return;
-        }
-
-        canvas.classList.add('tutorial-route-pulse');
-      }
-
-      function stopTutorialRoutePulse() {
-        if (!canvas) {
-          return;
-        }
-
-        canvas.classList.remove('tutorial-route-pulse');
-      }
-
-      const tutorialSteps = [
-        {
-          title: 'Welcome to Ascend',
-          body: [
-            'Ascend helps you explore the latest problems on the wall and stay up to date with the gym.',
-            'Use this public view to browse climbs and see what sets are available right now.',
-          ],
-          onEnter: () => {
-            setTutorialOverlayAlignment('center');
-            highlightTutorialElement(null);
-            hideTooltip({ force: true });
-          },
-          onExit: () => {
-            highlightTutorialElement(null);
-          },
-        },
-        {
-          title: 'Route details',
-          body: [
-            'Click any climb to open its tooltip for more information.',
-            'You\'ll see the setter, description, and consensus grade gathered from other climbers.',
-          ],
-          onEnter: async () => {
-            setTutorialOverlayAlignment('bottom');
-            highlightTutorialElement(null);
-            await showTutorialRouteTooltip();
-            if (tutorialHighlightedRouteId) {
-              startTutorialRoutePulse();
-            }
-          },
-          onExit: () => {
-            stopTutorialRoutePulse();
-            closeTutorialRouteTooltip();
-            setTutorialOverlayAlignment('center');
-          },
-        },
-        {
-          title: 'Show hold colors',
-          body: [
-            'Toggle the Show Hold Colors button to switch between route outlines and grade colors.',
-            'It\'s perfect when you want to scan the wall by difficulty at a glance.',
-          ],
-          onEnter: () => {
-            setTutorialOverlayAlignment('center');
-            if (viewToggleButton) {
-              tutorialPreviousViewMode = viewMode;
-              if (viewMode !== VIEW_MODE_GRADE_COLORS) {
-                setViewMode(VIEW_MODE_GRADE_COLORS);
-              }
-              highlightTutorialElement(viewToggleButton, { illuminate: true });
-            }
-          },
-          onExit: () => {
-            highlightTutorialElement(null);
-            if (tutorialPreviousViewMode && tutorialPreviousViewMode !== viewMode) {
-              setViewMode(tutorialPreviousViewMode);
-            }
-            tutorialPreviousViewMode = null;
-          },
-        },
-        {
-          title: 'Choose a wall',
-          body: [
-            'Use the wall selector to jump between different locations in the gym.',
-            'Each wall has its own background and set of climbs to explore.',
-          ],
-          onEnter: () => {
-            setTutorialOverlayAlignment('center');
-            if (locationButton) {
-              highlightTutorialElement(locationButton, { illuminate: true });
-            }
-          },
-          onExit: () => {
-            highlightTutorialElement(null);
-          },
-        },
-        {
-          title: 'Sign in to track progress',
-          body: [
-            'The Log in button takes you to the personal dashboard where you can create an account or sign in.',
-            'Members can record ascents and personal grades once they\'re logged in.',
-          ],
-          onEnter: () => {
-            setTutorialOverlayAlignment('center');
-            if (loginButton) {
-              highlightTutorialElement(loginButton, { illuminate: true });
-            }
-          },
-          onExit: () => {
-            highlightTutorialElement(null);
-          },
-        },
-        {
-          title: 'Need more info later?',
-          body: [
-            'Tap the info button to activate quick explanations for the controls around the screen.',
-            'It\'s a handy refresher whenever you want to revisit what each tool does.',
-          ],
-          onEnter: () => {
-            setTutorialOverlayAlignment('center');
-            if (infoButton) {
-              highlightTutorialElement(infoButton, { illuminate: true });
-            }
-          },
-          onExit: () => {
-            highlightTutorialElement(null);
-          },
-        },
-      ];
-
-      function renderTutorialStep() {
-        if (!tutorialActive) {
-          return;
-        }
-
-        const step = tutorialSteps[tutorialStepIndex];
-        if (!step) {
-          return;
-        }
-
-        if (tutorialTitle) {
-          tutorialTitle.textContent = step.title || '';
-        }
-
-        setTutorialDescriptionContent(step.body || []);
-
-        if (tutorialProgress) {
-          tutorialProgress.textContent = `Step ${tutorialStepIndex + 1} of ${tutorialSteps.length}`;
-          tutorialProgress.classList.toggle('hidden', tutorialSteps.length === 0);
-        }
-
-        if (tutorialPrimaryAction) {
-          tutorialPrimaryAction.textContent =
-            tutorialStepIndex === tutorialSteps.length - 1 ? 'Finish' : 'Next';
-        }
-
-        if (tutorialSecondaryAction) {
-          tutorialSecondaryAction.textContent = 'Back';
-          tutorialSecondaryAction.classList.toggle('hidden', tutorialStepIndex <= 0);
-        }
-      }
-
-      async function goToTutorialStep(index) {
-        if (!tutorialActive || tutorialTransitionInProgress) {
-          return;
-        }
-
-        if (index < 0 || index >= tutorialSteps.length) {
-          return;
-        }
-
-        tutorialTransitionInProgress = true;
-
-        if (tutorialStepIndex >= 0 && tutorialStepIndex < tutorialSteps.length) {
-          const currentStep = tutorialSteps[tutorialStepIndex];
-          if (currentStep && typeof currentStep.onExit === 'function') {
-            try {
-              await currentStep.onExit();
-            } catch (error) {
-              console.warn('Tutorial step cleanup failed:', error);
-            }
-          }
-        }
-
-        tutorialStepIndex = index;
-        tutorialOverlayMode = 'step';
-        renderTutorialStep();
-
-        const nextStep = tutorialSteps[tutorialStepIndex];
-        if (nextStep && typeof nextStep.onEnter === 'function') {
-          try {
-            await nextStep.onEnter();
-          } catch (error) {
-            console.warn('Tutorial step setup failed:', error);
-          }
-        }
-
-        tutorialTransitionInProgress = false;
-
-        if (tutorialPrimaryAction) {
-          tutorialPrimaryAction.focus();
-        }
-      }
-
-      function renderTutorialInvite() {
-        tutorialOverlayMode = 'invite';
-        tutorialInviteOpen = true;
-        tutorialActive = false;
-
-        if (tutorialProgress) {
-          tutorialProgress.classList.add('hidden');
-        }
-
-        highlightTutorialElement(null);
-        stopTutorialRoutePulse();
-        setTutorialOverlayAlignment('center');
-        closeTutorialRouteTooltip();
-
-        if (tutorialTitle) {
-          tutorialTitle.textContent = 'Need a quick tour?';
-        }
-
-        setTutorialDescriptionContent([
-          'It looks like you\'ve been away for a moment. Would you like a guided tour of the main controls?',
-          'You can always open it again later from the question mark button.',
-        ]);
-
-        if (tutorialPrimaryAction) {
-          tutorialPrimaryAction.textContent = 'Start tutorial';
-        }
-
-        if (tutorialSecondaryAction) {
-          tutorialSecondaryAction.textContent = 'Not now';
-          tutorialSecondaryAction.classList.remove('hidden');
-        }
-      }
-
-      async function startTutorial() {
-        if (tutorialActive) {
-          return;
-        }
-
-        tutorialInviteOpen = false;
-        tutorialOverlayMode = 'step';
-        tutorialActive = true;
-        tutorialStepIndex = -1;
-        tutorialCompleted = false;
-        tutorialTransitionInProgress = false;
-
-        if (tutorialProgress) {
-          tutorialProgress.classList.remove('hidden');
-        }
-
-        stopTutorialRoutePulse();
-        setTutorialOverlayAlignment('center');
-
-        hideTutorialPromptButton();
-        clearTutorialPromptTimer();
-        disableInteractiveElementsForTutorial();
-
-        await goToTutorialStep(0);
-      }
-
-      async function finishTutorial() {
-        if (!tutorialActive) {
-          return;
-        }
-
-        tutorialTransitionInProgress = true;
-
-        if (tutorialStepIndex >= 0 && tutorialStepIndex < tutorialSteps.length) {
-          const finalStep = tutorialSteps[tutorialStepIndex];
-          if (finalStep && typeof finalStep.onExit === 'function') {
-            try {
-              await finalStep.onExit();
-            } catch (error) {
-              console.warn('Tutorial completion cleanup failed:', error);
-            }
-          }
-        }
-
-        tutorialActive = false;
-        tutorialCompleted = true;
-        tutorialInviteOpen = false;
-        tutorialOverlayMode = 'hidden';
-        tutorialStepIndex = -1;
-        tutorialTransitionInProgress = false;
-
-        highlightTutorialElement(null);
-        closeTutorialRouteTooltip();
-        stopTutorialRoutePulse();
-        setTutorialOverlayAlignment('center');
-        restoreInteractiveElementsAfterTutorial();
-        hideTutorialPromptButton();
-
-        if (tutorialProgress) {
-          tutorialProgress.classList.add('hidden');
-        }
-
-        closeTutorialOverlay();
-        clearTutorialPromptTimer();
-      }
-
-      function declineTutorial() {
-        tutorialInviteOpen = false;
-        tutorialOverlayMode = 'hidden';
-        highlightTutorialElement(null);
-        closeTutorialRouteTooltip();
-        stopTutorialRoutePulse();
-        setTutorialOverlayAlignment('center');
-        closeTutorialOverlay();
-        hideTutorialPromptButton();
-        resetTutorialInactivityTimer();
-      }
-
-      async function handleTutorialPrimaryAction() {
-        if (tutorialOverlayMode === 'invite') {
-          await startTutorial();
-          return;
-        }
-
-        if (tutorialOverlayMode === 'step') {
-          if (tutorialTransitionInProgress) {
-            return;
-          }
-
-          if (tutorialStepIndex >= tutorialSteps.length - 1) {
-            await finishTutorial();
-          } else {
-            await goToTutorialStep(tutorialStepIndex + 1);
-          }
-        }
-      }
-
-      async function handleTutorialSecondaryAction() {
-        if (tutorialOverlayMode === 'invite') {
-          declineTutorial();
-          return;
-        }
-
-        if (tutorialOverlayMode === 'step') {
-          if (tutorialTransitionInProgress || tutorialStepIndex <= 0) {
-            return;
-          }
-
-          await goToTutorialStep(tutorialStepIndex - 1);
-        }
-      }
-
-      function setupTutorialInteractions() {
-        tutorialLastActivityTimestamp = Date.now();
-
-        showTutorialPrompt();
-
-        if (tutorialPromptButton) {
-          tutorialPromptButton.addEventListener('click', () => {
-            if (tutorialActive || tutorialInviteOpen || tutorialCompleted) {
-              return;
-            }
-
-            hideTutorialPromptButton();
-            clearTutorialPromptTimer();
-            renderTutorialInvite();
-            openTutorialOverlay();
-
-            if (tutorialPrimaryAction) {
-              tutorialPrimaryAction.focus();
-            }
-          });
-        }
-
-        if (tutorialPrimaryAction) {
-          tutorialPrimaryAction.addEventListener('click', () => {
-            void handleTutorialPrimaryAction();
-          });
-        }
-
-        if (tutorialSecondaryAction) {
-          tutorialSecondaryAction.addEventListener('click', () => {
-            void handleTutorialSecondaryAction();
-          });
-        }
-
-        const activityEvents = ['pointerdown', 'keydown', 'touchstart', 'mousemove'];
-        activityEvents.forEach((eventName) => {
-          document.addEventListener(
-            eventName,
-            () => {
-              registerTutorialActivity();
-            },
-            { passive: true },
-          );
-        });
-
-        resetTutorialInactivityTimer();
-      }
 
       onAuthStateChanged(auth, async (user) => {
-        if (user && !user.isAnonymous) {
-          if (authOverlay) {
-            authOverlay.classList.add('hidden');
-            authOverlay.setAttribute('aria-hidden', 'true');
-          }
+        if (user) {
+          authOverlay.classList.add('hidden');
 
           currentUser = user;
 
@@ -4014,7 +3122,7 @@
           if (!isValidUsername(resolvedUsername)) {
             authError.textContent =
               'Unable to resolve your username. Please contact a setter for assistance.';
-            await signOut(auth);
+            await signOutAndRedirectToIndex();
             return;
           }
 
@@ -4036,11 +3144,29 @@
           } finally {
             showWelcomeCallout();
           }
-
-          return;
+        } else {
+          authOverlay.classList.remove('hidden');
+          appContent.classList.add('hidden');
+          setterLink.classList.add('hidden');
+          if (infoModeActive) {
+            deactivateInfoMode({ clearCallout: true });
+          } else if (activeInfoCallout) {
+            clearInfoHighlights();
+          }
+          authForm.reset();
+          setAuthMode('login');
+          routes = [];
+          focusedRouteId = null;
+          currentUser = null;
+          currentUsername = '';
+          authenticatedUsernameClaim = '';
+          ascendedRoutes.clear();
+          routeGrades.clear();
+          routeMedianGrades = new Map();
+          hasShownWelcomeCallout = false;
+          hideTooltip({ force: true });
+          redraw();
         }
-
-        await presentGuestExperience();
       });
 
       setAuthMode('login');
@@ -4836,6 +3962,21 @@
           return actionsContainer;
         };
 
+        if (currentUser) {
+          const actionButton = document.createElement('button');
+          actionButton.type = 'button';
+          actionButton.className = 'tooltip-action-button ascend-toggle';
+          actionButton.setAttribute('aria-pressed', isAscended ? 'true' : 'false');
+          actionButton.textContent = isAscended ? 'Ascended' : 'Not ascended';
+          actionButton.dataset.infoTarget = 'route-ascent';
+          actionButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleRouteAscent(route);
+          });
+          ensureActionsContainer().appendChild(actionButton);
+        }
+
         const focusButton = document.createElement('button');
         focusButton.type = 'button';
         focusButton.className = 'tooltip-action-button focus-toggle';
@@ -4858,6 +3999,7 @@
           fragment.appendChild(actionsContainer);
         }
         ariaLines.push(`Grade: ${gradeDisplay}`);
+        ariaLines.push(isAscended ? 'Ascended' : 'Not ascended');
 
         const infoContainer = document.createElement('div');
         infoContainer.className = 'tooltip-lines';
@@ -4883,6 +4025,13 @@
 
         appendInfoLine(`Date set: ${formatDisplayDate(route.date_set)}`);
 
+        if (currentUser) {
+          const gradeControls = buildGradeControls(route);
+          if (gradeControls) {
+            fragment.appendChild(gradeControls);
+          }
+        }
+
         tooltip.replaceChildren(fragment);
 
         if (ariaLines.length) {
@@ -4905,13 +4054,12 @@
         const minLeft = halfWidth + minHorizontalMargin;
         const maxLeft = window.innerWidth - halfWidth - minHorizontalMargin;
         const desiredLeft = window.innerWidth / 2;
-        const clampedLeft =
-          maxLeft < minLeft ? window.innerWidth / 2 : Math.min(maxLeft, Math.max(minLeft, desiredLeft));
+        const clampedLeft = maxLeft < minLeft ? window.innerWidth / 2 : Math.min(maxLeft, Math.max(minLeft, desiredLeft));
 
         const minVerticalMargin = 12;
         const maxTop = window.innerHeight - tooltipHeight - minVerticalMargin;
         const safeMaxTop = maxTop < minVerticalMargin ? Math.max(minVerticalMargin, maxTop) : maxTop;
-        const desiredTop = tutorialActive ? minVerticalMargin : (window.innerHeight - tooltipHeight) / 2;
+        const desiredTop = (window.innerHeight - tooltipHeight) / 2;
         const clampedTop = Math.min(safeMaxTop, Math.max(minVerticalMargin, desiredTop));
 
         tooltip.style.left = `${clampedLeft}px`;
@@ -6119,8 +5267,6 @@
         document.addEventListener('mousedown', handleDocumentPointerDown);
         document.addEventListener('touchstart', handleDocumentPointerDown);
       }
-
-      setupTutorialInteractions();
 
       window.addEventListener('resize', resizeCanvas);
 
