@@ -3623,11 +3623,7 @@
         });
       }
 
-      if (tutorialPromptDismissed) {
-        hideTutorialPrompt();
-      } else {
-        showTutorialPrompt();
-      }
+      hideTutorialPrompt();
 
       if (locationModalClose) {
         locationModalClose.addEventListener('click', (event) => {
@@ -3997,6 +3993,11 @@
 
           updateNavigationForRole(role);
           appContent.classList.remove('hidden');
+          if (tutorialPromptDismissed) {
+            hideTutorialPrompt();
+          } else {
+            showTutorialPrompt();
+          }
 
           await loadAscents({ userId: user.uid, username: currentUsername });
           await loadRoutes();
@@ -4004,6 +4005,7 @@
           authOverlay.classList.remove('hidden');
           appContent.classList.add('hidden');
           setterLink.classList.add('hidden');
+          hideTutorialPrompt();
           if (infoModeActive) {
             deactivateInfoMode({ clearCallout: true });
           } else if (activeInfoCallout) {

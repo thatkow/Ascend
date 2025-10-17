@@ -4401,11 +4401,7 @@
       });
     }
 
-    if (tutorialPromptDismissed) {
-      hideTutorialPrompt();
-    } else {
-      showTutorialPrompt();
-    }
+    hideTutorialPrompt();
 
     if (tutorialPrimaryAction) {
       tutorialPrimaryAction.addEventListener('click', () => {
@@ -7426,7 +7422,11 @@
       setRoleControlsEnabled(true);
       clearRoleStatus();
       if (!tutorialActive) {
-        showTutorialPrompt();
+        if (tutorialPromptDismissed) {
+          hideTutorialPrompt();
+        } else {
+          showTutorialPrompt();
+        }
       }
     }
 
@@ -7484,6 +7484,7 @@
         setRoleControlsEnabled(false);
         resetRoleManagementUI();
         setAuthMode('login');
+        hideTutorialPrompt();
         void finishTutorial({ suppressPrompt: true });
       }
     });
