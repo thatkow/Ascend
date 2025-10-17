@@ -3640,7 +3640,7 @@
             highlightTutorialElement(null);
           },
         },
-        {
+        { 
           title: 'Route details',
           body: [
             'Click any climb to open its tooltip for more information.',
@@ -3650,9 +3650,6 @@
             setTutorialOverlayAlignment('bottom');
             highlightTutorialElement(null);
             await showTutorialRouteTooltip();
-            if (tutorialHighlightedRouteId) {
-              startTutorialRoutePulse();
-            }
           },
           onExit: () => {
             stopTutorialRoutePulse();
@@ -4911,7 +4908,14 @@
         const minVerticalMargin = 12;
         const maxTop = window.innerHeight - tooltipHeight - minVerticalMargin;
         const safeMaxTop = maxTop < minVerticalMargin ? Math.max(minVerticalMargin, maxTop) : maxTop;
-        const desiredTop = tutorialActive ? minVerticalMargin : (window.innerHeight - tooltipHeight) / 2;
+        const isMobileViewport =
+          typeof window.matchMedia === 'function'
+            ? window.matchMedia('(max-width: 768px)').matches
+            : window.innerWidth <= 768;
+        const desiredTop =
+          tutorialActive && isMobileViewport
+            ? minVerticalMargin
+            : (window.innerHeight - tooltipHeight) / 2;
         const clampedTop = Math.min(safeMaxTop, Math.max(minVerticalMargin, desiredTop));
 
         tooltip.style.left = `${clampedLeft}px`;
