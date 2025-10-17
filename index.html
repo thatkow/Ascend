@@ -59,12 +59,16 @@
         left: 50%;
         bottom: 1.5rem;
         transform: translate(-50%, 0);
-        width: 3.5rem;
-        height: 3.5rem;
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
         border: none;
         background-color: rgba(126, 217, 87, 0.95);
-        background-image: linear-gradient(135deg, rgba(126, 217, 87, 0.95), rgba(63, 142, 45, 0.95));
+        background-image: linear-gradient(
+          135deg,
+          rgba(126, 217, 87, 0.95),
+          rgba(63, 142, 45, 0.95)
+        );
         color: #0b1a05;
         font-size: 1.75rem;
         font-weight: 700;
@@ -75,7 +79,8 @@
         box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
         z-index: 20;
         animation: tutorial-bounce 1.2s ease-in-out infinite;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+          background-image 0.2s ease, color 0.2s ease;
       }
 
       .tutorial-prompt:hover,
@@ -89,6 +94,22 @@
         box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.45), 0 22px 48px rgba(0, 0, 0, 0.55);
       }
 
+      .tutorial-prompt.is-static {
+        animation: none;
+        transform: translate(-50%, 0);
+        background-color: #3f454d;
+        background-image: none;
+        color: #f4f5f7;
+      }
+
+      .tutorial-prompt.is-static:hover,
+      .tutorial-prompt.is-static:focus-visible {
+        transform: translate(-50%, -4px) scale(1.02);
+        background-color: #3f454d;
+        background-image: none;
+        color: #f4f5f7;
+      }
+
       @keyframes tutorial-bounce {
         0%,
         100% {
@@ -99,11 +120,13 @@
             rgba(126, 217, 87, 0.95),
             rgba(63, 142, 45, 0.95)
           );
+          color: #0b1a05;
         }
         50% {
-          transform: translate(-50%, calc(-200% / 3));
+          transform: translate(-50%, calc(-400% / 3));
           background-color: #ff8c42;
           background-image: none;
+          color: #0b1a05;
         }
       }
 
@@ -222,6 +245,46 @@
       .tutorial-illuminated {
         animation: tutorial-illuminate 1.2s ease-in-out infinite;
         box-shadow: 0 0 0 7px rgba(126, 217, 87, 0.85), 0 0 36px rgba(126, 217, 87, 0.7);
+      }
+
+      .tutorial-pointer {
+        position: fixed;
+        width: 102px;
+        height: 162px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        z-index: 60;
+        transform: translate(-50%, 0);
+      }
+
+      .tutorial-pointer.hidden {
+        display: none;
+      }
+
+      .tutorial-pointer svg {
+        width: 100%;
+        height: 100%;
+        filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+        animation: tutorial-pointer-bounce 1.05s ease-in-out infinite;
+      }
+
+      @media (max-width: 768px) {
+        .tutorial-pointer {
+          width: 51px;
+          height: 81px;
+        }
+      }
+
+      @keyframes tutorial-pointer-bounce {
+        0%,
+        100% {
+          transform: translateY(4px);
+        }
+        50% {
+          transform: translateY(-6px);
+        }
       }
 
       @keyframes tutorial-illuminate {
@@ -428,6 +491,15 @@
 
       .location-modal.hidden {
         display: none !important;
+      }
+
+      .location-modal.is-top-aligned {
+        align-items: flex-start;
+        padding-top: clamp(4.5rem, 14vh, 7.5rem);
+      }
+
+      .location-modal.is-top-aligned .location-modal-content {
+        margin-top: 0;
       }
 
       .progression-modal {
@@ -830,8 +902,14 @@
         margin-top: 0.4rem;
       }
 
-      .info-callout-chart {
+      .info-callout-chart-wrapper {
         margin-top: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .info-callout-chart {
         display: flex;
         align-items: flex-end;
         gap: 0.18rem;
@@ -854,6 +932,15 @@
 
       .info-callout-chart-bar:last-child {
         border-top-right-radius: 0.45rem;
+      }
+
+      .info-callout-chart-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.75);
+        padding: 0 0.15rem;
+        letter-spacing: 0.02em;
       }
 
       .nav-links {
@@ -1389,7 +1476,6 @@
       let activeInfoCallout = null;
       let pendingInfoRepositionFrame = null;
       let ephemeralCalloutDismissTimer = null;
-      let hasShownWelcomeCallout = false;
       let tutorialPromptTimeoutId = null;
       let tutorialPromptVisible = false;
       let tutorialInviteOpen = false;
@@ -1477,9 +1563,13 @@
       }
 
       function createGradeChartElement() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'info-callout-chart-wrapper';
+        wrapper.setAttribute('aria-hidden', 'true');
+
         const chart = document.createElement('div');
         chart.className = 'info-callout-chart';
-        chart.setAttribute('aria-hidden', 'true');
+        wrapper.appendChild(chart);
 
         const gradeEntries = Array.from(GRADE_COLOR_MAP.entries());
         const totalGrades = gradeEntries.length;
@@ -1498,7 +1588,29 @@
           chart.appendChild(bar);
         });
 
-        return chart;
+        if (gradeEntries.length) {
+          const labels = document.createElement('div');
+          labels.className = 'info-callout-chart-labels';
+
+          const middleIndex = Math.round((gradeEntries.length - 1) / 2);
+
+          const startLabel = document.createElement('span');
+          startLabel.textContent = formatGradeDisplay(Number(gradeEntries[0]?.[0] ?? NaN));
+
+          const middleLabel = document.createElement('span');
+          middleLabel.textContent = formatGradeDisplay(Number(gradeEntries[middleIndex]?.[0] ?? NaN));
+
+          const endLabel = document.createElement('span');
+          endLabel.textContent = formatGradeDisplay(Number(gradeEntries[gradeEntries.length - 1]?.[0] ?? NaN));
+
+          labels.appendChild(startLabel);
+          labels.appendChild(middleLabel);
+          labels.appendChild(endLabel);
+
+          wrapper.appendChild(labels);
+        }
+
+        return wrapper;
       }
 
       function isElementVisible(element) {
@@ -1667,48 +1779,6 @@
         };
       }
 
-      function buildWelcomeCallout() {
-        if (!infoButton || !isElementVisible(infoButton)) {
-          return null;
-        }
-
-        const callout = createBasicCallout('Welcome to Ascend', [
-          'Explore the wall to discover climbs and track your progress.',
-          'Tap a route to study beta, log your ascent, and compare community grades.',
-        ]);
-
-        callout.setAttribute('role', 'status');
-        callout.tabIndex = 0;
-        callout.addEventListener('click', () => {
-          if (activeInfoCallout?.element === callout) {
-            clearInfoHighlights();
-          }
-        });
-
-        return {
-          target: infoButton,
-          element: callout,
-          options: { placement: 'bottom', offset: 12, margin: 20 },
-        };
-      }
-
-      function showWelcomeCallout() {
-        if (hasShownWelcomeCallout || infoModeActive) {
-          return;
-        }
-
-        const entry = buildWelcomeCallout();
-        if (!entry) {
-          return;
-        }
-
-        hasShownWelcomeCallout = true;
-
-        requestAnimationFrame(() => {
-          showTemporaryInfoCallout(entry, 11000);
-        });
-      }
-
       function positionCallout(entry) {
         if (!entry?.target || !entry?.element) {
           return;
@@ -1855,6 +1925,7 @@
         if (clearCallout) {
           clearInfoHighlights();
         }
+
       }
 
       function toggleInfoMode() {
@@ -2501,6 +2572,8 @@
           locationModal.setAttribute('aria-hidden', 'true');
           locationButton?.setAttribute('aria-expanded', 'false');
         }
+
+        locationModal.classList.remove('is-top-aligned');
       }
 
       function openLocationModal() {
@@ -3339,7 +3412,6 @@
         routeGrades.clear();
         userAscentDetails = new Map();
         routeMedianGrades = new Map();
-        hasShownWelcomeCallout = false;
         hideTooltip({ force: true });
 
         await loadRoutes();
@@ -3352,18 +3424,35 @@
         }
       }
 
-      function showTutorialPrompt() {
+      function showTutorialPrompt(options = {}) {
+        const force = options?.force === true;
+
         clearTutorialPromptTimer();
 
-        if (!tutorialPromptButton || tutorialPromptVisible || tutorialActive || tutorialInviteOpen || tutorialCompleted) {
+        if (!tutorialPromptButton || tutorialActive || tutorialInviteOpen) {
+          return;
+        }
+
+        if (!force && tutorialPromptVisible) {
           return;
         }
 
         tutorialPromptVisible = true;
+
+        if (tutorialCompleted) {
+          tutorialPromptButton.classList.add('is-static');
+        } else {
+          tutorialPromptButton.classList.remove('is-static');
+        }
+
         tutorialPromptButton.classList.remove('hidden');
         tutorialPromptButton.setAttribute('aria-hidden', 'false');
+        tutorialPromptButton.setAttribute('aria-expanded', 'false');
         tutorialPromptTimeoutId = null;
-        resetTutorialInactivityTimer();
+
+        if (!tutorialCompleted) {
+          resetTutorialInactivityTimer();
+        }
       }
 
       function hideTutorialPromptButton() {
@@ -3373,7 +3462,9 @@
 
         tutorialPromptVisible = false;
         tutorialPromptButton.classList.add('hidden');
+        tutorialPromptButton.classList.remove('is-static');
         tutorialPromptButton.setAttribute('aria-hidden', 'true');
+        tutorialPromptButton.setAttribute('aria-expanded', 'true');
       }
 
       function resetTutorialInactivityTimer() {
@@ -3450,16 +3541,100 @@
 
         const fragment = document.createDocumentFragment();
 
-        lines
-          .filter((line) => typeof line === 'string' && line.trim().length)
-          .forEach((line) => {
+        lines.forEach((item) => {
+          if (typeof item === 'string') {
+            const trimmed = item.trim();
+            if (trimmed.length === 0) {
+              return;
+            }
             const paragraph = document.createElement('p');
-            paragraph.textContent = line.trim();
+            paragraph.textContent = trimmed;
             fragment.appendChild(paragraph);
-          });
+            return;
+          }
+
+          let node = null;
+
+          if (typeof item === 'function') {
+            try {
+              node = item();
+            } catch (error) {
+              console.warn('Unable to render tutorial content item:', error);
+            }
+          } else if (item instanceof Node) {
+            node = item;
+          }
+
+          if (node instanceof Node) {
+            fragment.appendChild(node);
+          }
+        });
 
         tutorialDescription.appendChild(fragment);
       }
+
+      let tutorialPointer = null;
+      let tutorialPointerTarget = null;
+
+      function ensureTutorialPointer() {
+        if (tutorialPointer) {
+          return tutorialPointer;
+        }
+
+        tutorialPointer = document.createElement('div');
+        tutorialPointer.className = 'tutorial-pointer hidden';
+        tutorialPointer.setAttribute('aria-hidden', 'true');
+        tutorialPointer.innerHTML =
+          '<svg viewBox="0 0 64 96" role="presentation" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path fill="#27b4db" d="M32 0l32 36H44v56H20V36H0z"/></svg>';
+        document.body.appendChild(tutorialPointer);
+
+        return tutorialPointer;
+      }
+
+      function updateTutorialPointerPosition() {
+        if (!tutorialPointer || tutorialPointer.classList.contains('hidden')) {
+          return;
+        }
+
+        if (!tutorialPointerTarget || !isElementVisible(tutorialPointerTarget)) {
+          hideTutorialPointer();
+          return;
+        }
+
+        const rect = tutorialPointerTarget.getBoundingClientRect();
+        const verticalOffset = 12;
+
+        tutorialPointer.style.left = `${rect.left + rect.width / 2}px`;
+        tutorialPointer.style.top = `${rect.bottom + verticalOffset}px`;
+      }
+
+      function showTutorialPointerFor(element) {
+        if (!(element instanceof HTMLElement) || !isElementVisible(element)) {
+          hideTutorialPointer();
+          return;
+        }
+
+        ensureTutorialPointer();
+
+        tutorialPointerTarget = element;
+        tutorialPointer.classList.remove('hidden');
+        tutorialPointer.setAttribute('aria-hidden', 'false');
+        updateTutorialPointerPosition();
+      }
+
+      function hideTutorialPointer() {
+        if (!tutorialPointer) {
+          tutorialPointerTarget = null;
+          return;
+        }
+
+        tutorialPointerTarget = null;
+        tutorialPointer.classList.add('hidden');
+        tutorialPointer.setAttribute('aria-hidden', 'true');
+      }
+
+      window.addEventListener('resize', updateTutorialPointerPosition);
+      window.addEventListener('scroll', updateTutorialPointerPosition, true);
 
       function highlightTutorialElement(element, options = {}) {
         const shouldIlluminate = options?.illuminate === true;
@@ -3635,12 +3810,13 @@
             setTutorialOverlayAlignment('center');
             highlightTutorialElement(null);
             hideTooltip({ force: true });
+            hideTutorialPointer();
           },
           onExit: () => {
             highlightTutorialElement(null);
           },
         },
-        {
+        { 
           title: 'Route details',
           body: [
             'Click any climb to open its tooltip for more information.',
@@ -3650,11 +3826,9 @@
             setTutorialOverlayAlignment('bottom');
             highlightTutorialElement(null);
             await showTutorialRouteTooltip();
-            if (tutorialHighlightedRouteId) {
-              startTutorialRoutePulse();
-            }
           },
           onExit: () => {
+            hideTutorialPointer();
             stopTutorialRoutePulse();
             closeTutorialRouteTooltip();
             setTutorialOverlayAlignment('center');
@@ -3664,6 +3838,9 @@
           title: 'Show hold colors',
           body: [
             'Toggle the Show Hold Colors button to switch between route outlines and grade colors.',
+            'Routes are tinted by difficulty right now.',
+            'The spectrum below runs from the easiest greens on the left to the hardest reds on the right, covering every grade color.',
+            () => createGradeChartElement(),
             'It\'s perfect when you want to scan the wall by difficulty at a glance.',
           ],
           onEnter: () => {
@@ -3674,9 +3851,13 @@
                 setViewMode(VIEW_MODE_GRADE_COLORS);
               }
               highlightTutorialElement(viewToggleButton, { illuminate: true });
+              showTutorialPointerFor(viewToggleButton);
+            } else {
+              hideTutorialPointer();
             }
           },
           onExit: () => {
+            hideTutorialPointer();
             highlightTutorialElement(null);
             if (tutorialPreviousViewMode && tutorialPreviousViewMode !== viewMode) {
               setViewMode(tutorialPreviousViewMode);
@@ -3691,13 +3872,27 @@
             'Each wall has its own background and set of climbs to explore.',
           ],
           onEnter: () => {
-            setTutorialOverlayAlignment('center');
+            setTutorialOverlayAlignment('bottom');
+            if (locationModal) {
+              locationModal.classList.add('is-top-aligned');
+            }
             if (locationButton) {
               highlightTutorialElement(locationButton, { illuminate: true });
+              showTutorialPointerFor(locationButton);
+              openLocationModal();
+              updateTutorialPointerPosition();
+            } else {
+              hideTutorialPointer();
             }
           },
           onExit: () => {
+            hideTutorialPointer();
             highlightTutorialElement(null);
+            if (locationModal) {
+              locationModal.classList.remove('is-top-aligned');
+            }
+            closeLocationModal();
+            setTutorialOverlayAlignment('center');
           },
         },
         {
@@ -3710,9 +3905,13 @@
             setTutorialOverlayAlignment('center');
             if (loginButton) {
               highlightTutorialElement(loginButton, { illuminate: true });
+              showTutorialPointerFor(loginButton);
+            } else {
+              hideTutorialPointer();
             }
           },
           onExit: () => {
+            hideTutorialPointer();
             highlightTutorialElement(null);
           },
         },
@@ -3726,9 +3925,13 @@
             setTutorialOverlayAlignment('center');
             if (infoButton) {
               highlightTutorialElement(infoButton, { illuminate: true });
+              showTutorialPointerFor(infoButton);
+            } else {
+              hideTutorialPointer();
             }
           },
           onExit: () => {
+            hideTutorialPointer();
             highlightTutorialElement(null);
           },
         },
@@ -3819,6 +4022,7 @@
 
         highlightTutorialElement(null);
         stopTutorialRoutePulse();
+        hideTutorialPointer();
         setTutorialOverlayAlignment('center');
         closeTutorialRouteTooltip();
 
@@ -3895,9 +4099,9 @@
         highlightTutorialElement(null);
         closeTutorialRouteTooltip();
         stopTutorialRoutePulse();
+        hideTutorialPointer();
         setTutorialOverlayAlignment('center');
         restoreInteractiveElementsAfterTutorial();
-        hideTutorialPromptButton();
 
         if (tutorialProgress) {
           tutorialProgress.classList.add('hidden');
@@ -3905,6 +4109,7 @@
 
         closeTutorialOverlay();
         clearTutorialPromptTimer();
+        showTutorialPrompt({ force: true });
       }
 
       function declineTutorial() {
@@ -3913,10 +4118,10 @@
         highlightTutorialElement(null);
         closeTutorialRouteTooltip();
         stopTutorialRoutePulse();
+        hideTutorialPointer();
         setTutorialOverlayAlignment('center');
         closeTutorialOverlay();
-        hideTutorialPromptButton();
-        resetTutorialInactivityTimer();
+        showTutorialPrompt({ force: true });
       }
 
       async function handleTutorialPrimaryAction() {
@@ -3960,7 +4165,7 @@
 
         if (tutorialPromptButton) {
           tutorialPromptButton.addEventListener('click', () => {
-            if (tutorialActive || tutorialInviteOpen || tutorialCompleted) {
+            if (tutorialActive || tutorialInviteOpen) {
               return;
             }
 
@@ -3972,6 +4177,14 @@
             if (tutorialPrimaryAction) {
               tutorialPrimaryAction.focus();
             }
+          });
+
+          tutorialPromptButton.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+            tutorialCompleted = true;
+            tutorialInviteOpen = false;
+            showTutorialPrompt({ force: true });
+            clearTutorialPromptTimer();
           });
         }
 
@@ -4030,12 +4243,8 @@
           updateNavigationForRole(role);
           appContent.classList.remove('hidden');
 
-          try {
-            await loadAscents({ userId: user.uid, username: currentUsername });
-            await loadRoutes();
-          } finally {
-            showWelcomeCallout();
-          }
+          await loadAscents({ userId: user.uid, username: currentUsername });
+          await loadRoutes();
 
           return;
         }
@@ -4911,7 +5120,14 @@
         const minVerticalMargin = 12;
         const maxTop = window.innerHeight - tooltipHeight - minVerticalMargin;
         const safeMaxTop = maxTop < minVerticalMargin ? Math.max(minVerticalMargin, maxTop) : maxTop;
-        const desiredTop = tutorialActive ? minVerticalMargin : (window.innerHeight - tooltipHeight) / 2;
+        const isMobileViewport =
+          typeof window.matchMedia === 'function'
+            ? window.matchMedia('(max-width: 768px)').matches
+            : window.innerWidth <= 768;
+        const desiredTop =
+          tutorialActive && isMobileViewport
+            ? minVerticalMargin
+            : (window.innerHeight - tooltipHeight) / 2;
         const clampedTop = Math.min(safeMaxTop, Math.max(minVerticalMargin, desiredTop));
 
         tooltip.style.left = `${clampedLeft}px`;
@@ -5015,7 +5231,12 @@
       }
 
       function focusRoute(route) {
+        const shouldCloseProgression = isProgressionModalOpen();
         setRouteFocus(route, true);
+
+        if (shouldCloseProgression) {
+          closeProgressionModal();
+        }
       }
 
       function toggleRouteFocus(route) {
