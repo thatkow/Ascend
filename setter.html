@@ -1915,7 +1915,15 @@
     let tutorialStepIndex = -1;
     let tutorialSteps = [];
     let tutorialPreviousTabId = null;
+    const SETTER_TUTORIAL_PROMPT_STORAGE_KEY = 'ascend.setter.tutorial.dismissed';
     let tutorialPromptDismissed = false;
+    try {
+      tutorialPromptDismissed =
+        window.localStorage?.getItem(SETTER_TUTORIAL_PROMPT_STORAGE_KEY) === 'true';
+    } catch (error) {
+      console.warn('Unable to read setter tutorial prompt state:', error);
+      tutorialPromptDismissed = false;
+    }
 
     const LOCATIONS = [
       { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
@@ -2835,6 +2843,18 @@
       tutorialPromptButton.setAttribute('aria-expanded', 'true');
     }
 
+    function persistTutorialPromptState(dismissed) {
+      try {
+        if (dismissed) {
+          window.localStorage?.setItem(SETTER_TUTORIAL_PROMPT_STORAGE_KEY, 'true');
+        } else {
+          window.localStorage?.removeItem(SETTER_TUTORIAL_PROMPT_STORAGE_KEY);
+        }
+      } catch (error) {
+        console.warn('Unable to persist setter tutorial prompt state:', error);
+      }
+    }
+
     function attachTutorialKeydown() {
       document.addEventListener('keydown', handleTutorialKeydown, true);
     }
@@ -3083,6 +3103,7 @@
       if (!tutorialActive && !tutorialTransitionInProgress) {
         if (!suppressPrompt) {
           tutorialPromptDismissed = true;
+          persistTutorialPromptState(true);
         }
 
         hideTutorialPrompt();
@@ -3121,6 +3142,7 @@
 
       if (!suppressPrompt) {
         tutorialPromptDismissed = true;
+        persistTutorialPromptState(true);
       }
 
       hideTutorialPrompt();
@@ -4336,6 +4358,10 @@
       tutorialPromptButton.addEventListener('click', () => {
         void startTutorial();
       });
+    }
+
+    if (tutorialPromptDismissed) {
+      hideTutorialPrompt();
     }
 
     if (tutorialPrimaryAction) {
