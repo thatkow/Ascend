@@ -1487,6 +1487,15 @@
       let tutorialTransitionInProgress = false;
       let tutorialSteps = [];
       let tutorialHighlightedRouteId = null;
+      const PERSONAL_TUTORIAL_PROMPT_STORAGE_KEY = 'ascend.personal.tutorial.dismissed';
+      let tutorialPromptDismissed = false;
+      try {
+        tutorialPromptDismissed =
+          window.localStorage?.getItem(PERSONAL_TUTORIAL_PROMPT_STORAGE_KEY) === 'true';
+      } catch (error) {
+        console.warn('Unable to read personal tutorial prompt state:', error);
+        tutorialPromptDismissed = false;
+      }
 
       const LOCATIONS = [
         { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
@@ -1988,7 +1997,7 @@
       }
 
       function showTutorialPrompt() {
-        if (!tutorialPromptButton) {
+        if (!tutorialPromptButton || tutorialPromptDismissed) {
           return;
         }
 
@@ -2005,6 +2014,18 @@
         tutorialPromptButton.classList.add('hidden');
         tutorialPromptButton.setAttribute('aria-hidden', 'true');
         tutorialPromptButton.setAttribute('aria-expanded', 'true');
+      }
+
+      function persistTutorialPromptState(dismissed) {
+        try {
+          if (dismissed) {
+            window.localStorage?.setItem(PERSONAL_TUTORIAL_PROMPT_STORAGE_KEY, 'true');
+          } else {
+            window.localStorage?.removeItem(PERSONAL_TUTORIAL_PROMPT_STORAGE_KEY);
+          }
+        } catch (error) {
+          console.warn('Unable to persist personal tutorial prompt state:', error);
+        }
       }
 
       function detachTutorialKeydown() {
@@ -2111,7 +2132,9 @@
           tutorialProgress.classList.add('hidden');
         }
 
-        showTutorialPrompt();
+        tutorialPromptDismissed = true;
+        persistTutorialPromptState(true);
+        hideTutorialPrompt();
       }
 
       function handleTutorialKeydown(event) {
@@ -3593,7 +3616,11 @@
         });
       }
 
-      showTutorialPrompt();
+      if (tutorialPromptDismissed) {
+        hideTutorialPrompt();
+      } else {
+        showTutorialPrompt();
+      }
 
       if (locationModalClose) {
         locationModalClose.addEventListener('click', (event) => {
