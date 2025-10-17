@@ -47,14 +47,14 @@
       left: 50%;
       bottom: 1.5rem;
       transform: translate(-50%, 0);
-      width: 3.5rem;
-      height: 3.5rem;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       border: none;
       background-color: rgba(126, 217, 87, 0.95);
       background-image: linear-gradient(135deg, rgba(126, 217, 87, 0.95), rgba(63, 142, 45, 0.95));
       color: #0b1a05;
-      font-size: 1.75rem;
+      font-size: 1.15rem;
       font-weight: 700;
       cursor: pointer;
       display: inline-flex;
@@ -64,7 +64,8 @@
       box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
       z-index: 20;
       animation: tutorial-bounce 1.2s ease-in-out infinite;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+        background-image 0.2s ease;
     }
 
     .tutorial-prompt:hover,
@@ -76,6 +77,19 @@
 
     .tutorial-prompt:focus-visible {
       box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.45), 0 22px 48px rgba(0, 0, 0, 0.55);
+    }
+
+    .tutorial-prompt.is-static {
+      animation: none;
+      background-color: rgba(126, 217, 87, 0.95);
+      background-image: none;
+    }
+
+    .tutorial-prompt.is-static:hover,
+    .tutorial-prompt.is-static:focus-visible {
+      transform: translate(-50%, -4px) scale(1.02);
+      background-color: rgba(126, 217, 87, 0.95);
+      background-image: none;
     }
 
     @keyframes tutorial-bounce {
@@ -1930,14 +1944,27 @@
     let tutorialSteps = [];
     let tutorialPreviousTabId = null;
     let tutorialSecondaryActionMode = 'back';
-    const SETTER_TUTORIAL_PROMPT_STORAGE_KEY = 'ascend.setter.tutorial.dismissed';
+    const LEGACY_SETTER_TUTORIAL_PROMPT_STORAGE_KEY = 'ascend.setter.tutorial.dismissed';
+    const SETTER_TUTORIAL_PROMPT_STORAGE_KEY = 'ascend.setter.tutorial.prompt.hidden';
+    const SETTER_TUTORIAL_COMPLETED_STORAGE_KEY = 'ascend.setter.tutorial.prompt.completed';
     let tutorialPromptDismissed = false;
+    let tutorialPromptCompleted = false;
     try {
+      if (window.localStorage?.getItem(LEGACY_SETTER_TUTORIAL_PROMPT_STORAGE_KEY) === 'true') {
+        window.localStorage?.removeItem(LEGACY_SETTER_TUTORIAL_PROMPT_STORAGE_KEY);
+      }
       tutorialPromptDismissed =
         window.localStorage?.getItem(SETTER_TUTORIAL_PROMPT_STORAGE_KEY) === 'true';
+      tutorialPromptCompleted =
+        window.localStorage?.getItem(SETTER_TUTORIAL_COMPLETED_STORAGE_KEY) === 'true';
     } catch (error) {
       console.warn('Unable to read setter tutorial prompt state:', error);
       tutorialPromptDismissed = false;
+      tutorialPromptCompleted = false;
+    }
+
+    if (tutorialPromptButton && tutorialPromptCompleted) {
+      tutorialPromptButton.classList.add('is-static');
     }
 
     const LOCATIONS = [
@@ -2843,6 +2870,12 @@
         return;
       }
 
+      if (tutorialPromptCompleted) {
+        tutorialPromptButton.classList.add('is-static');
+      } else {
+        tutorialPromptButton.classList.remove('is-static');
+      }
+
       tutorialPromptButton.classList.remove('hidden');
       tutorialPromptButton.setAttribute('aria-hidden', 'false');
       tutorialPromptButton.setAttribute('aria-expanded', 'false');
@@ -2867,6 +2900,27 @@
         }
       } catch (error) {
         console.warn('Unable to persist setter tutorial prompt state:', error);
+      }
+    }
+
+    function persistTutorialPromptCompletion(completed) {
+      try {
+        if (completed) {
+          window.localStorage?.setItem(SETTER_TUTORIAL_COMPLETED_STORAGE_KEY, 'true');
+        } else {
+          window.localStorage?.removeItem(SETTER_TUTORIAL_COMPLETED_STORAGE_KEY);
+        }
+      } catch (error) {
+        console.warn('Unable to persist setter tutorial completion state:', error);
+      }
+    }
+
+    function markTutorialPromptCompleted() {
+      tutorialPromptCompleted = true;
+      persistTutorialPromptCompletion(true);
+
+      if (tutorialPromptButton) {
+        tutorialPromptButton.classList.add('is-static');
       }
     }
 
@@ -3133,12 +3187,15 @@
       const suppressPrompt = options?.suppressPrompt === true;
 
       if (!tutorialActive && !tutorialTransitionInProgress) {
-        if (!suppressPrompt) {
-          tutorialPromptDismissed = true;
-          persistTutorialPromptState(true);
+        if (suppressPrompt) {
+          hideTutorialPrompt();
+        } else {
+          tutorialPromptDismissed = false;
+          persistTutorialPromptState(false);
+          markTutorialPromptCompleted();
+          showTutorialPrompt();
         }
 
-        hideTutorialPrompt();
         tutorialPreviousTabId = null;
         tutorialSecondaryActionMode = 'back';
         return;
@@ -3174,12 +3231,14 @@
       closeTutorialOverlay();
       detachTutorialKeydown();
 
-      if (!suppressPrompt) {
-        tutorialPromptDismissed = true;
-        persistTutorialPromptState(true);
+      if (suppressPrompt) {
+        hideTutorialPrompt();
+      } else {
+        tutorialPromptDismissed = false;
+        persistTutorialPromptState(false);
+        markTutorialPromptCompleted();
+        showTutorialPrompt();
       }
-
-      hideTutorialPrompt();
 
       if (tutorialPreviousTabId) {
         activateTab(tutorialPreviousTabId);
