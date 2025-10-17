@@ -1632,6 +1632,14 @@
     let welcomeCalloutTimer = null;
     let hasShownWelcomeCallout = false;
     let pendingWelcomeCalloutFrame = null;
+    let welcomeCalloutActivationHandler = null;
+    let welcomeCalloutActivationTimeoutId = null;
+    const welcomeCalloutActivationEvents = [
+      { type: 'pointerdown', options: { passive: true } },
+      { type: 'touchstart', options: { passive: true } },
+      { type: 'keydown', options: false },
+      { type: 'focusin', options: false },
+    ];
     let isUpdatingWallVisibility = false;
 
     const LOCATIONS = [
@@ -2355,6 +2363,8 @@
     }
 
     function dismissWelcomeCallout() {
+      cancelScheduledWelcomeCallout();
+
       if (pendingWelcomeCalloutFrame) {
         cancelAnimationFrame(pendingWelcomeCalloutFrame);
         pendingWelcomeCalloutFrame = null;
@@ -2418,7 +2428,52 @@
       });
     }
 
+    function cancelScheduledWelcomeCallout() {
+      if (welcomeCalloutActivationTimeoutId !== null) {
+        window.clearTimeout(welcomeCalloutActivationTimeoutId);
+        welcomeCalloutActivationTimeoutId = null;
+      }
+
+      if (!welcomeCalloutActivationHandler) {
+        return;
+      }
+
+      welcomeCalloutActivationEvents.forEach(({ type, options }) => {
+        window.removeEventListener(type, welcomeCalloutActivationHandler, options);
+      });
+
+      welcomeCalloutActivationHandler = null;
+    }
+
+    function scheduleWelcomeCallout() {
+      if (hasShownWelcomeCallout || infoModeActive || welcomeCalloutActivationHandler) {
+        return;
+      }
+
+      welcomeCalloutActivationHandler = () => {
+        cancelScheduledWelcomeCallout();
+
+        if (hasShownWelcomeCallout || infoModeActive) {
+          return;
+        }
+
+        welcomeCalloutActivationTimeoutId = window.setTimeout(() => {
+          welcomeCalloutActivationTimeoutId = null;
+
+          if (!hasShownWelcomeCallout && !infoModeActive) {
+            showWelcomeCallout();
+          }
+        }, 400);
+      };
+
+      welcomeCalloutActivationEvents.forEach(({ type, options }) => {
+        window.addEventListener(type, welcomeCalloutActivationHandler, options);
+      });
+    }
+
     function showWelcomeCallout() {
+      cancelScheduledWelcomeCallout();
+
       if (hasShownWelcomeCallout || infoModeActive || !infoButton) {
         return;
       }
@@ -2607,6 +2662,7 @@
         return;
       }
 
+      cancelScheduledWelcomeCallout();
       dismissWelcomeCallout();
 
       infoModeActive = true;
@@ -2628,6 +2684,10 @@
 
       if (clearTooltip) {
         clearActiveHelpTooltip();
+      }
+
+      if (!hasShownWelcomeCallout) {
+        scheduleWelcomeCallout();
       }
     }
 
@@ -6682,7 +6742,7 @@
 
         handleAuthorized();
 
-        showWelcomeCallout();
+        scheduleWelcomeCallout();
 
         try {
           await loadRoutesList(currentRouteKey);

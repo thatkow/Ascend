@@ -1390,6 +1390,14 @@
       let pendingInfoRepositionFrame = null;
       let ephemeralCalloutDismissTimer = null;
       let hasShownWelcomeCallout = false;
+      let welcomeCalloutActivationHandler = null;
+      let welcomeCalloutActivationTimeoutId = null;
+      const welcomeCalloutActivationEvents = [
+        { type: 'pointerdown', options: { passive: true } },
+        { type: 'touchstart', options: { passive: true } },
+        { type: 'keydown', options: false },
+        { type: 'focusin', options: false },
+      ];
       let tutorialPromptTimeoutId = null;
       let tutorialPromptVisible = false;
       let tutorialInviteOpen = false;
@@ -1692,7 +1700,52 @@
         };
       }
 
+      function cancelScheduledWelcomeCallout() {
+        if (welcomeCalloutActivationTimeoutId !== null) {
+          window.clearTimeout(welcomeCalloutActivationTimeoutId);
+          welcomeCalloutActivationTimeoutId = null;
+        }
+
+        if (!welcomeCalloutActivationHandler) {
+          return;
+        }
+
+        welcomeCalloutActivationEvents.forEach(({ type, options }) => {
+          window.removeEventListener(type, welcomeCalloutActivationHandler, options);
+        });
+
+        welcomeCalloutActivationHandler = null;
+      }
+
+      function scheduleWelcomeCallout() {
+        if (hasShownWelcomeCallout || infoModeActive || welcomeCalloutActivationHandler) {
+          return;
+        }
+
+        welcomeCalloutActivationHandler = () => {
+          cancelScheduledWelcomeCallout();
+
+          if (hasShownWelcomeCallout || infoModeActive) {
+            return;
+          }
+
+          welcomeCalloutActivationTimeoutId = window.setTimeout(() => {
+            welcomeCalloutActivationTimeoutId = null;
+
+            if (!hasShownWelcomeCallout && !infoModeActive) {
+              showWelcomeCallout();
+            }
+          }, 400);
+        };
+
+        welcomeCalloutActivationEvents.forEach(({ type, options }) => {
+          window.addEventListener(type, welcomeCalloutActivationHandler, options);
+        });
+      }
+
       function showWelcomeCallout() {
+        cancelScheduledWelcomeCallout();
+
         if (hasShownWelcomeCallout || infoModeActive) {
           return;
         }
@@ -1828,6 +1881,7 @@
       }
 
       function activateInfoMode() {
+        cancelScheduledWelcomeCallout();
         infoModeActive = true;
         awaitingInfoTargetSelection = true;
         setInfoButtonActiveState(true);
@@ -1854,6 +1908,10 @@
 
         if (clearCallout) {
           clearInfoHighlights();
+        }
+
+        if (!hasShownWelcomeCallout) {
+          scheduleWelcomeCallout();
         }
       }
 
@@ -3340,9 +3398,11 @@
         userAscentDetails = new Map();
         routeMedianGrades = new Map();
         hasShownWelcomeCallout = false;
+        cancelScheduledWelcomeCallout();
         hideTooltip({ force: true });
 
         await loadRoutes();
+        scheduleWelcomeCallout();
       }
 
       function clearTutorialPromptTimer() {
@@ -4031,7 +4091,7 @@
             await loadAscents({ userId: user.uid, username: currentUsername });
             await loadRoutes();
           } finally {
-            showWelcomeCallout();
+            scheduleWelcomeCallout();
           }
 
           return;

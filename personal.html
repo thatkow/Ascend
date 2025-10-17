@@ -1195,6 +1195,14 @@
       let pendingInfoRepositionFrame = null;
       let ephemeralCalloutDismissTimer = null;
       let hasShownWelcomeCallout = false;
+      let welcomeCalloutActivationHandler = null;
+      let welcomeCalloutActivationTimeoutId = null;
+      const welcomeCalloutActivationEvents = [
+        { type: 'pointerdown', options: { passive: true } },
+        { type: 'touchstart', options: { passive: true } },
+        { type: 'keydown', options: false },
+        { type: 'focusin', options: false },
+      ];
 
       const LOCATIONS = [
         { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
@@ -1495,7 +1503,52 @@
         };
       }
 
+      function cancelScheduledWelcomeCallout() {
+        if (welcomeCalloutActivationTimeoutId !== null) {
+          window.clearTimeout(welcomeCalloutActivationTimeoutId);
+          welcomeCalloutActivationTimeoutId = null;
+        }
+
+        if (!welcomeCalloutActivationHandler) {
+          return;
+        }
+
+        welcomeCalloutActivationEvents.forEach(({ type, options }) => {
+          window.removeEventListener(type, welcomeCalloutActivationHandler, options);
+        });
+
+        welcomeCalloutActivationHandler = null;
+      }
+
+      function scheduleWelcomeCallout() {
+        if (hasShownWelcomeCallout || infoModeActive || welcomeCalloutActivationHandler) {
+          return;
+        }
+
+        welcomeCalloutActivationHandler = () => {
+          cancelScheduledWelcomeCallout();
+
+          if (hasShownWelcomeCallout || infoModeActive) {
+            return;
+          }
+
+          welcomeCalloutActivationTimeoutId = window.setTimeout(() => {
+            welcomeCalloutActivationTimeoutId = null;
+
+            if (!hasShownWelcomeCallout && !infoModeActive) {
+              showWelcomeCallout();
+            }
+          }, 400);
+        };
+
+        welcomeCalloutActivationEvents.forEach(({ type, options }) => {
+          window.addEventListener(type, welcomeCalloutActivationHandler, options);
+        });
+      }
+
       function showWelcomeCallout() {
+        cancelScheduledWelcomeCallout();
+
         if (hasShownWelcomeCallout || infoModeActive) {
           return;
         }
@@ -1631,6 +1684,7 @@
       }
 
       function activateInfoMode() {
+        cancelScheduledWelcomeCallout();
         infoModeActive = true;
         awaitingInfoTargetSelection = true;
         setInfoButtonActiveState(true);
@@ -1657,6 +1711,10 @@
 
         if (clearCallout) {
           clearInfoHighlights();
+        }
+
+        if (!hasShownWelcomeCallout) {
+          scheduleWelcomeCallout();
         }
       }
 
@@ -3142,7 +3200,7 @@
             await loadAscents({ userId: user.uid, username: currentUsername });
             await loadRoutes();
           } finally {
-            showWelcomeCallout();
+            scheduleWelcomeCallout();
           }
         } else {
           authOverlay.classList.remove('hidden');
@@ -3164,6 +3222,7 @@
           routeGrades.clear();
           routeMedianGrades = new Map();
           hasShownWelcomeCallout = false;
+          cancelScheduledWelcomeCallout();
           hideTooltip({ force: true });
           redraw();
         }
