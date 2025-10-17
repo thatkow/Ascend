@@ -454,9 +454,17 @@
       }
 
       .location-option-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
         padding: 0.9rem 1rem;
         font-weight: 600;
         letter-spacing: 0.02em;
+      }
+
+      .location-option-name {
+        flex: 1;
       }
 
       .info-wrapper {
@@ -1189,9 +1197,13 @@
       let hasShownWelcomeCallout = false;
 
       const LOCATIONS = [
-        { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg' },
-        { key: 'old-wall', name: 'Old Wall', image: './location/Old Wall.jpg' },
+        { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
+        { key: 'old-wall', name: 'Old Wall', image: './location/Old Wall.jpg', hidden: false },
       ];
+
+      const isLocationVisible = (location) => !!location && location.hidden !== true;
+
+      const getDefaultLocation = () => LOCATIONS.find(isLocationVisible) || null;
 
       const LOCATION_STORAGE_KEY = 'ascend.selectedWall';
       const WALL_QUERY_PARAM = 'wall';
@@ -1946,13 +1958,15 @@
         };
       }
 
-      const findLocationByKey = (key) => LOCATIONS.find((location) => location.key === key);
+      const findLocationByKey = (key) =>
+        LOCATIONS.find((location) => location.key === key && isLocationVisible(location));
 
       const findLocationByName = (name) => {
         const normalized = normalizeLocationName(name);
         return (
-          LOCATIONS.find((location) => normalizeLocationName(location.name) === normalized) ||
-          null
+          LOCATIONS.find(
+            (location) => normalizeLocationName(location.name) === normalized && isLocationVisible(location),
+          ) || null
         );
       };
 
@@ -2025,7 +2039,13 @@
         }
       }
 
-      function upsertLocation({ key = '', name = '', image = '', fallbackName = '' } = {}) {
+      function upsertLocation({
+        key = '',
+        name = '',
+        image = '',
+        fallbackName = '',
+        hidden = false,
+      } = {}) {
         const trimmedName = typeof name === 'string' && name.trim() ? name.trim() : '';
         const fallback =
           trimmedName || (typeof fallbackName === 'string' && fallbackName.trim() ? fallbackName.trim() : '');
@@ -2037,6 +2057,7 @@
         }
 
         const normalizedImage = typeof image === 'string' ? image.trim() : '';
+        const normalizedHidden = Boolean(hidden);
         const existingIndex = LOCATIONS.findIndex((location) => {
           if (!location) {
             return false;
@@ -2053,21 +2074,75 @@
             existing.key !== normalizedKey || existing.name !== displayName || existing.image !== normalizedImage;
 
           if (!needsUpdate) {
+            const hiddenChanged = Boolean(existing.hidden) !== normalizedHidden;
+            if (hiddenChanged) {
+              existing.hidden = normalizedHidden;
+              return { entry: existing, changed: true };
+            }
             return { entry: existing, changed: false };
           }
 
-          const updated = { ...existing, key: normalizedKey, name: displayName, image: normalizedImage };
+          const updated = {
+            ...existing,
+            key: normalizedKey,
+            name: displayName,
+            image: normalizedImage,
+            hidden: normalizedHidden,
+          };
           LOCATIONS[existingIndex] = updated;
           return { entry: updated, changed: true };
         }
 
-        const created = { key: normalizedKey, name: displayName, image: normalizedImage };
+        const created = {
+          key: normalizedKey,
+          name: displayName,
+          image: normalizedImage,
+          hidden: normalizedHidden,
+        };
         LOCATIONS.push(created);
         return { entry: created, changed: true };
       }
 
+      function ensureCurrentLocationVisible() {
+        if (isLocationVisible(currentLocation)) {
+          return;
+        }
+
+        const fallback = getDefaultLocation();
+        if (fallback) {
+          const changed = !currentLocation || currentLocation.key !== fallback.key;
+          currentLocation = fallback;
+          updateLocationButtonLabel();
+          updateLocationOptionsState();
+          updateBackgroundForCurrentLocation();
+          const fallbackKey = getCurrentLocationKey();
+          if (fallbackKey) {
+            persistSelectedWall(fallbackKey);
+            updateWallQueryParam(fallbackKey);
+          } else {
+            persistSelectedWall('');
+            updateWallQueryParam('');
+          }
+          updateSetterLinkHref();
+          if (changed) {
+            applyLocationFilter();
+          }
+          return;
+        }
+
+        currentLocation = null;
+        updateLocationButtonLabel();
+        updateLocationOptionsState();
+        updateBackgroundForCurrentLocation();
+        persistSelectedWall('');
+        updateWallQueryParam('');
+        updateSetterLinkHref();
+        applyLocationFilter();
+      }
+
       function synchronizeCurrentLocationReference() {
         if (!currentLocation) {
+          ensureCurrentLocationVisible();
           return;
         }
 
@@ -2084,15 +2159,18 @@
           const refreshedKey = getCurrentLocationKey();
           if (refreshedKey) {
             persistSelectedWall(refreshedKey);
+            updateWallQueryParam(refreshedKey);
+          } else {
+            persistSelectedWall('');
+            updateWallQueryParam('');
           }
-          updateWallQueryParam(refreshedKey);
           updateSetterLinkHref();
         }
+
+        ensureCurrentLocationVisible();
       }
 
-      const DEFAULT_LOCATION = LOCATIONS[0];
-
-      let currentLocation = DEFAULT_LOCATION;
+      let currentLocation = getDefaultLocation();
 
       function getCurrentLocationKey() {
         return normalizeWallKey(currentLocation?.key || currentLocation?.name);
@@ -2117,6 +2195,7 @@
         const labelText = currentLocation?.name || 'Select wall';
         if (locationButton) {
           locationButton.setAttribute('aria-label', `Select wall: ${labelText}`);
+          locationButton.setAttribute('title', labelText);
         }
       }
 
@@ -2271,7 +2350,7 @@
 
         locationOptions.replaceChildren();
 
-        LOCATIONS.forEach((location) => {
+        LOCATIONS.filter(isLocationVisible).forEach((location) => {
           const button = document.createElement('button');
           button.type = 'button';
           button.className = 'location-option';
@@ -2285,7 +2364,10 @@
 
           const label = document.createElement('span');
           label.className = 'location-option-label';
-          label.textContent = location.name;
+          const name = document.createElement('span');
+          name.className = 'location-option-name';
+          name.textContent = location.name;
+          label.appendChild(name);
           button.appendChild(label);
 
           button.addEventListener('click', () => {
@@ -2615,6 +2697,8 @@
       if (initialLocation) {
         currentLocation = initialLocation;
       }
+
+      ensureCurrentLocationVisible();
 
       const currentLocationKey = getCurrentLocationKey();
       if (currentLocationKey) {
@@ -3350,7 +3434,7 @@
         progressionList.innerHTML = '';
 
         const desiredLocation = normalizeLocationName(currentLocation?.name);
-        const fallbackLocation = normalizeLocationName(DEFAULT_LOCATION?.name);
+        const fallbackLocation = normalizeLocationName(getDefaultLocation()?.name);
         const targetLocation = desiredLocation || fallbackLocation || null;
 
         const relevantRoutes = Array.isArray(routes)
@@ -4182,7 +4266,7 @@
 
       function applyLocationFilter() {
         const desiredLocation = normalizeLocationName(currentLocation?.name);
-        const fallbackLocation = normalizeLocationName(DEFAULT_LOCATION?.name);
+        const fallbackLocation = normalizeLocationName(getDefaultLocation()?.name);
         const targetLocation = desiredLocation || fallbackLocation;
 
         if (!targetLocation) {
@@ -4220,19 +4304,35 @@
           routeMedianGrades = medianMap instanceof Map ? medianMap : new Map();
 
           wallSettingsCache.clear();
+          const hiddenWallKeys = new Set();
           let locationsChanged = false;
           wallSnapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const settings = normalizeWallSettings(data);
             const normalizedId = normalizeWallKey(docSnap.id);
             const normalizedName = normalizeWallKey(data?.name);
+            const normalizedKeyField = normalizeWallKey(data?.key);
+            const isHidden = data?.hidden === true;
 
             if (normalizedId) {
               wallSettingsCache.set(normalizedId, settings);
+              if (isHidden) {
+                hiddenWallKeys.add(normalizedId);
+              }
             }
 
             if (normalizedName) {
               wallSettingsCache.set(normalizedName, settings);
+              if (isHidden) {
+                hiddenWallKeys.add(normalizedName);
+              }
+            }
+
+            if (normalizedKeyField) {
+              wallSettingsCache.set(normalizedKeyField, settings);
+              if (isHidden) {
+                hiddenWallKeys.add(normalizedKeyField);
+              }
             }
 
             const { changed } = upsertLocation({
@@ -4240,6 +4340,7 @@
               name: typeof data?.name === 'string' ? data.name : '',
               image: typeof data?.background_url === 'string' ? data.background_url : '',
               fallbackName: typeof data?.name === 'string' && data.name ? data.name : docSnap.id,
+              hidden: isHidden,
             });
 
             if (changed) {
@@ -4250,6 +4351,8 @@
           if (locationsChanged) {
             renderLocationOptions();
             synchronizeCurrentLocationReference();
+          } else {
+            ensureCurrentLocationVisible();
           }
 
           allRoutes = routesSnapshot.docs
@@ -4271,9 +4374,14 @@
               const median = routeMedianGrades.get(docSnap.id);
               const medianGrade = typeof median === 'number' && Number.isFinite(median) ? median : null;
               const rawLocationValue = typeof data.location === 'string' ? data.location.trim() : '';
+              const defaultLocation = getDefaultLocation();
               const normalizedLocation =
-                normalizeLocationName(rawLocationValue) || normalizeLocationName(DEFAULT_LOCATION?.name);
-              const displayLocation = rawLocationValue || DEFAULT_LOCATION?.name || '';
+                normalizeLocationName(rawLocationValue) || normalizeLocationName(defaultLocation?.name);
+              const displayLocation = rawLocationValue || defaultLocation?.name || '';
+
+              if (normalizedLocation && hiddenWallKeys.has(normalizedLocation)) {
+                return null;
+              }
 
               const fallbackWallSettings = {
                 pointDiameter: data.pointDiameter,
@@ -4310,6 +4418,7 @@
                 unfocusedTransparency: wallSettings.unfocusedTransparency,
               };
             })
+            .filter(Boolean)
             .sort((a, b) => {
               const nameA = (a.title || a.id).toLowerCase();
               const nameB = (b.title || b.id).toLowerCase();

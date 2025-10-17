@@ -430,6 +430,41 @@
       resize: vertical;
     }
 
+    .control-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.65rem 0.75rem;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(0, 0, 0, 0.35);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .control-toggle span {
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .control-toggle input[type='checkbox'] {
+      width: 1.4rem;
+      height: 1.4rem;
+      flex-shrink: 0;
+      accent-color: #7ed957;
+    }
+
+    .control-toggle.is-disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .control-toggle.is-disabled input[type='checkbox'] {
+      pointer-events: none;
+    }
+
     .tab-panels {
       display: flex;
       flex-direction: column;
@@ -799,9 +834,29 @@
     }
 
     .location-option-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
       padding: 0.9rem 1rem;
       font-weight: 600;
       letter-spacing: 0.02em;
+    }
+
+    .location-option-name {
+      flex: 1;
+    }
+
+    .location-option-badge {
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      background: rgba(250, 204, 21, 0.2);
+      color: #facc15;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
     }
 
     #clearButton {
@@ -1388,6 +1443,14 @@
                   <span class="button-label">Select wall</span>
                 </button>
               </div>
+              <label
+                id="wallVisibilityToggleWrapper"
+                class="control-toggle"
+                data-help-text="Hide this wall from climber-facing pages so only setters can access it."
+              >
+                <span>Hide wall from climbers</span>
+                <input id="wallVisibilityToggle" type="checkbox" role="switch" aria-checked="false" />
+              </label>
             </div>
             <div class="control-section">
               <h3 class="control-section-title">Create new wall</h3>
@@ -1562,15 +1625,18 @@
     const createWallButton = document.getElementById('createWallButton');
     const deleteWallButton = document.getElementById('deleteWallButton');
     const createWallStatus = document.getElementById('createWallStatus');
+    const wallVisibilityToggleWrapper = document.getElementById('wallVisibilityToggleWrapper');
+    const wallVisibilityToggle = document.getElementById('wallVisibilityToggle');
 
     let welcomeCalloutElement = null;
     let welcomeCalloutTimer = null;
     let hasShownWelcomeCallout = false;
     let pendingWelcomeCalloutFrame = null;
+    let isUpdatingWallVisibility = false;
 
     const LOCATIONS = [
-      { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg' },
-      { key: 'old-wall', name: 'Old Wall', image: './location/Old Wall.jpg' },
+      { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
+      { key: 'old-wall', name: 'Old Wall', image: './location/Old Wall.jpg', hidden: false },
     ];
 
     const LOCATION_STORAGE_KEY = 'ascend.selectedWall';
@@ -1703,7 +1769,13 @@
       }
     }
 
-    function upsertLocation({ key = '', name = '', image = '', fallbackName = '' } = {}) {
+    function upsertLocation({
+      key = '',
+      name = '',
+      image = '',
+      fallbackName = '',
+      hidden = false,
+    } = {}) {
       const trimmedName = typeof name === 'string' && name.trim() ? name.trim() : '';
       const fallback =
         trimmedName || (typeof fallbackName === 'string' && fallbackName.trim() ? fallbackName.trim() : '');
@@ -1715,6 +1787,7 @@
       }
 
       const normalizedImage = typeof image === 'string' ? image.trim() : '';
+      const normalizedHidden = Boolean(hidden);
       const existingIndex = LOCATIONS.findIndex((location) => {
         if (!location) {
           return false;
@@ -1730,18 +1803,30 @@
         const needsUpdate =
           existing.key !== normalizedKey ||
           existing.name !== displayName ||
-          existing.image !== normalizedImage;
+          existing.image !== normalizedImage ||
+          Boolean(existing.hidden) !== normalizedHidden;
 
         if (!needsUpdate) {
           return { entry: existing, changed: false };
         }
 
-        const updated = { ...existing, key: normalizedKey, name: displayName, image: normalizedImage };
+        const updated = {
+          ...existing,
+          key: normalizedKey,
+          name: displayName,
+          image: normalizedImage,
+          hidden: normalizedHidden,
+        };
         LOCATIONS[existingIndex] = updated;
         return { entry: updated, changed: true };
       }
 
-      const created = { key: normalizedKey, name: displayName, image: normalizedImage };
+      const created = {
+        key: normalizedKey,
+        name: displayName,
+        image: normalizedImage,
+        hidden: normalizedHidden,
+      };
       LOCATIONS.push(created);
       return { entry: created, changed: true };
     }
@@ -1766,6 +1851,8 @@
         updateWallQueryParam(activeKey);
         persistSelectedWall(activeKey);
       }
+
+      updateWallVisibilityControls();
     }
 
     const DEFAULT_LOCATION = LOCATIONS[0];
@@ -1780,12 +1867,15 @@
     const backgroundImage = new Image();
 
     const updateLocationButtonLabel = () => {
-      const labelText = currentLocation?.name || 'Select wall';
+      const baseName = currentLocation?.name || 'Select wall';
+      const suffix = currentLocation?.hidden ? ' (Hidden)' : '';
+      const labelText = `${baseName}${suffix}`;
       if (locationButtonLabel) {
         locationButtonLabel.textContent = labelText;
       }
       if (locationButton) {
         locationButton.setAttribute('aria-label', `Select wall: ${labelText}`);
+        locationButton.setAttribute('title', labelText);
       }
     };
 
@@ -1827,6 +1917,116 @@
 
       deleteWallButton.disabled = !normalizedActiveKey || !hasAlternativeWall;
     };
+
+    function updateLocationHiddenFlag(locationKey, hidden) {
+      const normalizedKey = normalizeWallKey(locationKey);
+      if (!normalizedKey) {
+        return;
+      }
+
+      LOCATIONS.forEach((location) => {
+        if (!location) {
+          return;
+        }
+        const candidateKey = normalizeWallKey(location.key || location.name);
+        if (candidateKey === normalizedKey) {
+          location.hidden = hidden;
+        }
+      });
+
+      if (currentLocation) {
+        const currentKey = normalizeWallKey(currentLocation.key || currentLocation.name);
+        if (currentKey === normalizedKey) {
+          currentLocation.hidden = hidden;
+        }
+      }
+    }
+
+    const updateWallVisibilityControls = () => {
+      if (!wallVisibilityToggle) {
+        return;
+      }
+
+      const isHidden = Boolean(currentLocation?.hidden);
+      wallVisibilityToggle.checked = isHidden;
+      wallVisibilityToggle.setAttribute('aria-checked', isHidden ? 'true' : 'false');
+
+      const disabled = !currentLocation || isUpdatingWallVisibility;
+      wallVisibilityToggle.disabled = disabled;
+      wallVisibilityToggle.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+
+      if (wallVisibilityToggleWrapper) {
+        wallVisibilityToggleWrapper.classList.toggle('is-disabled', disabled);
+      }
+    };
+
+    async function applyWallVisibilityChange(nextHidden) {
+      const locationKey = getCurrentLocationKey();
+      if (!locationKey || !currentLocation) {
+        updateWallVisibilityControls();
+        return;
+      }
+
+      const normalizedNext = Boolean(nextHidden);
+      const previousHidden = Boolean(currentLocation.hidden);
+      if (normalizedNext === previousHidden) {
+        updateWallVisibilityControls();
+        return;
+      }
+
+      isUpdatingWallVisibility = true;
+      updateWallVisibilityControls();
+
+      updateLocationHiddenFlag(locationKey, normalizedNext);
+      updateLocationButtonLabel();
+      renderLocationOptions();
+      updateLocationOptionsState();
+      updateWallVisibilityControls();
+
+      try {
+        const locationDetails =
+          findLocationByKey(locationKey) ||
+          findLocationByName(currentLocation.name) ||
+          currentLocation;
+
+        const wallPayload = {
+          hidden: normalizedNext,
+          updatedAt: serverTimestamp(),
+          key: locationKey,
+        };
+
+        if (locationDetails?.name) {
+          wallPayload.name = locationDetails.name;
+        }
+
+        if (locationDetails?.image) {
+          wallPayload.background_url = locationDetails.image;
+        }
+
+        const docId = wallDocumentIdMap.get(locationKey) || locationKey;
+        await setDoc(doc(db, WALL_COLLECTION, docId), wallPayload, { merge: true });
+
+        setStatus(
+          normalizedNext ? 'Wall hidden from climbers.' : 'Wall visible to climbers.',
+          'success',
+        );
+      } catch (error) {
+        console.error('Failed to update wall visibility:', error);
+        setStatus('Failed to update wall visibility. Please try again.', 'error');
+
+        updateLocationHiddenFlag(locationKey, previousHidden);
+        if (wallVisibilityToggle) {
+          wallVisibilityToggle.checked = previousHidden;
+          wallVisibilityToggle.setAttribute('aria-checked', previousHidden ? 'true' : 'false');
+        }
+        updateLocationButtonLabel();
+        renderLocationOptions();
+        updateLocationOptionsState();
+      } finally {
+        isUpdatingWallVisibility = false;
+        updateWallVisibilityControls();
+      }
+    }
 
     const applyBodyBackground = (imagePath) => {
       if (!document.body) {
@@ -1919,6 +2119,7 @@
         name: typeof targetLocation?.name === 'string' ? targetLocation.name : '',
         image: typeof targetLocation?.image === 'string' ? targetLocation.image : '',
         fallbackName: typeof targetLocation?.name === 'string' ? targetLocation.name : '',
+        hidden: Boolean(targetLocation?.hidden),
       });
 
       if (!canonicalLocation) {
@@ -1934,6 +2135,7 @@
       const changed = previousKey !== nextKey;
 
       currentLocation = canonicalLocation;
+      updateWallVisibilityControls();
       updateLocationButtonLabel();
       updateLocationOptionsState();
       updateBackgroundForCurrentLocation();
@@ -2016,7 +2218,17 @@
 
         const label = document.createElement('span');
         label.className = 'location-option-label';
-        label.textContent = location.name;
+        const name = document.createElement('span');
+        name.className = 'location-option-name';
+        name.textContent = location.name;
+        label.appendChild(name);
+
+        if (location.hidden) {
+          const badge = document.createElement('span');
+          badge.className = 'location-option-badge';
+          badge.textContent = 'Hidden';
+          label.appendChild(badge);
+        }
         button.appendChild(label);
 
         button.addEventListener('click', () => {
@@ -2896,6 +3108,7 @@
             name: typeof data?.name === 'string' ? data.name : '',
             image: typeof data?.background_url === 'string' ? data.background_url : '',
             fallbackName: typeof data?.name === 'string' && data.name ? data.name : snap.id,
+            hidden: Boolean(data?.hidden),
           });
 
           if (locationChanged) {
@@ -2950,6 +3163,7 @@
             name: typeof data?.name === 'string' ? data.name : '',
             image: typeof data?.background_url === 'string' ? data.background_url : '',
             fallbackName: typeof data?.name === 'string' && data.name ? data.name : docSnap.id,
+            hidden: Boolean(data?.hidden),
           });
 
           if (changed) {
@@ -3186,6 +3400,7 @@
           name: trimmedName,
           image: trimmedImage,
           fallbackName: trimmedName,
+          hidden: false,
         });
 
         if (changed) {
@@ -3618,6 +3833,7 @@
     });
 
     renderLocationOptions();
+    updateWallVisibilityControls();
 
     if (tabButtons.length) {
       tabButtons.forEach((button) => {
@@ -3685,6 +3901,14 @@
       locationButton.addEventListener('click', (event) => {
         event.preventDefault();
         openLocationModal();
+      });
+    }
+
+    if (wallVisibilityToggle) {
+      wallVisibilityToggle.addEventListener('change', (event) => {
+        applyWallVisibilityChange(event.target.checked).catch((error) => {
+          console.error('Failed to update wall visibility:', error);
+        });
       });
     }
 
