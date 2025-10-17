@@ -224,6 +224,39 @@
         box-shadow: 0 0 0 7px rgba(126, 217, 87, 0.85), 0 0 36px rgba(126, 217, 87, 0.7);
       }
 
+      .tutorial-pointer {
+        position: fixed;
+        width: 34px;
+        height: 54px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        z-index: 60;
+        transform: translate(-50%, 0);
+      }
+
+      .tutorial-pointer.hidden {
+        display: none;
+      }
+
+      .tutorial-pointer svg {
+        width: 100%;
+        height: 100%;
+        filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+        animation: tutorial-pointer-bounce 1.05s ease-in-out infinite;
+      }
+
+      @keyframes tutorial-pointer-bounce {
+        0%,
+        100% {
+          transform: translateY(4px);
+        }
+        50% {
+          transform: translateY(-6px);
+        }
+      }
+
       @keyframes tutorial-illuminate {
         0%,
         100% {
@@ -428,6 +461,15 @@
 
       .location-modal.hidden {
         display: none !important;
+      }
+
+      .location-modal.is-top-aligned {
+        align-items: flex-start;
+        padding-top: clamp(4.5rem, 14vh, 7.5rem);
+      }
+
+      .location-modal.is-top-aligned .location-modal-content {
+        margin-top: 0;
       }
 
       .progression-modal {
@@ -2559,6 +2601,8 @@
           locationModal.setAttribute('aria-hidden', 'true');
           locationButton?.setAttribute('aria-expanded', 'false');
         }
+
+        locationModal.classList.remove('is-top-aligned');
       }
 
       function openLocationModal() {
@@ -3510,16 +3554,100 @@
 
         const fragment = document.createDocumentFragment();
 
-        lines
-          .filter((line) => typeof line === 'string' && line.trim().length)
-          .forEach((line) => {
+        lines.forEach((item) => {
+          if (typeof item === 'string') {
+            const trimmed = item.trim();
+            if (trimmed.length === 0) {
+              return;
+            }
             const paragraph = document.createElement('p');
-            paragraph.textContent = line.trim();
+            paragraph.textContent = trimmed;
             fragment.appendChild(paragraph);
-          });
+            return;
+          }
+
+          let node = null;
+
+          if (typeof item === 'function') {
+            try {
+              node = item();
+            } catch (error) {
+              console.warn('Unable to render tutorial content item:', error);
+            }
+          } else if (item instanceof Node) {
+            node = item;
+          }
+
+          if (node instanceof Node) {
+            fragment.appendChild(node);
+          }
+        });
 
         tutorialDescription.appendChild(fragment);
       }
+
+      let tutorialPointer = null;
+      let tutorialPointerTarget = null;
+
+      function ensureTutorialPointer() {
+        if (tutorialPointer) {
+          return tutorialPointer;
+        }
+
+        tutorialPointer = document.createElement('div');
+        tutorialPointer.className = 'tutorial-pointer hidden';
+        tutorialPointer.setAttribute('aria-hidden', 'true');
+        tutorialPointer.innerHTML =
+          '<svg viewBox="0 0 48 72" role="presentation" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path fill="#7ED957" d="M24 0l12 18h-8v30h12L24 72 4 48h12V18H8z"/></svg>';
+        document.body.appendChild(tutorialPointer);
+
+        return tutorialPointer;
+      }
+
+      function updateTutorialPointerPosition() {
+        if (!tutorialPointer || tutorialPointer.classList.contains('hidden')) {
+          return;
+        }
+
+        if (!tutorialPointerTarget || !isElementVisible(tutorialPointerTarget)) {
+          hideTutorialPointer();
+          return;
+        }
+
+        const rect = tutorialPointerTarget.getBoundingClientRect();
+        const verticalOffset = 12;
+
+        tutorialPointer.style.left = `${rect.left + rect.width / 2}px`;
+        tutorialPointer.style.top = `${rect.bottom + verticalOffset}px`;
+      }
+
+      function showTutorialPointerFor(element) {
+        if (!(element instanceof HTMLElement) || !isElementVisible(element)) {
+          hideTutorialPointer();
+          return;
+        }
+
+        ensureTutorialPointer();
+
+        tutorialPointerTarget = element;
+        tutorialPointer.classList.remove('hidden');
+        tutorialPointer.setAttribute('aria-hidden', 'false');
+        updateTutorialPointerPosition();
+      }
+
+      function hideTutorialPointer() {
+        if (!tutorialPointer) {
+          tutorialPointerTarget = null;
+          return;
+        }
+
+        tutorialPointerTarget = null;
+        tutorialPointer.classList.add('hidden');
+        tutorialPointer.setAttribute('aria-hidden', 'true');
+      }
+
+      window.addEventListener('resize', updateTutorialPointerPosition);
+      window.addEventListener('scroll', updateTutorialPointerPosition, true);
 
       function highlightTutorialElement(element, options = {}) {
         const shouldIlluminate = options?.illuminate === true;
@@ -3695,6 +3823,7 @@
             setTutorialOverlayAlignment('center');
             highlightTutorialElement(null);
             hideTooltip({ force: true });
+            hideTutorialPointer();
           },
           onExit: () => {
             highlightTutorialElement(null);
@@ -3712,6 +3841,7 @@
             await showTutorialRouteTooltip();
           },
           onExit: () => {
+            hideTutorialPointer();
             stopTutorialRoutePulse();
             closeTutorialRouteTooltip();
             setTutorialOverlayAlignment('center');
@@ -3721,6 +3851,9 @@
           title: 'Show hold colors',
           body: [
             'Toggle the Show Hold Colors button to switch between route outlines and grade colors.',
+            'Routes are tinted by difficulty right now.',
+            'The spectrum below runs from the easiest greens on the left to the hardest reds on the right, covering every grade color.',
+            () => createGradeChartElement(),
             'It\'s perfect when you want to scan the wall by difficulty at a glance.',
           ],
           onEnter: () => {
@@ -3731,9 +3864,13 @@
                 setViewMode(VIEW_MODE_GRADE_COLORS);
               }
               highlightTutorialElement(viewToggleButton, { illuminate: true });
+              showTutorialPointerFor(viewToggleButton);
+            } else {
+              hideTutorialPointer();
             }
           },
           onExit: () => {
+            hideTutorialPointer();
             highlightTutorialElement(null);
             if (tutorialPreviousViewMode && tutorialPreviousViewMode !== viewMode) {
               setViewMode(tutorialPreviousViewMode);
@@ -3748,13 +3885,27 @@
             'Each wall has its own background and set of climbs to explore.',
           ],
           onEnter: () => {
-            setTutorialOverlayAlignment('center');
+            setTutorialOverlayAlignment('bottom');
+            if (locationModal) {
+              locationModal.classList.add('is-top-aligned');
+            }
             if (locationButton) {
               highlightTutorialElement(locationButton, { illuminate: true });
+              showTutorialPointerFor(locationButton);
+              openLocationModal();
+              updateTutorialPointerPosition();
+            } else {
+              hideTutorialPointer();
             }
           },
           onExit: () => {
+            hideTutorialPointer();
             highlightTutorialElement(null);
+            if (locationModal) {
+              locationModal.classList.remove('is-top-aligned');
+            }
+            closeLocationModal();
+            setTutorialOverlayAlignment('center');
           },
         },
         {
@@ -3767,9 +3918,13 @@
             setTutorialOverlayAlignment('center');
             if (loginButton) {
               highlightTutorialElement(loginButton, { illuminate: true });
+              showTutorialPointerFor(loginButton);
+            } else {
+              hideTutorialPointer();
             }
           },
           onExit: () => {
+            hideTutorialPointer();
             highlightTutorialElement(null);
           },
         },
@@ -3783,9 +3938,13 @@
             setTutorialOverlayAlignment('center');
             if (infoButton) {
               highlightTutorialElement(infoButton, { illuminate: true });
+              showTutorialPointerFor(infoButton);
+            } else {
+              hideTutorialPointer();
             }
           },
           onExit: () => {
+            hideTutorialPointer();
             highlightTutorialElement(null);
           },
         },
@@ -3876,6 +4035,7 @@
 
         highlightTutorialElement(null);
         stopTutorialRoutePulse();
+        hideTutorialPointer();
         setTutorialOverlayAlignment('center');
         closeTutorialRouteTooltip();
 
@@ -3952,6 +4112,7 @@
         highlightTutorialElement(null);
         closeTutorialRouteTooltip();
         stopTutorialRoutePulse();
+        hideTutorialPointer();
         setTutorialOverlayAlignment('center');
         restoreInteractiveElementsAfterTutorial();
         hideTutorialPromptButton();
@@ -3970,6 +4131,7 @@
         highlightTutorialElement(null);
         closeTutorialRouteTooltip();
         stopTutorialRoutePulse();
+        hideTutorialPointer();
         setTutorialOverlayAlignment('center');
         closeTutorialOverlay();
         hideTutorialPromptButton();
