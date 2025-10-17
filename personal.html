@@ -1941,11 +1941,13 @@
               'It pulls together the climbs you\'ve marked Ascended or focused so you can manage your training plan.',
             ],
             onEnter: () => {
-              setTutorialOverlayAlignment('center');
+              setTutorialOverlayAlignment('bottom');
               if (progressionButton && isElementVisible(progressionButton)) {
+                openProgressionModal();
                 highlightTutorialElement(progressionButton, { illuminate: true });
                 showTutorialPointerFor(progressionButton);
               } else {
+                closeProgressionModal();
                 highlightTutorialElement(null);
                 hideTutorialPointer();
               }
@@ -1953,6 +1955,8 @@
             onExit: () => {
               hideTutorialPointer();
               highlightTutorialElement(null);
+              closeProgressionModal();
+              setTutorialOverlayAlignment('center');
             },
           },
         ];
