@@ -226,8 +226,8 @@
 
       .tutorial-pointer {
         position: fixed;
-        width: 34px;
-        height: 54px;
+        width: 102px;
+        height: 162px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -872,8 +872,14 @@
         margin-top: 0.4rem;
       }
 
-      .info-callout-chart {
+      .info-callout-chart-wrapper {
         margin-top: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .info-callout-chart {
         display: flex;
         align-items: flex-end;
         gap: 0.18rem;
@@ -896,6 +902,15 @@
 
       .info-callout-chart-bar:last-child {
         border-top-right-radius: 0.45rem;
+      }
+
+      .info-callout-chart-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.75);
+        padding: 0 0.15rem;
+        letter-spacing: 0.02em;
       }
 
       .nav-links {
@@ -1518,9 +1533,13 @@
       }
 
       function createGradeChartElement() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'info-callout-chart-wrapper';
+        wrapper.setAttribute('aria-hidden', 'true');
+
         const chart = document.createElement('div');
         chart.className = 'info-callout-chart';
-        chart.setAttribute('aria-hidden', 'true');
+        wrapper.appendChild(chart);
 
         const gradeEntries = Array.from(GRADE_COLOR_MAP.entries());
         const totalGrades = gradeEntries.length;
@@ -1539,7 +1558,29 @@
           chart.appendChild(bar);
         });
 
-        return chart;
+        if (gradeEntries.length) {
+          const labels = document.createElement('div');
+          labels.className = 'info-callout-chart-labels';
+
+          const middleIndex = Math.round((gradeEntries.length - 1) / 2);
+
+          const startLabel = document.createElement('span');
+          startLabel.textContent = formatGradeDisplay(Number(gradeEntries[0]?.[0] ?? NaN));
+
+          const middleLabel = document.createElement('span');
+          middleLabel.textContent = formatGradeDisplay(Number(gradeEntries[middleIndex]?.[0] ?? NaN));
+
+          const endLabel = document.createElement('span');
+          endLabel.textContent = formatGradeDisplay(Number(gradeEntries[gradeEntries.length - 1]?.[0] ?? NaN));
+
+          labels.appendChild(startLabel);
+          labels.appendChild(middleLabel);
+          labels.appendChild(endLabel);
+
+          wrapper.appendChild(labels);
+        }
+
+        return wrapper;
       }
 
       function isElementVisible(element) {
@@ -3495,7 +3536,7 @@
         tutorialPointer.className = 'tutorial-pointer hidden';
         tutorialPointer.setAttribute('aria-hidden', 'true');
         tutorialPointer.innerHTML =
-          '<svg viewBox="0 0 48 72" role="presentation" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path fill="#7ED957" d="M24 0l12 18h-8v30h12L24 72 4 48h12V18H8z"/></svg>';
+          '<svg viewBox="0 0 64 96" role="presentation" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path fill="#27b4db" d="M32 0l32 36H44v56H20V36H0z"/></svg>';
         document.body.appendChild(tutorialPointer);
 
         return tutorialPointer;
@@ -5134,7 +5175,12 @@
       }
 
       function focusRoute(route) {
+        const shouldCloseProgression = isProgressionModalOpen();
         setRouteFocus(route, true);
+
+        if (shouldCloseProgression) {
+          closeProgressionModal();
+        }
       }
 
       function toggleRouteFocus(route) {

@@ -631,8 +631,14 @@
         margin-top: 0.4rem;
       }
 
-      .info-callout-chart {
+      .info-callout-chart-wrapper {
         margin-top: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .info-callout-chart {
         display: flex;
         align-items: flex-end;
         gap: 0.18rem;
@@ -655,6 +661,15 @@
 
       .info-callout-chart-bar:last-child {
         border-top-right-radius: 0.45rem;
+      }
+
+      .info-callout-chart-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.75);
+        padding: 0 0.15rem;
+        letter-spacing: 0.02em;
       }
 
       .nav-links {
@@ -1279,9 +1294,13 @@
       }
 
       function createGradeChartElement() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'info-callout-chart-wrapper';
+        wrapper.setAttribute('aria-hidden', 'true');
+
         const chart = document.createElement('div');
         chart.className = 'info-callout-chart';
-        chart.setAttribute('aria-hidden', 'true');
+        wrapper.appendChild(chart);
 
         const gradeEntries = Array.from(GRADE_COLOR_MAP.entries());
         const totalGrades = gradeEntries.length;
@@ -1300,7 +1319,29 @@
           chart.appendChild(bar);
         });
 
-        return chart;
+        if (gradeEntries.length) {
+          const labels = document.createElement('div');
+          labels.className = 'info-callout-chart-labels';
+
+          const middleIndex = Math.round((gradeEntries.length - 1) / 2);
+
+          const startLabel = document.createElement('span');
+          startLabel.textContent = formatGradeDisplay(Number(gradeEntries[0]?.[0] ?? NaN));
+
+          const middleLabel = document.createElement('span');
+          middleLabel.textContent = formatGradeDisplay(Number(gradeEntries[middleIndex]?.[0] ?? NaN));
+
+          const endLabel = document.createElement('span');
+          endLabel.textContent = formatGradeDisplay(Number(gradeEntries[gradeEntries.length - 1]?.[0] ?? NaN));
+
+          labels.appendChild(startLabel);
+          labels.appendChild(middleLabel);
+          labels.appendChild(endLabel);
+
+          wrapper.appendChild(labels);
+        }
+
+        return wrapper;
       }
 
       function isElementVisible(element) {
@@ -4116,7 +4157,12 @@
       }
 
       function focusRoute(route) {
+        const shouldCloseProgression = isProgressionModalOpen();
         setRouteFocus(route, true);
+
+        if (shouldCloseProgression) {
+          closeProgressionModal();
+        }
       }
 
       function toggleRouteFocus(route) {
