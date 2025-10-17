@@ -3582,6 +3582,13 @@
         tutorialPromptButton.addEventListener('click', () => {
           void startTutorial();
         });
+
+        tutorialPromptButton.addEventListener('contextmenu', (event) => {
+          event.preventDefault();
+          tutorialPromptDismissed = true;
+          persistTutorialPromptState(true);
+          hideTutorialPrompt();
+        });
       }
 
       if (tutorialPrimaryAction) {

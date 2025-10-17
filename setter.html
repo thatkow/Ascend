@@ -941,6 +941,11 @@
       color: #fff;
     }
 
+    #personalDashboardButton {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
+
     #signOutButton {
       background: rgba(255, 116, 116, 0.9);
       color: #111;
@@ -1924,6 +1929,7 @@
     let tutorialStepIndex = -1;
     let tutorialSteps = [];
     let tutorialPreviousTabId = null;
+    let tutorialSecondaryActionMode = 'back';
     const SETTER_TUTORIAL_PROMPT_STORAGE_KEY = 'ascend.setter.tutorial.dismissed';
     let tutorialPromptDismissed = false;
     try {
@@ -2899,8 +2905,23 @@
       }
 
       if (tutorialSecondaryAction) {
-        tutorialSecondaryAction.textContent = 'Back';
-        tutorialSecondaryAction.classList.toggle('hidden', tutorialStepIndex <= 0);
+        const secondaryConfig = step.secondaryAction || null;
+        let secondaryLabel = 'Back';
+        let shouldShowSecondary = tutorialStepIndex > 0;
+        tutorialSecondaryActionMode = 'back';
+
+        if (secondaryConfig && secondaryConfig.mode === 'close') {
+          tutorialSecondaryActionMode = 'close';
+          secondaryLabel =
+            typeof secondaryConfig.label === 'string' && secondaryConfig.label.trim().length
+              ? secondaryConfig.label
+              : 'Close';
+          shouldShowSecondary = true;
+        }
+
+        tutorialSecondaryAction.textContent = secondaryLabel;
+        tutorialSecondaryAction.dataset.mode = tutorialSecondaryActionMode;
+        tutorialSecondaryAction.classList.toggle('hidden', !shouldShowSecondary);
       }
     }
 
@@ -2912,6 +2933,7 @@
             'Design, update, and publish climbs from here. The wall preview on the left responds instantly as you draw or tweak route details.',
             'Use the sidebar tabs to switch between saved routes, manage walls, and adjust how problems appear to climbers.',
           ],
+          secondaryAction: { mode: 'close', label: 'Close' },
           onEnter: () => {
             setTutorialOverlayAlignment('center');
             highlightTutorialElement(null);
@@ -3093,6 +3115,7 @@
       tutorialActive = true;
       tutorialStepIndex = -1;
       tutorialTransitionInProgress = false;
+      tutorialSecondaryActionMode = 'back';
 
       if (tutorialProgress) {
         tutorialProgress.classList.remove('hidden');
@@ -3117,6 +3140,7 @@
 
         hideTutorialPrompt();
         tutorialPreviousTabId = null;
+        tutorialSecondaryActionMode = 'back';
         return;
       }
 
@@ -3137,6 +3161,7 @@
       tutorialStepIndex = -1;
       tutorialTransitionInProgress = false;
       tutorialSteps = [];
+      tutorialSecondaryActionMode = 'back';
 
       highlightTutorialElement(null);
       hideTutorialPointer();
@@ -4367,10 +4392,19 @@
       tutorialPromptButton.addEventListener('click', () => {
         void startTutorial();
       });
+
+      tutorialPromptButton.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        tutorialPromptDismissed = true;
+        persistTutorialPromptState(true);
+        hideTutorialPrompt();
+      });
     }
 
     if (tutorialPromptDismissed) {
       hideTutorialPrompt();
+    } else {
+      showTutorialPrompt();
     }
 
     if (tutorialPrimaryAction) {
@@ -4389,7 +4423,17 @@
 
     if (tutorialSecondaryAction) {
       tutorialSecondaryAction.addEventListener('click', () => {
-        if (!tutorialActive || tutorialStepIndex <= 0) {
+        if (!tutorialActive) {
+          return;
+        }
+
+        const mode = tutorialSecondaryAction.dataset.mode || tutorialSecondaryActionMode;
+        if (mode === 'close') {
+          void finishTutorial();
+          return;
+        }
+
+        if (tutorialStepIndex <= 0) {
           return;
         }
 

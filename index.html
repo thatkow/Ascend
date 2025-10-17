@@ -4137,6 +4137,14 @@
               tutorialPrimaryAction.focus();
             }
           });
+
+          tutorialPromptButton.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+            tutorialCompleted = true;
+            tutorialInviteOpen = false;
+            hideTutorialPromptButton();
+            clearTutorialPromptTimer();
+          });
         }
 
         if (tutorialPrimaryAction) {
