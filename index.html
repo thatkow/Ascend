@@ -54,88 +54,6 @@
         -webkit-overflow-scrolling: touch;
       }
 
-      .tutorial-prompt {
-        position: fixed;
-        left: 50%;
-        bottom: 1.5rem;
-        transform: translate(-50%, 0);
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        border: none;
-        background-color: rgba(126, 217, 87, 0.95);
-        background-image: linear-gradient(
-          135deg,
-          rgba(126, 217, 87, 0.95),
-          rgba(63, 142, 45, 0.95)
-        );
-        color: #0b1a05;
-        font-size: 1.75rem;
-        font-weight: 700;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
-        z-index: 20;
-        animation: tutorial-bounce 1.2s ease-in-out infinite;
-        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
-          background-image 0.2s ease, color 0.2s ease;
-      }
-
-      .tutorial-prompt:hover,
-      .tutorial-prompt:focus-visible {
-        transform: translate(-50%, -6px) scale(1.02);
-        box-shadow: 0 22px 48px rgba(0, 0, 0, 0.55);
-        outline: none;
-      }
-
-      .tutorial-prompt:focus-visible {
-        box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.45), 0 22px 48px rgba(0, 0, 0, 0.55);
-      }
-
-      .tutorial-prompt.is-static {
-        animation: none;
-        transform: translate(-50%, 0);
-        background-color: #3f454d;
-        background-image: none;
-        color: #f4f5f7;
-      }
-
-      .tutorial-prompt.is-static:hover,
-      .tutorial-prompt.is-static:focus-visible {
-        transform: translate(-50%, -4px) scale(1.02);
-        background-color: #3f454d;
-        background-image: none;
-        color: #f4f5f7;
-      }
-
-      @keyframes tutorial-bounce {
-        0%,
-        100% {
-          transform: translate(-50%, 0);
-          background-color: rgba(126, 217, 87, 0.95);
-          background-image: linear-gradient(
-            135deg,
-            rgba(126, 217, 87, 0.95),
-            rgba(63, 142, 45, 0.95)
-          );
-          color: #0b1a05;
-        }
-        50% {
-          transform: translate(-50%, calc(-400% / 3));
-          background-color: #ff8c42;
-          background-image: none;
-          color: #0b1a05;
-        }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        .tutorial-prompt {
-          animation: none;
-        }
-      }
-
       .tutorial-overlay {
         position: fixed;
         inset: 0;
@@ -1341,17 +1259,6 @@
         <canvas id="previewCanvas" aria-hidden="true"></canvas>
       </div>
     </div>
-    <button
-      id="tutorialPromptButton"
-      class="tutorial-prompt hidden"
-      type="button"
-      aria-label="Open tutorial"
-      aria-hidden="true"
-      title="Show a quick tour"
-      data-tutorial-exempt="true"
-    >
-      ?
-    </button>
     <div
       id="tutorialOverlay"
       class="tutorial-overlay hidden"
@@ -1461,7 +1368,6 @@
       const progressionModal = document.getElementById('progressionModal');
       const progressionModalClose = document.getElementById('progressionModalClose');
       const progressionList = document.getElementById('progressionList');
-      const tutorialPromptButton = document.getElementById('tutorialPromptButton');
       const tutorialOverlay = document.getElementById('tutorialOverlay');
       const tutorialDialogCard = document.getElementById('tutorialDialogCard');
       const tutorialTitle = document.getElementById('tutorialTitle');
@@ -1476,11 +1382,8 @@
       let activeInfoCallout = null;
       let pendingInfoRepositionFrame = null;
       let ephemeralCalloutDismissTimer = null;
-      let tutorialPromptTimeoutId = null;
-      let tutorialPromptVisible = false;
       let tutorialInviteOpen = false;
       let tutorialActive = false;
-      let tutorialCompleted = false;
       let tutorialStepIndex = -1;
       let tutorialTransitionInProgress = false;
       let tutorialHighlightedRouteId = null;
@@ -1488,7 +1391,6 @@
       let tutorialHighlightedElementOptions = { illuminate: false };
       let tutorialPreviousFocus = null;
       let tutorialOverlayMode = 'hidden';
-      let tutorialLastActivityTimestamp = 0;
       let tutorialPreviousViewMode = null;
 
       const LOCATIONS = [
@@ -3417,86 +3319,6 @@
         await loadRoutes();
       }
 
-      function clearTutorialPromptTimer() {
-        if (tutorialPromptTimeoutId !== null) {
-          clearTimeout(tutorialPromptTimeoutId);
-          tutorialPromptTimeoutId = null;
-        }
-      }
-
-      function showTutorialPrompt(options = {}) {
-        const force = options?.force === true;
-
-        clearTutorialPromptTimer();
-
-        if (!tutorialPromptButton || tutorialActive || tutorialInviteOpen) {
-          return;
-        }
-
-        if (!force && tutorialPromptVisible) {
-          return;
-        }
-
-        tutorialPromptVisible = true;
-
-        if (tutorialCompleted) {
-          tutorialPromptButton.classList.add('is-static');
-        } else {
-          tutorialPromptButton.classList.remove('is-static');
-        }
-
-        tutorialPromptButton.classList.remove('hidden');
-        tutorialPromptButton.setAttribute('aria-hidden', 'false');
-        tutorialPromptButton.setAttribute('aria-expanded', 'false');
-        tutorialPromptTimeoutId = null;
-
-        if (!tutorialCompleted) {
-          resetTutorialInactivityTimer();
-        }
-      }
-
-      function hideTutorialPromptButton() {
-        if (!tutorialPromptButton) {
-          return;
-        }
-
-        tutorialPromptVisible = false;
-        tutorialPromptButton.classList.add('hidden');
-        tutorialPromptButton.classList.remove('is-static');
-        tutorialPromptButton.setAttribute('aria-hidden', 'true');
-        tutorialPromptButton.setAttribute('aria-expanded', 'true');
-      }
-
-      function resetTutorialInactivityTimer() {
-        if (tutorialCompleted || tutorialActive || tutorialInviteOpen) {
-          return;
-        }
-
-        clearTutorialPromptTimer();
-        tutorialPromptTimeoutId = window.setTimeout(() => {
-          showTutorialPrompt();
-        }, 60000);
-      }
-
-      function registerTutorialActivity() {
-        if (tutorialCompleted || tutorialActive || tutorialInviteOpen) {
-          return;
-        }
-
-        const now = Date.now();
-        if (now - tutorialLastActivityTimestamp < 1000) {
-          return;
-        }
-
-        tutorialLastActivityTimestamp = now;
-
-        if (tutorialPromptVisible) {
-          return;
-        }
-
-        resetTutorialInactivityTimer();
-      }
-
       function openTutorialOverlay() {
         if (!tutorialOverlay || !tutorialDialogCard) {
           return;
@@ -4027,12 +3849,12 @@
         closeTutorialRouteTooltip();
 
         if (tutorialTitle) {
-          tutorialTitle.textContent = 'Need a quick tour?';
+          tutorialTitle.textContent = 'Take a tour?';
         }
 
         setTutorialDescriptionContent([
-          'It looks like you\'ve been away for a moment. Would you like a guided tour of the main controls?',
-          'You can always open it again later from the question mark button.',
+          'Would you like a quick guided tour of the main controls before you dive in?',
+          'If you\'d rather explore on your own, you can close this dialog at any time.',
         ]);
 
         if (tutorialPrimaryAction) {
@@ -4054,7 +3876,6 @@
         tutorialOverlayMode = 'step';
         tutorialActive = true;
         tutorialStepIndex = -1;
-        tutorialCompleted = false;
         tutorialTransitionInProgress = false;
 
         if (tutorialProgress) {
@@ -4064,8 +3885,6 @@
         stopTutorialRoutePulse();
         setTutorialOverlayAlignment('center');
 
-        hideTutorialPromptButton();
-        clearTutorialPromptTimer();
         disableInteractiveElementsForTutorial();
 
         await goToTutorialStep(0);
@@ -4090,7 +3909,6 @@
         }
 
         tutorialActive = false;
-        tutorialCompleted = true;
         tutorialInviteOpen = false;
         tutorialOverlayMode = 'hidden';
         tutorialStepIndex = -1;
@@ -4108,8 +3926,6 @@
         }
 
         closeTutorialOverlay();
-        clearTutorialPromptTimer();
-        showTutorialPrompt({ force: true });
       }
 
       function declineTutorial() {
@@ -4121,7 +3937,6 @@
         hideTutorialPointer();
         setTutorialOverlayAlignment('center');
         closeTutorialOverlay();
-        showTutorialPrompt({ force: true });
       }
 
       async function handleTutorialPrimaryAction() {
@@ -4159,34 +3974,8 @@
       }
 
       function setupTutorialInteractions() {
-        tutorialLastActivityTimestamp = Date.now();
-
-        showTutorialPrompt();
-
-        if (tutorialPromptButton) {
-          tutorialPromptButton.addEventListener('click', () => {
-            if (tutorialActive || tutorialInviteOpen) {
-              return;
-            }
-
-            hideTutorialPromptButton();
-            clearTutorialPromptTimer();
-            renderTutorialInvite();
-            openTutorialOverlay();
-
-            if (tutorialPrimaryAction) {
-              tutorialPrimaryAction.focus();
-            }
-          });
-
-          tutorialPromptButton.addEventListener('contextmenu', (event) => {
-            event.preventDefault();
-            tutorialCompleted = true;
-            tutorialInviteOpen = false;
-            showTutorialPrompt({ force: true });
-            clearTutorialPromptTimer();
-          });
-        }
+        renderTutorialInvite();
+        openTutorialOverlay();
 
         if (tutorialPrimaryAction) {
           tutorialPrimaryAction.addEventListener('click', () => {
@@ -4200,18 +3989,9 @@
           });
         }
 
-        const activityEvents = ['pointerdown', 'keydown', 'touchstart', 'mousemove'];
-        activityEvents.forEach((eventName) => {
-          document.addEventListener(
-            eventName,
-            () => {
-              registerTutorialActivity();
-            },
-            { passive: true },
-          );
-        });
-
-        resetTutorialInactivityTimer();
+        if (tutorialPrimaryAction) {
+          tutorialPrimaryAction.focus();
+        }
       }
 
       onAuthStateChanged(auth, async (user) => {

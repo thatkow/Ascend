@@ -42,89 +42,6 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    .tutorial-prompt {
-      position: fixed;
-      left: 50%;
-      bottom: 1.5rem;
-      transform: translate(-50%, 0);
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      border: none;
-      background-color: rgba(126, 217, 87, 0.95);
-      background-image: linear-gradient(
-        135deg,
-        rgba(126, 217, 87, 0.95),
-        rgba(63, 142, 45, 0.95)
-      );
-      color: #0b1a05;
-      font-size: 1.15rem;
-      font-weight: 700;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-items: center;
-      justify-content: center;
-      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
-      z-index: 20;
-      animation: tutorial-bounce 1.2s ease-in-out infinite;
-      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
-        background-image 0.2s ease, color 0.2s ease;
-    }
-
-    .tutorial-prompt:hover,
-    .tutorial-prompt:focus-visible {
-      transform: translate(-50%, -6px) scale(1.02);
-      box-shadow: 0 22px 48px rgba(0, 0, 0, 0.55);
-      outline: none;
-    }
-
-    .tutorial-prompt:focus-visible {
-      box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.45), 0 22px 48px rgba(0, 0, 0, 0.55);
-    }
-
-    .tutorial-prompt.is-static {
-      animation: none;
-      transform: translate(-50%, 0);
-      background-color: #3f454d;
-      background-image: none;
-      color: #f4f5f7;
-    }
-
-    .tutorial-prompt.is-static:hover,
-    .tutorial-prompt.is-static:focus-visible {
-      transform: translate(-50%, -4px) scale(1.02);
-      background-color: #3f454d;
-      background-image: none;
-      color: #f4f5f7;
-    }
-
-    @keyframes tutorial-bounce {
-      0%,
-      100% {
-        transform: translate(-50%, 0);
-        background-color: rgba(126, 217, 87, 0.95);
-        background-image: linear-gradient(
-          135deg,
-          rgba(126, 217, 87, 0.95),
-          rgba(63, 142, 45, 0.95)
-        );
-        color: #0b1a05;
-      }
-      50% {
-        transform: translate(-50%, calc(-400% / 3));
-        background-color: #ff8c42;
-        background-image: none;
-        color: #0b1a05;
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .tutorial-prompt {
-        animation: none;
-      }
-    }
-
     .tutorial-overlay {
       position: fixed;
       inset: 0;
@@ -1786,17 +1703,6 @@
     </div>
   </div>
 
-  <button
-    id="tutorialPromptButton"
-    class="tutorial-prompt hidden"
-    type="button"
-    aria-label="Open tutorial"
-    title="Open tutorial"
-    aria-hidden="true"
-    data-tutorial-exempt="true"
-  >
-    ?
-  </button>
   <div
     id="tutorialOverlay"
     class="tutorial-overlay hidden"
@@ -1932,7 +1838,6 @@
     const createWallStatus = document.getElementById('createWallStatus');
     const wallVisibilityToggleWrapper = document.getElementById('wallVisibilityToggleWrapper');
     const wallVisibilityToggle = document.getElementById('wallVisibilityToggle');
-    const tutorialPromptButton = document.getElementById('tutorialPromptButton');
     const tutorialOverlay = document.getElementById('tutorialOverlay');
     const tutorialDialogCard = document.getElementById('tutorialDialogCard');
     const tutorialTitle = document.getElementById('tutorialTitle');
@@ -1953,32 +1858,6 @@
     let tutorialSteps = [];
     let tutorialPreviousTabId = null;
     let tutorialSecondaryActionMode = 'back';
-    const LEGACY_SETTER_TUTORIAL_PROMPT_STORAGE_KEY = 'ascend.setter.tutorial.dismissed';
-    const LEGACY_SETTER_TUTORIAL_PROMPT_HIDDEN_STORAGE_KEY = 'ascend.setter.tutorial.prompt.hidden';
-    const SETTER_TUTORIAL_COMPLETED_STORAGE_KEY = 'ascend.setter.tutorial.prompt.completed';
-    let tutorialPromptCompleted = false;
-    try {
-      const legacyDismissed =
-        window.localStorage?.getItem(LEGACY_SETTER_TUTORIAL_PROMPT_STORAGE_KEY) === 'true';
-      const legacyHidden =
-        window.localStorage?.getItem(LEGACY_SETTER_TUTORIAL_PROMPT_HIDDEN_STORAGE_KEY) === 'true';
-
-      if (legacyDismissed || legacyHidden) {
-        window.localStorage?.removeItem(LEGACY_SETTER_TUTORIAL_PROMPT_STORAGE_KEY);
-        window.localStorage?.removeItem(LEGACY_SETTER_TUTORIAL_PROMPT_HIDDEN_STORAGE_KEY);
-        window.localStorage?.setItem(SETTER_TUTORIAL_COMPLETED_STORAGE_KEY, 'true');
-      }
-
-      tutorialPromptCompleted =
-        window.localStorage?.getItem(SETTER_TUTORIAL_COMPLETED_STORAGE_KEY) === 'true';
-    } catch (error) {
-      console.warn('Unable to read setter tutorial prompt state:', error);
-      tutorialPromptCompleted = false;
-    }
-
-    if (tutorialPromptButton && tutorialPromptCompleted) {
-      tutorialPromptButton.classList.add('is-static');
-    }
 
     const LOCATIONS = [
       { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
@@ -2878,63 +2757,6 @@
       tutorialPreviousFocus = null;
     }
 
-    function showTutorialPrompt() {
-      if (!tutorialPromptButton) {
-        return;
-      }
-
-      if (tutorialPromptCompleted) {
-        tutorialPromptButton.classList.add('is-static');
-      } else {
-        tutorialPromptButton.classList.remove('is-static');
-      }
-
-      tutorialPromptButton.classList.remove('hidden');
-      tutorialPromptButton.setAttribute('aria-hidden', 'false');
-      tutorialPromptButton.setAttribute('aria-expanded', 'false');
-    }
-
-    function hideTutorialPrompt() {
-      if (!tutorialPromptButton) {
-        return;
-      }
-
-      tutorialPromptButton.classList.add('hidden');
-      tutorialPromptButton.classList.remove('is-static');
-      tutorialPromptButton.setAttribute('aria-hidden', 'true');
-      tutorialPromptButton.setAttribute('aria-expanded', 'true');
-    }
-
-    function clearLegacyTutorialPromptState() {
-      try {
-        window.localStorage?.removeItem(LEGACY_SETTER_TUTORIAL_PROMPT_STORAGE_KEY);
-        window.localStorage?.removeItem(LEGACY_SETTER_TUTORIAL_PROMPT_HIDDEN_STORAGE_KEY);
-      } catch (error) {
-        console.warn('Unable to clear legacy setter tutorial prompt state:', error);
-      }
-    }
-
-    function persistTutorialPromptCompletion(completed) {
-      try {
-        if (completed) {
-          window.localStorage?.setItem(SETTER_TUTORIAL_COMPLETED_STORAGE_KEY, 'true');
-        } else {
-          window.localStorage?.removeItem(SETTER_TUTORIAL_COMPLETED_STORAGE_KEY);
-        }
-      } catch (error) {
-        console.warn('Unable to persist setter tutorial completion state:', error);
-      }
-    }
-
-    function markTutorialPromptCompleted() {
-      tutorialPromptCompleted = true;
-      persistTutorialPromptCompletion(true);
-
-      if (tutorialPromptButton) {
-        tutorialPromptButton.classList.add('is-static');
-      }
-    }
-
     function attachTutorialKeydown() {
       document.addEventListener('keydown', handleTutorialKeydown, true);
     }
@@ -3181,14 +3003,11 @@
       tutorialStepIndex = -1;
       tutorialTransitionInProgress = false;
       tutorialSecondaryActionMode = 'back';
-      tutorialPromptCompleted = false;
-      persistTutorialPromptCompletion(false);
 
       if (tutorialProgress) {
         tutorialProgress.classList.remove('hidden');
       }
 
-      hideTutorialPrompt();
       setTutorialOverlayAlignment('center');
       openTutorialOverlay();
       attachTutorialKeydown();
@@ -3196,18 +3015,8 @@
       await goToTutorialStep(0);
     }
 
-    async function finishTutorial(options = {}) {
-      const suppressPrompt = options?.suppressPrompt === true;
-
+    async function finishTutorial() {
       if (!tutorialActive && !tutorialTransitionInProgress) {
-        if (suppressPrompt) {
-          hideTutorialPrompt();
-        } else {
-          clearLegacyTutorialPromptState();
-          markTutorialPromptCompleted();
-          showTutorialPrompt();
-        }
-
         tutorialPreviousTabId = null;
         tutorialSecondaryActionMode = 'back';
         return;
@@ -3242,14 +3051,6 @@
 
       closeTutorialOverlay();
       detachTutorialKeydown();
-
-      if (suppressPrompt) {
-        hideTutorialPrompt();
-      } else {
-        clearLegacyTutorialPromptState();
-        markTutorialPromptCompleted();
-        showTutorialPrompt();
-      }
 
       if (tutorialPreviousTabId) {
         activateTab(tutorialPreviousTabId);
@@ -4457,22 +4258,6 @@
         setDrawingEnabled(!isDrawingEnabled);
       });
     }
-
-    if (tutorialPromptButton) {
-      tutorialPromptButton.addEventListener('click', () => {
-        void startTutorial();
-      });
-
-      tutorialPromptButton.addEventListener('contextmenu', (event) => {
-        event.preventDefault();
-        clearLegacyTutorialPromptState();
-        tutorialPromptCompleted = true;
-        persistTutorialPromptCompletion(true);
-        showTutorialPrompt();
-      });
-    }
-
-    hideTutorialPrompt();
 
     if (tutorialPrimaryAction) {
       tutorialPrimaryAction.addEventListener('click', () => {
@@ -7483,7 +7268,7 @@
       clearStatus();
       setRoleControlsEnabled(false);
       resetRoleManagementUI('Setter access required to manage roles.');
-      void finishTutorial({ suppressPrompt: true });
+      void finishTutorial();
     }
 
     function handleAuthorized() {
@@ -7492,9 +7277,6 @@
       routeSelector.disabled = false;
       setRoleControlsEnabled(true);
       clearRoleStatus();
-      if (!tutorialActive) {
-        showTutorialPrompt();
-      }
     }
 
     onAuthStateChanged(auth, async (user) => {
@@ -7537,6 +7319,8 @@
         } catch (error) {
           console.error('Unable to initialise routes:', error);
         }
+
+        await startTutorial();
       } else {
         currentUsername = '';
         currentUserId = null;
@@ -7551,8 +7335,7 @@
         setRoleControlsEnabled(false);
         resetRoleManagementUI();
         setAuthMode('login');
-        hideTutorialPrompt();
-        void finishTutorial({ suppressPrompt: true });
+        void finishTutorial();
       }
     });
 
