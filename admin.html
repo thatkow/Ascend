@@ -799,6 +799,51 @@
       return { processedCollections, totalImported, totalFailed };
     }
 
+    async function demoteImportedAdmins() {
+      const result = { demoted: 0, skipped: 0, failed: 0 };
+
+      if (!currentAdminUser) {
+        return result;
+      }
+
+      try {
+        const adminQuery = query(collection(db, 'roles'), where('role', '==', 'admin'));
+        const snapshot = await getDocs(adminQuery);
+
+        for (const docSnap of snapshot.docs) {
+          if (!docSnap) {
+            continue;
+          }
+
+          const targetUid = docSnap.id;
+          if (targetUid === currentAdminUser.uid) {
+            result.skipped += 1;
+            continue;
+          }
+
+          try {
+            await setDoc(
+              docSnap.ref,
+              {
+                role: 'setter',
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true },
+            );
+            result.demoted += 1;
+          } catch (docError) {
+            console.error(`Failed to demote admin ${targetUid}:`, docError);
+            result.failed += 1;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to resolve admin roles after import:', error);
+        result.failed += 1;
+      }
+
+      return result;
+    }
+
     function normalizeDocDataCandidate(docData) {
       if (!docData || typeof docData !== 'object' || Array.isArray(docData)) {
         return {};
@@ -1174,16 +1219,41 @@
 
         const { processedCollections, totalImported, totalFailed } = await importDatabaseDump(parsed);
 
+        let statusVariant = 'info';
+        let statusMessage = '';
+
         if (!processedCollections) {
-          setAdminStatus('No collections were imported from the selected file.', 'warning');
+          statusVariant = 'warning';
+          statusMessage = 'No collections were imported from the selected file.';
         } else if (totalFailed > 0) {
-          setAdminStatus(
-            `Imported ${totalImported} documents with ${totalFailed} errors. Check the console for details.`,
-            'error',
-          );
+          statusVariant = 'error';
+          statusMessage = `Imported ${totalImported} documents with ${totalFailed} errors. Check the console for details.`;
         } else {
-          setAdminStatus(`Imported ${totalImported} documents from ${processedCollections} collections.`, 'success');
+          statusVariant = 'success';
+          statusMessage = `Imported ${totalImported} documents from ${processedCollections} collections.`;
         }
+
+        const demotionSummary = await demoteImportedAdmins();
+        if (demotionSummary) {
+          if (demotionSummary.demoted > 0) {
+            const demotedSuffix =
+              demotionSummary.demoted === 1
+                ? 'Demoted 1 admin role to setter.'
+                : `Demoted ${demotionSummary.demoted} admin roles to setter.`;
+            statusMessage = statusMessage ? `${statusMessage} ${demotedSuffix}` : demotedSuffix;
+          }
+
+          if (demotionSummary.failed > 0) {
+            const failureSuffix =
+              demotionSummary.failed === 1
+                ? 'Failed to demote 1 admin role. Check the console for details.'
+                : `Failed to demote ${demotionSummary.failed} admin roles. Check the console for details.`;
+            statusMessage = statusMessage ? `${statusMessage} ${failureSuffix}` : failureSuffix;
+            statusVariant = 'error';
+          }
+        }
+
+        setAdminStatus(statusMessage, statusVariant);
 
       } catch (error) {
         console.error('Failed to import database dump:', error);

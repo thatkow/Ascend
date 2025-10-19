@@ -4074,6 +4074,10 @@
       const routeGrades = new Map();
       let userAscentDetails = new Map();
       let routeMedianGrades = new Map();
+      const CLICK_DRAG_DISTANCE_THRESHOLD = 8;
+      const CLICK_DRAG_DISTANCE_THRESHOLD_SQUARED =
+        CLICK_DRAG_DISTANCE_THRESHOLD * CLICK_DRAG_DISTANCE_THRESHOLD;
+      let activePointerInteraction = null;
       let progressionPreviouslyFocusedElement = null;
 
       function synchroniseAscentsWithRoutes(options = {}) {
@@ -5135,6 +5139,90 @@
         return null;
       }
 
+      function beginPointerInteraction(event) {
+        const point = extractClientPoint(event);
+        if (!point) {
+          activePointerInteraction = null;
+          return;
+        }
+
+        const pointerId = 'pointerId' in event ? event.pointerId : null;
+        activePointerInteraction = {
+          pointerId,
+          startX: point.x,
+          startY: point.y,
+          latestX: point.x,
+          latestY: point.y,
+          dragging: false,
+        };
+      }
+
+      function updatePointerInteraction(event) {
+        if (!activePointerInteraction) {
+          return;
+        }
+
+        if (
+          'pointerId' in event &&
+          activePointerInteraction.pointerId !== null &&
+          event.pointerId !== activePointerInteraction.pointerId
+        ) {
+          return;
+        }
+
+        const point = extractClientPoint(event);
+        if (!point) {
+          return;
+        }
+
+        activePointerInteraction.latestX = point.x;
+        activePointerInteraction.latestY = point.y;
+
+        if (!activePointerInteraction.dragging) {
+          const movementSquared = distanceSquared(
+            activePointerInteraction.startX,
+            activePointerInteraction.startY,
+            point.x,
+            point.y,
+          );
+
+          if (movementSquared > CLICK_DRAG_DISTANCE_THRESHOLD_SQUARED) {
+            activePointerInteraction.dragging = true;
+          }
+        }
+      }
+
+      function concludePointerInteraction(event) {
+        if (!activePointerInteraction) {
+          return null;
+        }
+
+        if (
+          'pointerId' in event &&
+          activePointerInteraction.pointerId !== null &&
+          event.pointerId !== activePointerInteraction.pointerId
+        ) {
+          return null;
+        }
+
+        const point = extractClientPoint(event);
+        const resolvedX = point?.x ?? activePointerInteraction.latestX;
+        const resolvedY = point?.y ?? activePointerInteraction.latestY;
+
+        const result = {
+          x: resolvedX,
+          y: resolvedY,
+          dragging: activePointerInteraction.dragging,
+        };
+
+        activePointerInteraction = null;
+        return result;
+      }
+
+      function cancelPointerInteraction() {
+        activePointerInteraction = null;
+      }
+
       function applyLocationFilter() {
         const desiredLocation = normalizeLocationName(currentLocation?.name);
         const fallbackLocation = normalizeLocationName(getDefaultLocation()?.name);
@@ -6063,6 +6151,8 @@
       }
 
       function handlePointerMove(event) {
+        updatePointerInteraction(event);
+
         if ('pointerType' in event) {
           const pointerType = event.pointerType;
           if (pointerType && pointerType !== 'mouse' && pointerType !== 'pen') {
@@ -6071,7 +6161,13 @@
           }
         }
 
-        const entry = getRouteEntryAtClientPoint(event.clientX, event.clientY);
+        const point = extractClientPoint(event);
+        if (!point) {
+          canvas.style.cursor = '';
+          return;
+        }
+
+        const entry = getRouteEntryAtClientPoint(point.x, point.y);
 
         if (entry && entry.route) {
           canvas.style.cursor = 'pointer';
@@ -6091,18 +6187,30 @@
       }
 
       function handleCanvasPointerDown(event) {
-        const point = extractClientPoint(event);
-        if (!point) {
+        beginPointerInteraction(event);
+      }
+
+      function handleCanvasPointerUp(event) {
+        const interaction = concludePointerInteraction(event);
+        if (!interaction) {
           return;
         }
 
-        const entry = getRouteEntryAtClientPoint(point.x, point.y);
+        if (interaction.dragging) {
+          return;
+        }
+
+        const entry = getRouteEntryAtClientPoint(interaction.x, interaction.y);
 
         if (entry && entry.route) {
-          showTooltip(entry.route, point.x, point.y, { pin: true });
+          showTooltip(entry.route, interaction.x, interaction.y, { pin: true });
         } else if (!pinnedRouteId) {
           hideTooltip({ force: true });
         }
+      }
+
+      function handleCanvasPointerCancel() {
+        cancelPointerInteraction();
       }
 
       function handleDocumentPointerDown(event) {
@@ -6129,12 +6237,18 @@
         canvas.addEventListener('pointermove', handlePointerMove);
         canvas.addEventListener('pointerleave', handlePointerLeave);
         canvas.addEventListener('pointerdown', handleCanvasPointerDown);
+        document.addEventListener('pointerup', handleCanvasPointerUp);
+        document.addEventListener('pointercancel', handleCanvasPointerCancel);
         document.addEventListener('pointerdown', handleDocumentPointerDown);
       } else {
         canvas.addEventListener('mousemove', handlePointerMove);
         canvas.addEventListener('mouseleave', handlePointerLeave);
         canvas.addEventListener('mousedown', handleCanvasPointerDown);
+        document.addEventListener('mouseup', handleCanvasPointerUp);
         canvas.addEventListener('touchstart', handleCanvasPointerDown);
+        canvas.addEventListener('touchmove', handlePointerMove);
+        document.addEventListener('touchend', handleCanvasPointerUp);
+        document.addEventListener('touchcancel', handleCanvasPointerCancel);
         document.addEventListener('mousedown', handleDocumentPointerDown);
         document.addEventListener('touchstart', handleDocumentPointerDown);
       }
