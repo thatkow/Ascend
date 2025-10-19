@@ -886,6 +886,11 @@
       color: #fff;
     }
 
+    #databaseDumpButton {
+      background: rgba(126, 217, 87, 0.85);
+      color: #0b1a06;
+    }
+
     #signOutButton {
       background: rgba(255, 116, 116, 0.9);
       color: #111;
@@ -1585,6 +1590,15 @@
                   <span class="button-label">Personal Dashboard</span>
                 </button>
                 <button
+                  id="databaseDumpButton"
+                  class="global-action-button"
+                  type="button"
+                  data-help-text="Download a JSON backup of walls, routes, ascents, and related data."
+                >
+                  <span class="button-icon" aria-hidden="true">💾</span>
+                  <span class="button-label">Download Database</span>
+                </button>
+                <button
                   id="signOutButton"
                   class="global-action-button"
                   type="button"
@@ -1594,6 +1608,12 @@
                   <span class="button-label">Sign Out</span>
                 </button>
               </div>
+              <p
+                id="databaseDumpStatus"
+                class="status-message hidden"
+                role="status"
+                aria-live="polite"
+              ></p>
             </div>
           </div>
           <div
@@ -1798,6 +1818,8 @@
     const infoPopover = document.getElementById('infoPopover');
     const climberViewButton = document.getElementById('climberViewButton');
     const personalDashboardButton = document.getElementById('personalDashboardButton');
+    const databaseDumpButton = document.getElementById('databaseDumpButton');
+    const databaseDumpStatus = document.getElementById('databaseDumpStatus');
     const previewLink = document.getElementById('previewLink');
     const previewLinkBaseHref = previewLink?.getAttribute('href') || 'index.html';
     const climberViewBaseHref = 'index.html';
@@ -4924,6 +4946,85 @@
       });
     }
 
+    if (databaseDumpButton) {
+      databaseDumpButton.addEventListener('click', async () => {
+        if (databaseDumpButton.disabled) {
+          return;
+        }
+
+        setDatabaseDumpStatus('Preparing database dump…', 'info');
+        databaseDumpButton.disabled = true;
+
+        try {
+          const collectionsToExport = [
+            { key: 'walls', ref: collection(db, WALL_COLLECTION) },
+            { key: 'routes', ref: collection(db, 'routes') },
+            { key: 'ascents', ref: collection(db, 'ascents') },
+            { key: 'roles', ref: collection(db, 'roles') },
+            { key: 'usernames', ref: collection(db, 'usernames') },
+          ];
+
+          const exportPayload = {
+            metadata: {
+              exportedAt: new Date().toISOString(),
+              requestedBy: currentUsername || null,
+              collections: collectionsToExport.map((entry) => entry.key),
+            },
+            data: {},
+          };
+
+          let hadCollectionError = false;
+
+          for (const { key, ref } of collectionsToExport) {
+            try {
+              const snapshot = await getDocs(ref);
+              exportPayload.data[key] = snapshot.docs
+                .map((docSnap) => serializeFirestoreDocument(docSnap))
+                .filter(Boolean);
+            } catch (error) {
+              hadCollectionError = true;
+              console.warn(`Failed to include ${key} in database dump:`, error);
+              exportPayload.data[key] = {
+                error: true,
+                code: typeof error?.code === 'string' ? error.code : null,
+                message: error?.message || 'Failed to load collection.',
+              };
+            }
+          }
+
+          const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+            type: 'application/json',
+          });
+
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const filename = `ascend-database-${timestamp}.json`;
+
+          const url = URL.createObjectURL(blob);
+          const tempLink = document.createElement('a');
+          tempLink.href = url;
+          tempLink.download = filename;
+          document.body.appendChild(tempLink);
+          tempLink.click();
+          document.body.removeChild(tempLink);
+          URL.revokeObjectURL(url);
+
+          if (hadCollectionError) {
+            setDatabaseDumpStatus(
+              'Database dump downloaded with some missing collections. Check console for details.',
+              'info',
+            );
+          } else {
+            setDatabaseDumpStatus('Database dump downloaded successfully.', 'success');
+          }
+        } catch (error) {
+          console.error('Failed to generate database dump:', error);
+          setDatabaseDumpStatus('Failed to create database dump. Please try again.', 'error');
+        } finally {
+          databaseDumpButton.disabled = false;
+        }
+      });
+    }
+
     function setRoleControlsEnabled(enabled) {
       const allow = Boolean(enabled);
       if (grantSetterButton) {
@@ -5344,6 +5445,95 @@
       roleStatusMessage.textContent = '';
       roleStatusMessage.classList.add('hidden');
       delete roleStatusMessage.dataset.variant;
+    }
+
+    function setDatabaseDumpStatus(message, variant = 'info') {
+      if (!databaseDumpStatus) {
+        return;
+      }
+
+      if (!message) {
+        clearDatabaseDumpStatus();
+        return;
+      }
+
+      databaseDumpStatus.textContent = message;
+      databaseDumpStatus.classList.remove('hidden');
+
+      if (variant) {
+        databaseDumpStatus.dataset.variant = variant;
+      } else {
+        delete databaseDumpStatus.dataset.variant;
+      }
+    }
+
+    function clearDatabaseDumpStatus() {
+      if (!databaseDumpStatus) {
+        return;
+      }
+
+      databaseDumpStatus.textContent = '';
+      databaseDumpStatus.classList.add('hidden');
+      delete databaseDumpStatus.dataset.variant;
+    }
+
+    function serializeFirestoreValue(value) {
+      if (value === undefined) {
+        return null;
+      }
+
+      if (value === null) {
+        return null;
+      }
+
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value.toISOString();
+      }
+
+      if (Array.isArray(value)) {
+        return value.map((item) => serializeFirestoreValue(item));
+      }
+
+      if (value && typeof value === 'object') {
+        if (typeof value.toDate === 'function') {
+          const dateValue = value.toDate();
+          if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {
+            return dateValue.toISOString();
+          }
+          return dateValue;
+        }
+
+        if (value instanceof Uint8Array) {
+          return Array.from(value);
+        }
+
+        if (typeof value.path === 'string' && typeof value.firestore === 'object') {
+          return { __ref: value.path };
+        }
+
+        const serializedObject = {};
+        for (const [key, nestedValue] of Object.entries(value)) {
+          serializedObject[key] = serializeFirestoreValue(nestedValue);
+        }
+        return serializedObject;
+      }
+
+      return value;
+    }
+
+    function serializeFirestoreDocument(docSnap) {
+      if (!docSnap?.exists?.()) {
+        return null;
+      }
+
+      const rawData = docSnap.data();
+      const serializedData = serializeFirestoreValue(rawData);
+
+      if (serializedData && typeof serializedData === 'object' && !Array.isArray(serializedData)) {
+        return { id: docSnap.id, ...serializedData };
+      }
+
+      return { id: docSnap.id, value: serializedData };
     }
 
     function markUnsavedChange() {
@@ -7268,6 +7458,7 @@
       clearStatus();
       setRoleControlsEnabled(false);
       resetRoleManagementUI('Setter access required to manage roles.');
+      clearDatabaseDumpStatus();
       void finishTutorial();
     }
 
@@ -7277,6 +7468,9 @@
       routeSelector.disabled = false;
       setRoleControlsEnabled(true);
       clearRoleStatus();
+      if (databaseDumpButton) {
+        databaseDumpButton.disabled = false;
+      }
     }
 
     onAuthStateChanged(auth, async (user) => {
