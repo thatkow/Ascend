@@ -42,6 +42,46 @@
       -webkit-overflow-scrolling: touch;
     }
 
+    .focus-footer {
+      position: absolute;
+      left: 50%;
+      bottom: 1.25rem;
+      transform: translateX(-50%);
+      z-index: 7;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .clear-focus-button {
+      pointer-events: auto;
+      border-radius: 999px;
+      border: 1px solid rgba(126, 217, 87, 0.75);
+      background: linear-gradient(135deg, rgba(126, 217, 87, 0.95), rgba(126, 217, 87, 0.7));
+      color: #0c1905;
+      font-weight: 600;
+      padding: 0.6rem 1.5rem;
+      font-size: 0.95rem;
+      cursor: pointer;
+      box-shadow: 0 14px 30px rgba(126, 217, 87, 0.35);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+        border-color 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: 0.01em;
+    }
+
+    .clear-focus-button:hover,
+    .clear-focus-button:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 36px rgba(126, 217, 87, 0.4);
+      outline: none;
+      border-color: rgba(126, 217, 87, 0.9);
+      background: linear-gradient(135deg, rgba(126, 217, 87, 1), rgba(126, 217, 87, 0.82));
+    }
+
     .tutorial-overlay {
       position: fixed;
       inset: 0;
@@ -1229,6 +1269,17 @@
   <div id="appContent" class="hidden">
     <div class="canvas-container">
       <canvas id="drawingCanvas"></canvas>
+      <div class="focus-footer">
+        <button
+          id="clearFocusButton"
+          class="clear-focus-button hidden"
+          type="button"
+          data-info-target="route-focus"
+          aria-hidden="true"
+        >
+          Clear Focus
+        </button>
+      </div>
     </div>
     <div class="control-panel" data-expanded="true">
       <div id="panelSidebar" class="panel-sidebar">
@@ -1795,6 +1846,7 @@
     const appContent = document.getElementById('appContent');
     const canvasContainer = document.querySelector('.canvas-container');
     const canvas = document.getElementById('drawingCanvas');
+    const clearFocusButton = document.getElementById('clearFocusButton');
     const authForm = document.getElementById('authForm');
     const authUsername = document.getElementById('authUsername');
     const authPassword = document.getElementById('authPassword');
@@ -2388,6 +2440,7 @@
       const changed = previousKey !== nextKey;
 
       currentLocation = canonicalLocation;
+      clearRouteFocus();
       updateWallVisibilityControls();
       updateLocationButtonLabel();
       updateLocationOptionsState();
@@ -4231,7 +4284,8 @@
         if (fallbackLocation) {
           setLocation(fallbackLocation, { persist: true, refreshRoutes: false });
         } else {
-          currentLocation = null;
+        currentLocation = null;
+        clearRouteFocus();
           updateLocationButtonLabel();
           updateLocationOptionsState();
           applyBodyBackground('');
@@ -4403,6 +4457,14 @@
       updatePanModifierState(false);
     });
 
+    if (clearFocusButton) {
+      clearFocusButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        clearRouteFocus();
+      });
+    }
+
     if (canvas) {
       canvas.addEventListener('pointerdown', handleCanvasPointerDown);
       canvas.addEventListener('pointermove', handleCanvasPointerMove);
@@ -4414,6 +4476,247 @@
     const routesCache = new Map();
     let routeMedianGrades = new Map();
     let queuedGradeBarOverlays = [];
+    let focusedRouteKey = '';
+    let overlayInteractionEntries = [];
+
+    const DOUBLE_FOCUS_TIME_THRESHOLD = 350;
+    const DOUBLE_FOCUS_DISTANCE_THRESHOLD = 32;
+    let lastFocusActivation = {
+      time: 0,
+      routeKey: '',
+      pointerType: '',
+      x: 0,
+      y: 0,
+    };
+
+    const updateClearFocusButton = () => {
+      if (!clearFocusButton) {
+        return;
+      }
+
+      const hasFocus = Boolean(focusedRouteKey);
+      clearFocusButton.classList.toggle('hidden', !hasFocus);
+      clearFocusButton.setAttribute('aria-hidden', hasFocus ? 'false' : 'true');
+
+      if (hasFocus) {
+        clearFocusButton.removeAttribute('disabled');
+      } else {
+        clearFocusButton.setAttribute('disabled', 'true');
+        if (document.activeElement === clearFocusButton && typeof clearFocusButton.blur === 'function') {
+          clearFocusButton.blur();
+        }
+      }
+    };
+
+    const resetLastFocusActivation = () => {
+      lastFocusActivation = {
+        time: 0,
+        routeKey: '',
+        pointerType: '',
+        x: 0,
+        y: 0,
+      };
+    };
+
+    const resolvePointerType = (event) => {
+      if (!event) {
+        return '';
+      }
+
+      if (typeof event.pointerType === 'string') {
+        return event.pointerType;
+      }
+
+      if (typeof event.type === 'string') {
+        if (event.type.startsWith('mouse')) {
+          return 'mouse';
+        }
+        if (event.type.startsWith('touch')) {
+          return 'touch';
+        }
+        if (event.type.startsWith('pen')) {
+          return 'pen';
+        }
+      }
+
+      return '';
+    };
+
+    const shouldFocusFromInteraction = (event, entry) => {
+      if (!entry || typeof entry.routeKey !== 'string' || !entry.routeKey) {
+        resetLastFocusActivation();
+        return false;
+      }
+
+      const pointerType = resolvePointerType(event);
+      const now = typeof event?.timeStamp === 'number' ? event.timeStamp : Date.now();
+      const clickCount = typeof event?.detail === 'number' ? event.detail : 0;
+      let isDoubleActivation = clickCount >= 2;
+
+      if (!isDoubleActivation && lastFocusActivation.routeKey) {
+        const elapsed = now - lastFocusActivation.time;
+        if (elapsed <= DOUBLE_FOCUS_TIME_THRESHOLD) {
+          const pointerMatches =
+            !pointerType || !lastFocusActivation.pointerType
+              ? true
+              : pointerType === lastFocusActivation.pointerType;
+          if (pointerMatches && entry.routeKey === lastFocusActivation.routeKey) {
+            const dx = (entry.canvasX ?? 0) - (lastFocusActivation.x ?? 0);
+            const dy = (entry.canvasY ?? 0) - (lastFocusActivation.y ?? 0);
+            const distanceSquared = dx * dx + dy * dy;
+            if (distanceSquared <= DOUBLE_FOCUS_DISTANCE_THRESHOLD * DOUBLE_FOCUS_DISTANCE_THRESHOLD) {
+              isDoubleActivation = true;
+            }
+          }
+        }
+      }
+
+      lastFocusActivation = {
+        time: now,
+        routeKey: entry.routeKey,
+        pointerType,
+        x: entry.canvasX ?? 0,
+        y: entry.canvasY ?? 0,
+      };
+
+      return isDoubleActivation;
+    };
+
+    const distanceSquared = (x1, y1, x2, y2) => {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      return dx * dx + dy * dy;
+    };
+
+    const isPointNearSegment = (px, py, x1, y1, x2, y2, padding = 0) => {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const lengthSquared = dx * dx + dy * dy;
+
+      if (lengthSquared <= 0.0001) {
+        return distanceSquared(px, py, x1, y1) <= padding * padding;
+      }
+
+      let t = ((px - x1) * dx + (py - y1) * dy) / lengthSquared;
+      t = Math.max(0, Math.min(1, t));
+
+      const projX = x1 + t * dx;
+      const projY = y1 + t * dy;
+      return distanceSquared(px, py, projX, projY) <= padding * padding;
+    };
+
+    const getOverlayRouteAtCanvasPoint = (canvasX, canvasY) => {
+      if (!overlayInteractionEntries.length) {
+        return null;
+      }
+
+      for (let index = overlayInteractionEntries.length - 1; index >= 0; index -= 1) {
+        const entry = overlayInteractionEntries[index];
+        if (!entry || !entry.routeKey) {
+          continue;
+        }
+
+        if (entry.type === 'circle') {
+          const radius = Number(entry.radius) || 0;
+          if (radius > 0) {
+            const distance = distanceSquared(canvasX, canvasY, Number(entry.cx), Number(entry.cy));
+            if (distance <= radius * radius) {
+              return {
+                routeKey: entry.routeKey,
+                canvasX: entry.cx,
+                canvasY: entry.cy,
+                route: routesCache.get(entry.routeKey) || null,
+              };
+            }
+          }
+        } else if (entry.type === 'rect') {
+          const left = Number(entry.left);
+          const right = Number(entry.right);
+          const top = Number(entry.top);
+          const bottom = Number(entry.bottom);
+          if (canvasX >= left && canvasX <= right && canvasY >= top && canvasY <= bottom) {
+            return {
+              routeKey: entry.routeKey,
+              canvasX: (left + right) / 2,
+              canvasY: (top + bottom) / 2,
+              route: routesCache.get(entry.routeKey) || null,
+            };
+          }
+        } else if (entry.type === 'segment') {
+          const padding = Number(entry.padding) || 0;
+          const x1 = Number(entry.x1);
+          const y1 = Number(entry.y1);
+          const x2 = Number(entry.x2);
+          const y2 = Number(entry.y2);
+          if (isPointNearSegment(canvasX, canvasY, x1, y1, x2, y2, padding)) {
+            return {
+              routeKey: entry.routeKey,
+              canvasX: (x1 + x2) / 2,
+              canvasY: (y1 + y2) / 2,
+              route: routesCache.get(entry.routeKey) || null,
+            };
+          }
+        }
+      }
+
+      return null;
+    };
+
+    const setFocusedRouteKey = (routeKey) => {
+      const normalizedKey = typeof routeKey === 'string' ? routeKey : '';
+      if (focusedRouteKey === normalizedKey) {
+        updateClearFocusButton();
+        return;
+      }
+
+      focusedRouteKey = normalizedKey;
+      updateClearFocusButton();
+      redraw();
+    };
+
+    const clearRouteFocus = () => {
+      if (!focusedRouteKey) {
+        return;
+      }
+
+      focusedRouteKey = '';
+      resetLastFocusActivation();
+      updateClearFocusButton();
+      redraw();
+    };
+
+    const handlePotentialOverlayFocus = (event) => {
+      if (!canvas) {
+        return;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      const canvasX = event.clientX - rect.left;
+      const canvasY = event.clientY - rect.top;
+
+      if (!Number.isFinite(canvasX) || !Number.isFinite(canvasY)) {
+        resetLastFocusActivation();
+        return;
+      }
+
+      const entry = getOverlayRouteAtCanvasPoint(canvasX, canvasY);
+      if (!entry || !entry.routeKey) {
+        resetLastFocusActivation();
+        return;
+      }
+
+      const shouldFocusRoute = shouldFocusFromInteraction(event, {
+        routeKey: entry.routeKey,
+        canvasX: entry.canvasX,
+        canvasY: entry.canvasY,
+      });
+
+      if (shouldFocusRoute) {
+        setFocusedRouteKey(entry.routeKey);
+      }
+    };
+
+    updateClearFocusButton();
 
     const updatePanelToggleState = () => {
       if (!panelToggleButton || !controlPanel) {
@@ -5895,6 +6198,12 @@
 
     function drawExistingRoutesOverlay() {
       if (!routesCache.size) {
+        overlayInteractionEntries = [];
+        if (focusedRouteKey) {
+          focusedRouteKey = '';
+          updateClearFocusButton();
+          resetLastFocusActivation();
+        }
         return;
       }
 
@@ -5904,6 +6213,13 @@
       const focusPointKeys = points.length
         ? buildNormalizedPointKeySetFromCanvasPoints(points)
         : null;
+
+      if (focusedRouteKey && !routesCache.has(focusedRouteKey)) {
+        focusedRouteKey = '';
+        updateClearFocusButton();
+      }
+
+      overlayInteractionEntries = [];
 
       const overlayEntries = [];
 
@@ -5973,6 +6289,73 @@
         const supportsPattern =
           routePathType === PATH_TYPE_POINT || routePathType === PATH_TYPE_RECTANGLE;
         const visiblePoints = [];
+        const isFocused = !focusedRouteKey || entry.id === focusedRouteKey;
+        const routeAlpha = isFocused ? 1 : alpha;
+
+        if (Array.isArray(canvasPoints) && canvasPoints.length) {
+          if (routePathType === PATH_TYPE_POINT) {
+            const radius = Math.max(6, entryPointDiameter / 2);
+            canvasPoints.forEach((point) => {
+              if (!point) {
+                return;
+              }
+              overlayInteractionEntries.push({
+                type: 'circle',
+                cx: point.x,
+                cy: point.y,
+                radius,
+                routeKey: entry.id,
+              });
+            });
+          } else if (routePathType === PATH_TYPE_RECTANGLE) {
+            const halfWidth = Math.max(4, entryRectangleWidth / 2);
+            const halfHeight = Math.max(4, entryRectangleHeight / 2);
+            canvasPoints.forEach((point) => {
+              if (!point) {
+                return;
+              }
+              overlayInteractionEntries.push({
+                type: 'rect',
+                left: point.x - halfWidth,
+                right: point.x + halfWidth,
+                top: point.y - halfHeight,
+                bottom: point.y + halfHeight,
+                routeKey: entry.id,
+              });
+            });
+          } else if (routePathType === PATH_TYPE_BREZER && canvasPoints.length >= 2) {
+            const strokeWidth = normalizeBrezerStrokeWidth(entry.brezerStrokeWidth);
+            const padding = Math.max(10, strokeWidth / 2);
+            for (let i = 0; i < canvasPoints.length - 1; i += 1) {
+              const start = canvasPoints[i];
+              const end = canvasPoints[i + 1];
+              if (!start || !end) {
+                continue;
+              }
+              overlayInteractionEntries.push({
+                type: 'segment',
+                x1: start.x,
+                y1: start.y,
+                x2: end.x,
+                y2: end.y,
+                padding,
+                routeKey: entry.id,
+              });
+            }
+            canvasPoints.forEach((point) => {
+              if (!point) {
+                return;
+              }
+              overlayInteractionEntries.push({
+                type: 'circle',
+                cx: point.x,
+                cy: point.y,
+                radius: Math.max(6, strokeWidth / 2),
+                routeKey: entry.id,
+              });
+            });
+          }
+        }
 
         canvasPoints.forEach((point, index) => {
           const normalized = Array.isArray(normalizedPoints) ? normalizedPoints[index] : null;
@@ -6025,7 +6408,7 @@
           drawRouteFromCanvasPoints(
             visiblePoints,
             color,
-            alpha,
+            routeAlpha,
             routePathType,
             entryPointDiameter,
             entryRectangleWidth,
@@ -6037,7 +6420,7 @@
         queueGradeBarOverlay({
           routePoints: canvasPoints,
           color,
-          alpha,
+          alpha: routeAlpha,
           medianGrade,
           baseHeight: gradeBarBaseHeight,
           maxHeight: gradeBarMaxHeight,
@@ -6219,6 +6602,7 @@
       }
 
       if (!isDrawingEnabled) {
+        handlePotentialOverlayFocus(event);
         return;
       }
 

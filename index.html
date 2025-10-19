@@ -54,6 +54,46 @@
         -webkit-overflow-scrolling: touch;
       }
 
+      .focus-footer {
+        position: absolute;
+        left: 50%;
+        bottom: 1.25rem;
+        transform: translateX(-50%);
+        z-index: 7;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .clear-focus-button {
+        pointer-events: auto;
+        border-radius: 999px;
+        border: 1px solid rgba(126, 217, 87, 0.75);
+        background: linear-gradient(135deg, rgba(126, 217, 87, 0.95), rgba(126, 217, 87, 0.7));
+        color: #0c1905;
+        font-weight: 600;
+        padding: 0.6rem 1.5rem;
+        font-size: 0.95rem;
+        cursor: pointer;
+        box-shadow: 0 14px 30px rgba(126, 217, 87, 0.35);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+          border-color 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        letter-spacing: 0.01em;
+      }
+
+      .clear-focus-button:hover,
+      .clear-focus-button:focus-visible {
+        transform: translateY(-1px);
+        box-shadow: 0 18px 36px rgba(126, 217, 87, 0.4);
+        outline: none;
+        border-color: rgba(126, 217, 87, 0.9);
+        background: linear-gradient(135deg, rgba(126, 217, 87, 1), rgba(126, 217, 87, 0.82));
+      }
+
       .tutorial-overlay {
         position: fixed;
         inset: 0;
@@ -1257,6 +1297,17 @@
       </header>
       <div class="canvas-container">
         <canvas id="previewCanvas" aria-hidden="true"></canvas>
+        <div class="focus-footer">
+          <button
+            id="clearFocusButton"
+            class="clear-focus-button hidden"
+            type="button"
+            data-info-target="route-focus"
+            aria-hidden="true"
+          >
+            Clear Focus
+          </button>
+        </div>
       </div>
     </div>
     <div
@@ -1649,12 +1700,12 @@
           return null;
         }
 
-        const isFocused = target.getAttribute('aria-pressed') === 'true';
+        const hasFocusedRoute = Boolean(focusedRouteId);
         const callout = createBasicCallout('Focus view', [
-          isFocused
-            ? 'All routes are visible again. Toggle Focus to isolate a single climb.'
-            : 'Show only this route to inspect its holds without distractions.',
-          'Use it to study beta before hopping back to the full wall.',
+          'Double-click any route to isolate it and study its holds without distractions.',
+          hasFocusedRoute
+            ? 'Select Clear Focus to bring the rest of the wall back into view.'
+            : 'When a route is focused, a Clear Focus button appears here to restore the full wall.',
         ]);
 
         return {
@@ -3347,6 +3398,7 @@
         setAuthMode('login');
 
         focusedRouteId = null;
+        updateClearFocusButton();
         currentUser = null;
         currentUsername = '';
         authenticatedUsernameClaim = '';
@@ -3628,6 +3680,7 @@
             setRouteFocus(targetRoute, false);
           } else if (focusedRouteId === tutorialHighlightedRouteId) {
             focusedRouteId = null;
+            updateClearFocusButton();
             redraw();
           }
         }
@@ -4104,10 +4157,18 @@
 
       const canvasContainer = document.querySelector('.canvas-container');
       const canvas = document.getElementById('previewCanvas');
+      const clearFocusButton = document.getElementById('clearFocusButton');
       const ctx = canvas.getContext('2d');
 
       syncViewModeState();
       updateViewToggleButton();
+      if (clearFocusButton) {
+        clearFocusButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          clearRouteFocus();
+        });
+      }
 
       const DEFAULT_CANVAS_ASPECT_RATIO = 1536 / 1024;
       let canvasAspectRatio = DEFAULT_CANVAS_ASPECT_RATIO;
@@ -4129,6 +4190,92 @@
         CLICK_DRAG_DISTANCE_THRESHOLD * CLICK_DRAG_DISTANCE_THRESHOLD;
       let activePointerInteraction = null;
       let progressionPreviouslyFocusedElement = null;
+
+      const DOUBLE_FOCUS_TIME_THRESHOLD = 350;
+      const DOUBLE_FOCUS_DISTANCE_THRESHOLD = 32;
+      let lastFocusActivation = {
+        time: 0,
+        routeId: null,
+        pointerType: '',
+        x: 0,
+        y: 0,
+      };
+
+      updateClearFocusButton();
+
+      function resetLastFocusActivation() {
+        lastFocusActivation = {
+          time: 0,
+          routeId: null,
+          pointerType: '',
+          x: 0,
+          y: 0,
+        };
+      }
+
+      function resolvePointerType(event) {
+        if (!event) {
+          return '';
+        }
+
+        if (typeof event.pointerType === 'string') {
+          return event.pointerType;
+        }
+
+        if (typeof event.type === 'string') {
+          if (event.type.startsWith('mouse')) {
+            return 'mouse';
+          }
+          if (event.type.startsWith('touch')) {
+            return 'touch';
+          }
+          if (event.type.startsWith('pen')) {
+            return 'pen';
+          }
+        }
+
+        return '';
+      }
+
+      function shouldFocusFromInteraction(event, entry) {
+        if (!entry || !entry.route || typeof entry.route.id !== 'string') {
+          resetLastFocusActivation();
+          return false;
+        }
+
+        const pointerType = resolvePointerType(event);
+        const now = typeof event?.timeStamp === 'number' ? event.timeStamp : Date.now();
+        const clickCount = typeof event?.detail === 'number' ? event.detail : 0;
+        let isDoubleActivation = clickCount >= 2;
+
+        if (!isDoubleActivation && lastFocusActivation.routeId) {
+          const elapsed = now - lastFocusActivation.time;
+          if (elapsed <= DOUBLE_FOCUS_TIME_THRESHOLD) {
+            const pointerMatches =
+              !pointerType || !lastFocusActivation.pointerType
+                ? true
+                : pointerType === lastFocusActivation.pointerType;
+            if (pointerMatches && entry.route.id === lastFocusActivation.routeId) {
+              const dx = (entry.canvasX ?? 0) - (lastFocusActivation.x ?? 0);
+              const dy = (entry.canvasY ?? 0) - (lastFocusActivation.y ?? 0);
+              const distanceSquared = dx * dx + dy * dy;
+              if (distanceSquared <= DOUBLE_FOCUS_DISTANCE_THRESHOLD * DOUBLE_FOCUS_DISTANCE_THRESHOLD) {
+                isDoubleActivation = true;
+              }
+            }
+          }
+        }
+
+        lastFocusActivation = {
+          time: now,
+          routeId: entry.route.id,
+          pointerType,
+          x: entry.canvasX ?? 0,
+          y: entry.canvasY ?? 0,
+        };
+
+        return isDoubleActivation;
+      }
 
       function synchroniseAscentsWithRoutes(options = {}) {
         const { shouldRedraw = true } = options;
@@ -4888,36 +5035,7 @@
         gradeCluster.className = 'tooltip-grade-cluster';
         gradeCluster.appendChild(gradeBadge);
 
-        let actionsContainer = null;
-        const ensureActionsContainer = () => {
-          if (!actionsContainer) {
-            actionsContainer = document.createElement('div');
-            actionsContainer.className = 'tooltip-actions';
-          }
-          return actionsContainer;
-        };
-
-        const focusButton = document.createElement('button');
-        focusButton.type = 'button';
-        focusButton.className = 'tooltip-action-button focus-toggle';
-        const isFocused = focusedRouteId === route.id;
-        if (!isFocused) {
-          focusButton.classList.add('is-quiet');
-        }
-        focusButton.textContent = isFocused ? 'Remove focus' : 'Focus';
-        focusButton.setAttribute('aria-pressed', isFocused ? 'true' : 'false');
-        focusButton.dataset.infoTarget = 'route-focus';
-        focusButton.addEventListener('click', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          toggleRouteFocus(route);
-        });
-        ensureActionsContainer().appendChild(focusButton);
-
         fragment.appendChild(gradeCluster);
-        if (actionsContainer) {
-          fragment.appendChild(actionsContainer);
-        }
         ariaLines.push(`Grade: ${gradeDisplay}`);
 
         const infoContainer = document.createElement('div');
@@ -5034,6 +5152,50 @@
         pinnedPosition = null;
       }
 
+      function updateClearFocusButton() {
+        if (!clearFocusButton) {
+          return;
+        }
+
+        const hasFocusedRoute = Boolean(focusedRouteId);
+        clearFocusButton.classList.toggle('hidden', !hasFocusedRoute);
+        clearFocusButton.setAttribute('aria-hidden', hasFocusedRoute ? 'false' : 'true');
+
+        if (hasFocusedRoute) {
+          clearFocusButton.removeAttribute('disabled');
+        } else {
+          clearFocusButton.setAttribute('disabled', 'true');
+          if (document.activeElement === clearFocusButton && typeof clearFocusButton.blur === 'function') {
+            clearFocusButton.blur();
+          }
+        }
+      }
+
+      function clearRouteFocus() {
+        if (!focusedRouteId) {
+          return;
+        }
+
+        resetLastFocusActivation();
+
+        const activeRoutes = Array.isArray(routes) ? routes : [];
+        const fallbackRoutes = Array.isArray(allRoutes) ? allRoutes : [];
+        const route =
+          activeRoutes.find((entry) => entry?.id === focusedRouteId) ||
+          fallbackRoutes.find((entry) => entry?.id === focusedRouteId) ||
+          null;
+
+        if (route) {
+          setRouteFocus(route, false);
+          return;
+        }
+
+        focusedRouteId = null;
+        updateClearFocusButton();
+        redraw();
+        renderProgressionList();
+      }
+
       function setRouteFocus(route, shouldFocus) {
         if (!route || typeof route.id !== 'string') {
           return;
@@ -5045,6 +5207,7 @@
         );
 
         if (focusedRouteId === nextFocusedId) {
+          updateClearFocusButton();
           redraw();
 
           if (tooltip && tooltip.classList.contains('visible') && activeRouteId === route.id) {
@@ -5065,6 +5228,7 @@
         }
 
         focusedRouteId = nextFocusedId;
+        updateClearFocusButton();
 
         redraw();
 
@@ -5089,14 +5253,6 @@
         if (shouldCloseProgression) {
           closeProgressionModal();
         }
-      }
-
-      function toggleRouteFocus(route) {
-        if (!route || typeof route.id !== 'string') {
-          return;
-        }
-
-        setRouteFocus(route, focusedRouteId !== route.id);
       }
 
       function extractClientPoint(event) {
@@ -5271,6 +5427,7 @@
 
       function cancelPointerInteraction() {
         activePointerInteraction = null;
+        resetLastFocusActivation();
       }
 
       function applyLocationFilter() {
@@ -5294,6 +5451,7 @@
           const hasFocusedRoute = routes.some((route) => route.id === focusedRouteId);
           if (!hasFocusedRoute) {
             focusedRouteId = null;
+            updateClearFocusButton();
             hideTooltip({ force: true });
           }
         }
@@ -5442,6 +5600,7 @@
           allRoutes = [];
           routes = [];
           focusedRouteId = null;
+          updateClearFocusButton();
           routeMedianGrades = new Map();
           renderProgressionList();
           redraw();
@@ -5618,6 +5777,7 @@
             focusedRoutePointKeys = buildNormalizedPointKeySet(resolvedFocusRoute.points);
           } else {
             focusedRouteId = null;
+            updateClearFocusButton();
           }
         }
 
@@ -6259,9 +6419,16 @@
         const entry = getRouteEntryAtClientPoint(interaction.x, interaction.y);
 
         if (entry && entry.route) {
+          const shouldFocusRoute = shouldFocusFromInteraction(event, entry);
           showTooltip(entry.route, interaction.x, interaction.y, { pin: true });
-        } else if (!pinnedRouteId) {
-          hideTooltip({ force: true });
+          if (shouldFocusRoute) {
+            focusRoute(entry.route);
+          }
+        } else {
+          resetLastFocusActivation();
+          if (!pinnedRouteId) {
+            hideTooltip({ force: true });
+          }
         }
       }
 
