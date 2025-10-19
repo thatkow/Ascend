@@ -5476,71 +5476,85 @@
       };
     }
 
-    function calculateMedian(values = []) {
-      if (!Array.isArray(values) || !values.length) {
-        return null;
+      function calculateMedian(values = []) {
+        if (!Array.isArray(values) || !values.length) {
+          return null;
+        }
+
+        const sorted = values
+          .filter((value) => typeof value === 'number' && Number.isFinite(value))
+          .sort((a, b) => a - b);
+
+        if (!sorted.length) {
+          return null;
+        }
+
+        const mid = Math.floor(sorted.length / 2);
+        if (sorted.length % 2 === 0) {
+          return (sorted[mid - 1] + sorted[mid]) / 2;
+        }
+        return sorted[mid];
       }
 
-      const sorted = values
-        .filter((value) => typeof value === 'number' && Number.isFinite(value))
-        .sort((a, b) => a - b);
+      function sanitizeAscentsForPersistence(rawAscents) {
+        const sanitized = {};
 
-      if (!sorted.length) {
-        return null;
-      }
+        if (!rawAscents || typeof rawAscents !== 'object') {
+          return sanitized;
+        }
 
-      const mid = Math.floor(sorted.length / 2);
-      if (sorted.length % 2 === 0) {
-        return (sorted[mid - 1] + sorted[mid]) / 2;
-      }
-      return sorted[mid];
-    }
-
-    async function fetchMedianGrades() {
-      const medianMap = new Map();
-
-      try {
-        const snapshot = await getDocs(collection(db, 'ascents'));
-        const gradeBuckets = new Map();
-
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data() ?? {};
-          const routesData = data.routes;
-
-          if (!routesData || typeof routesData !== 'object') {
+        Object.entries(rawAscents).forEach(([uid, details]) => {
+          if (typeof uid !== 'string' || !uid.trim()) {
             return;
           }
 
-          Object.entries(routesData).forEach(([routeId, details]) => {
-            if (!routeId || !details) {
-              return;
-            }
-
-            const grade = normalizeGradeValue(details.grade);
-            if (grade === null) {
-              return;
-            }
-
-            if (!gradeBuckets.has(routeId)) {
-              gradeBuckets.set(routeId, []);
-            }
-
-            gradeBuckets.get(routeId).push(grade);
-          });
-        });
-
-        gradeBuckets.forEach((grades, routeId) => {
-          const median = calculateMedian(grades);
-          if (median !== null) {
-            medianMap.set(routeId, median);
+          if (!details || typeof details !== 'object') {
+            return;
           }
+
+          const normalizedGrade = normalizeGradeValue(details.grade);
+          sanitized[uid.trim()] = {
+            grade: normalizedGrade,
+            ascended: details.ascended === true,
+          };
         });
-      } catch (error) {
-        console.warn('Failed to load median grades:', error);
+
+        return sanitized;
       }
 
-      return medianMap;
-    }
+      async function fetchMedianGrades() {
+        const medianMap = new Map();
+
+        try {
+          const snapshot = await getDocs(collection(db, 'routes'));
+
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data() ?? {};
+            const rawAscents = data.ascents;
+
+            if (!rawAscents || typeof rawAscents !== 'object') {
+              return;
+            }
+
+            const grades = Object.values(rawAscents)
+              .map((entry) => normalizeGradeValue(entry?.grade))
+              .filter((grade) => grade !== null);
+
+            if (!grades.length) {
+              return;
+            }
+
+            const median = calculateMedian(grades);
+            if (median !== null) {
+              medianMap.set(docSnap.id, median);
+            }
+          });
+        } catch (error) {
+          console.warn('Failed to load median grades:', error);
+        }
+
+        return medianMap;
+      }
 
     function createRouteKeyFromTitle(title) {
       if (typeof title !== 'string') {
@@ -6943,12 +6957,37 @@
         deleteButton.disabled = true;
         setStatus('Saving route…', 'info');
 
-        const existingSnap = await getDoc(routeRef);
-        if (!existingSnap.exists()) {
-          payload.createdAt = serverTimestamp();
-        }
+          const existingSnap = await getDoc(routeRef);
+          const existingData = existingSnap.data();
+          let ascentsPayload = null;
 
-        await setDoc(routeRef, payload, { merge: true });
+          if (!existingSnap.exists()) {
+            payload.createdAt = serverTimestamp();
+
+            if (isRenaming && previousRouteKey) {
+              try {
+                const previousSnap = await getDoc(doc(db, 'routes', previousRouteKey));
+                const previousAscents = previousSnap.data()?.ascents;
+                if (previousAscents && typeof previousAscents === 'object') {
+                  ascentsPayload = sanitizeAscentsForPersistence(previousAscents);
+                }
+              } catch (error) {
+                console.warn('Failed to copy ascents from previous route:', error);
+              }
+            }
+
+            if (ascentsPayload === null) {
+              ascentsPayload = {};
+            }
+          } else if (!existingData?.ascents || typeof existingData.ascents !== 'object') {
+            ascentsPayload = {};
+          }
+
+          if (ascentsPayload !== null) {
+            payload.ascents = ascentsPayload;
+          }
+
+          await setDoc(routeRef, payload, { merge: true });
 
         loadedNormalizedPoints = normalizedPoints;
         currentRouteKey = routeKey;

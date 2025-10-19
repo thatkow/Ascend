@@ -1381,6 +1381,7 @@
         doc,
         getDoc,
         setDoc,
+        updateDoc,
         serverTimestamp,
         collection,
         getDocs,
@@ -4896,19 +4897,13 @@
         const routeRef = doc(db, 'routes', route.id);
         const isAscended = ascendedRoutes.has(route.id);
 
-        try {
-          await setDoc(
-            routeRef,
-            {
-              ascents: {
-                [userId]: {
-                  grade: sanitizedGrade,
-                  ascended: isAscended,
-                },
+          try {
+            await updateDoc(routeRef, {
+              [`ascents.${userId}`]: {
+                grade: sanitizedGrade,
+                ascended: isAscended,
               },
-            },
-            { merge: true },
-          );
+            });
 
           const existingEntry = userAscentDetails.get(route.id);
 
@@ -5641,44 +5636,19 @@
             ? persistedGrade
             : null;
 
-        try {
-          const nextAscended = !isAscended;
-          if (isAscended) {
-            await setDoc(
-              routeRef,
-              {
-                ascents: {
-                  [userId]: {
-                    grade: normalizedGrade,
-                    ascended: nextAscended,
-                  },
-                },
+          try {
+            const nextAscended = !isAscended;
+            await updateDoc(routeRef, {
+              [`ascents.${userId}`]: {
+                grade: normalizedGrade,
+                ascended: nextAscended,
               },
-              { merge: true },
-            );
+            });
 
             userAscentDetails.set(routeId, {
               ascended: nextAscended,
               grade: normalizedGrade,
             });
-          } else {
-            await setDoc(
-              routeRef,
-              {
-                ascents: {
-                  [userId]: {
-                    grade: normalizedGrade,
-                    ascended: nextAscended,
-                  },
-                },
-              },
-              { merge: true },
-            );
-            userAscentDetails.set(routeId, {
-              ascended: nextAscended,
-              grade: normalizedGrade,
-            });
-          }
 
           let ascentsMap = routeAscentsCache.get(routeId);
           if (!(ascentsMap instanceof Map)) {
