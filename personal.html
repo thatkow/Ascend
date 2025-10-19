@@ -232,9 +232,18 @@
       }
 
       .view-mode-toggle-group .view-toggle-option .view-toggle-icon {
-        display: block;
+        display: none;
         width: 20px;
         height: 20px;
+      }
+
+      .view-mode-toggle-group .view-toggle-option[data-view-mode='ascent-status']
+        .view-toggle-icon--ascents,
+      .view-mode-toggle-group .view-toggle-option[data-view-mode='grade-colors']
+        .view-toggle-icon--grades,
+      .view-mode-toggle-group .view-toggle-option[data-view-mode='hold-colors']
+        .view-toggle-icon--holds {
+        display: block;
       }
 
       .view-mode-toggle-group .view-toggle-option .view-toggle-icon svg {
@@ -1205,15 +1214,17 @@
         >
           <button
             type="button"
+            id="viewModeCycleButton"
             class="header-icon-button view-toggle-option"
-            data-view-mode="ascent-status"
-            data-tooltip="Show if Ascended"
-            aria-pressed="false"
-            aria-label="Show if Ascended"
-            title="Show if Ascended"
+            data-view-mode="hold-colors"
+            data-view-mode-cycle="ascent-status grade-colors hold-colors"
+            data-tooltip="Show by Color of Holds"
+            aria-pressed="true"
+            aria-label="Show by Color of Holds"
+            title="Show by Color of Holds"
           >
-            <span class="sr-only">Show if Ascended</span>
-            <span class="view-toggle-icon" aria-hidden="true">
+            <span class="sr-only" data-view-toggle-label>Show by Color of Holds</span>
+            <span class="view-toggle-icon view-toggle-icon--ascents" aria-hidden="true">
               <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
                 <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
                 <path
@@ -1226,18 +1237,7 @@
                 />
               </svg>
             </span>
-          </button>
-          <button
-            type="button"
-            class="header-icon-button view-toggle-option"
-            data-view-mode="grade-colors"
-            data-tooltip="Show by Grade"
-            aria-pressed="false"
-            aria-label="Show by Grade"
-            title="Show by Grade"
-          >
-            <span class="sr-only">Show by Grade</span>
-            <span class="view-toggle-icon" aria-hidden="true">
+            <span class="view-toggle-icon view-toggle-icon--grades" aria-hidden="true">
               <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
                 <path
                   d="M6 19a3 3 0 0 1 0-6h12a2 2 0 0 0 0-4H8a4 4 0 0 1 0-8h10v2H8a2 2 0 0 0 0 4h10a4 4 0 0 1 0 8H6a1 1 0 0 0 0 2h12v2H6a3 3 0 0 1-3-3Z"
@@ -1245,18 +1245,7 @@
                 />
               </svg>
             </span>
-          </button>
-          <button
-            type="button"
-            class="header-icon-button view-toggle-option"
-            data-view-mode="hold-colors"
-            data-tooltip="Show by Color of Holds"
-            aria-pressed="false"
-            aria-label="Show by Color of Holds"
-            title="Show by Color of Holds"
-          >
-            <span class="sr-only">Show by Color of Holds</span>
-            <span class="view-toggle-icon" aria-hidden="true">
+            <span class="view-toggle-icon view-toggle-icon--holds" aria-hidden="true">
               <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
                 <rect x="5" y="13.5" width="3.5" height="6" rx="1.75" fill="#2f9e44" />
                 <rect x="10.25" y="9.5" width="3.5" height="10" rx="1.75" fill="#facc15" />
@@ -1490,6 +1479,16 @@
         const mode = button?.dataset?.viewMode;
         if (mode) {
           viewToggleButtonMap.set(mode, button);
+        }
+        const cycle = button?.dataset?.viewModeCycle;
+        if (cycle) {
+          cycle
+            .split(/\s+/)
+            .map((value) => value.trim())
+            .filter(Boolean)
+            .forEach((cycleMode) => {
+              viewToggleButtonMap.set(cycleMode, button);
+            });
         }
       });
 
@@ -2026,24 +2025,55 @@
             },
           },
           {
-            title: 'Color the wall your way',
+            title: 'Spot your sends instantly',
             body: [
-              'Use Show if Ascended to light up the problems you have already sent in green.',
-              'Switch to Show by Grade for a consensus difficulty heatmap or back to hold colours to match the tape.',
-              'Each mode is just a tap away in the three toggle buttons up top.',
+              'Tap the color button until it says Show if Ascended to light up the problems you have already sent in green.',
+              'Projects still in progress stay grey until you mark them Ascended in the tooltip.',
             ],
             onEnter: () => {
               setTutorialOverlayAlignment('center');
               highlightTutorialElement(null);
-              const ascendButton =
+              const toggleButton =
                 getViewToggleButtonForMode(VIEW_MODE_ASCENT_STATUS) || viewToggleButtons[0];
               tutorialPreviousViewMode = viewMode;
               if (viewMode !== VIEW_MODE_ASCENT_STATUS) {
                 setViewMode(VIEW_MODE_ASCENT_STATUS);
               }
-              if (ascendButton) {
-                highlightTutorialElement(ascendButton, { illuminate: true });
-                showTutorialPointerFor(ascendButton);
+              if (toggleButton) {
+                highlightTutorialElement(toggleButton, { illuminate: true });
+                showTutorialPointerFor(toggleButton);
+              } else {
+                hideTutorialPointer();
+              }
+            },
+            onExit: () => {
+              hideTutorialPointer();
+              highlightTutorialElement(null);
+              if (tutorialPreviousViewMode && tutorialPreviousViewMode !== viewMode) {
+                setViewMode(tutorialPreviousViewMode);
+              }
+              tutorialPreviousViewMode = null;
+            },
+          },
+          {
+            title: 'Color the wall your way',
+            body: [
+              'Press the same button again to cycle through Show by Grade and Show by Color of Holds.',
+              'Show by Grade gives you a consensus difficulty heatmap while ungraded problems stay bright white.',
+              'Show by Color of Holds matches the tape on the wall when you just want the set colours.',
+            ],
+            onEnter: () => {
+              setTutorialOverlayAlignment('center');
+              highlightTutorialElement(null);
+              const toggleButton =
+                getViewToggleButtonForMode(VIEW_MODE_GRADE_COLORS) || viewToggleButtons[0];
+              tutorialPreviousViewMode = viewMode;
+              if (viewMode !== VIEW_MODE_GRADE_COLORS) {
+                setViewMode(VIEW_MODE_GRADE_COLORS);
+              }
+              if (toggleButton) {
+                highlightTutorialElement(toggleButton, { illuminate: true });
+                showTutorialPointerFor(toggleButton);
               } else {
                 hideTutorialPointer();
               }
@@ -2283,19 +2313,20 @@
           lines = [
             'Sends you have logged glow green so your ticklist stands out instantly.',
             'Projects still in progress stay grey until you tap Ascended in the tooltip.',
+            'Tap the color button again any time to cycle to the other wall views.',
           ];
         } else if (mode === VIEW_MODE_GRADE_COLORS) {
           title = 'Show by Grade';
           lines = [
             'Routes are tinted by consensus difficulty right now.',
             'Problems without a community grade stay bright white until someone logs one.',
-            'Swap back to hold colours whenever you want to match the tape on the wall.',
+            'Tap the color button again to flip to hold colours or back to Show if Ascended.',
           ];
         } else {
           title = 'Show by Color of Holds';
           lines = [
             'Routes are showing the colour of each hold set.',
-            'Switch to Show by Grade when you want a quick difficulty heatmap.',
+            'Tap the color button to view Show if Ascended or Show by Grade instead.',
           ];
         }
 
@@ -2713,6 +2744,25 @@
       const VIEW_MODE_ASCENT_STATUS = 'ascent-status';
       const VIEW_MODE_HOLD_COLORS = 'hold-colors';
       const VIEW_MODE_GRADE_COLORS = 'grade-colors';
+      const VIEW_MODE_SEQUENCE = [
+        VIEW_MODE_ASCENT_STATUS,
+        VIEW_MODE_GRADE_COLORS,
+        VIEW_MODE_HOLD_COLORS,
+      ];
+      const VIEW_MODE_META = {
+        [VIEW_MODE_ASCENT_STATUS]: {
+          label: 'Show if Ascended',
+          next: VIEW_MODE_GRADE_COLORS,
+        },
+        [VIEW_MODE_GRADE_COLORS]: {
+          label: 'Show by Grade',
+          next: VIEW_MODE_HOLD_COLORS,
+        },
+        [VIEW_MODE_HOLD_COLORS]: {
+          label: 'Show by Color of Holds',
+          next: VIEW_MODE_ASCENT_STATUS,
+        },
+      };
       const ASCENT_STATUS_ASCENDED_COLOR = '#7ed957';
       const ASCENT_STATUS_PROJECT_COLOR = '#4b5563';
 
@@ -3138,6 +3188,21 @@
 
       const backgroundImage = new Image();
 
+      function getViewModeMetadata(mode) {
+        if (mode && VIEW_MODE_META[mode]) {
+          return VIEW_MODE_META[mode];
+        }
+        return VIEW_MODE_META[VIEW_MODE_HOLD_COLORS];
+      }
+
+      function getNextViewMode(mode) {
+        const currentIndex = VIEW_MODE_SEQUENCE.indexOf(mode);
+        if (currentIndex === -1) {
+          return VIEW_MODE_SEQUENCE[0];
+        }
+        return VIEW_MODE_SEQUENCE[(currentIndex + 1) % VIEW_MODE_SEQUENCE.length];
+      }
+
       function updateLocationButtonLabel() {
         const labelText = currentLocation?.name || 'Select wall';
         if (locationButton) {
@@ -3162,6 +3227,29 @@
 
         viewToggleButtons.forEach((button) => {
           if (!button) {
+            return;
+          }
+
+          if (button.dataset?.viewModeCycle) {
+            const metadata = getViewModeMetadata(viewMode);
+            const label = metadata?.label ?? '';
+            const nextMode = metadata?.next ?? getNextViewMode(viewMode);
+            button.dataset.viewMode = viewMode;
+            button.dataset.tooltip = label;
+            button.dataset.nextViewMode = nextMode;
+            if (label) {
+              button.setAttribute('title', label);
+              button.setAttribute('aria-label', label);
+            } else {
+              button.removeAttribute('title');
+              button.removeAttribute('aria-label');
+            }
+            button.setAttribute('aria-pressed', 'true');
+            button.classList.add('is-active');
+            const srLabel = button.querySelector('[data-view-toggle-label]');
+            if (srLabel) {
+              srLabel.textContent = label;
+            }
             return;
           }
 
@@ -3704,7 +3792,9 @@
               clearInfoHighlights();
             }
 
-            const targetMode = button.dataset?.viewMode;
+            const targetMode = button.dataset?.viewModeCycle
+              ? button.dataset?.nextViewMode || getNextViewMode(viewMode)
+              : button.dataset?.viewMode;
             setViewMode(targetMode);
           });
         });
