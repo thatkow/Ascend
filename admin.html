@@ -370,6 +370,9 @@
     const SYNTHETIC_EMAIL_DOMAIN = 'users.anuascend.local';
     const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
 
+    let currentAdminUser = null;
+    let currentAdminUsername = '';
+
     const normalizeUsername = (value) => {
       if (typeof value !== 'string') {
         return '';
@@ -661,6 +664,83 @@
       return { processedCollections, totalImported, totalFailed };
     }
 
+    function shouldPreserveAdminIdentity(collectionKey, docSnap) {
+      if (!docSnap) {
+        return false;
+      }
+
+      const adminUid = currentAdminUser?.uid || '';
+      const normalizedAdminUsername = normalizeUsername(currentAdminUsername);
+
+      if (collectionKey === 'roles') {
+        return Boolean(adminUid && docSnap.id === adminUid);
+      }
+
+      if (collectionKey === 'usernames') {
+        const normalizedId = normalizeUsername(docSnap.id);
+        if (normalizedAdminUsername && normalizedId === normalizedAdminUsername) {
+          return true;
+        }
+
+        try {
+          const data = docSnap.data ? docSnap.data() || {} : {};
+          const storedUsername = normalizeUsername(
+            typeof data.usernameLower === 'string'
+              ? data.usernameLower
+              : typeof data.username === 'string'
+              ? data.username
+              : '',
+          );
+
+          if (normalizedAdminUsername && storedUsername === normalizedAdminUsername) {
+            return true;
+          }
+
+          if (adminUid && typeof data.uid === 'string' && data.uid === adminUid) {
+            return true;
+          }
+        } catch (error) {
+          console.warn('Unable to evaluate username document for preservation:', error);
+        }
+      }
+
+      return false;
+    }
+
+    async function downgradeCurrentAdminAfterImport() {
+      if (!currentAdminUser?.uid) {
+        return false;
+      }
+
+      const normalizedUsername = normalizeUsername(currentAdminUsername);
+      const payload = {
+        role: 'setter',
+        updatedAt: serverTimestamp(),
+      };
+
+      if (normalizedUsername) {
+        payload.username = normalizedUsername;
+        payload.usernameLower = normalizedUsername;
+      }
+
+      try {
+        await setDoc(doc(db, 'roles', currentAdminUser.uid), payload, { merge: true });
+      } catch (error) {
+        console.error('Failed to downgrade admin role after import:', error);
+        setAdminStatus(
+          'Import finished, but downgrading your admin access failed. Please contact another admin immediately.',
+          'error',
+        );
+        return false;
+      }
+
+      window.alert('Import complete. Your role has been changed from admin to setter.');
+      currentAdminUser = null;
+      currentAdminUsername = '';
+      showUnauthorizedNotice();
+      return true;
+    }
+
     async function lookupUsernameByUid(uid) {
       if (!uid) {
         return '';
@@ -768,6 +848,8 @@
       } catch (error) {
         console.error('Failed to sign out:', error);
       }
+      currentAdminUser = null;
+      currentAdminUsername = '';
       showAuthOverlay();
     }
 
@@ -886,6 +968,8 @@
       setAdminStatus(`Importing database from “${sanitizedName}”…`, 'info');
       setControlsEnabled(false);
 
+      let shouldRestoreControls = true;
+
       try {
         const text = await file.text();
         let parsed;
@@ -907,6 +991,11 @@
         } else {
           setAdminStatus(`Imported ${totalImported} documents from ${processedCollections} collections.`, 'success');
         }
+
+        const downgraded = await downgradeCurrentAdminAfterImport();
+        if (downgraded) {
+          shouldRestoreControls = false;
+        }
       } catch (error) {
         console.error('Failed to import database dump:', error);
         const fallbackMessage = 'Failed to import database dump. Please try again.';
@@ -916,7 +1005,9 @@
         setAdminStatus(message, 'error');
       } finally {
         resetImportInput();
-        setControlsEnabled(true);
+        if (shouldRestoreControls) {
+          setControlsEnabled(true);
+        }
       }
     });
 
@@ -952,6 +1043,9 @@
           try {
             const snapshot = await getDocs(ref);
             for (const docSnap of snapshot.docs) {
+              if (shouldPreserveAdminIdentity(key, docSnap)) {
+                continue;
+              }
               try {
                 await deleteDoc(docSnap.ref);
                 deletedCount += 1;
@@ -1025,6 +1119,8 @@
 
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
+        currentAdminUser = null;
+        currentAdminUsername = '';
         showAuthOverlay();
         authForm?.reset();
         return;
@@ -1039,10 +1135,14 @@
 
       const role = await fetchUserRole(user, resolvedUsername);
       if (role !== 'admin') {
+        currentAdminUser = null;
+        currentAdminUsername = '';
         showUnauthorizedNotice();
         return;
       }
 
+      currentAdminUser = user;
+      currentAdminUsername = resolvedUsername;
       showAdminApp();
       setControlsEnabled(true);
       clearAdminStatus();
