@@ -1615,6 +1615,15 @@
                   <span class="button-label">Download Database</span>
                 </button>
                 <button
+                  id="databaseClearButton"
+                  class="global-action-button"
+                  type="button"
+                  data-help-text="Permanently remove all walls, routes, ascents, roles, and usernames."
+                >
+                  <span class="button-icon" aria-hidden="true">🧹</span>
+                  <span class="button-label">Clear Database</span>
+                </button>
+                <button
                   id="signOutButton"
                   class="global-action-button"
                   type="button"
@@ -1838,6 +1847,7 @@
     const databaseImportButton = document.getElementById('databaseImportButton');
     const databaseImportInput = document.getElementById('databaseImportInput');
     const databaseDumpButton = document.getElementById('databaseDumpButton');
+    const databaseClearButton = document.getElementById('databaseClearButton');
     const databaseDumpStatus = document.getElementById('databaseDumpStatus');
     const previewLink = document.getElementById('previewLink');
     const previewLinkBaseHref = previewLink?.getAttribute('href') || 'index.html';
@@ -1943,6 +1953,10 @@
     };
 
     const normalizeWallKey = (value) => normalizeLocationName(value);
+
+    const BUILTIN_LOCATION_KEYS = new Set(
+      LOCATIONS.map((location) => normalizeWallKey(location?.key || location?.name)).filter(Boolean),
+    );
 
     const findLocationByKey = (key) => LOCATIONS.find((location) => location.key === key);
 
@@ -2510,6 +2524,32 @@
       updateLocationOptionsState();
       updateDeleteWallButtonState();
     };
+
+    function resetLocationsToBuiltins() {
+      for (let index = LOCATIONS.length - 1; index >= 0; index -= 1) {
+        const entry = LOCATIONS[index];
+        if (!entry) {
+          continue;
+        }
+
+        const normalizedKey = normalizeWallKey(entry.key || entry.name);
+        if (!BUILTIN_LOCATION_KEYS.has(normalizedKey)) {
+          LOCATIONS.splice(index, 1);
+        }
+      }
+
+      renderLocationOptions();
+
+      const currentKey = normalizeWallKey(currentLocation?.key || currentLocation?.name);
+      if (!currentKey || !BUILTIN_LOCATION_KEYS.has(currentKey)) {
+        setLocation(DEFAULT_LOCATION, { persist: true, refreshRoutes: false });
+      } else {
+        synchronizeCurrentLocationReference();
+        updateLocationOptionsState();
+      }
+
+      updateDeleteWallButtonState();
+    }
 
     backgroundImage.onload = () => {
       backgroundReady = true;
@@ -5048,9 +5088,125 @@
       });
     }
 
+    if (databaseClearButton) {
+      databaseClearButton.addEventListener('click', async () => {
+        if (databaseClearButton.disabled) {
+          return;
+        }
+
+        const confirmed = window.confirm(
+          'Clear the database? This will permanently delete all walls, routes, ascents, roles, and usernames. This cannot be undone.',
+        );
+
+        if (!confirmed) {
+          return;
+        }
+
+        setDatabaseDumpStatus('Clearing database…', 'info');
+        isDatabaseTransferInProgress = true;
+        refreshDatabaseActionAvailability();
+
+        try {
+          const collectionsToClear = [
+            { key: WALL_COLLECTION, ref: collection(db, WALL_COLLECTION) },
+            { key: 'routes', ref: collection(db, 'routes') },
+            { key: 'ascents', ref: collection(db, 'ascents') },
+            { key: 'roles', ref: collection(db, 'roles') },
+            { key: 'usernames', ref: collection(db, 'usernames') },
+          ];
+
+          let deletedCount = 0;
+          let failureCount = 0;
+
+          for (const { key, ref } of collectionsToClear) {
+            try {
+              const snapshot = await getDocs(ref);
+              if (snapshot.empty) {
+                continue;
+              }
+
+              for (const docSnap of snapshot.docs) {
+                try {
+                  await deleteDoc(docSnap.ref);
+                  deletedCount += 1;
+                } catch (docError) {
+                  console.error(`Failed to delete document ${docSnap.id} in ${key}:`, docError);
+                  failureCount += 1;
+                }
+              }
+            } catch (collectionError) {
+              console.error(`Failed to clear collection ${key}:`, collectionError);
+              failureCount += 1;
+            }
+          }
+
+          wallSettingsCache.clear();
+          wallDocumentIdMap.clear();
+          routesCache.clear();
+          routeMedianGrades = new Map();
+
+          resetLocationsToBuiltins();
+
+          let routesReloadFailed = false;
+          try {
+            await loadRoutesList('');
+          } catch (routesError) {
+            routesReloadFailed = true;
+            console.warn('Failed to refresh routes after clearing database:', routesError);
+          }
+          prepareNewRoute('Database cleared. You can create a new wall to start over.');
+
+          if (routesReloadFailed) {
+            setStatus('Unable to refresh routes after clearing the database. Reload the page to continue.', 'error');
+          }
+
+          let dumpStatusMessage = 'Database update completed.';
+          let dumpStatusVariant = 'info';
+
+          if (deletedCount === 0 && failureCount === 0) {
+            if (routesReloadFailed) {
+              dumpStatusMessage =
+                'Database was already empty, but the interface could not refresh automatically. Reload the page to continue.';
+              dumpStatusVariant = 'error';
+            } else {
+              dumpStatusMessage = 'Database was already empty.';
+              dumpStatusVariant = 'info';
+            }
+          } else if (failureCount > 0) {
+            dumpStatusMessage =
+              `Cleared ${deletedCount} documents with ${failureCount} errors. Check the console for details.`;
+            dumpStatusVariant = 'error';
+          } else if (routesReloadFailed) {
+            dumpStatusMessage =
+              `Cleared ${deletedCount} documents, but the interface could not refresh automatically. Reload the page to continue.`;
+            dumpStatusVariant = 'error';
+          } else {
+            dumpStatusMessage = `Cleared ${deletedCount} documents from the database.`;
+            dumpStatusVariant = 'success';
+          }
+
+          setDatabaseDumpStatus(dumpStatusMessage, dumpStatusVariant);
+        } catch (error) {
+          console.error('Failed to clear database:', error);
+          setDatabaseDumpStatus('Failed to clear database. Please try again.', 'error');
+        } finally {
+          isDatabaseTransferInProgress = false;
+          refreshDatabaseActionAvailability();
+        }
+      });
+    }
+
     if (databaseImportButton && databaseImportInput) {
       databaseImportButton.addEventListener('click', () => {
         if (databaseImportButton.disabled) {
+          return;
+        }
+
+        const confirmed = window.confirm(
+          'Importing a database backup will overwrite existing walls, routes, ascents, roles, and usernames. Continue?',
+        );
+
+        if (!confirmed) {
           return;
         }
 
@@ -5570,6 +5726,10 @@
 
       if (databaseDumpButton) {
         databaseDumpButton.disabled = shouldDisable;
+      }
+
+      if (databaseClearButton) {
+        databaseClearButton.disabled = shouldDisable;
       }
 
       if (databaseImportButton) {
