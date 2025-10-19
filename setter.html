@@ -1590,6 +1590,22 @@
                   <span class="button-label">Personal Dashboard</span>
                 </button>
                 <button
+                  id="databaseImportButton"
+                  class="global-action-button"
+                  type="button"
+                  data-help-text="Import a JSON backup to restore walls, routes, ascents, and related data."
+                >
+                  <span class="button-icon" aria-hidden="true">📥</span>
+                  <span class="button-label">Import Database</span>
+                </button>
+                <input
+                  id="databaseImportInput"
+                  type="file"
+                  accept="application/json,.json"
+                  hidden
+                  aria-hidden="true"
+                />
+                <button
                   id="databaseDumpButton"
                   class="global-action-button"
                   type="button"
@@ -1782,6 +1798,7 @@
       where,
       deleteDoc,
       deleteField,
+      Timestamp,
     } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { firebaseConfig } from './config.js';
 
@@ -1818,6 +1835,8 @@
     const infoPopover = document.getElementById('infoPopover');
     const climberViewButton = document.getElementById('climberViewButton');
     const personalDashboardButton = document.getElementById('personalDashboardButton');
+    const databaseImportButton = document.getElementById('databaseImportButton');
+    const databaseImportInput = document.getElementById('databaseImportInput');
     const databaseDumpButton = document.getElementById('databaseDumpButton');
     const databaseDumpStatus = document.getElementById('databaseDumpStatus');
     const previewLink = document.getElementById('previewLink');
@@ -4253,6 +4272,8 @@
     let isSaving = false;
     let currentUsername = '';
     let currentUserId = null;
+    let hasSetterAccess = false;
+    let isDatabaseTransferInProgress = false;
     let isCanvasScrollable = false;
     let isCreatingWall = false;
     let isDeletingWall = false;
@@ -4953,7 +4974,8 @@
         }
 
         setDatabaseDumpStatus('Preparing database dump…', 'info');
-        databaseDumpButton.disabled = true;
+        isDatabaseTransferInProgress = true;
+        refreshDatabaseActionAvailability();
 
         try {
           const collectionsToExport = [
@@ -5020,10 +5042,76 @@
           console.error('Failed to generate database dump:', error);
           setDatabaseDumpStatus('Failed to create database dump. Please try again.', 'error');
         } finally {
-          databaseDumpButton.disabled = false;
+          isDatabaseTransferInProgress = false;
+          refreshDatabaseActionAvailability();
         }
       });
     }
+
+    if (databaseImportButton && databaseImportInput) {
+      databaseImportButton.addEventListener('click', () => {
+        if (databaseImportButton.disabled) {
+          return;
+        }
+
+        resetDatabaseImportInput();
+        databaseImportInput.click();
+      });
+
+      databaseImportInput.addEventListener('change', async (event) => {
+        const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+        if (!file) {
+          resetDatabaseImportInput();
+          return;
+        }
+
+        const sanitizedName = typeof file.name === 'string' && file.name.trim() ? file.name.trim() : 'selected file';
+        setDatabaseDumpStatus(`Importing database from “${sanitizedName}”…`, 'info');
+
+        isDatabaseTransferInProgress = true;
+        refreshDatabaseActionAvailability();
+
+        try {
+          const fileText = await file.text();
+          let parsedDump = null;
+
+          try {
+            parsedDump = JSON.parse(fileText);
+          } catch (parseError) {
+            throw new Error('The selected file is not valid JSON.');
+          }
+
+          const { processedCollections, totalImported, totalFailed } = await importDatabaseDump(parsedDump);
+
+          if (!processedCollections) {
+            setDatabaseDumpStatus('No collections were imported from the selected file.', 'info');
+          } else if (totalFailed > 0) {
+            setDatabaseDumpStatus(
+              `Imported ${totalImported} documents with ${totalFailed} errors. Check the console for details.`,
+              'error',
+            );
+          } else {
+            setDatabaseDumpStatus(
+              `Imported ${totalImported} documents from ${processedCollections} collections.`,
+              'success',
+            );
+          }
+        } catch (error) {
+          console.error('Failed to import database dump:', error);
+          const fallbackMessage = 'Failed to import database dump. Please try again.';
+          const message = error && typeof error.message === 'string' && error.message.trim()
+            ? error.message.trim()
+            : fallbackMessage;
+          setDatabaseDumpStatus(message, 'error');
+        } finally {
+          resetDatabaseImportInput();
+          isDatabaseTransferInProgress = false;
+          refreshDatabaseActionAvailability();
+        }
+      });
+    }
+
+    refreshDatabaseActionAvailability();
 
     function setRoleControlsEnabled(enabled) {
       const allow = Boolean(enabled);
@@ -5477,6 +5565,30 @@
       delete databaseDumpStatus.dataset.variant;
     }
 
+    function refreshDatabaseActionAvailability() {
+      const shouldDisable = !hasSetterAccess || isDatabaseTransferInProgress;
+
+      if (databaseDumpButton) {
+        databaseDumpButton.disabled = shouldDisable;
+      }
+
+      if (databaseImportButton) {
+        databaseImportButton.disabled = shouldDisable;
+      }
+
+      if (databaseImportInput) {
+        databaseImportInput.disabled = shouldDisable;
+      }
+    }
+
+    function resetDatabaseImportInput() {
+      if (!databaseImportInput) {
+        return;
+      }
+
+      databaseImportInput.value = '';
+    }
+
     function serializeFirestoreValue(value) {
       if (value === undefined) {
         return null;
@@ -5534,6 +5646,150 @@
       }
 
       return { id: docSnap.id, value: serializedData };
+    }
+
+    function looksLikeIsoDateString(value) {
+      if (typeof value !== 'string') {
+        return false;
+      }
+
+      return /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/.test(value);
+    }
+
+    function deserializeFirestoreValue(value) {
+      if (value === undefined) {
+        return null;
+      }
+
+      if (value === null) {
+        return null;
+      }
+
+      if (Array.isArray(value)) {
+        return value.map((item) => deserializeFirestoreValue(item));
+      }
+
+      if (typeof value === 'string' && looksLikeIsoDateString(value)) {
+        const parsed = new Date(value);
+        if (!Number.isNaN(parsed.getTime())) {
+          return Timestamp.fromDate(parsed);
+        }
+      }
+
+      if (value && typeof value === 'object') {
+        if (typeof value.__ref === 'string') {
+          try {
+            const refPath = value.__ref.trim();
+            if (refPath) {
+              const segments = refPath.split('/').filter(Boolean);
+              if (segments.length >= 2) {
+                return doc(db, ...segments);
+              }
+            }
+          } catch (error) {
+            console.warn('Unable to restore document reference from dump:', value.__ref, error);
+          }
+        }
+
+        const deserialized = {};
+        for (const [key, nestedValue] of Object.entries(value)) {
+          deserialized[key] = deserializeFirestoreValue(nestedValue);
+        }
+        return deserialized;
+      }
+
+      return value;
+    }
+
+    function buildFirestorePayloadFromDumpEntry(entry) {
+      if (!entry || typeof entry !== 'object') {
+        return {};
+      }
+
+      const { id: _id, ...rest } = entry;
+      const candidate = deserializeFirestoreValue(rest);
+
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+        return { value: candidate ?? null };
+      }
+
+      return candidate;
+    }
+
+    async function importCollectionEntries(collectionKey, entries) {
+      if (!Array.isArray(entries)) {
+        const failureCount =
+          entries && typeof entries === 'object'
+            ? Math.max(Object.keys(entries).length, 1)
+            : entries
+            ? 1
+            : 0;
+        return { imported: 0, failed: failureCount };
+      }
+
+      let imported = 0;
+      let failed = 0;
+
+      for (const entry of entries) {
+        if (!entry || typeof entry !== 'object') {
+          failed += 1;
+          continue;
+        }
+
+        const rawId = typeof entry.id === 'string' ? entry.id.trim() : '';
+        if (!rawId) {
+          failed += 1;
+          continue;
+        }
+
+        try {
+          const payload = buildFirestorePayloadFromDumpEntry(entry);
+          await setDoc(doc(db, collectionKey, rawId), payload);
+          imported += 1;
+        } catch (error) {
+          console.error(`Failed to import document ${rawId} in ${collectionKey}:`, error);
+          failed += 1;
+        }
+      }
+
+      return { imported, failed };
+    }
+
+    async function importDatabaseDump(dump) {
+      if (!dump || typeof dump !== 'object') {
+        throw new Error('Invalid database dump.');
+      }
+
+      const collections = dump.data && typeof dump.data === 'object' ? dump.data : null;
+      if (!collections) {
+        throw new Error('Database dump is missing data.');
+      }
+
+      let totalImported = 0;
+      let totalFailed = 0;
+      let processedCollections = 0;
+
+      for (const [collectionKey, value] of Object.entries(collections)) {
+        if (!collectionKey || typeof collectionKey !== 'string') {
+          continue;
+        }
+
+        if (value && typeof value === 'object' && value.error) {
+          console.warn(`Skipping errored collection ${collectionKey} from dump.`);
+          continue;
+        }
+
+        processedCollections += 1;
+        const { imported, failed } = await importCollectionEntries(collectionKey, value);
+        totalImported += imported;
+        totalFailed += failed;
+      }
+
+      return {
+        processedCollections,
+        totalImported,
+        totalFailed,
+      };
     }
 
     function markUnsavedChange() {
@@ -7458,6 +7714,10 @@
       clearStatus();
       setRoleControlsEnabled(false);
       resetRoleManagementUI('Setter access required to manage roles.');
+      hasSetterAccess = false;
+      isDatabaseTransferInProgress = false;
+      refreshDatabaseActionAvailability();
+      resetDatabaseImportInput();
       clearDatabaseDumpStatus();
       void finishTutorial();
     }
@@ -7468,9 +7728,8 @@
       routeSelector.disabled = false;
       setRoleControlsEnabled(true);
       clearRoleStatus();
-      if (databaseDumpButton) {
-        databaseDumpButton.disabled = false;
-      }
+      hasSetterAccess = true;
+      refreshDatabaseActionAvailability();
     }
 
     onAuthStateChanged(auth, async (user) => {
@@ -7529,6 +7788,11 @@
         setRoleControlsEnabled(false);
         resetRoleManagementUI();
         setAuthMode('login');
+        hasSetterAccess = false;
+        isDatabaseTransferInProgress = false;
+        refreshDatabaseActionAvailability();
+        resetDatabaseImportInput();
+        clearDatabaseDumpStatus();
         void finishTutorial();
       }
     });
