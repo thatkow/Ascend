@@ -261,6 +261,18 @@
       outline: none;
     }
 
+    .role-revoke-button {
+      border-color: rgba(248, 113, 113, 0.5);
+      background: linear-gradient(135deg, rgba(248, 113, 113, 0.9), rgba(220, 38, 38, 0.9));
+      color: #450a0a;
+      box-shadow: 0 18px 36px rgba(248, 113, 113, 0.35);
+    }
+
+    .role-revoke-button:hover:not(:disabled),
+    .role-revoke-button:focus-visible:not(:disabled) {
+      box-shadow: 0 22px 42px rgba(248, 113, 113, 0.45);
+    }
+
     .role-action-button:disabled {
       opacity: 0.45;
       cursor: not-allowed;
@@ -365,12 +377,19 @@
     </section>
 
     <section id="roleManager" class="role-manager">
-      <h2>Grant setter access</h2>
+      <h2>Manage setter access</h2>
       <label for="roleUsernameInput">
         <span>Username</span>
         <input id="roleUsernameInput" type="text" placeholder="username" autocomplete="off" />
       </label>
       <button id="grantSetterButton" class="role-action-button" type="button">Grant setter role</button>
+      <button
+        id="revokeSetterButton"
+        class="role-action-button role-revoke-button"
+        type="button"
+      >
+        Revoke setter role
+      </button>
       <p id="roleStatusMessage" class="status-message hidden" role="status" aria-live="polite"></p>
     </section>
 
@@ -435,6 +454,7 @@
     const adminSetterToolsButton = document.getElementById('adminSetterToolsButton');
     const roleUsernameInput = document.getElementById('roleUsernameInput');
     const grantSetterButton = document.getElementById('grantSetterButton');
+    const revokeSetterButton = document.getElementById('revokeSetterButton');
     const roleStatusMessage = document.getElementById('roleStatusMessage');
 
     const SYNTHETIC_EMAIL_DOMAIN = 'users.anuascend.local';
@@ -512,6 +532,9 @@
       if (grantSetterButton) {
         grantSetterButton.disabled = !allow;
       }
+      if (revokeSetterButton) {
+        revokeSetterButton.disabled = !allow;
+      }
       if (roleUsernameInput) {
         roleUsernameInput.disabled = !allow;
       }
@@ -567,7 +590,7 @@
       unauthorizedNotice.classList.add('hidden');
       adminApp.classList.remove('hidden');
       adminApp.removeAttribute('aria-hidden');
-      resetRoleManagementUI('Enter the username of the user you want to promote.', 'info');
+      resetRoleManagementUI('Enter the username of the user you want to manage.', 'info');
       setRoleControlsEnabled(Boolean(currentAdminUser));
     }
 
@@ -1118,6 +1141,89 @@
         } catch (error) {
           console.error('Failed to grant setter role:', error);
           setRoleStatus('Unable to grant setter role. Please try again.', 'error');
+        } finally {
+          setRoleControlsEnabled(Boolean(currentAdminUser));
+          if (roleUsernameInput && !roleUsernameInput.disabled) {
+            roleUsernameInput.focus();
+          }
+        }
+      });
+    }
+
+    if (revokeSetterButton && roleUsernameInput) {
+      revokeSetterButton.addEventListener('click', async () => {
+        const rawUsername = roleUsernameInput.value;
+        const trimmedUsername = typeof rawUsername === 'string' ? rawUsername.trim() : '';
+
+        if (!trimmedUsername) {
+          setRoleStatus("Enter the user's username.", 'info');
+          return;
+        }
+
+        if (!isLikelyUsername(trimmedUsername)) {
+          setRoleStatus('Enter a valid username (letters, numbers, underscores).', 'error');
+          return;
+        }
+
+        const normalizedUsername = normalizeUsername(trimmedUsername);
+
+        try {
+          setRoleControlsEnabled(false);
+          setRoleStatus(`Revoking setter role from ${trimmedUsername}…`, 'info');
+
+          const usernameRef = doc(db, 'usernames', normalizedUsername);
+          const usernameSnap = await getDoc(usernameRef);
+
+          if (!usernameSnap.exists()) {
+            setRoleStatus('No user found with that username.', 'error');
+            return;
+          }
+
+          const usernameData = usernameSnap.data() || {};
+          const targetUid = typeof usernameData.uid === 'string' ? usernameData.uid.trim() : '';
+
+          if (!targetUid) {
+            setRoleStatus('Unable to resolve that username to a user account.', 'error');
+            return;
+          }
+
+          if (currentAdminUser && targetUid === currentAdminUser.uid) {
+            setRoleStatus('You cannot revoke your own setter role.', 'warning');
+            return;
+          }
+
+          const roleRef = doc(db, 'roles', targetUid);
+          const roleSnap = await getDoc(roleRef);
+
+          if (!roleSnap.exists()) {
+            setRoleStatus(`${trimmedUsername} does not have setter access.`, 'info');
+            return;
+          }
+
+          const roleData = roleSnap.data() || {};
+          const existingRole =
+            typeof roleData.role === 'string' ? roleData.role.trim().toLowerCase() : 'default';
+
+          if (existingRole === 'admin') {
+            setRoleStatus(
+              `${trimmedUsername} is an admin. Admin roles must be managed separately.`,
+              'warning',
+            );
+            return;
+          }
+
+          if (existingRole !== 'setter') {
+            setRoleStatus(`${trimmedUsername} does not have setter access.`, 'info');
+            return;
+          }
+
+          await deleteDoc(roleRef);
+
+          setRoleStatus(`Setter role revoked for ${trimmedUsername}.`, 'success');
+          roleUsernameInput.value = '';
+        } catch (error) {
+          console.error('Failed to revoke setter role:', error);
+          setRoleStatus('Unable to revoke setter role. Please try again.', 'error');
         } finally {
           setRoleControlsEnabled(Boolean(currentAdminUser));
           if (roleUsernameInput && !roleUsernameInput.disabled) {
