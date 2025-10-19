@@ -7303,22 +7303,28 @@
             role: trimmedRole,
           };
 
-          if (effectiveLower !== normalizedUsername || !data.username) {
-            try {
-              await setDoc(
-                roleRef,
-                {
-                  username: normalizedUsername,
-                  usernameLower: normalizedUsername,
-                  updatedAt: serverTimestamp(),
-                },
-                { merge: true },
-              );
-              mergedData.username = normalizedUsername;
-              mergedData.usernameLower = normalizedUsername;
-              effectiveLower = normalizedUsername;
-            } catch (error) {
-              console.warn('Failed to synchronise username on role document:', error);
+          const needsUsernameUpdate =
+            effectiveLower !== normalizedUsername || !data.username;
+
+          if (needsUsernameUpdate) {
+            mergedData.username = normalizedUsername;
+            mergedData.usernameLower = normalizedUsername;
+            effectiveLower = normalizedUsername;
+
+            if (trimmedRole !== 'default') {
+              try {
+                await setDoc(
+                  roleRef,
+                  {
+                    username: normalizedUsername,
+                    usernameLower: normalizedUsername,
+                    updatedAt: serverTimestamp(),
+                  },
+                  { merge: true },
+                );
+              } catch (error) {
+                console.warn('Failed to synchronise username on role document:', error);
+              }
             }
           }
 
@@ -7346,11 +7352,21 @@
           role,
           username: normalizedUsername,
           usernameLower: normalizedUsername,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
         };
 
-        await setDoc(roleRef, roleData, { merge: true });
+        if (role === 'default') {
+          return roleData;
+        }
+
+        await setDoc(
+          roleRef,
+          {
+            ...roleData,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true },
+        );
         return roleData;
       } catch (error) {
         console.error('Failed to ensure user role:', error);
