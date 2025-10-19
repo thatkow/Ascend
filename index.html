@@ -3289,7 +3289,9 @@
           return;
         }
 
-        const shouldHideSetterLink = role !== 'setter';
+        const normalizedRole = typeof role === 'string' ? role.trim().toLowerCase() : '';
+        const shouldHideSetterLink =
+          normalizedRole !== 'setter' && normalizedRole !== 'admin';
         setterLink.classList.toggle('hidden', shouldHideSetterLink);
 
         if (shouldHideSetterLink && activeInfoCallout?.target === setterLink) {
