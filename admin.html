@@ -614,6 +614,14 @@
 
         try {
           const payload = buildFirestorePayloadFromDumpEntry(entry);
+
+          if (shouldPreserveAdminIdentity(collectionKey, rawId, payload)) {
+            console.info(
+              `Skipping ${collectionKey}/${rawId} because it belongs to the currently authenticated admin.`,
+            );
+            continue;
+          }
+
           await setDoc(doc(db, collectionKey, rawId), payload);
           imported += 1;
         } catch (error) {
@@ -664,8 +672,20 @@
       return { processedCollections, totalImported, totalFailed };
     }
 
-    function shouldPreserveAdminIdentity(collectionKey, docSnap) {
-      if (!docSnap) {
+    function normalizeDocDataCandidate(docData) {
+      if (!docData || typeof docData !== 'object' || Array.isArray(docData)) {
+        return {};
+      }
+
+      if (docData.value && typeof docData.value === 'object' && !Array.isArray(docData.value)) {
+        return docData.value;
+      }
+
+      return docData;
+    }
+
+    function shouldPreserveAdminIdentity(collectionKey, docId, docData) {
+      if (!docId) {
         return false;
       }
 
@@ -673,22 +693,22 @@
       const normalizedAdminUsername = normalizeUsername(currentAdminUsername);
 
       if (collectionKey === 'roles') {
-        return Boolean(adminUid && docSnap.id === adminUid);
+        return Boolean(adminUid && docId === adminUid);
       }
 
       if (collectionKey === 'usernames') {
-        const normalizedId = normalizeUsername(docSnap.id);
+        const normalizedId = normalizeUsername(docId);
         if (normalizedAdminUsername && normalizedId === normalizedAdminUsername) {
           return true;
         }
 
         try {
-          const data = docSnap.data ? docSnap.data() || {} : {};
+          const candidate = normalizeDocDataCandidate(docData);
           const storedUsername = normalizeUsername(
-            typeof data.usernameLower === 'string'
-              ? data.usernameLower
-              : typeof data.username === 'string'
-              ? data.username
+            typeof candidate.usernameLower === 'string'
+              ? candidate.usernameLower
+              : typeof candidate.username === 'string'
+              ? candidate.username
               : '',
           );
 
@@ -696,7 +716,7 @@
             return true;
           }
 
-          if (adminUid && typeof data.uid === 'string' && data.uid === adminUid) {
+          if (adminUid && typeof candidate.uid === 'string' && candidate.uid === adminUid) {
             return true;
           }
         } catch (error) {
@@ -705,40 +725,6 @@
       }
 
       return false;
-    }
-
-    async function downgradeCurrentAdminAfterImport() {
-      if (!currentAdminUser?.uid) {
-        return false;
-      }
-
-      const normalizedUsername = normalizeUsername(currentAdminUsername);
-      const payload = {
-        role: 'setter',
-        updatedAt: serverTimestamp(),
-      };
-
-      if (normalizedUsername) {
-        payload.username = normalizedUsername;
-        payload.usernameLower = normalizedUsername;
-      }
-
-      try {
-        await setDoc(doc(db, 'roles', currentAdminUser.uid), payload, { merge: true });
-      } catch (error) {
-        console.error('Failed to downgrade admin role after import:', error);
-        setAdminStatus(
-          'Import finished, but downgrading your admin access failed. Please contact another admin immediately.',
-          'error',
-        );
-        return false;
-      }
-
-      window.alert('Import complete. Your role has been changed from admin to setter.');
-      currentAdminUser = null;
-      currentAdminUsername = '';
-      showUnauthorizedNotice();
-      return true;
     }
 
     async function lookupUsernameByUid(uid) {
@@ -968,8 +954,6 @@
       setAdminStatus(`Importing database from “${sanitizedName}”…`, 'info');
       setControlsEnabled(false);
 
-      let shouldRestoreControls = true;
-
       try {
         const text = await file.text();
         let parsed;
@@ -992,10 +976,6 @@
           setAdminStatus(`Imported ${totalImported} documents from ${processedCollections} collections.`, 'success');
         }
 
-        const downgraded = await downgradeCurrentAdminAfterImport();
-        if (downgraded) {
-          shouldRestoreControls = false;
-        }
       } catch (error) {
         console.error('Failed to import database dump:', error);
         const fallbackMessage = 'Failed to import database dump. Please try again.';
@@ -1005,9 +985,7 @@
         setAdminStatus(message, 'error');
       } finally {
         resetImportInput();
-        if (shouldRestoreControls) {
-          setControlsEnabled(true);
-        }
+        setControlsEnabled(true);
       }
     });
 
@@ -1043,7 +1021,7 @@
           try {
             const snapshot = await getDocs(ref);
             for (const docSnap of snapshot.docs) {
-              if (shouldPreserveAdminIdentity(key, docSnap)) {
+              if (shouldPreserveAdminIdentity(key, docSnap.id, docSnap.data ? docSnap.data() : {})) {
                 continue;
               }
               try {
