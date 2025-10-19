@@ -210,6 +210,63 @@
       outline: none;
     }
 
+    .role-manager {
+      display: grid;
+      gap: 0.75rem;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 1.25rem;
+      padding: 1.25rem;
+    }
+
+    .role-manager h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .role-manager label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      font-size: 0.95rem;
+      color: rgba(226, 232, 240, 0.85);
+    }
+
+    .role-manager input {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.65);
+      color: #f8fafc;
+      padding: 0.6rem 1rem;
+      font-size: 1rem;
+    }
+
+    .role-action-button {
+      border-radius: 999px;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.9), rgba(22, 163, 74, 0.9));
+      color: #052e16;
+      font-weight: 600;
+      font-size: 1rem;
+      padding: 0.65rem 1.5rem;
+      cursor: pointer;
+      justify-self: start;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    }
+
+    .role-action-button:hover:not(:disabled),
+    .role-action-button:focus-visible:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 36px rgba(34, 197, 94, 0.35);
+      outline: none;
+    }
+
+    .role-action-button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
     .status-message {
       font-size: 0.95rem;
       border-radius: 0.9rem;
@@ -307,6 +364,16 @@
       </button>
     </section>
 
+    <section id="roleManager" class="role-manager">
+      <h2>Grant setter access</h2>
+      <label for="roleUsernameInput">
+        <span>Username</span>
+        <input id="roleUsernameInput" type="text" placeholder="username" autocomplete="off" />
+      </label>
+      <button id="grantSetterButton" class="role-action-button" type="button">Grant setter role</button>
+      <p id="roleStatusMessage" class="status-message hidden" role="status" aria-live="polite"></p>
+    </section>
+
     <section class="secondary-actions">
       <button id="adminSetterToolsButton" class="secondary-button" type="button">Open setter tools</button>
       <button id="adminSignOutButton" class="secondary-button" type="button">Sign out</button>
@@ -366,6 +433,9 @@
     const adminClearButton = document.getElementById('adminClearButton');
     const adminSignOutButton = document.getElementById('adminSignOutButton');
     const adminSetterToolsButton = document.getElementById('adminSetterToolsButton');
+    const roleUsernameInput = document.getElementById('roleUsernameInput');
+    const grantSetterButton = document.getElementById('grantSetterButton');
+    const roleStatusMessage = document.getElementById('roleStatusMessage');
 
     const SYNTHETIC_EMAIL_DOMAIN = 'users.anuascend.local';
     const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
@@ -412,6 +482,58 @@
       setAdminStatus('');
     }
 
+    function setRoleStatus(message, variant = 'info') {
+      if (!roleStatusMessage) {
+        return;
+      }
+
+      if (!message) {
+        roleStatusMessage.textContent = '';
+        roleStatusMessage.classList.add('hidden');
+        delete roleStatusMessage.dataset.variant;
+        return;
+      }
+
+      roleStatusMessage.textContent = message;
+      roleStatusMessage.classList.remove('hidden');
+      if (variant) {
+        roleStatusMessage.dataset.variant = variant;
+      } else {
+        delete roleStatusMessage.dataset.variant;
+      }
+    }
+
+    function clearRoleStatus() {
+      setRoleStatus('');
+    }
+
+    function setRoleControlsEnabled(enabled) {
+      const allow = Boolean(enabled);
+      if (grantSetterButton) {
+        grantSetterButton.disabled = !allow;
+      }
+      if (roleUsernameInput) {
+        roleUsernameInput.disabled = !allow;
+      }
+    }
+
+    function resetRoleManagementUI(message = '', variant = 'info') {
+      if (roleUsernameInput) {
+        roleUsernameInput.value = '';
+      }
+
+      if (message) {
+        setRoleStatus(message, variant);
+      } else {
+        clearRoleStatus();
+      }
+    }
+
+    const isLikelyUsername = (value) => isValidUsername(value);
+
+    resetRoleManagementUI();
+    setRoleControlsEnabled(false);
+
     function setControlsEnabled(enabled) {
       const allow = Boolean(enabled);
       [adminDumpButton, adminImportButton, adminClearButton].forEach((button) => {
@@ -422,6 +544,7 @@
       if (adminImportInput) {
         adminImportInput.disabled = !allow;
       }
+      setRoleControlsEnabled(allow && Boolean(currentAdminUser));
     }
 
     function showAuthOverlay(message = '') {
@@ -434,6 +557,7 @@
       adminApp.setAttribute('aria-hidden', 'true');
       unauthorizedNotice.classList.add('hidden');
       clearAdminStatus();
+      resetRoleManagementUI();
       setControlsEnabled(false);
     }
 
@@ -443,6 +567,8 @@
       unauthorizedNotice.classList.add('hidden');
       adminApp.classList.remove('hidden');
       adminApp.removeAttribute('aria-hidden');
+      resetRoleManagementUI('Enter the username of the user you want to promote.', 'info');
+      setRoleControlsEnabled(Boolean(currentAdminUser));
     }
 
     function showUnauthorizedNotice() {
@@ -451,6 +577,7 @@
       unauthorizedNotice.classList.remove('hidden');
       setControlsEnabled(false);
       clearAdminStatus();
+      resetRoleManagementUI('Admin access required to manage roles.', 'warning');
     }
 
     function resetImportInput() {
@@ -871,6 +998,88 @@
       tempLink.click();
       document.body.removeChild(tempLink);
       URL.revokeObjectURL(url);
+    }
+
+    if (grantSetterButton && roleUsernameInput) {
+      grantSetterButton.addEventListener('click', async () => {
+        const rawUsername = roleUsernameInput.value;
+        const trimmedUsername = typeof rawUsername === 'string' ? rawUsername.trim() : '';
+
+        if (!trimmedUsername) {
+          setRoleStatus("Enter the user's username.", 'info');
+          return;
+        }
+
+        if (!isLikelyUsername(trimmedUsername)) {
+          setRoleStatus('Enter a valid username (letters, numbers, underscores).', 'error');
+          return;
+        }
+
+        const normalizedUsername = normalizeUsername(trimmedUsername);
+
+        try {
+          setRoleControlsEnabled(false);
+          setRoleStatus(`Granting setter role to ${trimmedUsername}…`, 'info');
+
+          const usernameRef = doc(db, 'usernames', normalizedUsername);
+          const usernameSnap = await getDoc(usernameRef);
+
+          if (!usernameSnap.exists()) {
+            setRoleStatus('No user found with that username.', 'error');
+            return;
+          }
+
+          const usernameData = usernameSnap.data() || {};
+          const targetUid = typeof usernameData.uid === 'string' ? usernameData.uid.trim() : '';
+
+          if (!targetUid) {
+            setRoleStatus('Unable to resolve that username to a user account.', 'error');
+            return;
+          }
+
+          const roleRef = doc(db, 'roles', targetUid);
+          const roleSnap = await getDoc(roleRef);
+          const existingData = roleSnap.exists() ? roleSnap.data() || {} : {};
+          const existingRole = typeof existingData.role === 'string' ? existingData.role.trim() : '';
+          const existingLowerRaw =
+            typeof existingData.usernameLower === 'string'
+              ? existingData.usernameLower
+              : typeof existingData.username === 'string'
+              ? existingData.username
+              : '';
+          const existingLower = normalizeUsername(existingLowerRaw);
+
+          if (existingRole === 'setter' && existingLower === normalizedUsername) {
+            setRoleStatus(`${trimmedUsername} is already a setter.`, 'success');
+            roleUsernameInput.value = '';
+            return;
+          }
+
+          const payload = {
+            role: 'setter',
+            username: normalizedUsername,
+            usernameLower: normalizedUsername,
+            updatedAt: serverTimestamp(),
+          };
+
+          if (!existingData.createdAt) {
+            payload.createdAt = serverTimestamp();
+          }
+
+          await setDoc(roleRef, payload, { merge: true });
+
+          setRoleStatus(`Setter role granted to ${trimmedUsername}.`, 'success');
+          roleUsernameInput.value = '';
+        } catch (error) {
+          console.error('Failed to grant setter role:', error);
+          setRoleStatus('Unable to grant setter role. Please try again.', 'error');
+        } finally {
+          setRoleControlsEnabled(Boolean(currentAdminUser));
+          if (roleUsernameInput && !roleUsernameInput.disabled) {
+            roleUsernameInput.focus();
+          }
+        }
+      });
     }
 
     adminDumpButton?.addEventListener('click', async () => {
