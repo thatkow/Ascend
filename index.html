@@ -389,10 +389,10 @@
       }
 
       .view-toggle[aria-pressed='true'] {
-        background: linear-gradient(135deg, rgba(126, 217, 87, 0.85), rgba(126, 217, 87, 0.4));
-        color: #0f1a08;
-        border-color: rgba(126, 217, 87, 0.65);
-        box-shadow: 0 10px 24px rgba(126, 217, 87, 0.35);
+        background: linear-gradient(135deg, rgba(148, 163, 184, 0.45), rgba(30, 41, 59, 0.65));
+        color: #fff;
+        border-color: rgba(148, 163, 184, 0.55);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.4);
       }
 
       .location-modal {
@@ -1201,14 +1201,14 @@
           class="header-icon-button view-toggle"
           type="button"
           aria-pressed="false"
-          aria-label="Show Grade Colors"
-          title="Show Grade Colors"
+          aria-label="Switch to Coloring by Grade"
+          title="Switch to Coloring by Grade"
         >
           <span class="view-toggle-icon view-toggle-icon-grade" aria-hidden="true">
             <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
               <path
                 d="M6 19a3 3 0 0 1 0-6h12a2 2 0 0 0 0-4H8a4 4 0 0 1 0-8h10v2H8a2 2 0 0 0 0 4h10a4 4 0 0 1 0 8H6a1 1 0 0 0 0 2h12v2H6a3 3 0 0 1-3-3Z"
-                fill="currentColor"
+                fill="#a855f7"
               />
             </svg>
           </span>
@@ -1538,11 +1538,12 @@
         const lines = showingGradeColors
           ? [
               'Routes are tinted by difficulty right now.',
-              'The spectrum below runs from the easiest greens on the left to the hardest reds on the right, covering every grade color.',
+              'Climbs without a recorded grade show a neutral grey until someone logs one.',
+              'Tap the palette icon to switch back to Coloring by Holds whenever you want setter colours again.',
             ]
           : [
-              'Routes are showing the color of each hold set.',
-              'Toggle to reveal grade colors and compare difficulty at a glance.',
+              'Routes are showing the colour of each hold set.',
+              'Switch to Coloring by Grade with the palette icon to compare difficulty at a glance.',
             ];
 
         const callout = createBasicCallout(title, lines);
@@ -1952,6 +1953,10 @@
         [30, '#C10407'],
         [31, '#BD0306'],
       ]);
+      const DEFAULT_GRADELESS_COLOR = '#6b7280';
+      const MIN_BREZER_STROKE_WIDTH = 2;
+      const MAX_BREZER_STROKE_WIDTH = 40;
+      const DEFAULT_BREZER_STROKE_WIDTH = 10;
       const VIEW_MODE_HOLD_COLORS = 'hold-colors';
       const VIEW_MODE_GRADE_COLORS = 'grade-colors';
 
@@ -1988,6 +1993,18 @@
         const clamped = Math.min(
           Math.max(Math.round(numeric), MIN_RECTANGLE_SIZE),
           MAX_RECTANGLE_SIZE,
+        );
+        return clamped;
+      }
+
+      function normalizeBrezerStrokeWidth(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return DEFAULT_BREZER_STROKE_WIDTH;
+        }
+        const clamped = Math.min(
+          Math.max(Math.round(numeric), MIN_BREZER_STROKE_WIDTH),
+          MAX_BREZER_STROKE_WIDTH,
         );
         return clamped;
       }
@@ -2060,6 +2077,7 @@
           raw.rectangleHeight,
           DEFAULT_RECTANGLE_HEIGHT,
         );
+        const brezerStrokeWidth = normalizeBrezerStrokeWidth(raw.brezerStrokeWidth);
         const gradeBarBaseHeight = normalizeGradeBarHeight(
           raw.gradeBarBaseHeight,
           DEFAULT_GRADE_BAR_BASE_HEIGHT,
@@ -2080,6 +2098,7 @@
           pointDiameter,
           rectangleWidth,
           rectangleHeight,
+          brezerStrokeWidth,
           gradeBarBaseHeight,
           gradeBarMaxHeight,
           gradeBarWidth,
@@ -2120,6 +2139,7 @@
           pointDiameter: DEFAULT_POINT_DIAMETER,
           rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
           rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
+          brezerStrokeWidth: DEFAULT_BREZER_STROKE_WIDTH,
           gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
           gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
           gradeBarWidth: DEFAULT_GRADE_BAR_WIDTH,
@@ -2383,7 +2403,9 @@
         }
 
         const showingGradeColors = viewMode === VIEW_MODE_GRADE_COLORS;
-        const labelText = showingGradeColors ? 'Show Hold Colors' : 'Show Grade Colors';
+        const labelText = showingGradeColors
+          ? 'Switch to Coloring by Holds'
+          : 'Switch to Coloring by Grade';
         viewToggleButton.setAttribute('aria-pressed', showingGradeColors ? 'true' : 'false');
         viewToggleButton.setAttribute('aria-label', labelText);
         viewToggleButton.setAttribute('title', labelText);
@@ -3675,13 +3697,41 @@
           },
         },
         {
-          title: 'Show hold colors',
+          title: 'Coloring by Holds',
           body: [
-            'Toggle the Show Hold Colors button to switch between route outlines and grade colors.',
-            'Routes are tinted by difficulty right now.',
-            'The spectrum below runs from the easiest greens on the left to the hardest reds on the right, covering every grade color.',
+            'Routes are showing the colour of each hold set right now so you can match what\'s taped on the wall.',
+            'Click the palette icon to switch to Coloring by Grade when you want quick difficulty cues.',
+          ],
+          onEnter: () => {
+            setTutorialOverlayAlignment('center');
+            if (viewToggleButton) {
+              tutorialPreviousViewMode = viewMode;
+              if (viewMode !== VIEW_MODE_HOLD_COLORS) {
+                setViewMode(VIEW_MODE_HOLD_COLORS);
+              }
+              highlightTutorialElement(viewToggleButton, { illuminate: true });
+              showTutorialPointerFor(viewToggleButton);
+            } else {
+              hideTutorialPointer();
+            }
+          },
+          onExit: () => {
+            hideTutorialPointer();
+            highlightTutorialElement(null);
+            if (tutorialPreviousViewMode && tutorialPreviousViewMode !== viewMode) {
+              setViewMode(tutorialPreviousViewMode);
+            }
+            tutorialPreviousViewMode = null;
+          },
+        },
+        {
+          title: 'Coloring by Grade',
+          body: [
+            'Toggle Coloring by Grade to tint each climb by consensus difficulty.',
+            'Climbs without a recorded grade turn a soft grey until someone logs one.',
+            'Tap the same palette icon any time to jump back to Coloring by Holds.',
             () => createGradeChartElement(),
-            'It\'s perfect when you want to scan the wall by difficulty at a glance.',
+            "It's perfect when you want to scan the wall by difficulty at a glance.",
           ],
           onEnter: () => {
             setTutorialOverlayAlignment('center');
@@ -5346,6 +5396,7 @@
                 pointDiameter: data.pointDiameter,
                 rectangleWidth: data.rectangleWidth,
                 rectangleHeight: data.rectangleHeight,
+                brezerStrokeWidth: data.brezerStrokeWidth,
                 gradeBarBaseHeight: data.gradeBarBaseHeight,
                 gradeBarMaxHeight: data.gradeBarMaxHeight,
                 gradeBarWidth: data.gradeBarWidth,
@@ -5370,6 +5421,7 @@
                 pointDiameter: wallSettings.pointDiameter,
                 rectangleWidth: wallSettings.rectangleWidth,
                 rectangleHeight: wallSettings.rectangleHeight,
+                brezerStrokeWidth: wallSettings.brezerStrokeWidth,
                 gradeBarBaseHeight: wallSettings.gradeBarBaseHeight,
                 gradeBarMaxHeight: wallSettings.gradeBarMaxHeight,
                 gradeBarWidth: wallSettings.gradeBarWidth,
@@ -5714,7 +5766,8 @@
 
       function getRouteDisplayColor(route) {
         if (viewMode === VIEW_MODE_GRADE_COLORS) {
-          return getRouteGradeColor(route) ?? getRouteStrokeColor(route);
+          const gradeColor = getRouteGradeColor(route);
+          return gradeColor ?? DEFAULT_GRADELESS_COLOR;
         }
         return getRouteStrokeColor(route);
       }
@@ -5917,6 +5970,9 @@
 
       function calculateRouteStrokeWidth(route) {
         const pathType = normalizePathType(route?.pathType);
+        if (pathType === PATH_TYPE_BREZER) {
+          return normalizeBrezerStrokeWidth(route?.brezerStrokeWidth);
+        }
         if (pathType === PATH_TYPE_POINT) {
           const diameter = normalizePointDiameter(route?.pointDiameter);
           return Math.max(2, Math.round(diameter / 10));
@@ -5926,7 +5982,7 @@
           const height = normalizeRectangleSize(route?.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT);
           return Math.max(2, Math.round(Math.max(width, height) / 10));
         }
-        return 10;
+        return DEFAULT_BREZER_STROKE_WIDTH;
       }
 
       function drawRoute(route, options = {}) {

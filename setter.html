@@ -1530,6 +1530,24 @@
                 />
               </label>
               <label
+                id="brezerStrokeWidthField"
+                class="control-field"
+                data-help-text="Set the thickness of Brezer lines for freeform paths on this wall."
+              >
+                <span>
+                  Brezer stroke width
+                  <span id="brezerStrokeWidthValue"></span>
+                </span>
+                <input
+                  id="brezerStrokeWidthSlider"
+                  type="range"
+                  min="2"
+                  max="40"
+                  step="1"
+                  value="10"
+                />
+              </label>
+              <label
                 id="unfocusedTransparencyField"
                 class="control-field"
                 data-help-text="Control how transparent inactive routes appear for climbers."
@@ -1882,6 +1900,9 @@
     const MAX_RECTANGLE_SIZE = 200;
     const DEFAULT_RECTANGLE_WIDTH = 80;
     const DEFAULT_RECTANGLE_HEIGHT = 60;
+    const MIN_BREZER_STROKE_WIDTH = 2;
+    const MAX_BREZER_STROKE_WIDTH = 40;
+    const DEFAULT_BREZER_STROKE_WIDTH = 10;
     const MIN_UNFOCUSED_TRANSPARENCY = 0;
     const MAX_UNFOCUSED_TRANSPARENCY = 1;
     const DEFAULT_UNFOCUSED_TRANSPARENCY = 0.25;
@@ -2396,6 +2417,7 @@
             const wallSettings = getWallSettingsForLocation(nextKey);
             updateRoutesForWall(nextKey, wallSettings);
             pointDiameter = wallSettings.pointDiameter;
+            brezerStrokeWidth = wallSettings.brezerStrokeWidth;
             unfocusedTransparency = wallSettings.unfocusedTransparency;
             gradeBarBaseHeight = wallSettings.gradeBarBaseHeight;
             gradeBarMaxHeight = wallSettings.gradeBarMaxHeight;
@@ -3440,6 +3462,9 @@
     const rectangleHeightField = document.getElementById('rectangleHeightField');
     const rectangleHeightSlider = document.getElementById('rectangleHeightSlider');
     const rectangleHeightValue = document.getElementById('rectangleHeightValue');
+    const brezerStrokeWidthField = document.getElementById('brezerStrokeWidthField');
+    const brezerStrokeWidthSlider = document.getElementById('brezerStrokeWidthSlider');
+    const brezerStrokeWidthValue = document.getElementById('brezerStrokeWidthValue');
     const unfocusedTransparencyField = document.getElementById('unfocusedTransparencyField');
     const unfocusedTransparencySlider = document.getElementById('unfocusedTransparencySlider');
     const appearancePointDiameterInput = document.getElementById('appearancePointDiameterInput');
@@ -3510,6 +3535,18 @@
       const clamped = Math.min(
         Math.max(Math.round(numeric), MIN_RECTANGLE_SIZE),
         MAX_RECTANGLE_SIZE,
+      );
+      return clamped;
+    }
+
+    function normalizeBrezerStrokeWidth(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return DEFAULT_BREZER_STROKE_WIDTH;
+      }
+      const clamped = Math.min(
+        Math.max(Math.round(numeric), MIN_BREZER_STROKE_WIDTH),
+        MAX_BREZER_STROKE_WIDTH,
       );
       return clamped;
     }
@@ -3597,6 +3634,7 @@
         pointDiameter: DEFAULT_POINT_DIAMETER,
         rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
         rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
+        brezerStrokeWidth: DEFAULT_BREZER_STROKE_WIDTH,
         unfocusedTransparency: DEFAULT_UNFOCUSED_TRANSPARENCY,
         gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
         gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
@@ -3619,6 +3657,7 @@
         raw.rectangleHeight,
         DEFAULT_RECTANGLE_HEIGHT,
       );
+      const brezerStrokeWidth = normalizeBrezerStrokeWidth(raw.brezerStrokeWidth);
       const gradeBarBaseHeight = normalizeGradeBarHeight(
         raw.gradeBarBaseHeight,
         DEFAULT_GRADE_BAR_BASE_HEIGHT,
@@ -3635,6 +3674,7 @@
         pointDiameter,
         rectangleWidth,
         rectangleHeight,
+        brezerStrokeWidth,
         unfocusedTransparency: normalizeUnfocusedTransparency(raw.unfocusedTransparency),
         gradeBarBaseHeight,
         gradeBarMaxHeight,
@@ -3672,6 +3712,7 @@
       pointDiameter = settings.pointDiameter;
       rectangleWidth = settings.rectangleWidth;
       rectangleHeight = settings.rectangleHeight;
+      brezerStrokeWidth = settings.brezerStrokeWidth;
       unfocusedTransparency = settings.unfocusedTransparency;
       gradeBarBaseHeight = settings.gradeBarBaseHeight;
       gradeBarMaxHeight = settings.gradeBarMaxHeight;
@@ -3829,6 +3870,7 @@
           routesCache.set(routeKey, {
             ...data,
             pointDiameter: settings.pointDiameter,
+            brezerStrokeWidth: settings.brezerStrokeWidth,
             rectangleWidth: settings.rectangleWidth,
             rectangleHeight: settings.rectangleHeight,
             gradeBarBaseHeight: settings.gradeBarBaseHeight,
@@ -3851,6 +3893,7 @@
         routesCache.set(key, {
           ...data,
           pointDiameter: settings.pointDiameter,
+          brezerStrokeWidth: settings.brezerStrokeWidth,
           rectangleWidth: settings.rectangleWidth,
           rectangleHeight: settings.rectangleHeight,
           gradeBarBaseHeight: settings.gradeBarBaseHeight,
@@ -3877,6 +3920,7 @@
 
       if (getCurrentLocationKey() === normalizedKey) {
         pointDiameter = merged.pointDiameter;
+        brezerStrokeWidth = merged.brezerStrokeWidth;
         unfocusedTransparency = merged.unfocusedTransparency;
         gradeBarBaseHeight = merged.gradeBarBaseHeight;
         gradeBarMaxHeight = merged.gradeBarMaxHeight;
@@ -3901,6 +3945,7 @@
           pointDiameter: merged.pointDiameter,
           rectangleWidth: merged.rectangleWidth,
           rectangleHeight: merged.rectangleHeight,
+          brezerStrokeWidth: merged.brezerStrokeWidth,
           unfocusedTransparency: merged.unfocusedTransparency,
           gradeBarBaseHeight: merged.gradeBarBaseHeight,
           gradeBarMaxHeight: merged.gradeBarMaxHeight,
@@ -4241,6 +4286,7 @@
     let pointDiameter = DEFAULT_POINT_DIAMETER;
     let rectangleWidth = DEFAULT_RECTANGLE_WIDTH;
     let rectangleHeight = DEFAULT_RECTANGLE_HEIGHT;
+    let brezerStrokeWidth = DEFAULT_BREZER_STROKE_WIDTH;
     let unfocusedTransparency = DEFAULT_UNFOCUSED_TRANSPARENCY;
     let gradeBarBaseHeight = DEFAULT_GRADE_BAR_BASE_HEIGHT;
     let gradeBarMaxHeight = DEFAULT_GRADE_BAR_MAX_HEIGHT;
@@ -5071,6 +5117,7 @@
         rest.rectangleHeight,
         DEFAULT_RECTANGLE_HEIGHT,
       );
+      const fallbackBrezerStrokeWidth = normalizeBrezerStrokeWidth(rest.brezerStrokeWidth);
       const gradeBarBaseHeight = normalizeGradeBarHeight(
         rest.gradeBarBaseHeight,
         DEFAULT_GRADE_BAR_BASE_HEIGHT,
@@ -5087,6 +5134,7 @@
         pointDiameter: fallbackPointDiameter,
         rectangleWidth: fallbackRectangleWidth,
         rectangleHeight: fallbackRectangleHeight,
+        brezerStrokeWidth: fallbackBrezerStrokeWidth,
         gradeBarBaseHeight,
         gradeBarMaxHeight,
         gradeBarWidth,
@@ -5112,6 +5160,7 @@
         pointDiameter: wallSettings.pointDiameter,
         rectangleWidth: wallSettings.rectangleWidth,
         rectangleHeight: wallSettings.rectangleHeight,
+        brezerStrokeWidth: wallSettings.brezerStrokeWidth,
         gradeBarBaseHeight: wallSettings.gradeBarBaseHeight,
         gradeBarMaxHeight: wallSettings.gradeBarMaxHeight,
         gradeBarWidth: wallSettings.gradeBarWidth,
@@ -5328,6 +5377,12 @@
       if (rectangleHeightValue) {
         rectangleHeightValue.textContent = `${rectangleHeight}px`;
       }
+      if (brezerStrokeWidthSlider) {
+        brezerStrokeWidthSlider.value = String(brezerStrokeWidth);
+      }
+      if (brezerStrokeWidthValue) {
+        brezerStrokeWidthValue.textContent = `${brezerStrokeWidth}px`;
+      }
       if (unfocusedTransparencySlider) {
         unfocusedTransparencySlider.value = String(
           convertUnfocusedTransparencyToSliderValue(unfocusedTransparency),
@@ -5449,6 +5504,7 @@
         pointDiameter,
         rectangleWidth,
         rectangleHeight,
+        brezerStrokeWidth,
       );
       if (points.length) {
         queueGradeBarOverlay({
@@ -5512,6 +5568,7 @@
       routePointDiameter = DEFAULT_POINT_DIAMETER,
       routeRectangleWidth = DEFAULT_RECTANGLE_WIDTH,
       routeRectangleHeight = DEFAULT_RECTANGLE_HEIGHT,
+      routeBrezerStrokeWidth = DEFAULT_BREZER_STROKE_WIDTH,
     ) {
       if (!Array.isArray(routePoints) || !routePoints.length) {
         return;
@@ -5532,7 +5589,8 @@
       );
 
       if (effectivePathType === PATH_TYPE_BREZER && routePoints.length >= 2) {
-        ctx.lineWidth = 10;
+        const strokeWidth = normalizeBrezerStrokeWidth(routeBrezerStrokeWidth);
+        ctx.lineWidth = strokeWidth;
         ctx.strokeStyle = color;
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
@@ -5876,6 +5934,7 @@
           canvasPoints,
           normalizedPoints,
           pointDiameter: normalizePointDiameter(data.pointDiameter),
+          brezerStrokeWidth: normalizeBrezerStrokeWidth(data.brezerStrokeWidth),
           rectangleWidth: normalizeRectangleSize(data.rectangleWidth, DEFAULT_RECTANGLE_WIDTH),
           rectangleHeight: normalizeRectangleSize(data.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT),
           alpha: overlayAlpha,
@@ -5971,6 +6030,7 @@
             entryPointDiameter,
             entryRectangleWidth,
             entryRectangleHeight,
+            entry.brezerStrokeWidth,
           );
         }
 
@@ -6234,6 +6294,7 @@
           pointDiameter: data.pointDiameter,
           rectangleWidth: data.rectangleWidth,
           rectangleHeight: data.rectangleHeight,
+          brezerStrokeWidth: data.brezerStrokeWidth,
           gradeBarBaseHeight: data.gradeBarBaseHeight,
           gradeBarMaxHeight: data.gradeBarMaxHeight,
           gradeBarWidth: data.gradeBarWidth,
@@ -6281,6 +6342,7 @@
       pointDiameter = wallSettings.pointDiameter;
       rectangleWidth = wallSettings.rectangleWidth;
       rectangleHeight = wallSettings.rectangleHeight;
+      brezerStrokeWidth = wallSettings.brezerStrokeWidth;
       unfocusedTransparency = wallSettings.unfocusedTransparency;
       gradeBarBaseHeight = wallSettings.gradeBarBaseHeight;
       gradeBarMaxHeight = wallSettings.gradeBarMaxHeight;
@@ -6512,6 +6574,7 @@
             id: routeKey,
             ...payload,
             pointDiameter: normalizedPointDiameter,
+            brezerStrokeWidth: wallSettings.brezerStrokeWidth,
             rectangleWidth: normalizedRectangleWidth,
             rectangleHeight: normalizedRectangleHeight,
           }),
@@ -6619,6 +6682,7 @@
         try {
           await persistWallSettings(locationKey, {
             pointDiameter: nextPointDiameter,
+            brezerStrokeWidth,
             gradeBarBaseHeight: nextGradeBarBaseHeight,
             gradeBarMaxHeight: nextGradeBarMaxHeight,
             gradeBarWidth: nextGradeBarWidth,
@@ -6721,6 +6785,7 @@
             pointDiameter: nextValue,
             rectangleWidth,
             rectangleHeight,
+            brezerStrokeWidth,
             unfocusedTransparency,
             gradeBarBaseHeight,
             gradeBarMaxHeight,
@@ -6771,6 +6836,7 @@
             pointDiameter,
             rectangleWidth: nextValue,
             rectangleHeight,
+            brezerStrokeWidth,
             unfocusedTransparency,
             gradeBarBaseHeight,
             gradeBarMaxHeight,
@@ -6820,6 +6886,7 @@
             pointDiameter,
             rectangleWidth,
             rectangleHeight: nextValue,
+            brezerStrokeWidth,
             unfocusedTransparency,
             gradeBarBaseHeight,
             gradeBarMaxHeight,
@@ -6851,6 +6918,56 @@
       });
     }
 
+    if (brezerStrokeWidthSlider) {
+      brezerStrokeWidthSlider.addEventListener('input', (event) => {
+        const nextValue = normalizeBrezerStrokeWidth(event.target.value);
+        if (brezerStrokeWidth === nextValue) {
+          updatePathControls();
+          return;
+        }
+
+        brezerStrokeWidth = nextValue;
+        updatePathControls();
+
+        const locationKey = getCurrentLocationKey();
+        const normalizedKey = normalizeWallKey(locationKey);
+        if (normalizedKey) {
+          const previewSettings = normalizeWallSettings({
+            pointDiameter,
+            rectangleWidth,
+            rectangleHeight,
+            brezerStrokeWidth: nextValue,
+            unfocusedTransparency,
+            gradeBarBaseHeight,
+            gradeBarMaxHeight,
+            gradeBarWidth,
+            gradeBarTransparency,
+          });
+          wallSettingsCache.set(normalizedKey, previewSettings);
+          updateRoutesForWall(normalizedKey, previewSettings);
+        }
+
+        redraw();
+      });
+
+      brezerStrokeWidthSlider.addEventListener('change', async (event) => {
+        const nextValue = normalizeBrezerStrokeWidth(event.target.value);
+        if (brezerStrokeWidth !== nextValue) {
+          brezerStrokeWidth = nextValue;
+          updatePathControls();
+        }
+
+        const locationKey = getCurrentLocationKey();
+        if (locationKey) {
+          try {
+            await persistWallSettings(locationKey, { brezerStrokeWidth: nextValue });
+          } catch (error) {
+            console.error('Failed to persist Brezer stroke width:', error);
+          }
+        }
+      });
+    }
+
     if (unfocusedTransparencySlider) {
       unfocusedTransparencySlider.addEventListener('input', (event) => {
         const nextValue = sliderValueToUnfocusedTransparency(event.target.value);
@@ -6869,6 +6986,7 @@
             pointDiameter,
             rectangleWidth,
             rectangleHeight,
+            brezerStrokeWidth,
             unfocusedTransparency: nextValue,
             gradeBarBaseHeight,
             gradeBarMaxHeight,
