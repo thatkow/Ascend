@@ -5006,22 +5006,16 @@
         return;
       }
 
-      if (!normalized) {
-        adminConsoleStatus.textContent = '';
-        adminConsoleStatus.classList.add('hidden');
-        delete adminConsoleStatus.dataset.variant;
-        return;
-      }
-
-      adminConsoleStatus.classList.remove('hidden');
-
       if (isAdmin) {
         adminConsoleStatus.textContent = 'Open the admin console to manage database operations.';
         adminConsoleStatus.dataset.variant = 'info';
-      } else {
-        adminConsoleStatus.textContent = 'Admin access is required to manage the database.';
-        adminConsoleStatus.dataset.variant = 'warning';
+        adminConsoleStatus.classList.remove('hidden');
+        return;
       }
+
+      adminConsoleStatus.textContent = '';
+      adminConsoleStatus.classList.add('hidden');
+      delete adminConsoleStatus.dataset.variant;
     }
 
     updateAdminConsoleAccess('');
