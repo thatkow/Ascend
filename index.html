@@ -3406,6 +3406,7 @@
         routeGrades.clear();
         userAscentDetails = new Map();
         routeMedianGrades = new Map();
+        routeAscentsCache.clear();
         hideTooltip({ force: true });
 
         await loadRoutes();
@@ -4144,8 +4145,8 @@
           updateNavigationForRole(role);
           appContent.classList.remove('hidden');
 
-          await loadAscents({ userId: user.uid, username: currentUsername });
           await loadRoutes();
+          await loadAscents({ userId: user.uid });
 
           return;
         }
@@ -4183,6 +4184,7 @@
       let pinnedPosition = null;
       const ascendedRoutes = new Set();
       const routeGrades = new Map();
+      const routeAscentsCache = new Map();
       let userAscentDetails = new Map();
       let routeMedianGrades = new Map();
       const CLICK_DRAG_DISTANCE_THRESHOLD = 8;
@@ -4316,106 +4318,45 @@
         }
       }
 
-      async function loadAscents({ userId, username }) {
+      async function loadAscents({ userId }) {
         ascendedRoutes.clear();
         routeGrades.clear();
         userAscentDetails = new Map();
 
         const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
-        const normalizedUsername = normalizeUsername(username);
-        const hasValidUsername = isValidUsername(normalizedUsername);
-        if (!normalizedUserId && !hasValidUsername) {
+        if (!normalizedUserId) {
+          synchroniseAscentsWithRoutes();
           return;
         }
 
-        try {
-          let ascentData = null;
-
-          if (normalizedUserId) {
-            const ascentRef = doc(db, 'ascents', normalizedUserId);
-            const ascentSnap = await getDoc(ascentRef);
-            if (ascentSnap.exists()) {
-              ascentData = ascentSnap.data() ?? {};
-            }
-
-            if (!ascentData && hasValidUsername && normalizedUsername !== normalizedUserId) {
-              const legacyRef = doc(db, 'ascents', normalizedUsername);
-              const legacySnap = await getDoc(legacyRef);
-
-              if (legacySnap.exists()) {
-                ascentData = legacySnap.data() ?? {};
-
-                try {
-                  const migrationPayload = {
-                    ...ascentData,
-                    climber_uid: normalizedUserId,
-                    updatedAt: serverTimestamp(),
-                  };
-
-                  if (hasValidUsername) {
-                    migrationPayload.climber_username = normalizedUsername;
-                  }
-
-                  await setDoc(ascentRef, migrationPayload, { merge: true });
-                } catch (migrationError) {
-                  console.warn('Failed to migrate legacy ascent document to UID path:', migrationError);
-                }
-              }
-            }
-          }
-
-          if (!ascentData && hasValidUsername && normalizedUsername !== normalizedUserId) {
-            const ascentRef = doc(db, 'ascents', normalizedUsername);
-            const ascentSnap = await getDoc(ascentRef);
-
-            if (!ascentSnap.exists()) {
-              return;
-            }
-
-            ascentData = ascentSnap.data() ?? {};
-          }
-
-          if (!ascentData) {
+        routeAscentsCache.forEach((ascentsMap, routeId) => {
+          if (!(ascentsMap instanceof Map)) {
             return;
           }
 
-          const routesData = ascentData.routes;
-
-          if (routesData && typeof routesData === 'object') {
-            Object.entries(routesData).forEach(([routeId, details]) => {
-              if (!routeId || !details) {
-                return;
-              }
-
-              const gradeValue = normalizeGradeValue(details?.grade);
-              const normalizedDate = normalizeDate(details?.date_ascended);
-              const ascended = details?.ascended === true || Boolean(normalizedDate);
-
-              const entry = {
-                ascended,
-                grade: gradeValue,
-              };
-
-              if (normalizedDate) {
-                entry.dateAscended = normalizedDate;
-              }
-
-              userAscentDetails.set(routeId, entry);
-            });
-
-            synchroniseAscentsWithRoutes();
+          const entry = ascentsMap.get(normalizedUserId);
+          if (!entry) {
             return;
           }
 
-          const singleRouteId = typeof ascentData.route_id === 'string' ? ascentData.route_id : null;
-          if (singleRouteId) {
-            userAscentDetails.set(singleRouteId, { ascended: true, grade: null });
-            synchroniseAscentsWithRoutes();
-            return;
+          const gradeValue = normalizeGradeValue(entry.grade);
+          const ascended = entry.ascended === true;
+
+          const ascentDetails = {
+            ascended,
+            grade: gradeValue,
+          };
+
+          userAscentDetails.set(routeId, ascentDetails);
+
+          if (typeof gradeValue === 'number' && Number.isFinite(gradeValue)) {
+            routeGrades.set(routeId, gradeValue);
           }
-        } catch (error) {
-          console.error('Failed to load ascents:', error);
-        }
+
+          if (ascended) {
+            ascendedRoutes.add(routeId);
+          }
+        });
 
         synchroniseAscentsWithRoutes();
       }
@@ -4481,6 +4422,90 @@
         }
 
         return numeric;
+      }
+
+      function normalizeRouteAscentsMap(rawAscents) {
+        const normalized = new Map();
+
+        if (!rawAscents || typeof rawAscents !== 'object') {
+          return normalized;
+        }
+
+        Object.entries(rawAscents).forEach(([uid, details]) => {
+          if (typeof uid !== 'string' || !uid.trim()) {
+            return;
+          }
+
+          const normalizedUid = uid.trim();
+          if (!details || typeof details !== 'object') {
+            return;
+          }
+
+          const gradeValue = normalizeGradeValue(details.grade);
+          const ascended = details.ascended === true;
+
+          normalized.set(normalizedUid, {
+            grade: gradeValue,
+            ascended,
+          });
+        });
+
+        return normalized;
+      }
+
+      function computeMedianFromAscentsMap(ascentsMap) {
+        if (!(ascentsMap instanceof Map) || ascentsMap.size === 0) {
+          return null;
+        }
+
+        const grades = [];
+
+        ascentsMap.forEach((details) => {
+          const gradeValue = normalizeGradeValue(details?.grade);
+          if (typeof gradeValue === 'number' && Number.isFinite(gradeValue)) {
+            grades.push(gradeValue);
+          }
+        });
+
+        if (!grades.length) {
+          return null;
+        }
+
+        grades.sort((a, b) => a - b);
+        const mid = Math.floor(grades.length / 2);
+        if (grades.length % 2 === 0) {
+          return (grades[mid - 1] + grades[mid]) / 2;
+        }
+
+        return grades[mid];
+      }
+
+      function updateMedianForRoute(routeId) {
+        if (!routeId) {
+          return;
+        }
+
+        const ascentsMap = routeAscentsCache.get(routeId);
+        const median = computeMedianFromAscentsMap(ascentsMap);
+        const medianValue =
+          typeof median === 'number' && Number.isFinite(median) ? median : null;
+
+        if (medianValue === null) {
+          routeMedianGrades.delete(routeId);
+        } else {
+          routeMedianGrades.set(routeId, medianValue);
+        }
+
+        [allRoutes, routes].forEach((routeCollection) => {
+          if (!Array.isArray(routeCollection)) {
+            return;
+          }
+
+          const match = routeCollection.find((entry) => entry && entry.id === routeId);
+          if (match) {
+            match.medianGrade = medianValue;
+          }
+        });
       }
 
       function formatGradeDisplay(value) {
@@ -4856,12 +4881,6 @@
           return;
         }
 
-        const username = await resolveAuthenticatedUsername();
-        if (!username) {
-          console.warn('Unable to save grade: user username missing.');
-          return;
-        }
-
         const userId = typeof currentUser?.uid === 'string' ? currentUser.uid.trim() : '';
         if (!userId) {
           console.warn('Unable to save grade: user ID missing.');
@@ -4874,21 +4893,17 @@
           return;
         }
 
-        const ascentRef = doc(db, 'ascents', userId);
+        const routeRef = doc(db, 'routes', route.id);
+        const isAscended = ascendedRoutes.has(route.id);
 
         try {
           await setDoc(
-            ascentRef,
+            routeRef,
             {
-              climber_uid: userId,
-              climber_username: username,
-              updatedAt: serverTimestamp(),
-              routes: {
-                [route.id]: {
+              ascents: {
+                [userId]: {
                   grade: sanitizedGrade,
-                  route_id: route.id,
-                  climber_uid: userId,
-                  climber_username: username,
+                  ascended: isAscended,
                 },
               },
             },
@@ -4896,7 +4911,6 @@
           );
 
           const existingEntry = userAscentDetails.get(route.id);
-          const isAscended = existingEntry?.ascended === true;
 
           if (sanitizedGrade === null) {
             routeGrades.delete(route.id);
@@ -4912,6 +4926,15 @@
             userAscentDetails.set(route.id, nextEntry);
           }
 
+          let ascentsMap = routeAscentsCache.get(route.id);
+          if (!(ascentsMap instanceof Map)) {
+            ascentsMap = new Map();
+            routeAscentsCache.set(route.id, ascentsMap);
+          }
+          ascentsMap.set(userId, { grade: sanitizedGrade, ascended: isAscended });
+
+          updateMedianForRoute(route.id);
+
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
           await refreshMedianGrades();
@@ -4920,71 +4943,42 @@
         }
       }
 
-      async function fetchMedianGrades() {
-        const medianMap = new Map();
-
+      async function refreshMedianGrades() {
         try {
-          const snapshot = await getDocs(collection(db, 'ascents'));
-          const gradeBuckets = new Map();
+          const snapshot = await getDocs(collection(db, 'routes'));
+          const nextAscentsCache = new Map();
+          const nextMedianMap = new Map();
 
           snapshot.forEach((docSnap) => {
             const data = docSnap.data() ?? {};
-            const routesData = data.routes;
+            const ascentsMap = normalizeRouteAscentsMap(data.ascents);
+            nextAscentsCache.set(docSnap.id, ascentsMap);
 
-            if (!routesData || typeof routesData !== 'object') {
-              return;
+            const median = computeMedianFromAscentsMap(ascentsMap);
+            if (typeof median === 'number' && Number.isFinite(median)) {
+              nextMedianMap.set(docSnap.id, median);
             }
+          });
 
-            Object.entries(routesData).forEach(([routeId, details]) => {
-              if (!details) {
-                return;
-              }
+          routeAscentsCache.clear();
+          nextAscentsCache.forEach((value, key) => {
+            routeAscentsCache.set(key, value);
+          });
 
-              const grade = normalizeGradeValue(details.grade);
-              if (grade === null) {
-                return;
-              }
+          routeMedianGrades = nextMedianMap;
 
-              if (!gradeBuckets.has(routeId)) {
-                gradeBuckets.set(routeId, []);
-              }
-
-              gradeBuckets.get(routeId).push(grade);
+          if (Array.isArray(allRoutes)) {
+            allRoutes.forEach((route) => {
+              const median = routeMedianGrades.get(route.id);
+              route.medianGrade =
+                typeof median === 'number' && Number.isFinite(median) ? median : null;
             });
-          });
+          }
 
-          gradeBuckets.forEach((grades, routeId) => {
-            if (!Array.isArray(grades) || grades.length === 0) {
-              return;
-            }
-
-            grades.sort((a, b) => a - b);
-            const mid = Math.floor(grades.length / 2);
-
-            if (grades.length % 2 === 0) {
-              medianMap.set(routeId, (grades[mid - 1] + grades[mid]) / 2);
-            } else {
-              medianMap.set(routeId, grades[mid]);
-            }
-          });
+          redraw();
         } catch (error) {
           console.error('Failed to load route grades:', error);
         }
-
-        return medianMap;
-      }
-
-      async function refreshMedianGrades() {
-        routeMedianGrades = await fetchMedianGrades();
-
-        if (Array.isArray(allRoutes)) {
-          allRoutes.forEach((route) => {
-            const median = routeMedianGrades.get(route.id);
-            route.medianGrade = typeof median === 'number' && Number.isFinite(median) ? median : null;
-          });
-        }
-
-        redraw();
       }
 
       function updateTooltipContent(route) {
@@ -5462,13 +5456,13 @@
 
       async function loadRoutes() {
         try {
-          const [routesSnapshot, medianMap, wallSnapshot] = await Promise.all([
+          const [routesSnapshot, wallSnapshot] = await Promise.all([
             getDocs(collection(db, 'routes')),
-            fetchMedianGrades(),
             getDocs(collection(db, WALL_COLLECTION)),
           ]);
 
-          routeMedianGrades = medianMap instanceof Map ? medianMap : new Map();
+          routeAscentsCache.clear();
+          routeMedianGrades = new Map();
 
           wallSettingsCache.clear();
           const hiddenWallKeys = new Set();
@@ -5524,7 +5518,20 @@
 
           allRoutes = routesSnapshot.docs
             .map((docSnap) => {
-              const data = docSnap.data();
+              const data = docSnap.data() ?? {};
+              const ascentsMap = normalizeRouteAscentsMap(data.ascents);
+              routeAscentsCache.set(docSnap.id, ascentsMap);
+
+              const medianValue = computeMedianFromAscentsMap(ascentsMap);
+              const medianGrade =
+                typeof medianValue === 'number' && Number.isFinite(medianValue)
+                  ? medianValue
+                  : null;
+
+              if (medianGrade !== null) {
+                routeMedianGrades.set(docSnap.id, medianGrade);
+              }
+
               const normalizedPoints = Array.isArray(data.points)
                 ? data.points
                     .map((point) => {
@@ -5538,8 +5545,6 @@
                     .filter(Boolean)
                 : [];
 
-              const median = routeMedianGrades.get(docSnap.id);
-              const medianGrade = typeof median === 'number' && Number.isFinite(median) ? median : null;
               const rawLocationValue = typeof data.location === 'string' ? data.location.trim() : '';
               const defaultLocation = getDefaultLocation();
               const normalizedLocation =
@@ -5602,6 +5607,7 @@
           focusedRouteId = null;
           updateClearFocusButton();
           routeMedianGrades = new Map();
+          routeAscentsCache.clear();
           renderProgressionList();
           redraw();
         }
@@ -5609,12 +5615,6 @@
 
       async function toggleRouteAscent(route) {
         if (!currentUser) {
-          return;
-        }
-
-        const username = await resolveAuthenticatedUsername();
-        if (!username) {
-          console.warn('Unable to mark ascent: user username missing.');
           return;
         }
 
@@ -5629,7 +5629,7 @@
           console.warn('Unable to mark ascent: route ID missing.');
           return;
         }
-        const ascentRef = doc(db, 'ascents', userId);
+        const routeRef = doc(db, 'routes', routeId);
         const isAscended = ascendedRoutes.has(routeId);
         const previousEntry = userAscentDetails.get(routeId) || {};
         const persistedGrade =
@@ -5642,21 +5642,15 @@
             : null;
 
         try {
+          const nextAscended = !isAscended;
           if (isAscended) {
             await setDoc(
-              ascentRef,
+              routeRef,
               {
-                climber_uid: userId,
-                climber_username: username,
-                updatedAt: serverTimestamp(),
-                routes: {
-                  [routeId]: {
-                    route_id: routeId,
-                    climber_uid: userId,
-                    climber_username: username,
+                ascents: {
+                  [userId]: {
                     grade: normalizedGrade,
-                    ascended: false,
-                    date_ascended: null,
+                    ascended: nextAscended,
                   },
                 },
               },
@@ -5664,36 +5658,36 @@
             );
 
             userAscentDetails.set(routeId, {
-              ascended: false,
+              ascended: nextAscended,
               grade: normalizedGrade,
             });
           } else {
-            const now = new Date().toISOString();
             await setDoc(
-              ascentRef,
+              routeRef,
               {
-                climber_uid: userId,
-                climber_username: username,
-                updatedAt: serverTimestamp(),
-                routes: {
-                  [routeId]: {
-                    route_id: routeId,
-                    date_ascended: now,
-                    climber_uid: userId,
-                    climber_username: username,
+                ascents: {
+                  [userId]: {
                     grade: normalizedGrade,
-                    ascended: true,
+                    ascended: nextAscended,
                   },
                 },
               },
               { merge: true },
             );
             userAscentDetails.set(routeId, {
-              ascended: true,
+              ascended: nextAscended,
               grade: normalizedGrade,
-              dateAscended: now,
             });
           }
+
+          let ascentsMap = routeAscentsCache.get(routeId);
+          if (!(ascentsMap instanceof Map)) {
+            ascentsMap = new Map();
+            routeAscentsCache.set(routeId, ascentsMap);
+          }
+          ascentsMap.set(userId, { grade: normalizedGrade, ascended: nextAscended });
+
+          updateMedianForRoute(routeId);
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
