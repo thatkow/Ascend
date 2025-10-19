@@ -200,7 +200,6 @@
       .view-toggle[aria-pressed='true'] .view-toggle-icon-difficulty {
         display: block;
       }
-
       .header-icon-button:hover,
       .header-icon-button:focus-visible {
         transform: translateY(-1px);
@@ -1415,7 +1414,35 @@
       let tutorialStepIndex = -1;
       let tutorialTransitionInProgress = false;
       let tutorialSteps = [];
+      let tutorialSecondaryActionMode = 'back';
       let tutorialHighlightedRouteId = null;
+
+      let tutorialOptOut = false;
+
+      const PERSONAL_TUTORIAL_OPT_OUT_KEY = 'ascend.personalTutorial.optOut';
+
+      function readStoredTutorialOptOut() {
+        try {
+          return window.localStorage?.getItem(PERSONAL_TUTORIAL_OPT_OUT_KEY) === 'true';
+        } catch (error) {
+          console.warn('Failed to read tutorial preference:', error);
+          return false;
+        }
+      }
+
+      function persistTutorialOptOut(value) {
+        try {
+          if (value) {
+            window.localStorage?.setItem(PERSONAL_TUTORIAL_OPT_OUT_KEY, 'true');
+          } else {
+            window.localStorage?.removeItem(PERSONAL_TUTORIAL_OPT_OUT_KEY);
+          }
+        } catch (error) {
+          console.warn('Failed to persist tutorial preference:', error);
+        }
+      }
+
+      tutorialOptOut = readStoredTutorialOptOut();
 
       const LOCATIONS = [
         { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
@@ -1760,7 +1787,19 @@
         }
 
         if (tutorialSecondaryAction) {
-          tutorialSecondaryAction.classList.toggle('hidden', tutorialStepIndex <= 0);
+          let secondaryLabel = 'Back';
+          let shouldShowSecondary = tutorialStepIndex > 0;
+          tutorialSecondaryActionMode = 'back';
+
+          if (tutorialStepIndex === 0) {
+            secondaryLabel = 'Skip';
+            shouldShowSecondary = true;
+            tutorialSecondaryActionMode = 'skip';
+          }
+
+          tutorialSecondaryAction.textContent = secondaryLabel;
+          tutorialSecondaryAction.dataset.mode = tutorialSecondaryActionMode;
+          tutorialSecondaryAction.classList.toggle('hidden', !shouldShowSecondary);
         }
       }
 
@@ -1966,7 +2005,7 @@
       }
 
       async function startTutorial() {
-        if (tutorialActive) {
+        if (tutorialOptOut || tutorialActive || tutorialTransitionInProgress) {
           return;
         }
 
@@ -2019,6 +2058,12 @@
         }
       }
 
+      async function skipTutorial() {
+        tutorialOptOut = true;
+        persistTutorialOptOut(true);
+        await finishTutorial();
+      }
+
       function handleTutorialKeydown(event) {
         if (!tutorialActive) {
           return;
@@ -2026,7 +2071,11 @@
 
         if (event.key === 'Escape') {
           event.preventDefault();
-          finishTutorial();
+          if (tutorialSecondaryActionMode === 'skip') {
+            void skipTutorial();
+          } else {
+            void finishTutorial();
+          }
           return;
         }
 
@@ -3476,7 +3525,17 @@
 
       if (tutorialSecondaryAction) {
         tutorialSecondaryAction.addEventListener('click', () => {
-          if (!tutorialActive || tutorialStepIndex <= 0) {
+          if (!tutorialActive) {
+            return;
+          }
+
+          const mode = tutorialSecondaryAction.dataset.mode || tutorialSecondaryActionMode;
+          if (mode === 'skip') {
+            void skipTutorial();
+            return;
+          }
+
+          if (tutorialStepIndex <= 0) {
             return;
           }
 
@@ -3749,22 +3808,28 @@
             role: trimmedRole,
           };
 
-          if (effectiveLower !== normalizedUsername || !existingData.username) {
-            try {
-              await setDoc(
-                roleRef,
-                {
-                  username: normalizedUsername,
-                  usernameLower: normalizedUsername,
-                  updatedAt: serverTimestamp(),
-                },
-                { merge: true },
-              );
-              mergedData.username = normalizedUsername;
-              mergedData.usernameLower = normalizedUsername;
-              effectiveLower = normalizedUsername;
-            } catch (error) {
-              console.warn('Failed to synchronise username on role document:', error);
+          const needsUsernameUpdate =
+            effectiveLower !== normalizedUsername || !existingData.username;
+
+          if (needsUsernameUpdate) {
+            mergedData.username = normalizedUsername;
+            mergedData.usernameLower = normalizedUsername;
+            effectiveLower = normalizedUsername;
+
+            if (trimmedRole !== 'default') {
+              try {
+                await setDoc(
+                  roleRef,
+                  {
+                    username: normalizedUsername,
+                    usernameLower: normalizedUsername,
+                    updatedAt: serverTimestamp(),
+                  },
+                  { merge: true },
+                );
+              } catch (error) {
+                console.warn('Failed to synchronise username on role document:', error);
+              }
             }
           }
 
@@ -3792,11 +3857,21 @@
           role,
           username: normalizedUsername,
           usernameLower: normalizedUsername,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
         };
 
-        await setDoc(roleRef, roleData, { merge: true });
+        if (role === 'default') {
+          return roleData;
+        }
+
+        await setDoc(
+          roleRef,
+          {
+            ...roleData,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true },
+        );
         return roleData;
       }
 
@@ -3827,7 +3902,9 @@
             return;
           }
 
-          const shouldHideSetterLink = role !== 'setter';
+          const normalizedRole = typeof role === 'string' ? role.trim().toLowerCase() : '';
+          const shouldHideSetterLink =
+            normalizedRole !== 'setter' && normalizedRole !== 'admin';
           setterLink.classList.toggle('hidden', shouldHideSetterLink);
 
           if (shouldHideSetterLink && activeInfoCallout?.target === setterLink) {
@@ -3863,7 +3940,9 @@
 
           await loadAscents({ userId: user.uid, username: currentUsername });
           await loadRoutes();
-          await startTutorial();
+          if (!tutorialOptOut) {
+            await startTutorial();
+          }
         } else {
           authOverlay.classList.remove('hidden');
           appContent.classList.add('hidden');
@@ -3914,6 +3993,10 @@
       let userAscentDetails = new Map();
       let routeMedianGrades = new Map();
       let progressionPreviouslyFocusedElement = null;
+      const CLICK_DRAG_DISTANCE_THRESHOLD = 8;
+      const CLICK_DRAG_DISTANCE_THRESHOLD_SQUARED =
+        CLICK_DRAG_DISTANCE_THRESHOLD * CLICK_DRAG_DISTANCE_THRESHOLD;
+      let activePointerInteraction = null;
 
       function synchroniseAscentsWithRoutes(options = {}) {
         const { shouldRedraw = true } = options;
@@ -4989,6 +5072,90 @@
         return null;
       }
 
+      function beginPointerInteraction(event) {
+        const point = extractClientPoint(event);
+        if (!point) {
+          activePointerInteraction = null;
+          return;
+        }
+
+        const pointerId = 'pointerId' in event ? event.pointerId : null;
+        activePointerInteraction = {
+          pointerId,
+          startX: point.x,
+          startY: point.y,
+          latestX: point.x,
+          latestY: point.y,
+          dragging: false,
+        };
+      }
+
+      function updatePointerInteraction(event) {
+        if (!activePointerInteraction) {
+          return;
+        }
+
+        if (
+          'pointerId' in event &&
+          activePointerInteraction.pointerId !== null &&
+          event.pointerId !== activePointerInteraction.pointerId
+        ) {
+          return;
+        }
+
+        const point = extractClientPoint(event);
+        if (!point) {
+          return;
+        }
+
+        activePointerInteraction.latestX = point.x;
+        activePointerInteraction.latestY = point.y;
+
+        if (!activePointerInteraction.dragging) {
+          const movementSquared = distanceSquared(
+            activePointerInteraction.startX,
+            activePointerInteraction.startY,
+            point.x,
+            point.y,
+          );
+
+          if (movementSquared > CLICK_DRAG_DISTANCE_THRESHOLD_SQUARED) {
+            activePointerInteraction.dragging = true;
+          }
+        }
+      }
+
+      function concludePointerInteraction(event) {
+        if (!activePointerInteraction) {
+          return null;
+        }
+
+        if (
+          'pointerId' in event &&
+          activePointerInteraction.pointerId !== null &&
+          event.pointerId !== activePointerInteraction.pointerId
+        ) {
+          return null;
+        }
+
+        const point = extractClientPoint(event);
+        const resolvedX = point?.x ?? activePointerInteraction.latestX;
+        const resolvedY = point?.y ?? activePointerInteraction.latestY;
+
+        const result = {
+          x: resolvedX,
+          y: resolvedY,
+          dragging: activePointerInteraction.dragging,
+        };
+
+        activePointerInteraction = null;
+        return result;
+      }
+
+      function cancelPointerInteraction() {
+        activePointerInteraction = null;
+      }
+
       function applyLocationFilter() {
         const desiredLocation = normalizeLocationName(currentLocation?.name);
         const fallbackLocation = normalizeLocationName(getDefaultLocation()?.name);
@@ -5917,6 +6084,8 @@
       }
 
       function handlePointerMove(event) {
+        updatePointerInteraction(event);
+
         if ('pointerType' in event) {
           const pointerType = event.pointerType;
           if (pointerType && pointerType !== 'mouse' && pointerType !== 'pen') {
@@ -5925,7 +6094,13 @@
           }
         }
 
-        const entry = getRouteEntryAtClientPoint(event.clientX, event.clientY);
+        const point = extractClientPoint(event);
+        if (!point) {
+          canvas.style.cursor = '';
+          return;
+        }
+
+        const entry = getRouteEntryAtClientPoint(point.x, point.y);
 
         if (entry && entry.route) {
           canvas.style.cursor = 'pointer';
@@ -5945,18 +6120,30 @@
       }
 
       function handleCanvasPointerDown(event) {
-        const point = extractClientPoint(event);
-        if (!point) {
+        beginPointerInteraction(event);
+      }
+
+      function handleCanvasPointerUp(event) {
+        const interaction = concludePointerInteraction(event);
+        if (!interaction) {
           return;
         }
 
-        const entry = getRouteEntryAtClientPoint(point.x, point.y);
+        if (interaction.dragging) {
+          return;
+        }
+
+        const entry = getRouteEntryAtClientPoint(interaction.x, interaction.y);
 
         if (entry && entry.route) {
-          showTooltip(entry.route, point.x, point.y, { pin: true });
+          showTooltip(entry.route, interaction.x, interaction.y, { pin: true });
         } else if (!pinnedRouteId) {
           hideTooltip({ force: true });
         }
+      }
+
+      function handleCanvasPointerCancel() {
+        cancelPointerInteraction();
       }
 
       function handleDocumentPointerDown(event) {
@@ -5983,12 +6170,18 @@
         canvas.addEventListener('pointermove', handlePointerMove);
         canvas.addEventListener('pointerleave', handlePointerLeave);
         canvas.addEventListener('pointerdown', handleCanvasPointerDown);
+        document.addEventListener('pointerup', handleCanvasPointerUp);
+        document.addEventListener('pointercancel', handleCanvasPointerCancel);
         document.addEventListener('pointerdown', handleDocumentPointerDown);
       } else {
         canvas.addEventListener('mousemove', handlePointerMove);
         canvas.addEventListener('mouseleave', handlePointerLeave);
         canvas.addEventListener('mousedown', handleCanvasPointerDown);
+        document.addEventListener('mouseup', handleCanvasPointerUp);
         canvas.addEventListener('touchstart', handleCanvasPointerDown);
+        canvas.addEventListener('touchmove', handlePointerMove);
+        document.addEventListener('touchend', handleCanvasPointerUp);
+        document.addEventListener('touchcancel', handleCanvasPointerCancel);
         document.addEventListener('mousedown', handleDocumentPointerDown);
         document.addEventListener('touchstart', handleDocumentPointerDown);
       }

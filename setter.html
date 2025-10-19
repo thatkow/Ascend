@@ -886,6 +886,11 @@
       color: #fff;
     }
 
+    #adminConsoleButton {
+      background: rgba(255, 232, 78, 0.95);
+      color: #111;
+    }
+
     #signOutButton {
       background: rgba(255, 116, 116, 0.9);
       color: #111;
@@ -1037,11 +1042,6 @@
 
     .appearance-save-button {
       background: #7ed957;
-    }
-
-    #grantSetterButton {
-      background: rgba(126, 217, 87, 0.85);
-      color: #111;
     }
 
     #deleteButton {
@@ -1198,6 +1198,10 @@
 
     .status-message[data-variant='info'] {
       color: #f1f1f1;
+    }
+
+    .status-message[data-variant='warning'] {
+      color: #facc15;
     }
   </style>
 </head>
@@ -1550,22 +1554,6 @@
               </button>
             </div>
             <div class="control-section">
-              <h3 class="control-section-title">Grant setter access</h3>
-              <label class="control-field" data-help-text="Enter the username that should receive setter permissions.">
-                <span>Username</span>
-                <input id="roleUsernameInput" type="text" placeholder="username" autocomplete="off" />
-              </label>
-              <button id="grantSetterButton" type="button" data-help-text="Grant setter permissions to the username above.">
-                Grant setter role
-              </button>
-              <p
-                id="roleStatusMessage"
-                class="status-message hidden"
-                role="status"
-                aria-live="polite"
-              ></p>
-            </div>
-            <div class="control-section">
               <h3 class="control-section-title">Session actions</h3>
               <div class="global-actions">
                 <button
@@ -1585,6 +1573,15 @@
                   <span class="button-label">Personal Dashboard</span>
                 </button>
                 <button
+                  id="adminConsoleButton"
+                  class="global-action-button"
+                  type="button"
+                  data-help-text="Open the admin console for database management."
+                >
+                  <span class="button-icon" aria-hidden="true">🛡️</span>
+                  <span class="button-label">Admin</span>
+                </button>
+                <button
                   id="signOutButton"
                   class="global-action-button"
                   type="button"
@@ -1594,6 +1591,12 @@
                   <span class="button-label">Sign Out</span>
                 </button>
               </div>
+              <p
+                id="adminConsoleStatus"
+                class="status-message hidden"
+                role="status"
+                aria-live="polite"
+              ></p>
             </div>
           </div>
           <div
@@ -1762,6 +1765,7 @@
       where,
       deleteDoc,
       deleteField,
+      Timestamp,
     } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { firebaseConfig } from './config.js';
 
@@ -1798,6 +1802,8 @@
     const infoPopover = document.getElementById('infoPopover');
     const climberViewButton = document.getElementById('climberViewButton');
     const personalDashboardButton = document.getElementById('personalDashboardButton');
+    const adminConsoleButton = document.getElementById('adminConsoleButton');
+    const adminConsoleStatus = document.getElementById('adminConsoleStatus');
     const previewLink = document.getElementById('previewLink');
     const previewLinkBaseHref = previewLink?.getAttribute('href') || 'index.html';
     const climberViewBaseHref = 'index.html';
@@ -1814,9 +1820,6 @@
       window.location.href = 'index.html';
       return true;
     }
-    const roleUsernameInput = document.getElementById('roleUsernameInput');
-    const grantSetterButton = document.getElementById('grantSetterButton');
-    const roleStatusMessage = document.getElementById('roleStatusMessage');
     const locationButton = document.getElementById('locationButton');
     const locationButtonLabel = locationButton?.querySelector('.button-label');
     const locationModal = document.getElementById('locationModal');
@@ -1902,6 +1905,10 @@
     };
 
     const normalizeWallKey = (value) => normalizeLocationName(value);
+
+    const BUILTIN_LOCATION_KEYS = new Set(
+      LOCATIONS.map((location) => normalizeWallKey(location?.key || location?.name)).filter(Boolean),
+    );
 
     const findLocationByKey = (key) => LOCATIONS.find((location) => location.key === key);
 
@@ -2470,6 +2477,32 @@
       updateDeleteWallButtonState();
     };
 
+    function resetLocationsToBuiltins() {
+      for (let index = LOCATIONS.length - 1; index >= 0; index -= 1) {
+        const entry = LOCATIONS[index];
+        if (!entry) {
+          continue;
+        }
+
+        const normalizedKey = normalizeWallKey(entry.key || entry.name);
+        if (!BUILTIN_LOCATION_KEYS.has(normalizedKey)) {
+          LOCATIONS.splice(index, 1);
+        }
+      }
+
+      renderLocationOptions();
+
+      const currentKey = normalizeWallKey(currentLocation?.key || currentLocation?.name);
+      if (!currentKey || !BUILTIN_LOCATION_KEYS.has(currentKey)) {
+        setLocation(DEFAULT_LOCATION, { persist: true, refreshRoutes: false });
+      } else {
+        synchronizeCurrentLocationReference();
+        updateLocationOptionsState();
+      }
+
+      updateDeleteWallButtonState();
+    }
+
     backgroundImage.onload = () => {
       backgroundReady = true;
       if (backgroundImage.naturalWidth > 0 && backgroundImage.naturalHeight > 0) {
@@ -2797,12 +2830,12 @@
         let shouldShowSecondary = tutorialStepIndex > 0;
         tutorialSecondaryActionMode = 'back';
 
-        if (secondaryConfig && secondaryConfig.mode === 'close') {
-          tutorialSecondaryActionMode = 'close';
+        if (secondaryConfig && (secondaryConfig.mode === 'skip' || secondaryConfig.mode === 'close')) {
+          tutorialSecondaryActionMode = 'skip';
           secondaryLabel =
             typeof secondaryConfig.label === 'string' && secondaryConfig.label.trim().length
               ? secondaryConfig.label
-              : 'Close';
+              : 'Skip';
           shouldShowSecondary = true;
         }
 
@@ -2820,7 +2853,7 @@
             'Design, update, and publish climbs from here. The wall preview on the left responds instantly as you draw or tweak route details.',
             'Use the sidebar tabs to switch between saved routes, manage walls, and adjust how problems appear to climbers.',
           ],
-          secondaryAction: { mode: 'close', label: 'Close' },
+          secondaryAction: { mode: 'skip', label: 'Skip' },
           onEnter: () => {
             setTutorialOverlayAlignment('center');
             highlightTutorialElement(null);
@@ -3395,13 +3428,6 @@
 
     deleteButton.disabled = true;
     routeSelector.disabled = true;
-    if (grantSetterButton) {
-      grantSetterButton.disabled = true;
-    }
-    if (roleUsernameInput) {
-      roleUsernameInput.disabled = true;
-    }
-
     const ctx = canvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
     const pathTypeSelect = document.getElementById('pathTypeSelect');
@@ -4280,7 +4306,7 @@
         }
 
         const mode = tutorialSecondaryAction.dataset.mode || tutorialSecondaryActionMode;
-        if (mode === 'close') {
+        if (mode === 'skip' || mode === 'close') {
           void finishTutorial();
           return;
         }
@@ -4924,117 +4950,50 @@
       });
     }
 
-    function setRoleControlsEnabled(enabled) {
-      const allow = Boolean(enabled);
-      if (grantSetterButton) {
-        grantSetterButton.disabled = !allow;
-      }
-      if (roleUsernameInput) {
-        roleUsernameInput.disabled = !allow;
-      }
-    }
+    const ADMIN_CONSOLE_PATH = 'admin.html';
 
-    function resetRoleManagementUI(message = '') {
-      if (roleUsernameInput) {
-        roleUsernameInput.value = '';
-      }
-
-      if (message) {
-        setRoleStatus(message, 'info');
-      } else {
-        clearRoleStatus();
-      }
-    }
-
-    const isLikelyUsername = (value) => isValidUsername(value);
-
-    if (grantSetterButton && roleUsernameInput) {
-      grantSetterButton.addEventListener('click', async () => {
-        const rawUsername = roleUsernameInput.value;
-        const trimmedUsername = typeof rawUsername === 'string' ? rawUsername.trim() : '';
-
-        if (!trimmedUsername) {
-          setRoleStatus('Enter the user\'s username.', 'info');
+    if (adminConsoleButton) {
+      adminConsoleButton.addEventListener('click', () => {
+        if (adminConsoleButton.disabled) {
           return;
         }
 
-        if (!isLikelyUsername(trimmedUsername)) {
-          setRoleStatus('Enter a valid username (letters, numbers, underscores).', 'error');
-          return;
-        }
-
-        const normalizedUsername = normalizeUsername(trimmedUsername);
-
-        try {
-          setRoleControlsEnabled(false);
-          setRoleStatus(`Granting setter role to ${trimmedUsername}…`, 'info');
-
-          const usernameRef = doc(db, 'usernames', normalizedUsername);
-          const usernameSnap = await getDoc(usernameRef);
-
-          if (!usernameSnap.exists()) {
-            setRoleStatus('No user found with that username.', 'error');
-            return;
-          }
-
-          const usernameData = usernameSnap.data() || {};
-          const targetUid = typeof usernameData.uid === 'string' ? usernameData.uid.trim() : '';
-
-          if (!targetUid) {
-            setRoleStatus('Unable to resolve that username to a user account.', 'error');
-            return;
-          }
-
-          const roleRef = doc(db, 'roles', targetUid);
-          const roleSnap = await getDoc(roleRef);
-          const existingData = roleSnap.exists() ? roleSnap.data() || {} : {};
-          const existingRole = typeof existingData.role === 'string' ? existingData.role.trim() : '';
-          const existingLowerRaw =
-            typeof existingData.usernameLower === 'string'
-              ? existingData.usernameLower
-              : typeof existingData.username === 'string'
-              ? existingData.username
-              : '';
-          const existingLower = normalizeUsername(existingLowerRaw);
-
-          if (existingRole === 'setter' && existingLower === normalizedUsername) {
-            setRoleStatus(`${trimmedUsername} is already a setter.`, 'success');
-            if (roleUsernameInput) {
-              roleUsernameInput.value = '';
-            }
-            return;
-          }
-
-          const payload = {
-            role: 'setter',
-            username: normalizedUsername,
-            usernameLower: normalizedUsername,
-            updatedAt: serverTimestamp(),
-          };
-
-          if (!existingData.createdAt) {
-            payload.createdAt = serverTimestamp();
-          }
-
-          await setDoc(roleRef, payload, { merge: true });
-
-          setRoleStatus(`Setter role granted to ${trimmedUsername}.`, 'success');
-          if (roleUsernameInput) {
-            roleUsernameInput.value = '';
-          }
-        } catch (error) {
-          console.error('Failed to grant setter role:', error);
-          setRoleStatus('Unable to grant setter role. Please try again.', 'error');
-        } finally {
-          setRoleControlsEnabled(true);
-          if (roleUsernameInput) {
-            roleUsernameInput.focus();
-          }
-        }
+        window.location.href = ADMIN_CONSOLE_PATH;
       });
     }
 
-    resetRoleManagementUI('Enter the username of the user you want to promote.');
+    function updateAdminConsoleAccess(role) {
+      const normalized = typeof role === 'string' ? role.trim().toLowerCase() : '';
+      const isAdmin = normalized === 'admin';
+
+      if (adminConsoleButton) {
+        adminConsoleButton.classList.toggle('hidden', !isAdmin);
+        adminConsoleButton.disabled = !isAdmin;
+      }
+
+      if (!adminConsoleStatus) {
+        return;
+      }
+
+      if (isAdmin) {
+        adminConsoleStatus.textContent = 'Open the admin console to manage database operations.';
+        adminConsoleStatus.dataset.variant = 'info';
+        adminConsoleStatus.classList.remove('hidden');
+        return;
+      }
+
+      adminConsoleStatus.textContent = '';
+      adminConsoleStatus.classList.add('hidden');
+      delete adminConsoleStatus.dataset.variant;
+    }
+
+    updateAdminConsoleAccess('');
+
+    
+
+    
+
+    
 
     function normalizeDateValue(value) {
       if (!value) {
@@ -5320,31 +5279,21 @@
       delete createWallStatus.dataset.variant;
     }
 
-    function setRoleStatus(message, variant = 'info') {
-      if (!roleStatusMessage) {
-        return;
-      }
-      if (!message) {
-        clearRoleStatus();
-        return;
-      }
-      roleStatusMessage.textContent = message;
-      roleStatusMessage.classList.remove('hidden');
-      if (variant) {
-        roleStatusMessage.dataset.variant = variant;
-      } else {
-        delete roleStatusMessage.dataset.variant;
-      }
-    }
+    
 
-    function clearRoleStatus() {
-      if (!roleStatusMessage) {
-        return;
-      }
-      roleStatusMessage.textContent = '';
-      roleStatusMessage.classList.add('hidden');
-      delete roleStatusMessage.dataset.variant;
-    }
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
 
     function markUnsavedChange() {
       if (!hasUnsavedChanges) {
@@ -7184,22 +7133,28 @@
             role: trimmedRole,
           };
 
-          if (effectiveLower !== normalizedUsername || !data.username) {
-            try {
-              await setDoc(
-                roleRef,
-                {
-                  username: normalizedUsername,
-                  usernameLower: normalizedUsername,
-                  updatedAt: serverTimestamp(),
-                },
-                { merge: true },
-              );
-              mergedData.username = normalizedUsername;
-              mergedData.usernameLower = normalizedUsername;
-              effectiveLower = normalizedUsername;
-            } catch (error) {
-              console.warn('Failed to synchronise username on role document:', error);
+          const needsUsernameUpdate =
+            effectiveLower !== normalizedUsername || !data.username;
+
+          if (needsUsernameUpdate) {
+            mergedData.username = normalizedUsername;
+            mergedData.usernameLower = normalizedUsername;
+            effectiveLower = normalizedUsername;
+
+            if (trimmedRole !== 'default') {
+              try {
+                await setDoc(
+                  roleRef,
+                  {
+                    username: normalizedUsername,
+                    usernameLower: normalizedUsername,
+                    updatedAt: serverTimestamp(),
+                  },
+                  { merge: true },
+                );
+              } catch (error) {
+                console.warn('Failed to synchronise username on role document:', error);
+              }
             }
           }
 
@@ -7227,11 +7182,21 @@
           role,
           username: normalizedUsername,
           usernameLower: normalizedUsername,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
         };
 
-        await setDoc(roleRef, roleData, { merge: true });
+        if (role === 'default') {
+          return roleData;
+        }
+
+        await setDoc(
+          roleRef,
+          {
+            ...roleData,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true },
+        );
         return roleData;
       } catch (error) {
         console.error('Failed to ensure user role:', error);
@@ -7266,17 +7231,16 @@
       routeSelector.disabled = true;
       deleteButton.disabled = true;
       clearStatus();
-      setRoleControlsEnabled(false);
-      resetRoleManagementUI('Setter access required to manage roles.');
+      updateAdminConsoleAccess('');
       void finishTutorial();
     }
 
-    function handleAuthorized() {
+    function handleAuthorized(role) {
       unauthorizedNotice.classList.add('hidden');
       appContent.classList.remove('hidden');
       routeSelector.disabled = false;
-      setRoleControlsEnabled(true);
-      clearRoleStatus();
+      const normalizedRole = typeof role === 'string' ? role.trim().toLowerCase() : '';
+      updateAdminConsoleAccess(normalizedRole);
     }
 
     onAuthStateChanged(auth, async (user) => {
@@ -7302,12 +7266,12 @@
           return;
         }
 
-        if (role !== 'setter') {
+        if (role !== 'setter' && role !== 'admin') {
           handleUnauthorized();
           return;
         }
 
-        handleAuthorized();
+        handleAuthorized(role);
 
         try {
           await loadRoutesList(currentRouteKey);
@@ -7332,9 +7296,8 @@
         authForm.reset();
         prepareNewRoute();
         clearStatus();
-        setRoleControlsEnabled(false);
-        resetRoleManagementUI();
         setAuthMode('login');
+        updateAdminConsoleAccess('');
         void finishTutorial();
       }
     });
