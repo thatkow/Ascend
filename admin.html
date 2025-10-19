@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ascend Admin Console</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      color-scheme: dark;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #0f172a, #020617 60%);
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .auth-overlay {
+      width: min(420px, 100%);
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: 0 24px 64px rgba(15, 23, 42, 0.65);
+      border-radius: 1.25rem;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .auth-overlay h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    .auth-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .auth-field label {
+      display: block;
+      font-size: 0.85rem;
+      margin-bottom: 0.35rem;
+      color: rgba(226, 232, 240, 0.85);
+    }
+
+    .auth-field input {
+      width: 100%;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.65);
+      color: #f8fafc;
+      padding: 0.7rem 1rem;
+      font-size: 1rem;
+    }
+
+    .auth-error {
+      min-height: 1.5rem;
+      color: #fca5a5;
+      font-size: 0.9rem;
+    }
+
+    .auth-submit {
+      border: none;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #052e16;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 0.75rem 1.25rem;
+      cursor: pointer;
+      box-shadow: 0 18px 36px rgba(34, 197, 94, 0.35);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .auth-submit:hover,
+    .auth-submit:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 22px 42px rgba(34, 197, 94, 0.45);
+      outline: none;
+    }
+
+    .admin-app {
+      width: min(720px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      background: rgba(15, 23, 42, 0.78);
+      border-radius: 1.5rem;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: 0 28px 70px rgba(2, 6, 23, 0.6);
+      padding: clamp(1.5rem, 3vw, 2.5rem);
+    }
+
+    .admin-header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .admin-header h1 {
+      font-size: clamp(1.6rem, 2.5vw, 2rem);
+      font-weight: 700;
+    }
+
+    .admin-header p {
+      color: rgba(226, 232, 240, 0.78);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .admin-actions {
+      display: grid;
+      gap: 0.85rem;
+    }
+
+    .admin-actions button {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      padding: 0.75rem 1.25rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    }
+
+    .admin-actions button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .download-button {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(37, 99, 235, 0.85));
+      color: #e0f2fe;
+      box-shadow: 0 18px 40px rgba(37, 99, 235, 0.45);
+    }
+
+    .download-button:hover:not(:disabled),
+    .download-button:focus-visible:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 22px 48px rgba(37, 99, 235, 0.55);
+      outline: none;
+    }
+
+    .import-button,
+    .clear-button {
+      background: #facc15;
+      color: #1f1600;
+      box-shadow: 0 18px 36px rgba(250, 204, 21, 0.45);
+      border-color: rgba(202, 138, 4, 0.6);
+    }
+
+    .clear-button {
+      background: #fbbf24;
+    }
+
+    .import-button:hover:not(:disabled),
+    .import-button:focus-visible:not(:disabled),
+    .clear-button:hover:not(:disabled),
+    .clear-button:focus-visible:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 22px 46px rgba(250, 204, 21, 0.55);
+      outline: none;
+    }
+
+    .secondary-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: flex-start;
+    }
+
+    .secondary-button {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(30, 41, 59, 0.75);
+      color: rgba(226, 232, 240, 0.9);
+      padding: 0.6rem 1rem;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .secondary-button:hover,
+    .secondary-button:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 34px rgba(15, 23, 42, 0.4);
+      outline: none;
+    }
+
+    .status-message {
+      font-size: 0.95rem;
+      border-radius: 0.9rem;
+      padding: 0.85rem 1rem;
+      background: rgba(30, 41, 59, 0.65);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .status-message[data-variant='success'] {
+      background: rgba(21, 128, 61, 0.2);
+      border-color: rgba(34, 197, 94, 0.55);
+      color: #bbf7d0;
+    }
+
+    .status-message[data-variant='error'] {
+      background: rgba(185, 28, 28, 0.25);
+      border-color: rgba(248, 113, 113, 0.55);
+      color: #fecaca;
+    }
+
+    .status-message[data-variant='warning'] {
+      background: rgba(202, 138, 4, 0.25);
+      border-color: rgba(250, 204, 21, 0.5);
+      color: #fef3c7;
+    }
+
+    .status-message[data-variant='info'] {
+      background: rgba(37, 99, 235, 0.2);
+      border-color: rgba(96, 165, 250, 0.55);
+      color: #dbeafe;
+    }
+
+    .unauthorized {
+      width: min(420px, 100%);
+      background: rgba(185, 28, 28, 0.12);
+      border: 1px solid rgba(248, 113, 113, 0.4);
+      color: #fecaca;
+      border-radius: 1rem;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      text-align: center;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 1.5rem 1rem;
+      }
+
+      .admin-app {
+        border-radius: 1rem;
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="authOverlay" class="auth-overlay" role="dialog" aria-modal="true">
+    <h1>Sign in to manage the database</h1>
+    <p>Admin access is required to import, export, or clear Ascend data.</p>
+    <form id="authForm" class="auth-form">
+      <div class="auth-field">
+        <label for="authUsername">Username</label>
+        <input id="authUsername" type="text" autocomplete="username" placeholder="your_username" required />
+      </div>
+      <div class="auth-field">
+        <label for="authPassword">Password</label>
+        <input id="authPassword" type="password" autocomplete="current-password" required />
+      </div>
+      <div id="authError" class="auth-error" role="alert"></div>
+      <button id="authSubmit" class="auth-submit" type="submit">Sign In</button>
+    </form>
+  </div>
+
+  <main id="adminApp" class="admin-app hidden" aria-hidden="true">
+    <header class="admin-header">
+      <h1>Database Administration</h1>
+      <p>Download backups, import snapshots, or clear the database for a fresh start. These actions affect all setters and climbers.</p>
+    </header>
+
+    <section class="admin-actions">
+      <button id="adminDumpButton" class="download-button" type="button">
+        <span aria-hidden="true">💾</span>
+        <span>Download database</span>
+      </button>
+      <button id="adminImportButton" class="import-button" type="button">
+        <span aria-hidden="true">📥</span>
+        <span>Import database backup</span>
+      </button>
+      <input id="adminImportInput" type="file" accept="application/json,.json" hidden aria-hidden="true" />
+      <button id="adminClearButton" class="clear-button" type="button">
+        <span aria-hidden="true">🧹</span>
+        <span>Clear database</span>
+      </button>
+    </section>
+
+    <section class="secondary-actions">
+      <button id="adminSetterToolsButton" class="secondary-button" type="button">Open setter tools</button>
+      <button id="adminSignOutButton" class="secondary-button" type="button">Sign out</button>
+    </section>
+
+    <p id="adminStatusMessage" class="status-message hidden" role="status" aria-live="polite"></p>
+  </main>
+
+  <div id="unauthorizedNotice" class="unauthorized hidden" role="alert">
+    <strong>Access denied.</strong>
+    <p>Your account does not have admin permission for the database tools.</p>
+    <button id="unauthorizedSignOut" class="secondary-button" type="button">Sign out</button>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import {
+      getAuth,
+      onAuthStateChanged,
+      signInWithEmailAndPassword,
+      signOut,
+    } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import {
+      getFirestore,
+      collection,
+      doc,
+      getDoc,
+      getDocs,
+      query,
+      where,
+      limit,
+      setDoc,
+      deleteDoc,
+      serverTimestamp,
+      Timestamp,
+    } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { firebaseConfig } from './config.js';
+
+    const firebaseApp = initializeApp(firebaseConfig);
+    const auth = getAuth(firebaseApp);
+    const db = getFirestore(firebaseApp);
+
+    const WALL_COLLECTION = 'walls';
+
+    const authOverlay = document.getElementById('authOverlay');
+    const authForm = document.getElementById('authForm');
+    const authUsername = document.getElementById('authUsername');
+    const authPassword = document.getElementById('authPassword');
+    const authError = document.getElementById('authError');
+    const adminApp = document.getElementById('adminApp');
+    const adminStatusMessage = document.getElementById('adminStatusMessage');
+    const unauthorizedNotice = document.getElementById('unauthorizedNotice');
+    const unauthorizedSignOut = document.getElementById('unauthorizedSignOut');
+    const adminDumpButton = document.getElementById('adminDumpButton');
+    const adminImportButton = document.getElementById('adminImportButton');
+    const adminImportInput = document.getElementById('adminImportInput');
+    const adminClearButton = document.getElementById('adminClearButton');
+    const adminSignOutButton = document.getElementById('adminSignOutButton');
+    const adminSetterToolsButton = document.getElementById('adminSetterToolsButton');
+
+    const SYNTHETIC_EMAIL_DOMAIN = 'users.anuascend.local';
+    const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
+
+    const normalizeUsername = (value) => {
+      if (typeof value !== 'string') {
+        return '';
+      }
+      return value.trim().toLowerCase();
+    };
+
+    const isValidUsername = (value) => USERNAME_PATTERN.test(normalizeUsername(value));
+
+    const buildSyntheticEmail = (username) => {
+      const normalized = normalizeUsername(username);
+      return normalized ? `${normalized}@${SYNTHETIC_EMAIL_DOMAIN}` : '';
+    };
+
+    function setAdminStatus(message, variant = 'info') {
+      if (!adminStatusMessage) {
+        return;
+      }
+
+      if (!message) {
+        adminStatusMessage.textContent = '';
+        adminStatusMessage.classList.add('hidden');
+        delete adminStatusMessage.dataset.variant;
+        return;
+      }
+
+      adminStatusMessage.textContent = message;
+      adminStatusMessage.classList.remove('hidden');
+      if (variant) {
+        adminStatusMessage.dataset.variant = variant;
+      } else {
+        delete adminStatusMessage.dataset.variant;
+      }
+    }
+
+    function clearAdminStatus() {
+      setAdminStatus('');
+    }
+
+    function setControlsEnabled(enabled) {
+      const allow = Boolean(enabled);
+      [adminDumpButton, adminImportButton, adminClearButton].forEach((button) => {
+        if (button) {
+          button.disabled = !allow;
+        }
+      });
+      if (adminImportInput) {
+        adminImportInput.disabled = !allow;
+      }
+    }
+
+    function showAuthOverlay(message = '') {
+      if (message) {
+        authError.textContent = message;
+      }
+      authOverlay.classList.remove('hidden');
+      authOverlay.removeAttribute('aria-hidden');
+      adminApp.classList.add('hidden');
+      adminApp.setAttribute('aria-hidden', 'true');
+      unauthorizedNotice.classList.add('hidden');
+      clearAdminStatus();
+      setControlsEnabled(false);
+    }
+
+    function showAdminApp() {
+      authOverlay.classList.add('hidden');
+      authOverlay.setAttribute('aria-hidden', 'true');
+      unauthorizedNotice.classList.add('hidden');
+      adminApp.classList.remove('hidden');
+      adminApp.removeAttribute('aria-hidden');
+    }
+
+    function showUnauthorizedNotice() {
+      adminApp.classList.add('hidden');
+      adminApp.setAttribute('aria-hidden', 'true');
+      unauthorizedNotice.classList.remove('hidden');
+      setControlsEnabled(false);
+      clearAdminStatus();
+    }
+
+    function resetImportInput() {
+      if (adminImportInput) {
+        adminImportInput.value = '';
+      }
+    }
+
+    function serializeFirestoreValue(value) {
+      if (value === undefined) {
+        return null;
+      }
+
+      if (value === null) {
+        return null;
+      }
+
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value.toISOString();
+      }
+
+      if (Array.isArray(value)) {
+        return value.map((item) => serializeFirestoreValue(item));
+      }
+
+      if (value && typeof value === 'object') {
+        if (typeof value.toDate === 'function') {
+          const dateValue = value.toDate();
+          if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {
+            return dateValue.toISOString();
+          }
+          return dateValue;
+        }
+
+        if (value instanceof Uint8Array) {
+          return Array.from(value);
+        }
+
+        if (typeof value.path === 'string' && typeof value.firestore === 'object') {
+          return { __ref: value.path };
+        }
+
+        const serializedObject = {};
+        for (const [key, nestedValue] of Object.entries(value)) {
+          serializedObject[key] = serializeFirestoreValue(nestedValue);
+        }
+        return serializedObject;
+      }
+
+      return value;
+    }
+
+    function serializeFirestoreDocument(docSnap) {
+      if (!docSnap?.exists?.()) {
+        return null;
+      }
+
+      const rawData = docSnap.data();
+      const serializedData = serializeFirestoreValue(rawData);
+
+      if (serializedData && typeof serializedData === 'object' && !Array.isArray(serializedData)) {
+        return { id: docSnap.id, ...serializedData };
+      }
+
+      return { id: docSnap.id, value: serializedData };
+    }
+
+    function looksLikeIsoDateString(value) {
+      if (typeof value !== 'string') {
+        return false;
+      }
+
+      return /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/.test(value);
+    }
+
+    function deserializeFirestoreValue(value) {
+      if (value === undefined) {
+        return null;
+      }
+
+      if (value === null) {
+        return null;
+      }
+
+      if (Array.isArray(value)) {
+        return value.map((item) => deserializeFirestoreValue(item));
+      }
+
+      if (typeof value === 'string' && looksLikeIsoDateString(value)) {
+        const parsed = new Date(value);
+        if (!Number.isNaN(parsed.getTime())) {
+          return Timestamp.fromDate(parsed);
+        }
+      }
+
+      if (value && typeof value === 'object') {
+        if (typeof value.__ref === 'string') {
+          try {
+            const refPath = value.__ref.trim();
+            if (refPath) {
+              const segments = refPath.split('/').filter(Boolean);
+              if (segments.length >= 2) {
+                return doc(db, ...segments);
+              }
+            }
+          } catch (error) {
+            console.warn('Unable to restore document reference from dump:', value.__ref, error);
+          }
+        }
+
+        const deserialized = {};
+        for (const [key, nestedValue] of Object.entries(value)) {
+          deserialized[key] = deserializeFirestoreValue(nestedValue);
+        }
+        return deserialized;
+      }
+
+      return value;
+    }
+
+    function buildFirestorePayloadFromDumpEntry(entry) {
+      if (!entry || typeof entry !== 'object') {
+        return {};
+      }
+
+      const { id: _ignoredId, ...rest } = entry;
+      const candidate = deserializeFirestoreValue(rest);
+
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+        return { value: candidate ?? null };
+      }
+
+      return candidate;
+    }
+
+    async function importCollectionEntries(collectionKey, entries) {
+      if (!entries) {
+        return { imported: 0, failed: 0 };
+      }
+
+      const normalizedEntries = Array.isArray(entries)
+        ? entries
+        : typeof entries === 'object'
+        ? Object.values(entries)
+        : [];
+
+      let imported = 0;
+      let failed = 0;
+
+      for (const entry of normalizedEntries) {
+        if (!entry || typeof entry !== 'object') {
+          failed += 1;
+          continue;
+        }
+
+        const rawId = typeof entry.id === 'string' ? entry.id.trim() : '';
+        if (!rawId) {
+          failed += 1;
+          continue;
+        }
+
+        try {
+          const payload = buildFirestorePayloadFromDumpEntry(entry);
+          await setDoc(doc(db, collectionKey, rawId), payload);
+          imported += 1;
+        } catch (error) {
+          console.error(`Failed to import document ${rawId} in ${collectionKey}:`, error);
+          failed += 1;
+        }
+      }
+
+      return { imported, failed };
+    }
+
+    function extractCollectionsFromDump(dump) {
+      if (!dump || typeof dump !== 'object') {
+        throw new Error('Invalid database dump.');
+      }
+
+      if (dump.collections && typeof dump.collections === 'object') {
+        return dump.collections;
+      }
+
+      if (dump.data && typeof dump.data === 'object') {
+        return dump.data;
+      }
+
+      throw new Error('Database dump is missing collection data.');
+    }
+
+    async function importDatabaseDump(dump) {
+      const collections = extractCollectionsFromDump(dump);
+
+      let processedCollections = 0;
+      let totalImported = 0;
+      let totalFailed = 0;
+
+      for (const [collectionKey, entries] of Object.entries(collections)) {
+        if (!collectionKey || !entries || (typeof entries === 'object' && entries.error)) {
+          continue;
+        }
+
+        const { imported, failed } = await importCollectionEntries(collectionKey, entries);
+        if (imported || failed) {
+          processedCollections += 1;
+          totalImported += imported;
+          totalFailed += failed;
+        }
+      }
+
+      return { processedCollections, totalImported, totalFailed };
+    }
+
+    async function lookupUsernameByUid(uid) {
+      if (!uid) {
+        return '';
+      }
+
+      try {
+        const snapshot = await getDocs(query(collection(db, 'usernames'), where('uid', '==', uid), limit(1)));
+        if (snapshot.empty) {
+          return '';
+        }
+
+        const docSnap = snapshot.docs[0];
+        const data = docSnap.data() || {};
+        const fromField = normalizeUsername(data.username);
+        const fromId = normalizeUsername(docSnap.id);
+        return fromField || fromId;
+      } catch (error) {
+        console.error('Failed to look up username by UID:', error);
+        return '';
+      }
+    }
+
+    async function resolveUsernameForUser(user) {
+      if (!user) {
+        return '';
+      }
+
+      const displayName = normalizeUsername(user.displayName);
+      if (isValidUsername(displayName)) {
+        return displayName;
+      }
+
+      const mapped = await lookupUsernameByUid(user.uid);
+      if (isValidUsername(mapped)) {
+        return mapped;
+      }
+
+      const syntheticEmail = typeof user.email === 'string' ? user.email : '';
+      if (syntheticEmail.endsWith(`@${SYNTHETIC_EMAIL_DOMAIN}`)) {
+        const derived = normalizeUsername(
+          syntheticEmail.slice(0, -(`@${SYNTHETIC_EMAIL_DOMAIN}`.length)),
+        );
+        if (isValidUsername(derived)) {
+          return derived;
+        }
+      }
+
+      return '';
+    }
+
+    async function fetchUserRole(user, username) {
+      if (!user) {
+        return 'default';
+      }
+
+      const normalizedUsername = normalizeUsername(username);
+      if (!isValidUsername(normalizedUsername)) {
+        return 'default';
+      }
+
+      try {
+        const roleRef = doc(db, 'roles', user.uid);
+        const roleSnap = await getDoc(roleRef);
+
+        if (!roleSnap.exists()) {
+          return 'default';
+        }
+
+        const data = roleSnap.data() || {};
+        const storedRole = typeof data.role === 'string' ? data.role.trim().toLowerCase() : 'default';
+        const storedLowerRaw =
+          typeof data.usernameLower === 'string'
+            ? data.usernameLower
+            : typeof data.username === 'string'
+            ? data.username
+            : '';
+        const storedLower = normalizeUsername(storedLowerRaw);
+
+        if (storedLower !== normalizedUsername) {
+          try {
+            await setDoc(
+              roleRef,
+              {
+                username: normalizedUsername,
+                usernameLower: normalizedUsername,
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true },
+            );
+          } catch (error) {
+            console.warn('Unable to update role metadata:', error);
+          }
+        }
+
+        return storedRole || 'default';
+      } catch (error) {
+        console.error('Failed to resolve user role:', error);
+        return 'default';
+      }
+    }
+
+    async function handleSignOut() {
+      try {
+        await signOut(auth);
+      } catch (error) {
+        console.error('Failed to sign out:', error);
+      }
+      showAuthOverlay();
+    }
+
+    adminSignOutButton?.addEventListener('click', () => {
+      void handleSignOut();
+    });
+
+    unauthorizedSignOut?.addEventListener('click', () => {
+      void handleSignOut();
+    });
+
+    adminSetterToolsButton?.addEventListener('click', () => {
+      window.location.href = 'setter.html';
+    });
+
+    function ensureImportIntentHandled() {
+      const hash = window.location.hash.replace('#', '').toLowerCase();
+      if (hash === 'import' && adminImportButton && !adminImportButton.disabled) {
+        adminImportButton.focus();
+      }
+      if (hash === 'clear' && adminClearButton && !adminClearButton.disabled) {
+        adminClearButton.focus();
+      }
+    }
+
+    function downloadJson(filename, payload) {
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const tempLink = document.createElement('a');
+      tempLink.href = url;
+      tempLink.download = filename;
+      document.body.appendChild(tempLink);
+      tempLink.click();
+      document.body.removeChild(tempLink);
+      URL.revokeObjectURL(url);
+    }
+
+    adminDumpButton?.addEventListener('click', async () => {
+      if (adminDumpButton.disabled) {
+        return;
+      }
+
+      setAdminStatus('Preparing database dump…', 'info');
+      setControlsEnabled(false);
+
+      try {
+        const collectionsToExport = [
+          { key: 'walls', ref: collection(db, WALL_COLLECTION) },
+          { key: 'routes', ref: collection(db, 'routes') },
+          { key: 'ascents', ref: collection(db, 'ascents') },
+          { key: 'roles', ref: collection(db, 'roles') },
+          { key: 'usernames', ref: collection(db, 'usernames') },
+        ];
+
+        const exportPayload = {
+          metadata: {
+            exportedAt: new Date().toISOString(),
+            collections: collectionsToExport.map((entry) => entry.key),
+          },
+          data: {},
+        };
+
+        let hadCollectionError = false;
+
+        for (const { key, ref } of collectionsToExport) {
+          try {
+            const snapshot = await getDocs(ref);
+            exportPayload.data[key] = snapshot.docs
+              .map((docSnap) => serializeFirestoreDocument(docSnap))
+              .filter(Boolean);
+          } catch (error) {
+            hadCollectionError = true;
+            console.error(`Failed to export ${key}:`, error);
+            exportPayload.data[key] = {
+              error: true,
+              code: typeof error?.code === 'string' ? error.code : null,
+              message: error?.message || 'Unable to export this collection.',
+            };
+          }
+        }
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `ascend-database-${timestamp}.json`;
+        downloadJson(filename, exportPayload);
+
+        if (hadCollectionError) {
+          setAdminStatus('Database dump downloaded with some missing collections. Check console for details.', 'warning');
+        } else {
+          setAdminStatus('Database dump downloaded successfully.', 'success');
+        }
+      } catch (error) {
+        console.error('Failed to generate database dump:', error);
+        setAdminStatus('Failed to create database dump. Please try again.', 'error');
+      } finally {
+        setControlsEnabled(true);
+      }
+    });
+
+    adminImportButton?.addEventListener('click', () => {
+      if (adminImportButton.disabled) {
+        return;
+      }
+
+      resetImportInput();
+      adminImportInput?.click();
+    });
+
+    adminImportInput?.addEventListener('change', async (event) => {
+      const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+      if (!file) {
+        resetImportInput();
+        return;
+      }
+
+      const sanitizedName = typeof file.name === 'string' && file.name.trim() ? file.name.trim() : 'selected file';
+      setAdminStatus(`Importing database from “${sanitizedName}”…`, 'info');
+      setControlsEnabled(false);
+
+      try {
+        const text = await file.text();
+        let parsed;
+        try {
+          parsed = JSON.parse(text);
+        } catch (error) {
+          throw new Error('The selected file is not valid JSON.');
+        }
+
+        const { processedCollections, totalImported, totalFailed } = await importDatabaseDump(parsed);
+
+        if (!processedCollections) {
+          setAdminStatus('No collections were imported from the selected file.', 'warning');
+        } else if (totalFailed > 0) {
+          setAdminStatus(
+            `Imported ${totalImported} documents with ${totalFailed} errors. Check the console for details.`,
+            'error',
+          );
+        } else {
+          setAdminStatus(`Imported ${totalImported} documents from ${processedCollections} collections.`, 'success');
+        }
+      } catch (error) {
+        console.error('Failed to import database dump:', error);
+        const fallbackMessage = 'Failed to import database dump. Please try again.';
+        const message = error && typeof error.message === 'string' && error.message.trim()
+          ? error.message.trim()
+          : fallbackMessage;
+        setAdminStatus(message, 'error');
+      } finally {
+        resetImportInput();
+        setControlsEnabled(true);
+      }
+    });
+
+    adminClearButton?.addEventListener('click', async () => {
+      if (adminClearButton.disabled) {
+        return;
+      }
+
+      const confirmed = window.confirm(
+        'Clear the database? This will permanently delete walls, routes, ascents, roles, and usernames. This cannot be undone.',
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      setAdminStatus('Clearing database…', 'info');
+      setControlsEnabled(false);
+
+      try {
+        const collectionsToClear = [
+          { key: WALL_COLLECTION, ref: collection(db, WALL_COLLECTION) },
+          { key: 'routes', ref: collection(db, 'routes') },
+          { key: 'ascents', ref: collection(db, 'ascents') },
+          { key: 'roles', ref: collection(db, 'roles') },
+          { key: 'usernames', ref: collection(db, 'usernames') },
+        ];
+
+        let deletedCount = 0;
+        let failureCount = 0;
+
+        for (const { key, ref } of collectionsToClear) {
+          try {
+            const snapshot = await getDocs(ref);
+            for (const docSnap of snapshot.docs) {
+              try {
+                await deleteDoc(docSnap.ref);
+                deletedCount += 1;
+              } catch (docError) {
+                console.error(`Failed to delete ${docSnap.id} in ${key}:`, docError);
+                failureCount += 1;
+              }
+            }
+          } catch (collectionError) {
+            console.error(`Failed to clear ${key}:`, collectionError);
+            failureCount += 1;
+          }
+        }
+
+        if (deletedCount === 0 && failureCount === 0) {
+          setAdminStatus('Database was already empty.', 'info');
+        } else if (failureCount > 0) {
+          setAdminStatus(
+            `Cleared ${deletedCount} documents with ${failureCount} errors. Check the console for details.`,
+            'error',
+          );
+        } else {
+          setAdminStatus(`Cleared ${deletedCount} documents from the database.`, 'success');
+        }
+      } catch (error) {
+        console.error('Failed to clear database:', error);
+        setAdminStatus('Failed to clear database. Please try again.', 'error');
+      } finally {
+        setControlsEnabled(true);
+      }
+    });
+
+    authForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const normalizedUsername = normalizeUsername(authUsername.value);
+      const password = authPassword.value;
+
+      if (!isValidUsername(normalizedUsername)) {
+        authError.textContent = 'Enter a valid username (letters, numbers, underscores).';
+        return;
+      }
+
+      if (!password) {
+        authError.textContent = 'Enter your password to continue.';
+        return;
+      }
+
+      authError.textContent = '';
+
+      try {
+        const email = buildSyntheticEmail(normalizedUsername);
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (error) {
+        let message = 'Unable to sign in. Please try again.';
+        switch (error?.code) {
+          case 'auth/user-not-found':
+          case 'auth/wrong-password':
+            message = 'Invalid username or password.';
+            break;
+          case 'auth/too-many-requests':
+            message = 'Too many attempts. Try again later.';
+            break;
+          default:
+            if (error?.message) {
+              message = error.message;
+            }
+        }
+        authError.textContent = message;
+      }
+    });
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        showAuthOverlay();
+        authForm?.reset();
+        return;
+      }
+
+      const resolvedUsername = await resolveUsernameForUser(user);
+      if (!isValidUsername(resolvedUsername)) {
+        await handleSignOut();
+        authError.textContent = 'Unable to resolve your username. Please contact an admin.';
+        return;
+      }
+
+      const role = await fetchUserRole(user, resolvedUsername);
+      if (role !== 'admin') {
+        showUnauthorizedNotice();
+        return;
+      }
+
+      showAdminApp();
+      setControlsEnabled(true);
+      clearAdminStatus();
+      ensureImportIntentHandled();
+    });
+  </script>
+</body>
+</html>

@@ -891,6 +891,12 @@
       color: #0b1a06;
     }
 
+    #databaseImportButton,
+    #databaseClearButton {
+      background: #facc15;
+      color: #1f1600;
+    }
+
     #signOutButton {
       background: rgba(255, 116, 116, 0.9);
       color: #111;
@@ -1203,6 +1209,10 @@
 
     .status-message[data-variant='info'] {
       color: #f1f1f1;
+    }
+
+    .status-message[data-variant='warning'] {
+      color: #facc15;
     }
   </style>
 </head>
@@ -1598,13 +1608,6 @@
                   <span class="button-icon" aria-hidden="true">📥</span>
                   <span class="button-label">Import Database</span>
                 </button>
-                <input
-                  id="databaseImportInput"
-                  type="file"
-                  accept="application/json,.json"
-                  hidden
-                  aria-hidden="true"
-                />
                 <button
                   id="databaseDumpButton"
                   class="global-action-button"
@@ -1845,7 +1848,6 @@
     const climberViewButton = document.getElementById('climberViewButton');
     const personalDashboardButton = document.getElementById('personalDashboardButton');
     const databaseImportButton = document.getElementById('databaseImportButton');
-    const databaseImportInput = document.getElementById('databaseImportInput');
     const databaseDumpButton = document.getElementById('databaseDumpButton');
     const databaseClearButton = document.getElementById('databaseClearButton');
     const databaseDumpStatus = document.getElementById('databaseDumpStatus');
@@ -4312,8 +4314,6 @@
     let isSaving = false;
     let currentUsername = '';
     let currentUserId = null;
-    let hasSetterAccess = false;
-    let isDatabaseTransferInProgress = false;
     let isCanvasScrollable = false;
     let isCreatingWall = false;
     let isDeletingWall = false;
@@ -5007,267 +5007,76 @@
       });
     }
 
-    if (databaseDumpButton) {
-      databaseDumpButton.addEventListener('click', async () => {
-        if (databaseDumpButton.disabled) {
-          return;
-        }
+    const ADMIN_CONSOLE_PATH = 'admin.html';
 
-        setDatabaseDumpStatus('Preparing database dump…', 'info');
-        isDatabaseTransferInProgress = true;
-        refreshDatabaseActionAvailability();
+    function redirectToAdminConsole(action = '') {
+      const suffix = action ? `#${encodeURIComponent(action)}` : '';
+      window.location.href = `${ADMIN_CONSOLE_PATH}${suffix}`;
+    }
 
-        try {
-          const collectionsToExport = [
-            { key: 'walls', ref: collection(db, WALL_COLLECTION) },
-            { key: 'routes', ref: collection(db, 'routes') },
-            { key: 'ascents', ref: collection(db, 'ascents') },
-            { key: 'roles', ref: collection(db, 'roles') },
-            { key: 'usernames', ref: collection(db, 'usernames') },
-          ];
-
-          const exportPayload = {
-            metadata: {
-              exportedAt: new Date().toISOString(),
-              requestedBy: currentUsername || null,
-              collections: collectionsToExport.map((entry) => entry.key),
-            },
-            data: {},
-          };
-
-          let hadCollectionError = false;
-
-          for (const { key, ref } of collectionsToExport) {
-            try {
-              const snapshot = await getDocs(ref);
-              exportPayload.data[key] = snapshot.docs
-                .map((docSnap) => serializeFirestoreDocument(docSnap))
-                .filter(Boolean);
-            } catch (error) {
-              hadCollectionError = true;
-              console.warn(`Failed to include ${key} in database dump:`, error);
-              exportPayload.data[key] = {
-                error: true,
-                code: typeof error?.code === 'string' ? error.code : null,
-                message: error?.message || 'Failed to load collection.',
-              };
-            }
-          }
-
-          const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
-            type: 'application/json',
-          });
-
-          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-          const filename = `ascend-database-${timestamp}.json`;
-
-          const url = URL.createObjectURL(blob);
-          const tempLink = document.createElement('a');
-          tempLink.href = url;
-          tempLink.download = filename;
-          document.body.appendChild(tempLink);
-          tempLink.click();
-          document.body.removeChild(tempLink);
-          URL.revokeObjectURL(url);
-
-          if (hadCollectionError) {
-            setDatabaseDumpStatus(
-              'Database dump downloaded with some missing collections. Check console for details.',
-              'info',
-            );
-          } else {
-            setDatabaseDumpStatus('Database dump downloaded successfully.', 'success');
-          }
-        } catch (error) {
-          console.error('Failed to generate database dump:', error);
-          setDatabaseDumpStatus('Failed to create database dump. Please try again.', 'error');
-        } finally {
-          isDatabaseTransferInProgress = false;
-          refreshDatabaseActionAvailability();
+    function setDatabaseButtonsEnabled(enabled) {
+      const allow = Boolean(enabled);
+      [databaseDumpButton, databaseImportButton, databaseClearButton].forEach((button) => {
+        if (button) {
+          button.disabled = !allow;
         }
       });
     }
 
-    if (databaseClearButton) {
-      databaseClearButton.addEventListener('click', async () => {
-        if (databaseClearButton.disabled) {
-          return;
-        }
+    function updateDatabaseActionNotice(role) {
+      if (!databaseDumpStatus) {
+        return;
+      }
 
-        const confirmed = window.confirm(
-          'Clear the database? This will permanently delete all walls, routes, ascents, roles, and usernames. This cannot be undone.',
-        );
+      const normalized = typeof role === 'string' ? role.trim().toLowerCase() : '';
 
-        if (!confirmed) {
-          return;
-        }
+      if (!normalized) {
+        databaseDumpStatus.textContent = '';
+        databaseDumpStatus.classList.add('hidden');
+        delete databaseDumpStatus.dataset.variant;
+        return;
+      }
 
-        setDatabaseDumpStatus('Clearing database…', 'info');
-        isDatabaseTransferInProgress = true;
-        refreshDatabaseActionAvailability();
+      databaseDumpStatus.classList.remove('hidden');
 
-        try {
-          const collectionsToClear = [
-            { key: WALL_COLLECTION, ref: collection(db, WALL_COLLECTION) },
-            { key: 'routes', ref: collection(db, 'routes') },
-            { key: 'ascents', ref: collection(db, 'ascents') },
-            { key: 'roles', ref: collection(db, 'roles') },
-            { key: 'usernames', ref: collection(db, 'usernames') },
-          ];
-
-          let deletedCount = 0;
-          let failureCount = 0;
-
-          for (const { key, ref } of collectionsToClear) {
-            try {
-              const snapshot = await getDocs(ref);
-              if (snapshot.empty) {
-                continue;
-              }
-
-              for (const docSnap of snapshot.docs) {
-                try {
-                  await deleteDoc(docSnap.ref);
-                  deletedCount += 1;
-                } catch (docError) {
-                  console.error(`Failed to delete document ${docSnap.id} in ${key}:`, docError);
-                  failureCount += 1;
-                }
-              }
-            } catch (collectionError) {
-              console.error(`Failed to clear collection ${key}:`, collectionError);
-              failureCount += 1;
-            }
-          }
-
-          wallSettingsCache.clear();
-          wallDocumentIdMap.clear();
-          routesCache.clear();
-          routeMedianGrades = new Map();
-
-          resetLocationsToBuiltins();
-
-          let routesReloadFailed = false;
-          try {
-            await loadRoutesList('');
-          } catch (routesError) {
-            routesReloadFailed = true;
-            console.warn('Failed to refresh routes after clearing database:', routesError);
-          }
-          prepareNewRoute('Database cleared. You can create a new wall to start over.');
-
-          if (routesReloadFailed) {
-            setStatus('Unable to refresh routes after clearing the database. Reload the page to continue.', 'error');
-          }
-
-          let dumpStatusMessage = 'Database update completed.';
-          let dumpStatusVariant = 'info';
-
-          if (deletedCount === 0 && failureCount === 0) {
-            if (routesReloadFailed) {
-              dumpStatusMessage =
-                'Database was already empty, but the interface could not refresh automatically. Reload the page to continue.';
-              dumpStatusVariant = 'error';
-            } else {
-              dumpStatusMessage = 'Database was already empty.';
-              dumpStatusVariant = 'info';
-            }
-          } else if (failureCount > 0) {
-            dumpStatusMessage =
-              `Cleared ${deletedCount} documents with ${failureCount} errors. Check the console for details.`;
-            dumpStatusVariant = 'error';
-          } else if (routesReloadFailed) {
-            dumpStatusMessage =
-              `Cleared ${deletedCount} documents, but the interface could not refresh automatically. Reload the page to continue.`;
-            dumpStatusVariant = 'error';
-          } else {
-            dumpStatusMessage = `Cleared ${deletedCount} documents from the database.`;
-            dumpStatusVariant = 'success';
-          }
-
-          setDatabaseDumpStatus(dumpStatusMessage, dumpStatusVariant);
-        } catch (error) {
-          console.error('Failed to clear database:', error);
-          setDatabaseDumpStatus('Failed to clear database. Please try again.', 'error');
-        } finally {
-          isDatabaseTransferInProgress = false;
-          refreshDatabaseActionAvailability();
-        }
-      });
+      if (normalized === 'admin') {
+        databaseDumpStatus.textContent = 'Database actions open in the admin console.';
+        databaseDumpStatus.dataset.variant = 'info';
+      } else {
+        databaseDumpStatus.textContent =
+          'Only admins can manage the database. Contact an admin for assistance.';
+        databaseDumpStatus.dataset.variant = 'warning';
+      }
     }
 
-    if (databaseImportButton && databaseImportInput) {
-      databaseImportButton.addEventListener('click', () => {
-        if (databaseImportButton.disabled) {
+    const databaseActionButtons = [
+      { button: databaseDumpButton, action: 'export' },
+      { button: databaseImportButton, action: 'import' },
+      { button: databaseClearButton, action: 'clear' },
+    ];
+
+    databaseActionButtons.forEach(({ button, action }) => {
+      if (!button) {
+        return;
+      }
+
+      button.addEventListener('click', () => {
+        if (button.disabled) {
           return;
         }
 
-        const confirmed = window.confirm(
-          'Importing a database backup will overwrite existing walls, routes, ascents, roles, and usernames. Continue?',
-        );
-
-        if (!confirmed) {
-          return;
-        }
-
-        resetDatabaseImportInput();
-        databaseImportInput.click();
+        redirectToAdminConsole(action);
       });
+    });
 
-      databaseImportInput.addEventListener('change', async (event) => {
-        const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
-        if (!file) {
-          resetDatabaseImportInput();
-          return;
-        }
+    setDatabaseButtonsEnabled(false);
+    updateDatabaseActionNotice('');
 
-        const sanitizedName = typeof file.name === 'string' && file.name.trim() ? file.name.trim() : 'selected file';
-        setDatabaseDumpStatus(`Importing database from “${sanitizedName}”…`, 'info');
+    
 
-        isDatabaseTransferInProgress = true;
-        refreshDatabaseActionAvailability();
+    
 
-        try {
-          const fileText = await file.text();
-          let parsedDump = null;
-
-          try {
-            parsedDump = JSON.parse(fileText);
-          } catch (parseError) {
-            throw new Error('The selected file is not valid JSON.');
-          }
-
-          const { processedCollections, totalImported, totalFailed } = await importDatabaseDump(parsedDump);
-
-          if (!processedCollections) {
-            setDatabaseDumpStatus('No collections were imported from the selected file.', 'info');
-          } else if (totalFailed > 0) {
-            setDatabaseDumpStatus(
-              `Imported ${totalImported} documents with ${totalFailed} errors. Check the console for details.`,
-              'error',
-            );
-          } else {
-            setDatabaseDumpStatus(
-              `Imported ${totalImported} documents from ${processedCollections} collections.`,
-              'success',
-            );
-          }
-        } catch (error) {
-          console.error('Failed to import database dump:', error);
-          const fallbackMessage = 'Failed to import database dump. Please try again.';
-          const message = error && typeof error.message === 'string' && error.message.trim()
-            ? error.message.trim()
-            : fallbackMessage;
-          setDatabaseDumpStatus(message, 'error');
-        } finally {
-          resetDatabaseImportInput();
-          isDatabaseTransferInProgress = false;
-          refreshDatabaseActionAvailability();
-        }
-      });
-    }
-
-    refreshDatabaseActionAvailability();
+    
 
     function setRoleControlsEnabled(enabled) {
       const allow = Boolean(enabled);
@@ -5691,266 +5500,21 @@
       delete roleStatusMessage.dataset.variant;
     }
 
-    function setDatabaseDumpStatus(message, variant = 'info') {
-      if (!databaseDumpStatus) {
-        return;
-      }
+    
 
-      if (!message) {
-        clearDatabaseDumpStatus();
-        return;
-      }
+    
 
-      databaseDumpStatus.textContent = message;
-      databaseDumpStatus.classList.remove('hidden');
+    
 
-      if (variant) {
-        databaseDumpStatus.dataset.variant = variant;
-      } else {
-        delete databaseDumpStatus.dataset.variant;
-      }
-    }
+    
 
-    function clearDatabaseDumpStatus() {
-      if (!databaseDumpStatus) {
-        return;
-      }
+    
 
-      databaseDumpStatus.textContent = '';
-      databaseDumpStatus.classList.add('hidden');
-      delete databaseDumpStatus.dataset.variant;
-    }
+    
 
-    function refreshDatabaseActionAvailability() {
-      const shouldDisable = !hasSetterAccess || isDatabaseTransferInProgress;
+    
 
-      if (databaseDumpButton) {
-        databaseDumpButton.disabled = shouldDisable;
-      }
-
-      if (databaseClearButton) {
-        databaseClearButton.disabled = shouldDisable;
-      }
-
-      if (databaseImportButton) {
-        databaseImportButton.disabled = shouldDisable;
-      }
-
-      if (databaseImportInput) {
-        databaseImportInput.disabled = shouldDisable;
-      }
-    }
-
-    function resetDatabaseImportInput() {
-      if (!databaseImportInput) {
-        return;
-      }
-
-      databaseImportInput.value = '';
-    }
-
-    function serializeFirestoreValue(value) {
-      if (value === undefined) {
-        return null;
-      }
-
-      if (value === null) {
-        return null;
-      }
-
-      if (value instanceof Date) {
-        return Number.isNaN(value.getTime()) ? null : value.toISOString();
-      }
-
-      if (Array.isArray(value)) {
-        return value.map((item) => serializeFirestoreValue(item));
-      }
-
-      if (value && typeof value === 'object') {
-        if (typeof value.toDate === 'function') {
-          const dateValue = value.toDate();
-          if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {
-            return dateValue.toISOString();
-          }
-          return dateValue;
-        }
-
-        if (value instanceof Uint8Array) {
-          return Array.from(value);
-        }
-
-        if (typeof value.path === 'string' && typeof value.firestore === 'object') {
-          return { __ref: value.path };
-        }
-
-        const serializedObject = {};
-        for (const [key, nestedValue] of Object.entries(value)) {
-          serializedObject[key] = serializeFirestoreValue(nestedValue);
-        }
-        return serializedObject;
-      }
-
-      return value;
-    }
-
-    function serializeFirestoreDocument(docSnap) {
-      if (!docSnap?.exists?.()) {
-        return null;
-      }
-
-      const rawData = docSnap.data();
-      const serializedData = serializeFirestoreValue(rawData);
-
-      if (serializedData && typeof serializedData === 'object' && !Array.isArray(serializedData)) {
-        return { id: docSnap.id, ...serializedData };
-      }
-
-      return { id: docSnap.id, value: serializedData };
-    }
-
-    function looksLikeIsoDateString(value) {
-      if (typeof value !== 'string') {
-        return false;
-      }
-
-      return /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/.test(value);
-    }
-
-    function deserializeFirestoreValue(value) {
-      if (value === undefined) {
-        return null;
-      }
-
-      if (value === null) {
-        return null;
-      }
-
-      if (Array.isArray(value)) {
-        return value.map((item) => deserializeFirestoreValue(item));
-      }
-
-      if (typeof value === 'string' && looksLikeIsoDateString(value)) {
-        const parsed = new Date(value);
-        if (!Number.isNaN(parsed.getTime())) {
-          return Timestamp.fromDate(parsed);
-        }
-      }
-
-      if (value && typeof value === 'object') {
-        if (typeof value.__ref === 'string') {
-          try {
-            const refPath = value.__ref.trim();
-            if (refPath) {
-              const segments = refPath.split('/').filter(Boolean);
-              if (segments.length >= 2) {
-                return doc(db, ...segments);
-              }
-            }
-          } catch (error) {
-            console.warn('Unable to restore document reference from dump:', value.__ref, error);
-          }
-        }
-
-        const deserialized = {};
-        for (const [key, nestedValue] of Object.entries(value)) {
-          deserialized[key] = deserializeFirestoreValue(nestedValue);
-        }
-        return deserialized;
-      }
-
-      return value;
-    }
-
-    function buildFirestorePayloadFromDumpEntry(entry) {
-      if (!entry || typeof entry !== 'object') {
-        return {};
-      }
-
-      const { id: _id, ...rest } = entry;
-      const candidate = deserializeFirestoreValue(rest);
-
-      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
-        return { value: candidate ?? null };
-      }
-
-      return candidate;
-    }
-
-    async function importCollectionEntries(collectionKey, entries) {
-      if (!Array.isArray(entries)) {
-        const failureCount =
-          entries && typeof entries === 'object'
-            ? Math.max(Object.keys(entries).length, 1)
-            : entries
-            ? 1
-            : 0;
-        return { imported: 0, failed: failureCount };
-      }
-
-      let imported = 0;
-      let failed = 0;
-
-      for (const entry of entries) {
-        if (!entry || typeof entry !== 'object') {
-          failed += 1;
-          continue;
-        }
-
-        const rawId = typeof entry.id === 'string' ? entry.id.trim() : '';
-        if (!rawId) {
-          failed += 1;
-          continue;
-        }
-
-        try {
-          const payload = buildFirestorePayloadFromDumpEntry(entry);
-          await setDoc(doc(db, collectionKey, rawId), payload);
-          imported += 1;
-        } catch (error) {
-          console.error(`Failed to import document ${rawId} in ${collectionKey}:`, error);
-          failed += 1;
-        }
-      }
-
-      return { imported, failed };
-    }
-
-    async function importDatabaseDump(dump) {
-      if (!dump || typeof dump !== 'object') {
-        throw new Error('Invalid database dump.');
-      }
-
-      const collections = dump.data && typeof dump.data === 'object' ? dump.data : null;
-      if (!collections) {
-        throw new Error('Database dump is missing data.');
-      }
-
-      let totalImported = 0;
-      let totalFailed = 0;
-      let processedCollections = 0;
-
-      for (const [collectionKey, value] of Object.entries(collections)) {
-        if (!collectionKey || typeof collectionKey !== 'string') {
-          continue;
-        }
-
-        if (value && typeof value === 'object' && value.error) {
-          console.warn(`Skipping errored collection ${collectionKey} from dump.`);
-          continue;
-        }
-
-        processedCollections += 1;
-        const { imported, failed } = await importCollectionEntries(collectionKey, value);
-        totalImported += imported;
-        totalFailed += failed;
-      }
-
-      return {
-        processedCollections,
-        totalImported,
-        totalFailed,
-      };
-    }
+    
 
     function markUnsavedChange() {
       if (!hasUnsavedChanges) {
@@ -7874,22 +7438,20 @@
       clearStatus();
       setRoleControlsEnabled(false);
       resetRoleManagementUI('Setter access required to manage roles.');
-      hasSetterAccess = false;
-      isDatabaseTransferInProgress = false;
-      refreshDatabaseActionAvailability();
-      resetDatabaseImportInput();
-      clearDatabaseDumpStatus();
+      setDatabaseButtonsEnabled(false);
+      updateDatabaseActionNotice('');
       void finishTutorial();
     }
 
-    function handleAuthorized() {
+    function handleAuthorized(role) {
       unauthorizedNotice.classList.add('hidden');
       appContent.classList.remove('hidden');
       routeSelector.disabled = false;
       setRoleControlsEnabled(true);
       clearRoleStatus();
-      hasSetterAccess = true;
-      refreshDatabaseActionAvailability();
+      const normalizedRole = typeof role === 'string' ? role.trim().toLowerCase() : '';
+      setDatabaseButtonsEnabled(normalizedRole === 'admin');
+      updateDatabaseActionNotice(normalizedRole);
     }
 
     onAuthStateChanged(auth, async (user) => {
@@ -7915,12 +7477,12 @@
           return;
         }
 
-        if (role !== 'setter') {
+        if (role !== 'setter' && role !== 'admin') {
           handleUnauthorized();
           return;
         }
 
-        handleAuthorized();
+        handleAuthorized(role);
 
         try {
           await loadRoutesList(currentRouteKey);
@@ -7948,11 +7510,8 @@
         setRoleControlsEnabled(false);
         resetRoleManagementUI();
         setAuthMode('login');
-        hasSetterAccess = false;
-        isDatabaseTransferInProgress = false;
-        refreshDatabaseActionAvailability();
-        resetDatabaseImportInput();
-        clearDatabaseDumpStatus();
+        setDatabaseButtonsEnabled(false);
+        updateDatabaseActionNotice('');
         void finishTutorial();
       }
     });
