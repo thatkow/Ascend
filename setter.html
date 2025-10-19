@@ -886,17 +886,6 @@
       color: #fff;
     }
 
-    #databaseDumpButton {
-      background: rgba(126, 217, 87, 0.85);
-      color: #0b1a06;
-    }
-
-    #databaseImportButton,
-    #databaseClearButton {
-      background: #facc15;
-      color: #1f1600;
-    }
-
     #signOutButton {
       background: rgba(255, 116, 116, 0.9);
       color: #111;
@@ -1600,31 +1589,13 @@
                   <span class="button-label">Personal Dashboard</span>
                 </button>
                 <button
-                  id="databaseImportButton"
+                  id="adminConsoleButton"
                   class="global-action-button"
                   type="button"
-                  data-help-text="Import a JSON backup to restore walls, routes, ascents, and related data."
+                  data-help-text="Open the admin console for database management."
                 >
-                  <span class="button-icon" aria-hidden="true">📥</span>
-                  <span class="button-label">Import Database</span>
-                </button>
-                <button
-                  id="databaseDumpButton"
-                  class="global-action-button"
-                  type="button"
-                  data-help-text="Download a JSON backup of walls, routes, ascents, and related data."
-                >
-                  <span class="button-icon" aria-hidden="true">💾</span>
-                  <span class="button-label">Download Database</span>
-                </button>
-                <button
-                  id="databaseClearButton"
-                  class="global-action-button"
-                  type="button"
-                  data-help-text="Permanently remove all walls, routes, ascents, roles, and usernames."
-                >
-                  <span class="button-icon" aria-hidden="true">🧹</span>
-                  <span class="button-label">Clear Database</span>
+                  <span class="button-icon" aria-hidden="true">🛡️</span>
+                  <span class="button-label">Admin</span>
                 </button>
                 <button
                   id="signOutButton"
@@ -1637,7 +1608,7 @@
                 </button>
               </div>
               <p
-                id="databaseDumpStatus"
+                id="adminConsoleStatus"
                 class="status-message hidden"
                 role="status"
                 aria-live="polite"
@@ -1847,10 +1818,8 @@
     const infoPopover = document.getElementById('infoPopover');
     const climberViewButton = document.getElementById('climberViewButton');
     const personalDashboardButton = document.getElementById('personalDashboardButton');
-    const databaseImportButton = document.getElementById('databaseImportButton');
-    const databaseDumpButton = document.getElementById('databaseDumpButton');
-    const databaseClearButton = document.getElementById('databaseClearButton');
-    const databaseDumpStatus = document.getElementById('databaseDumpStatus');
+    const adminConsoleButton = document.getElementById('adminConsoleButton');
+    const adminConsoleStatus = document.getElementById('adminConsoleStatus');
     const previewLink = document.getElementById('previewLink');
     const previewLinkBaseHref = previewLink?.getAttribute('href') || 'index.html';
     const climberViewBaseHref = 'index.html';
@@ -2880,12 +2849,12 @@
         let shouldShowSecondary = tutorialStepIndex > 0;
         tutorialSecondaryActionMode = 'back';
 
-        if (secondaryConfig && secondaryConfig.mode === 'close') {
-          tutorialSecondaryActionMode = 'close';
+        if (secondaryConfig && (secondaryConfig.mode === 'skip' || secondaryConfig.mode === 'close')) {
+          tutorialSecondaryActionMode = 'skip';
           secondaryLabel =
             typeof secondaryConfig.label === 'string' && secondaryConfig.label.trim().length
               ? secondaryConfig.label
-              : 'Close';
+              : 'Skip';
           shouldShowSecondary = true;
         }
 
@@ -2903,7 +2872,7 @@
             'Design, update, and publish climbs from here. The wall preview on the left responds instantly as you draw or tweak route details.',
             'Use the sidebar tabs to switch between saved routes, manage walls, and adjust how problems appear to climbers.',
           ],
-          secondaryAction: { mode: 'close', label: 'Close' },
+          secondaryAction: { mode: 'skip', label: 'Skip' },
           onEnter: () => {
             setTutorialOverlayAlignment('center');
             highlightTutorialElement(null);
@@ -4363,7 +4332,7 @@
         }
 
         const mode = tutorialSecondaryAction.dataset.mode || tutorialSecondaryActionMode;
-        if (mode === 'close') {
+        if (mode === 'skip' || mode === 'close') {
           void finishTutorial();
           return;
         }
@@ -5009,68 +4978,48 @@
 
     const ADMIN_CONSOLE_PATH = 'admin.html';
 
-    function redirectToAdminConsole(action = '') {
-      const suffix = action ? `#${encodeURIComponent(action)}` : '';
-      window.location.href = `${ADMIN_CONSOLE_PATH}${suffix}`;
-    }
-
-    function setDatabaseButtonsEnabled(enabled) {
-      const allow = Boolean(enabled);
-      [databaseDumpButton, databaseImportButton, databaseClearButton].forEach((button) => {
-        if (button) {
-          button.disabled = !allow;
-        }
-      });
-    }
-
-    function updateDatabaseActionNotice(role) {
-      if (!databaseDumpStatus) {
-        return;
-      }
-
-      const normalized = typeof role === 'string' ? role.trim().toLowerCase() : '';
-
-      if (!normalized) {
-        databaseDumpStatus.textContent = '';
-        databaseDumpStatus.classList.add('hidden');
-        delete databaseDumpStatus.dataset.variant;
-        return;
-      }
-
-      databaseDumpStatus.classList.remove('hidden');
-
-      if (normalized === 'admin') {
-        databaseDumpStatus.textContent = 'Database actions open in the admin console.';
-        databaseDumpStatus.dataset.variant = 'info';
-      } else {
-        databaseDumpStatus.textContent =
-          'Only admins can manage the database. Contact an admin for assistance.';
-        databaseDumpStatus.dataset.variant = 'warning';
-      }
-    }
-
-    const databaseActionButtons = [
-      { button: databaseDumpButton, action: 'export' },
-      { button: databaseImportButton, action: 'import' },
-      { button: databaseClearButton, action: 'clear' },
-    ];
-
-    databaseActionButtons.forEach(({ button, action }) => {
-      if (!button) {
-        return;
-      }
-
-      button.addEventListener('click', () => {
-        if (button.disabled) {
+    if (adminConsoleButton) {
+      adminConsoleButton.addEventListener('click', () => {
+        if (adminConsoleButton.disabled) {
           return;
         }
 
-        redirectToAdminConsole(action);
+        window.location.href = ADMIN_CONSOLE_PATH;
       });
-    });
+    }
 
-    setDatabaseButtonsEnabled(false);
-    updateDatabaseActionNotice('');
+    function updateAdminConsoleAccess(role) {
+      const normalized = typeof role === 'string' ? role.trim().toLowerCase() : '';
+      const isAdmin = normalized === 'admin';
+
+      if (adminConsoleButton) {
+        adminConsoleButton.classList.toggle('hidden', !isAdmin);
+        adminConsoleButton.disabled = !isAdmin;
+      }
+
+      if (!adminConsoleStatus) {
+        return;
+      }
+
+      if (!normalized) {
+        adminConsoleStatus.textContent = '';
+        adminConsoleStatus.classList.add('hidden');
+        delete adminConsoleStatus.dataset.variant;
+        return;
+      }
+
+      adminConsoleStatus.classList.remove('hidden');
+
+      if (isAdmin) {
+        adminConsoleStatus.textContent = 'Open the admin console to manage database operations.';
+        adminConsoleStatus.dataset.variant = 'info';
+      } else {
+        adminConsoleStatus.textContent = 'Admin access is required to manage the database.';
+        adminConsoleStatus.dataset.variant = 'warning';
+      }
+    }
+
+    updateAdminConsoleAccess('');
 
     
 
@@ -7438,8 +7387,7 @@
       clearStatus();
       setRoleControlsEnabled(false);
       resetRoleManagementUI('Setter access required to manage roles.');
-      setDatabaseButtonsEnabled(false);
-      updateDatabaseActionNotice('');
+      updateAdminConsoleAccess('');
       void finishTutorial();
     }
 
@@ -7450,8 +7398,7 @@
       setRoleControlsEnabled(true);
       clearRoleStatus();
       const normalizedRole = typeof role === 'string' ? role.trim().toLowerCase() : '';
-      setDatabaseButtonsEnabled(normalizedRole === 'admin');
-      updateDatabaseActionNotice(normalizedRole);
+      updateAdminConsoleAccess(normalizedRole);
     }
 
     onAuthStateChanged(auth, async (user) => {
@@ -7510,8 +7457,7 @@
         setRoleControlsEnabled(false);
         resetRoleManagementUI();
         setAuthMode('login');
-        setDatabaseButtonsEnabled(false);
-        updateDatabaseActionNotice('');
+        updateAdminConsoleAccess('');
         void finishTutorial();
       }
     });
