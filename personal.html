@@ -201,6 +201,41 @@
         display: block;
       }
 
+      .tutorial-toggle-button {
+        position: relative;
+      }
+
+      .tutorial-toggle-icon {
+        display: none;
+        width: 20px;
+        height: 20px;
+      }
+
+      .tutorial-toggle-icon svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .tutorial-toggle-button[aria-pressed='false'] .tutorial-toggle-icon-skip,
+      .tutorial-toggle-button[aria-pressed='true'] .tutorial-toggle-icon-enable {
+        display: block;
+      }
+
+      .tutorial-toggle-button[aria-pressed='true'] {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.85), rgba(239, 68, 68, 0.45));
+        border-color: rgba(239, 68, 68, 0.65);
+        box-shadow: 0 10px 24px rgba(239, 68, 68, 0.35);
+        color: #fff;
+      }
+
+      .tutorial-toggle-button[aria-pressed='true']:hover,
+      .tutorial-toggle-button[aria-pressed='true']:focus-visible {
+        box-shadow: 0 14px 32px rgba(239, 68, 68, 0.45);
+        border-color: rgba(239, 68, 68, 0.9);
+        outline: none;
+      }
+
       .header-icon-button:hover,
       .header-icon-button:focus-visible {
         transform: translateY(-1px);
@@ -1217,6 +1252,45 @@
           </svg>
         </a>
         <button
+          id="tutorialToggleButton"
+          class="header-icon-button tutorial-toggle-button"
+          type="button"
+          aria-pressed="false"
+          aria-label="Skip tutorial"
+          title="Skip tutorial"
+        >
+          <span class="tutorial-toggle-icon tutorial-toggle-icon-skip" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path
+                d="M5.06 5.16a1 1 0 0 1 1.52-.85L14 9.6V6.5a1 1 0 0 1 1.52-.85l4.92 3.08a1 1 0 0 1 0 1.7l-4.92 3.08A1 1 0 0 1 14 12.6V9.5l-7.42 5.29A1 1 0 0 1 5 13V5.5a1 1 0 0 1 .06-.34Z"
+                fill="currentColor"
+              />
+              <rect
+                x="4"
+                y="15.5"
+                width="16"
+                height="3.5"
+                rx="1.75"
+                fill="currentColor"
+                opacity="0.45"
+              />
+            </svg>
+          </span>
+          <span class="tutorial-toggle-icon tutorial-toggle-icon-enable" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path
+                d="M5 6.25c0-1.24 1.32-2 2.42-1.33l6.83 4.13V6.25a1 1 0 0 1 1.53-.85l4.77 3.02a1 1 0 0 1 0 1.7l-4.77 3.02a1 1 0 0 1-1.53-.85v-2.8l-6.83 4.13C6.32 14.29 5 13.53 5 12.29V6.25Z"
+                fill="currentColor"
+              />
+              <path
+                d="M7 16h10a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-1a2 2 0 0 1 2-2Z"
+                fill="currentColor"
+                opacity="0.55"
+              />
+            </svg>
+          </span>
+        </button>
+        <button
           id="locationButton"
           class="header-icon-button walls-button"
           type="button"
@@ -1386,6 +1460,7 @@
       const locationButton = document.getElementById('locationButton');
       const viewToggleButton = document.getElementById('viewToggle');
       const progressionButton = document.getElementById('progressionButton');
+      const tutorialToggleButton = document.getElementById('tutorialToggleButton');
       const locationModal = document.getElementById('locationModal');
       const locationOptions = document.getElementById('locationOptions');
       const locationModalClose = document.getElementById('locationModalClose');
@@ -1416,6 +1491,45 @@
       let tutorialTransitionInProgress = false;
       let tutorialSteps = [];
       let tutorialHighlightedRouteId = null;
+
+      let tutorialOptOut = false;
+
+      const PERSONAL_TUTORIAL_OPT_OUT_KEY = 'ascend.personalTutorial.optOut';
+
+      function readStoredTutorialOptOut() {
+        try {
+          return window.localStorage?.getItem(PERSONAL_TUTORIAL_OPT_OUT_KEY) === 'true';
+        } catch (error) {
+          console.warn('Failed to read tutorial preference:', error);
+          return false;
+        }
+      }
+
+      function persistTutorialOptOut(value) {
+        try {
+          if (value) {
+            window.localStorage?.setItem(PERSONAL_TUTORIAL_OPT_OUT_KEY, 'true');
+          } else {
+            window.localStorage?.removeItem(PERSONAL_TUTORIAL_OPT_OUT_KEY);
+          }
+        } catch (error) {
+          console.warn('Failed to persist tutorial preference:', error);
+        }
+      }
+
+      function updateTutorialToggleButton() {
+        if (!tutorialToggleButton) {
+          return;
+        }
+
+        const label = tutorialOptOut ? 'Enable tutorial' : 'Skip tutorial';
+        tutorialToggleButton.setAttribute('aria-pressed', tutorialOptOut ? 'true' : 'false');
+        tutorialToggleButton.setAttribute('aria-label', label);
+        tutorialToggleButton.setAttribute('title', label);
+      }
+
+      tutorialOptOut = readStoredTutorialOptOut();
+      updateTutorialToggleButton();
 
       const LOCATIONS = [
         { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
@@ -1966,7 +2080,7 @@
       }
 
       async function startTutorial() {
-        if (tutorialActive) {
+        if (tutorialOptOut || tutorialActive || tutorialTransitionInProgress) {
           return;
         }
 
@@ -3312,6 +3426,20 @@
         });
       }
 
+      if (tutorialToggleButton) {
+        tutorialToggleButton.addEventListener('click', () => {
+          tutorialOptOut = !tutorialOptOut;
+          persistTutorialOptOut(tutorialOptOut);
+          updateTutorialToggleButton();
+
+          if (tutorialOptOut) {
+            void finishTutorial();
+          } else if (currentUser && !tutorialActive) {
+            void startTutorial();
+          }
+        });
+      }
+
       document.addEventListener(
         'pointerdown',
         (event) => {
@@ -3863,7 +3991,9 @@
 
           await loadAscents({ userId: user.uid, username: currentUsername });
           await loadRoutes();
-          await startTutorial();
+          if (!tutorialOptOut) {
+            await startTutorial();
+          }
         } else {
           authOverlay.classList.remove('hidden');
           appContent.classList.add('hidden');
