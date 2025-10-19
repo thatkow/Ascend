@@ -872,6 +872,8 @@
         font-size: 0.85rem;
         line-height: 1.4;
         max-width: min(280px, 80vw);
+        height: 80vh;
+        max-height: 80vh;
         z-index: 6;
         opacity: 0;
         transform: translate(-50%, -12px);
@@ -884,6 +886,17 @@
         background: var(--tooltip-surface, #0e150f);
         border: 1px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
         box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
+      }
+
+      .route-tooltip .tooltip-content {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 0.25rem;
+        padding-bottom: 0.25rem;
       }
 
       .route-tooltip.pinned {
@@ -918,6 +931,97 @@
 
       .route-tooltip .tooltip-line {
         display: block;
+      }
+
+      .route-tooltip .tooltip-tips {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.25rem;
+      }
+
+      .route-tooltip .tooltip-tips-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+
+      .route-tooltip .tooltip-tips-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .route-tooltip .tooltip-tip-entry {
+        white-space: pre-line;
+        background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.12);
+        border-radius: 0.65rem;
+        padding: 0.6rem 0.75rem;
+        border: 1px solid rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.25);
+        line-height: 1.4;
+      }
+
+      .route-tooltip .tooltip-tip-empty {
+        color: rgba(255, 255, 255, 0.65);
+        font-size: 0.85rem;
+      }
+
+      .route-tooltip .tooltip-tip-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .route-tooltip .tooltip-tip-input {
+        width: 100%;
+        border-radius: 0.75rem;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: rgba(0, 0, 0, 0.35);
+        color: inherit;
+        padding: 0.75rem;
+        font-size: 0.9rem;
+        resize: vertical;
+        min-height: 4.5rem;
+        max-height: 12rem;
+      }
+
+      .route-tooltip .tooltip-tip-input:focus-visible {
+        outline: 2px solid var(--tooltip-accent, #7ed957);
+        outline-offset: 2px;
+      }
+
+      .route-tooltip .tooltip-tip-submit {
+        align-self: flex-start;
+        border-radius: 999px;
+        border: 2px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
+        background: var(--tooltip-accent, #7ed957);
+        color: var(--tooltip-on-accent, #000);
+        padding: 0.5rem 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+          border-color 0.2s ease;
+      }
+
+      .route-tooltip .tooltip-tip-submit:hover,
+      .route-tooltip .tooltip-tip-submit:focus-visible {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 18px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.25);
+        outline: none;
+      }
+
+      .route-tooltip .tooltip-tip-submit:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+
+      .route-tooltip .tooltip-tip-status {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .route-tooltip .tooltip-tip-status.is-error {
+        color: #ff9f9f;
       }
 
       .route-tooltip .tooltip-grade-cluster {
@@ -1360,6 +1464,7 @@
         query,
         limit,
         where,
+        addDoc,
       } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
       import { firebaseConfig } from './config.js';
 
@@ -3915,6 +4020,11 @@
       let routeMedianGrades = new Map();
       let progressionPreviouslyFocusedElement = null;
 
+      const ROUTE_TIPS_COLLECTION = 'routeTips';
+      const ROUTE_TIPS_ENTRIES_COLLECTION = 'entries';
+      const MAX_ROUTE_TIP_LENGTH = 500;
+      const routeTipsCache = new Map();
+
       function synchroniseAscentsWithRoutes(options = {}) {
         const { shouldRedraw = true } = options;
         ascendedRoutes.clear();
@@ -4625,6 +4735,279 @@
         redraw();
       }
 
+      function createRouteTipsSection(route, ariaLines) {
+        const section = document.createElement('div');
+        section.className = 'tooltip-tips';
+
+        const title = document.createElement('p');
+        title.className = 'tooltip-tips-title';
+        title.textContent = 'Route tips';
+        section.appendChild(title);
+
+        if (Array.isArray(ariaLines)) {
+          ariaLines.push('Route tips');
+        }
+
+        const tipsList = document.createElement('div');
+        tipsList.className = 'tooltip-tips-list';
+        tipsList.setAttribute('role', 'list');
+        const routeIdValue = route && typeof route.id === 'string' ? route.id : '';
+        tipsList.dataset.routeId = routeIdValue;
+        tipsList.textContent = 'Loading tips…';
+        section.appendChild(tipsList);
+
+        const status = document.createElement('p');
+        status.className = 'tooltip-tip-status';
+        status.setAttribute('role', 'status');
+        status.setAttribute('aria-live', 'polite');
+        status.hidden = true;
+        section.appendChild(status);
+
+        let form = null;
+        let textarea = null;
+        let submit = null;
+
+        if (currentUser) {
+          form = document.createElement('form');
+          form.className = 'tooltip-tip-form';
+          form.setAttribute('novalidate', '');
+
+          const label = document.createElement('label');
+          label.className = 'sr-only';
+          const sanitizedRouteKey = routeIdValue.replace(/[^a-zA-Z0-9_-]/g, '');
+          const textareaId = sanitizedRouteKey
+            ? `routeTipInput-${sanitizedRouteKey}`
+            : `routeTipInput-${Math.random().toString(36).slice(2)}`;
+          label.setAttribute('for', textareaId);
+          label.textContent = 'Add a tip for this route';
+
+          textarea = document.createElement('textarea');
+          textarea.id = textareaId;
+          textarea.className = 'tooltip-tip-input';
+          textarea.rows = 3;
+          textarea.maxLength = MAX_ROUTE_TIP_LENGTH;
+          textarea.placeholder = 'Share beta or helpful notes…';
+          textarea.required = true;
+
+          submit = document.createElement('button');
+          submit.type = 'submit';
+          submit.className = 'tooltip-tip-submit';
+          submit.textContent = 'Add tip';
+
+          form.append(label, textarea, submit);
+          section.appendChild(form);
+        } else {
+          const signInNote = document.createElement('p');
+          signInNote.className = 'tooltip-tip-empty';
+          signInNote.textContent = 'Sign in to share a tip.';
+          section.appendChild(signInNote);
+        }
+
+        return { section, list: tipsList, status, form, textarea, submit };
+      }
+
+      function renderRouteTipsList(listElement, tips) {
+        if (!listElement) {
+          return [];
+        }
+
+        listElement.replaceChildren();
+        const ariaEntries = [];
+        const entries = Array.isArray(tips) ? tips : [];
+
+        entries.forEach((tip) => {
+          if (!tip) {
+            return;
+          }
+
+          const rawUsername = typeof tip.username === 'string' ? tip.username.trim() : '';
+          const username = rawUsername || 'Anonymous';
+          const rawTipText = typeof tip.tip === 'string' ? tip.tip.trim() : '';
+          if (!rawTipText) {
+            return;
+          }
+
+          const entry = document.createElement('div');
+          entry.className = 'tooltip-tip-entry';
+          entry.setAttribute('role', 'listitem');
+          entry.textContent = `${username}\n${rawTipText}`;
+          listElement.appendChild(entry);
+
+          const ariaTipText = rawTipText.replace(/\s+/g, ' ');
+          ariaEntries.push(`${username}: ${ariaTipText}`);
+        });
+
+        if (!listElement.childElementCount) {
+          const empty = document.createElement('p');
+          empty.className = 'tooltip-tip-empty';
+          empty.textContent = 'No tips yet. Be the first to share one.';
+          listElement.appendChild(empty);
+          ariaEntries.push('No tips yet');
+        }
+
+        return ariaEntries;
+      }
+
+      async function loadRouteTips(routeId, options = {}) {
+        const { force = false } = options;
+        const normalizedRouteId = typeof routeId === 'string' ? routeId.trim() : '';
+
+        if (!normalizedRouteId) {
+          return [];
+        }
+
+        if (!force && routeTipsCache.has(normalizedRouteId)) {
+          return routeTipsCache.get(normalizedRouteId) || [];
+        }
+
+        try {
+          const tipsRef = collection(
+            db,
+            ROUTE_TIPS_COLLECTION,
+            normalizedRouteId,
+            ROUTE_TIPS_ENTRIES_COLLECTION,
+          );
+          const snapshot = await getDocs(tipsRef);
+          const tips = [];
+
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data() ?? {};
+            const rawTipText = typeof data.tip === 'string' ? data.tip.trim() : '';
+            if (!rawTipText) {
+              return;
+            }
+
+            const rawUsername = typeof data.username === 'string' ? data.username.trim() : '';
+            const createdAtValue =
+              typeof data.createdAt?.toMillis === 'function'
+                ? data.createdAt.toMillis()
+                : typeof data.createdAt === 'number'
+                ? data.createdAt
+                : 0;
+
+            tips.push({
+              id: docSnap.id,
+              username: rawUsername || 'Anonymous',
+              tip: rawTipText,
+              createdAt: createdAtValue,
+            });
+          });
+
+          tips.sort((a, b) => {
+            if (a.createdAt !== b.createdAt) {
+              return a.createdAt - b.createdAt;
+            }
+            return a.id.localeCompare(b.id);
+          });
+
+          routeTipsCache.set(normalizedRouteId, tips);
+          return tips;
+        } catch (error) {
+          console.error('Failed to load route tips:', error);
+          throw error;
+        }
+      }
+
+      async function refreshRouteTips(routeId, options = {}) {
+        const { listElement, statusElement, applyAriaLabel, force = false } = options;
+        if (!listElement) {
+          return;
+        }
+
+        const normalizedRouteId = typeof routeId === 'string' ? routeId.trim() : '';
+        listElement.dataset.routeId = normalizedRouteId;
+
+        const updateAria = typeof applyAriaLabel === 'function' ? applyAriaLabel : null;
+
+        if (!normalizedRouteId) {
+          const ariaEntries = renderRouteTipsList(listElement, []);
+          if (updateAria) {
+            updateAria(ariaEntries);
+          }
+          return;
+        }
+
+        if (!force && routeTipsCache.has(normalizedRouteId)) {
+          const cachedTips = routeTipsCache.get(normalizedRouteId) || [];
+          const ariaEntries = renderRouteTipsList(listElement, cachedTips);
+          if (statusElement) {
+            statusElement.hidden = true;
+            statusElement.textContent = '';
+            statusElement.classList.remove('is-error');
+          }
+          if (updateAria) {
+            updateAria(ariaEntries);
+          }
+          return;
+        }
+
+        listElement.textContent = 'Loading tips…';
+        if (statusElement) {
+          statusElement.hidden = true;
+          statusElement.textContent = '';
+          statusElement.classList.remove('is-error');
+        }
+        if (updateAria) {
+          updateAria(['Loading tips']);
+        }
+
+        try {
+          const tips = await loadRouteTips(normalizedRouteId, { force });
+          if (listElement.dataset.routeId !== normalizedRouteId) {
+            return;
+          }
+          if (activeRouteId && activeRouteId !== normalizedRouteId) {
+            return;
+          }
+          const ariaEntries = renderRouteTipsList(listElement, tips);
+          if (updateAria) {
+            updateAria(ariaEntries);
+          }
+        } catch (error) {
+          if (statusElement) {
+            statusElement.textContent = 'Unable to load tips right now.';
+            statusElement.hidden = false;
+            statusElement.classList.add('is-error');
+          }
+          if (updateAria) {
+            updateAria(['Unable to load tips right now.']);
+          }
+        }
+      }
+
+      async function saveRouteTip(route, tipText) {
+        if (!currentUser) {
+          throw new Error('User must be signed in to add tips.');
+        }
+
+        const routeId = route && typeof route.id === 'string' ? route.id.trim() : '';
+        if (!routeId) {
+          throw new Error('Route is missing an identifier.');
+        }
+
+        const rawTip = typeof tipText === 'string' ? tipText.trim() : '';
+        if (!rawTip) {
+          throw new Error('Tip text cannot be empty.');
+        }
+
+        const sanitizedTip = rawTip.slice(0, MAX_ROUTE_TIP_LENGTH);
+        const usernameCandidate = isValidUsername(currentUsername)
+          ? currentUsername
+          : normalizeUsername(currentUser?.displayName);
+        const username = usernameCandidate || 'Anonymous';
+
+        const tipsRef = collection(db, ROUTE_TIPS_COLLECTION, routeId, ROUTE_TIPS_ENTRIES_COLLECTION);
+        await addDoc(tipsRef, {
+          tip: sanitizedTip,
+          username,
+          userId: currentUser.uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        routeTipsCache.delete(routeId);
+      }
+
       function updateTooltipContent(route) {
         if (!tooltip) {
           return;
@@ -4633,18 +5016,22 @@
         applyTooltipColorScheme(route);
 
         const fragment = document.createDocumentFragment();
+        const contentContainer = document.createElement('div');
+        contentContainer.className = 'tooltip-content';
+        fragment.appendChild(contentContainer);
+
         const ariaLines = [];
 
         const header = document.createElement('div');
         header.className = 'tooltip-header';
         header.appendChild(createTooltipCloseButton());
 
-        const displayTitle = (route.title || route.id || '').trim();
+        const displayTitle = (route && (route.title || route.id) ? route.title || route.id : '').trim();
         const titleLine = document.createElement('strong');
         titleLine.className = 'tooltip-title';
         titleLine.textContent = displayTitle || 'Route details';
         header.appendChild(titleLine);
-        fragment.appendChild(header);
+        contentContainer.appendChild(header);
         if (titleLine.textContent) {
           ariaLines.push(titleLine.textContent);
         }
@@ -4716,14 +5103,14 @@
 
         fragment.appendChild(gradeCluster);
         if (actionsContainer) {
-          fragment.appendChild(actionsContainer);
+          contentContainer.appendChild(actionsContainer);
         }
         ariaLines.push(`Grade: ${gradeDisplay}`);
         ariaLines.push(isAscended ? 'Ascended' : 'Not ascended');
 
         const infoContainer = document.createElement('div');
         infoContainer.className = 'tooltip-lines';
-        fragment.appendChild(infoContainer);
+        contentContainer.appendChild(infoContainer);
 
         const appendInfoLine = (text, className = '') => {
           if (!text) {
@@ -4748,16 +5135,113 @@
         if (currentUser) {
           const gradeControls = buildGradeControls(route);
           if (gradeControls) {
-            fragment.appendChild(gradeControls);
+            contentContainer.appendChild(gradeControls);
           }
         }
 
-        tooltip.replaceChildren(fragment);
+        const tipsSection = createRouteTipsSection(route, ariaLines);
+        contentContainer.appendChild(tipsSection.section);
 
-        if (ariaLines.length) {
-          tooltip.setAttribute('aria-label', ariaLines.join('\n'));
-        } else {
-          tooltip.removeAttribute('aria-label');
+        const baseAriaLines = [...ariaLines];
+        const applyAriaLabel = (additionalLines = []) => {
+          const extras = Array.isArray(additionalLines)
+            ? additionalLines.filter((line) => typeof line === 'string' && line)
+            : [];
+          const combined = extras.length ? baseAriaLines.concat(extras) : [...baseAriaLines];
+          if (combined.length) {
+            tooltip.setAttribute('aria-label', combined.join('\n'));
+          } else {
+            tooltip.removeAttribute('aria-label');
+          }
+        };
+
+        tooltip.replaceChildren(fragment);
+        applyAriaLabel();
+
+        const routeId = route && typeof route.id === 'string' ? route.id : '';
+        void refreshRouteTips(routeId, {
+          listElement: tipsSection.list,
+          statusElement: tipsSection.status,
+          applyAriaLabel,
+        });
+
+        if (tipsSection.form && tipsSection.textarea && tipsSection.submit) {
+          tipsSection.form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const statusElement = tipsSection.status;
+            if (statusElement) {
+              statusElement.hidden = true;
+              statusElement.textContent = '';
+              statusElement.classList.remove('is-error');
+            }
+
+            if (!currentUser) {
+              if (statusElement) {
+                statusElement.textContent = 'Sign in to share tips.';
+                statusElement.hidden = false;
+                statusElement.classList.add('is-error');
+              }
+              applyAriaLabel(['Sign in to share tips.']);
+              return;
+            }
+
+            const rawTip = tipsSection.textarea.value.trim();
+            if (!rawTip) {
+              if (statusElement) {
+                statusElement.textContent = 'Enter a tip before submitting.';
+                statusElement.hidden = false;
+                statusElement.classList.add('is-error');
+              }
+              tipsSection.textarea.focus();
+              applyAriaLabel(['Enter a tip before submitting.']);
+              return;
+            }
+
+            if (!routeId) {
+              if (statusElement) {
+                statusElement.textContent = 'Unable to determine the selected route.';
+                statusElement.hidden = false;
+                statusElement.classList.add('is-error');
+              }
+              applyAriaLabel(['Unable to determine the selected route.']);
+              return;
+            }
+
+            const trimmedTip = rawTip.slice(0, MAX_ROUTE_TIP_LENGTH);
+
+            tipsSection.submit.disabled = true;
+            tipsSection.textarea.disabled = true;
+
+            try {
+              await saveRouteTip(route, trimmedTip);
+              tipsSection.textarea.value = '';
+              await refreshRouteTips(routeId, {
+                listElement: tipsSection.list,
+                statusElement,
+                applyAriaLabel,
+                force: true,
+              });
+              if (statusElement) {
+                statusElement.hidden = true;
+                statusElement.textContent = '';
+                statusElement.classList.remove('is-error');
+              }
+            } catch (error) {
+              console.error('Failed to save route tip:', error);
+              if (statusElement) {
+                statusElement.textContent = 'Unable to save tip. Try again.';
+                statusElement.hidden = false;
+                statusElement.classList.add('is-error');
+              }
+              applyAriaLabel(['Unable to save tip. Try again.']);
+            } finally {
+              tipsSection.submit.disabled = false;
+              tipsSection.textarea.disabled = false;
+              tipsSection.textarea.focus();
+            }
+          });
         }
       }
 
