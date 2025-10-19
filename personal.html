@@ -54,6 +54,46 @@
         -webkit-overflow-scrolling: touch;
       }
 
+      .focus-footer {
+        position: absolute;
+        left: 50%;
+        bottom: 1.25rem;
+        transform: translateX(-50%);
+        z-index: 7;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .clear-focus-button {
+        pointer-events: auto;
+        border-radius: 999px;
+        border: 1px solid rgba(126, 217, 87, 0.75);
+        background: linear-gradient(135deg, rgba(126, 217, 87, 0.95), rgba(126, 217, 87, 0.7));
+        color: #0c1905;
+        font-weight: 600;
+        padding: 0.6rem 1.5rem;
+        font-size: 0.95rem;
+        cursor: pointer;
+        box-shadow: 0 14px 30px rgba(126, 217, 87, 0.35);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+          border-color 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        letter-spacing: 0.01em;
+      }
+
+      .clear-focus-button:hover,
+      .clear-focus-button:focus-visible {
+        transform: translateY(-1px);
+        box-shadow: 0 18px 36px rgba(126, 217, 87, 0.4);
+        outline: none;
+        border-color: rgba(126, 217, 87, 0.9);
+        background: linear-gradient(135deg, rgba(126, 217, 87, 1), rgba(126, 217, 87, 0.82));
+      }
+
       canvas {
         display: block;
         height: 100%;
@@ -200,7 +240,6 @@
       .view-toggle[aria-pressed='true'] .view-toggle-icon-difficulty {
         display: block;
       }
-
       .header-icon-button:hover,
       .header-icon-button:focus-visible {
         transform: translateY(-1px);
@@ -209,10 +248,10 @@
       }
 
       .view-toggle[aria-pressed='true'] {
-        background: linear-gradient(135deg, rgba(126, 217, 87, 0.85), rgba(126, 217, 87, 0.4));
-        color: #0f1a08;
-        border-color: rgba(126, 217, 87, 0.65);
-        box-shadow: 0 10px 24px rgba(126, 217, 87, 0.35);
+        background: linear-gradient(135deg, rgba(148, 163, 184, 0.45), rgba(30, 41, 59, 0.65));
+        color: #fff;
+        border-color: rgba(148, 163, 184, 0.55);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.4);
       }
 
       .location-modal {
@@ -518,6 +557,162 @@
         box-shadow: 0 0 0 4px rgba(126, 217, 87, 0.25), 0 12px 28px rgba(126, 217, 87, 0.45);
       }
 
+      .tutorial-overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        background: transparent;
+        z-index: 40;
+      }
+
+      .tutorial-overlay.is-bottom-aligned {
+        align-items: flex-end;
+      }
+
+      .tutorial-card {
+        width: min(420px, 92vw);
+        background: rgba(8, 15, 10, 0.95);
+        border-radius: 1.25rem;
+        padding: 1.75rem;
+        box-shadow: 0 28px 70px rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .tutorial-progress {
+        font-size: 0.85rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+      .tutorial-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      .tutorial-description {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        color: rgba(255, 255, 255, 0.85);
+      }
+
+      .tutorial-description p {
+        margin: 0;
+      }
+
+      .tutorial-actions {
+        margin-top: 0.5rem;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
+
+      .tutorial-button {
+        flex: 1;
+        border-radius: 999px;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      }
+
+      .tutorial-primary {
+        background: #7ed957;
+        color: #081507;
+        box-shadow: 0 16px 34px rgba(126, 217, 87, 0.35);
+      }
+
+      .tutorial-primary:hover,
+      .tutorial-primary:focus-visible {
+        transform: translateY(-2px);
+        box-shadow: 0 20px 40px rgba(126, 217, 87, 0.45);
+        outline: none;
+      }
+
+      .tutorial-secondary {
+        background: rgba(255, 255, 255, 0.15);
+        color: rgba(255, 255, 255, 0.85);
+      }
+
+      .tutorial-secondary:hover,
+      .tutorial-secondary:focus-visible {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.4);
+        outline: none;
+      }
+
+      .tutorial-highlight {
+        position: relative;
+        z-index: 50;
+        outline: 3px solid rgba(126, 217, 87, 0.9);
+        border-radius: 1rem;
+      }
+
+      .tutorial-illuminated {
+        animation: tutorial-illuminate 1.2s ease-in-out infinite;
+      }
+
+      .tutorial-pointer {
+        position: fixed;
+        width: 102px;
+        height: 162px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        z-index: 60;
+        transform: translate(-50%, 0);
+      }
+
+      .tutorial-pointer.hidden {
+        display: none;
+      }
+
+      .tutorial-pointer svg {
+        width: 100%;
+        height: 100%;
+        filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+        animation: tutorial-pointer-bounce 1.05s ease-in-out infinite;
+      }
+
+      @media (max-width: 768px) {
+        .tutorial-pointer {
+          width: 51px;
+          height: 81px;
+        }
+      }
+
+      @keyframes tutorial-pointer-bounce {
+        0%,
+        100% {
+          transform: translateY(4px);
+        }
+        50% {
+          transform: translateY(-6px);
+        }
+      }
+
+      @keyframes tutorial-illuminate {
+        0%,
+        100% {
+          box-shadow: 0 0 0 6px rgba(126, 217, 87, 0.7), 0 0 28px rgba(126, 217, 87, 0.55);
+        }
+        50% {
+          box-shadow: 0 0 0 10px rgba(255, 140, 66, 0.85), 0 0 42px rgba(255, 140, 66, 0.75);
+        }
+      }
+
       .setter-link {
         text-decoration: none;
         color: inherit;
@@ -631,8 +826,14 @@
         margin-top: 0.4rem;
       }
 
-      .info-callout-chart {
+      .info-callout-chart-wrapper {
         margin-top: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .info-callout-chart {
         display: flex;
         align-items: flex-end;
         gap: 0.18rem;
@@ -655,6 +856,15 @@
 
       .info-callout-chart-bar:last-child {
         border-top-right-radius: 0.45rem;
+      }
+
+      .info-callout-chart-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.75);
+        padding: 0 0.15rem;
+        letter-spacing: 0.02em;
       }
 
       .nav-links {
@@ -691,12 +901,12 @@
         --tooltip-muted-foreground: #d1d5db;
         --tooltip-surface: #0e150f;
         --tooltip-border-color: #7ed957;
-        --tooltip-grade-size: 7.5rem;
+        --tooltip-grade-size: 3.75rem;
         position: fixed;
         pointer-events: none;
         color: var(--tooltip-foreground, #fff);
         padding: 0.75rem 1rem;
-        padding-right: calc(1rem + var(--tooltip-grade-size, 7.5rem) * 0.7);
+        padding-right: calc(1rem + var(--tooltip-grade-size, 3.75rem) * 0.7);
         border-radius: 0.75rem;
         font-size: 0.85rem;
         line-height: 1.4;
@@ -758,20 +968,20 @@
         flex-direction: column;
         align-items: center;
         gap: 0.55rem;
-        min-width: var(--tooltip-grade-size, 7.5rem);
+        min-width: var(--tooltip-grade-size, 3.75rem);
         z-index: 1;
       }
 
       .route-tooltip .tooltip-grade-badge {
-        width: var(--tooltip-grade-size, 7.5rem);
-        height: var(--tooltip-grade-size, 7.5rem);
+        width: var(--tooltip-grade-size, 3.75rem);
+        height: var(--tooltip-grade-size, 3.75rem);
         border-radius: 50%;
         border: var(--tooltip-grade-stroke-width, 2px) solid var(--tooltip-accent, #7ed957);
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 700;
-        font-size: calc(var(--tooltip-grade-size, 7.5rem) * 0.32);
+        font-size: var(--tooltip-grade-font-size, 2.4rem);
         line-height: 1;
         color: var(--tooltip-on-accent, #000);
         background: rgb(var(--tooltip-accent-rgb, 126, 217, 87));
@@ -990,14 +1200,14 @@
           class="header-icon-button view-toggle"
           type="button"
           aria-pressed="false"
-          aria-label="Show Grade Colors"
-          title="Show Grade Colors"
+          aria-label="Switch to Coloring by Grade"
+          title="Switch to Coloring by Grade"
         >
           <span class="view-toggle-icon view-toggle-icon-grade" aria-hidden="true">
             <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
               <path
                 d="M6 19a3 3 0 0 1 0-6h12a2 2 0 0 0 0-4H8a4 4 0 0 1 0-8h10v2H8a2 2 0 0 0 0 4h10a4 4 0 0 1 0 8H6a1 1 0 0 0 0 2h12v2H6a3 3 0 0 1-3-3Z"
-                fill="currentColor"
+                fill="#ffffff"
               />
             </svg>
           </span>
@@ -1077,6 +1287,17 @@
       </header>
       <div class="canvas-container">
         <canvas id="previewCanvas" aria-hidden="true"></canvas>
+        <div class="focus-footer">
+          <button
+            id="clearFocusButton"
+            class="clear-focus-button hidden"
+            type="button"
+            data-info-target="route-focus"
+            aria-hidden="true"
+          >
+            Clear Focus
+          </button>
+        </div>
       </div>
     </div>
     <div
@@ -1130,6 +1351,40 @@
           </button>
         </div>
         <div id="locationOptions" class="location-options" role="listbox"></div>
+      </div>
+    </div>
+    <div
+      id="tutorialOverlay"
+      class="tutorial-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-hidden="true"
+      aria-labelledby="tutorialTitle"
+      aria-describedby="tutorialDescription"
+      data-tutorial-exempt="true"
+    >
+      <div id="tutorialDialogCard" class="tutorial-card" role="document" tabindex="-1">
+        <div id="tutorialProgress" class="tutorial-progress hidden" aria-live="polite"></div>
+        <h2 id="tutorialTitle" class="tutorial-title"></h2>
+        <div id="tutorialDescription" class="tutorial-description"></div>
+        <div class="tutorial-actions">
+          <button
+            id="tutorialSecondaryAction"
+            class="tutorial-button tutorial-secondary hidden"
+            type="button"
+            data-tutorial-exempt="true"
+          >
+            Back
+          </button>
+          <button
+            id="tutorialPrimaryAction"
+            class="tutorial-button tutorial-primary"
+            type="button"
+            data-tutorial-exempt="true"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
     <script type="module">
@@ -1187,6 +1442,13 @@
       const progressionModal = document.getElementById('progressionModal');
       const progressionModalClose = document.getElementById('progressionModalClose');
       const progressionList = document.getElementById('progressionList');
+      const tutorialOverlay = document.getElementById('tutorialOverlay');
+      const tutorialDialogCard = document.getElementById('tutorialDialogCard');
+      const tutorialTitle = document.getElementById('tutorialTitle');
+      const tutorialDescription = document.getElementById('tutorialDescription');
+      const tutorialPrimaryAction = document.getElementById('tutorialPrimaryAction');
+      const tutorialSecondaryAction = document.getElementById('tutorialSecondaryAction');
+      const tutorialProgress = document.getElementById('tutorialProgress');
 
       let infoHighlightsContainer = null;
       let infoModeActive = false;
@@ -1194,7 +1456,44 @@
       let activeInfoCallout = null;
       let pendingInfoRepositionFrame = null;
       let ephemeralCalloutDismissTimer = null;
-      let hasShownWelcomeCallout = false;
+      let tutorialPointer = null;
+      let tutorialPointerTarget = null;
+      let tutorialHighlightedElement = null;
+      let tutorialHighlightedElementOptions = { illuminate: false };
+      let tutorialPreviousFocus = null;
+      let tutorialActive = false;
+      let tutorialStepIndex = -1;
+      let tutorialTransitionInProgress = false;
+      let tutorialSteps = [];
+      let tutorialSecondaryActionMode = 'back';
+      let tutorialHighlightedRouteId = null;
+
+      let tutorialOptOut = false;
+
+      const PERSONAL_TUTORIAL_OPT_OUT_KEY = 'ascend.personalTutorial.optOut';
+
+      function readStoredTutorialOptOut() {
+        try {
+          return window.localStorage?.getItem(PERSONAL_TUTORIAL_OPT_OUT_KEY) === 'true';
+        } catch (error) {
+          console.warn('Failed to read tutorial preference:', error);
+          return false;
+        }
+      }
+
+      function persistTutorialOptOut(value) {
+        try {
+          if (value) {
+            window.localStorage?.setItem(PERSONAL_TUTORIAL_OPT_OUT_KEY, 'true');
+          } else {
+            window.localStorage?.removeItem(PERSONAL_TUTORIAL_OPT_OUT_KEY);
+          }
+        } catch (error) {
+          console.warn('Failed to persist tutorial preference:', error);
+        }
+      }
+
+      tutorialOptOut = readStoredTutorialOptOut();
 
       const LOCATIONS = [
         { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
@@ -1280,9 +1579,13 @@
       }
 
       function createGradeChartElement() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'info-callout-chart-wrapper';
+        wrapper.setAttribute('aria-hidden', 'true');
+
         const chart = document.createElement('div');
         chart.className = 'info-callout-chart';
-        chart.setAttribute('aria-hidden', 'true');
+        wrapper.appendChild(chart);
 
         const gradeEntries = Array.from(GRADE_COLOR_MAP.entries());
         const totalGrades = gradeEntries.length;
@@ -1301,7 +1604,29 @@
           chart.appendChild(bar);
         });
 
-        return chart;
+        if (gradeEntries.length) {
+          const labels = document.createElement('div');
+          labels.className = 'info-callout-chart-labels';
+
+          const middleIndex = Math.round((gradeEntries.length - 1) / 2);
+
+          const startLabel = document.createElement('span');
+          startLabel.textContent = formatGradeDisplay(Number(gradeEntries[0]?.[0] ?? NaN));
+
+          const middleLabel = document.createElement('span');
+          middleLabel.textContent = formatGradeDisplay(Number(gradeEntries[middleIndex]?.[0] ?? NaN));
+
+          const endLabel = document.createElement('span');
+          endLabel.textContent = formatGradeDisplay(Number(gradeEntries[gradeEntries.length - 1]?.[0] ?? NaN));
+
+          labels.appendChild(startLabel);
+          labels.appendChild(middleLabel);
+          labels.appendChild(endLabel);
+
+          wrapper.appendChild(labels);
+        }
+
+        return wrapper;
       }
 
       function isElementVisible(element) {
@@ -1317,6 +1642,514 @@
         return rect.width > 0 && rect.height > 0;
       }
 
+      function setTutorialDescriptionContent(content = []) {
+        if (!tutorialDescription) {
+          return;
+        }
+
+        tutorialDescription.innerHTML = '';
+
+        const fragment = document.createDocumentFragment();
+        const items = Array.isArray(content) ? content : [content];
+
+        items.forEach((item) => {
+          if (typeof item === 'string') {
+            const paragraph = document.createElement('p');
+            paragraph.textContent = item;
+            fragment.appendChild(paragraph);
+            return;
+          }
+
+          if (typeof item === 'function') {
+            try {
+              const result = item();
+              if (result instanceof Node) {
+                fragment.appendChild(result);
+              } else if (typeof result === 'string') {
+                const paragraph = document.createElement('p');
+                paragraph.textContent = result;
+                fragment.appendChild(paragraph);
+              }
+            } catch (error) {
+              console.warn('Unable to render tutorial content item:', error);
+            }
+            return;
+          }
+
+          if (item instanceof Node) {
+            fragment.appendChild(item);
+          }
+        });
+
+        tutorialDescription.appendChild(fragment);
+      }
+
+      function ensureTutorialPointer() {
+        if (tutorialPointer) {
+          return tutorialPointer;
+        }
+
+        tutorialPointer = document.createElement('div');
+        tutorialPointer.className = 'tutorial-pointer hidden';
+        tutorialPointer.setAttribute('aria-hidden', 'true');
+        tutorialPointer.innerHTML =
+          '<svg viewBox="0 0 64 96" role="presentation" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path fill="#27b4db" d="M32 0l32 36H44v56H20V36H0z"/></svg>';
+        document.body.appendChild(tutorialPointer);
+
+        return tutorialPointer;
+      }
+
+      function updateTutorialPointerPosition() {
+        if (!tutorialPointer || tutorialPointer.classList.contains('hidden')) {
+          return;
+        }
+
+        if (!tutorialPointerTarget || !isElementVisible(tutorialPointerTarget)) {
+          hideTutorialPointer();
+          return;
+        }
+
+        const rect = tutorialPointerTarget.getBoundingClientRect();
+        const verticalOffset = 12;
+
+        tutorialPointer.style.left = `${rect.left + rect.width / 2}px`;
+        tutorialPointer.style.top = `${rect.bottom + verticalOffset}px`;
+      }
+
+      function showTutorialPointerFor(element) {
+        if (!(element instanceof HTMLElement) || !isElementVisible(element)) {
+          hideTutorialPointer();
+          return;
+        }
+
+        ensureTutorialPointer();
+
+        tutorialPointerTarget = element;
+        tutorialPointer.classList.remove('hidden');
+        tutorialPointer.setAttribute('aria-hidden', 'false');
+        updateTutorialPointerPosition();
+      }
+
+      function hideTutorialPointer() {
+        if (!tutorialPointer) {
+          tutorialPointerTarget = null;
+          return;
+        }
+
+        tutorialPointerTarget = null;
+        tutorialPointer.classList.add('hidden');
+        tutorialPointer.setAttribute('aria-hidden', 'true');
+      }
+
+      window.addEventListener('resize', updateTutorialPointerPosition);
+      window.addEventListener('scroll', updateTutorialPointerPosition, true);
+
+      function highlightTutorialElement(element, options = {}) {
+        const shouldIlluminate = options?.illuminate === true;
+
+        if (tutorialHighlightedElement) {
+          if (tutorialHighlightedElement !== element || !element) {
+            tutorialHighlightedElement.classList.remove('tutorial-highlight');
+            tutorialHighlightedElement.classList.remove('tutorial-illuminated');
+            tutorialHighlightedElementOptions = { illuminate: false };
+          } else if (tutorialHighlightedElementOptions.illuminate !== shouldIlluminate) {
+            tutorialHighlightedElement.classList.toggle('tutorial-illuminated', shouldIlluminate);
+            tutorialHighlightedElementOptions = { illuminate: shouldIlluminate };
+            return;
+          } else {
+            return;
+          }
+        }
+
+        if (element instanceof HTMLElement) {
+          element.classList.add('tutorial-highlight');
+          element.classList.toggle('tutorial-illuminated', shouldIlluminate);
+          tutorialHighlightedElement = element;
+          tutorialHighlightedElementOptions = { illuminate: shouldIlluminate };
+        } else {
+          tutorialHighlightedElement = null;
+          tutorialHighlightedElementOptions = { illuminate: false };
+        }
+      }
+
+      function setTutorialOverlayAlignment(alignment = 'center') {
+        if (!tutorialOverlay) {
+          return;
+        }
+
+        const shouldAlignBottom = alignment === 'bottom';
+        tutorialOverlay.classList.toggle('is-bottom-aligned', shouldAlignBottom);
+      }
+
+      function openTutorialOverlay() {
+        if (!tutorialOverlay) {
+          return;
+        }
+
+        tutorialPreviousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+        tutorialOverlay.classList.remove('hidden');
+        tutorialOverlay.setAttribute('aria-hidden', 'false');
+
+        if (tutorialDialogCard && typeof tutorialDialogCard.focus === 'function') {
+          tutorialDialogCard.focus();
+        }
+      }
+
+      function closeTutorialOverlay() {
+        if (!tutorialOverlay) {
+          return;
+        }
+
+        tutorialOverlay.classList.add('hidden');
+        tutorialOverlay.setAttribute('aria-hidden', 'true');
+
+        if (tutorialPreviousFocus && typeof tutorialPreviousFocus.focus === 'function') {
+          tutorialPreviousFocus.focus();
+        }
+
+        tutorialPreviousFocus = null;
+      }
+
+      function renderTutorialStepContent() {
+        if (!tutorialActive) {
+          return;
+        }
+
+        const step = tutorialSteps[tutorialStepIndex];
+        if (!step) {
+          return;
+        }
+
+        if (tutorialTitle) {
+          tutorialTitle.textContent = step.title || '';
+        }
+
+        setTutorialDescriptionContent(step.body || []);
+
+        if (tutorialProgress) {
+          tutorialProgress.textContent = `Step ${tutorialStepIndex + 1} of ${tutorialSteps.length}`;
+          tutorialProgress.classList.toggle('hidden', tutorialSteps.length <= 1);
+        }
+
+        if (tutorialPrimaryAction) {
+          tutorialPrimaryAction.textContent =
+            tutorialStepIndex === tutorialSteps.length - 1 ? 'Finish' : 'Next';
+        }
+
+        if (tutorialSecondaryAction) {
+          let secondaryLabel = 'Back';
+          let shouldShowSecondary = tutorialStepIndex > 0;
+          tutorialSecondaryActionMode = 'back';
+
+          if (tutorialStepIndex === 0) {
+            secondaryLabel = 'Skip';
+            shouldShowSecondary = true;
+            tutorialSecondaryActionMode = 'skip';
+          }
+
+          tutorialSecondaryAction.textContent = secondaryLabel;
+          tutorialSecondaryAction.dataset.mode = tutorialSecondaryActionMode;
+          tutorialSecondaryAction.classList.toggle('hidden', !shouldShowSecondary);
+        }
+      }
+
+      async function ensureRoutesAvailableForTutorial() {
+        if (Array.isArray(routes) && routes.length) {
+          return routes;
+        }
+
+        if (Array.isArray(allRoutes) && allRoutes.length) {
+          return allRoutes;
+        }
+
+        try {
+          await loadRoutes();
+        } catch (error) {
+          console.warn('Unable to refresh routes for tutorial:', error);
+        }
+
+        if (Array.isArray(routes) && routes.length) {
+          return routes;
+        }
+
+        if (Array.isArray(allRoutes) && allRoutes.length) {
+          return allRoutes;
+        }
+
+        return [];
+      }
+
+      async function showTutorialRouteTooltip() {
+        const availableRoutes = await ensureRoutesAvailableForTutorial();
+        if (!Array.isArray(availableRoutes) || availableRoutes.length === 0) {
+          return;
+        }
+
+        const targetRoute = availableRoutes.find((route) => route && typeof route.id === 'string');
+        if (!targetRoute) {
+          return;
+        }
+
+        tutorialHighlightedRouteId = targetRoute.id;
+        focusRoute(targetRoute);
+        showTooltip(targetRoute, window.innerWidth / 2, window.innerHeight / 2, { pin: true });
+      }
+
+      function closeTutorialRouteTooltip() {
+        if (tutorialHighlightedRouteId) {
+          const targetRoute =
+            (Array.isArray(routes) ? routes : []).find((route) => route?.id === tutorialHighlightedRouteId) ||
+            (Array.isArray(allRoutes) ? allRoutes : []).find((route) => route?.id === tutorialHighlightedRouteId);
+
+          if (targetRoute) {
+            setRouteFocus(targetRoute, false);
+          } else if (focusedRouteId === tutorialHighlightedRouteId) {
+            focusedRouteId = null;
+            updateClearFocusButton();
+            redraw();
+          }
+        }
+
+        tutorialHighlightedRouteId = null;
+        hideTooltip({ force: true });
+      }
+
+      function buildPersonalTutorialSteps() {
+        const steps = [
+          {
+            title: 'Welcome to your dashboard',
+            body: [
+              'This is your personal space for logging sends, saving projects, and keeping track of the climbs you care about.',
+              'Use it to scan the wall, review your history, and stay focused on the problems you want to finish next.',
+            ],
+            onEnter: () => {
+              setTutorialOverlayAlignment('center');
+              highlightTutorialElement(null);
+              hideTutorialPointer();
+              closeTutorialRouteTooltip();
+            },
+            onExit: () => {
+              highlightTutorialElement(null);
+            },
+          },
+          {
+            title: 'Route details & tracking',
+            body: [
+              'Tap any climb to open its tooltip. You\'ll see the setter, community grade, and everything you\'ve logged.',
+              'Mark Ascended when you send it to add the climb to your ticklist automatically.',
+              'Double-click the climb to isolate it on the wall, then use Clear Focus when you\'re ready to see every route again.',
+              'Fill in Your grade to capture how the problem felt and compare it with the gym consensus.',
+            ],
+            onEnter: async () => {
+              setTutorialOverlayAlignment('bottom');
+              highlightTutorialElement(null);
+              hideTutorialPointer();
+              await showTutorialRouteTooltip();
+            },
+            onExit: () => {
+              hideTutorialPointer();
+              closeTutorialRouteTooltip();
+              setTutorialOverlayAlignment('center');
+            },
+          },
+          {
+            title: 'Track your progression',
+            body: [
+              'Open the Progression button to review your ascents, see focused projects, and keep tabs on what\'s next.',
+              'It pulls together the climbs you\'ve marked Ascended or focused so you can manage your training plan.',
+            ],
+            onEnter: () => {
+              setTutorialOverlayAlignment('bottom');
+              if (progressionButton && isElementVisible(progressionButton)) {
+                openProgressionModal();
+                highlightTutorialElement(progressionButton, { illuminate: true });
+                showTutorialPointerFor(progressionButton);
+              } else {
+                closeProgressionModal();
+                highlightTutorialElement(null);
+                hideTutorialPointer();
+              }
+            },
+            onExit: () => {
+              hideTutorialPointer();
+              highlightTutorialElement(null);
+              closeProgressionModal();
+              setTutorialOverlayAlignment('center');
+            },
+          },
+        ];
+
+        if (setterLink && !setterLink.classList.contains('hidden') && isElementVisible(setterLink)) {
+          steps.push({
+            title: 'Setter tools',
+            body: [
+              'Setters can jump straight into the workspace from here to plan new climbs and publish updates.',
+              'Use it whenever you need to switch from climbing to setting mode without leaving the dashboard.',
+            ],
+            onEnter: () => {
+              setTutorialOverlayAlignment('center');
+              if (setterLink && isElementVisible(setterLink)) {
+                highlightTutorialElement(setterLink, { illuminate: true });
+                showTutorialPointerFor(setterLink);
+              } else {
+                highlightTutorialElement(null);
+                hideTutorialPointer();
+              }
+            },
+            onExit: () => {
+              hideTutorialPointer();
+              highlightTutorialElement(null);
+            },
+          });
+        }
+
+        return steps;
+      }
+
+      function detachTutorialKeydown() {
+        document.removeEventListener('keydown', handleTutorialKeydown, true);
+      }
+
+      function attachTutorialKeydown() {
+        document.addEventListener('keydown', handleTutorialKeydown, true);
+      }
+
+      async function goToTutorialStep(index) {
+        if (!tutorialActive || tutorialTransitionInProgress) {
+          return;
+        }
+
+        if (index < 0 || index >= tutorialSteps.length) {
+          return;
+        }
+
+        tutorialTransitionInProgress = true;
+
+        if (tutorialStepIndex >= 0 && tutorialStepIndex < tutorialSteps.length) {
+          const currentStep = tutorialSteps[tutorialStepIndex];
+          if (currentStep && typeof currentStep.onExit === 'function') {
+            try {
+              await currentStep.onExit();
+            } catch (error) {
+              console.warn('Tutorial step cleanup failed:', error);
+            }
+          }
+        }
+
+        tutorialStepIndex = index;
+        renderTutorialStepContent();
+
+        const nextStep = tutorialSteps[tutorialStepIndex];
+        if (nextStep && typeof nextStep.onEnter === 'function') {
+          try {
+            await nextStep.onEnter();
+          } catch (error) {
+            console.warn('Tutorial step setup failed:', error);
+          }
+        }
+
+        tutorialTransitionInProgress = false;
+
+        if (tutorialPrimaryAction && tutorialStepIndex === tutorialSteps.length - 1) {
+          tutorialPrimaryAction.focus();
+        }
+      }
+
+      async function startTutorial() {
+        if (tutorialOptOut || tutorialActive || tutorialTransitionInProgress) {
+          return;
+        }
+
+        tutorialSteps = buildPersonalTutorialSteps();
+        if (!Array.isArray(tutorialSteps) || tutorialSteps.length === 0) {
+          return;
+        }
+
+        tutorialActive = true;
+        tutorialStepIndex = -1;
+        tutorialTransitionInProgress = false;
+        openTutorialOverlay();
+        attachTutorialKeydown();
+
+        await goToTutorialStep(0);
+      }
+
+      async function finishTutorial() {
+        if (!tutorialActive && !tutorialTransitionInProgress) {
+          return;
+        }
+
+        tutorialTransitionInProgress = true;
+
+        if (tutorialStepIndex >= 0 && tutorialStepIndex < tutorialSteps.length) {
+          const finalStep = tutorialSteps[tutorialStepIndex];
+          if (finalStep && typeof finalStep.onExit === 'function') {
+            try {
+              await finalStep.onExit();
+            } catch (error) {
+              console.warn('Tutorial step cleanup failed:', error);
+            }
+          }
+        }
+
+        tutorialActive = false;
+        tutorialStepIndex = -1;
+        tutorialTransitionInProgress = false;
+        tutorialSteps = [];
+
+        highlightTutorialElement(null);
+        hideTutorialPointer();
+        closeTutorialRouteTooltip();
+        setTutorialOverlayAlignment('center');
+        detachTutorialKeydown();
+        closeTutorialOverlay();
+
+        if (tutorialProgress) {
+          tutorialProgress.classList.add('hidden');
+        }
+      }
+
+      async function skipTutorial() {
+        tutorialOptOut = true;
+        persistTutorialOptOut(true);
+        await finishTutorial();
+      }
+
+      function handleTutorialKeydown(event) {
+        if (!tutorialActive) {
+          return;
+        }
+
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          if (tutorialSecondaryActionMode === 'skip') {
+            void skipTutorial();
+          } else {
+            void finishTutorial();
+          }
+          return;
+        }
+
+        if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          if (tutorialStepIndex < tutorialSteps.length - 1) {
+            void goToTutorialStep(tutorialStepIndex + 1);
+          } else {
+            finishTutorial();
+          }
+          return;
+        }
+
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          if (tutorialStepIndex > 0) {
+            void goToTutorialStep(tutorialStepIndex - 1);
+          }
+        }
+      }
+
+
       function buildViewModeCallout() {
         if (!viewToggleButton) {
           return null;
@@ -1327,11 +2160,12 @@
         const lines = showingGradeColors
           ? [
               'Routes are tinted by difficulty right now.',
-              'The spectrum below runs from the easiest greens on the left to the hardest reds on the right, covering every grade color.',
+              'Climbs without a recorded grade show a neutral grey until someone logs one.',
+              'Tap the palette icon to switch back to Coloring by Holds whenever you want setter colours again.',
             ]
           : [
-              'Routes are showing the color of each hold set.',
-              'Toggle to reveal grade colors and compare difficulty at a glance.',
+              'Routes are showing the colour of each hold set.',
+              'Switch to Coloring by Grade with the palette icon to compare difficulty at a glance.',
             ];
 
         const callout = createBasicCallout(title, lines);
@@ -1437,12 +2271,12 @@
           return null;
         }
 
-        const isFocused = target.getAttribute('aria-pressed') === 'true';
+        const hasFocusedRoute = Boolean(focusedRouteId);
         const callout = createBasicCallout('Focus view', [
-          isFocused
-            ? 'All routes are visible again. Toggle Focus to isolate a single climb.'
-            : 'Show only this route to inspect its holds without distractions.',
-          'Use it to study beta before hopping back to the full wall.',
+          'Double-click any route to isolate it and study its holds without distractions.',
+          hasFocusedRoute
+            ? 'Select Clear Focus to bring the rest of the wall back into view.'
+            : 'When a route is focused, a Clear Focus button appears here to restore the full wall.',
         ]);
 
         return {
@@ -1468,48 +2302,6 @@
           element: callout,
           options: { placement: 'top', offset: 12 },
         };
-      }
-
-      function buildWelcomeCallout() {
-        if (!infoButton || !isElementVisible(infoButton)) {
-          return null;
-        }
-
-        const callout = createBasicCallout('Welcome to Ascend', [
-          'Explore the wall to discover climbs and track your progress.',
-          'Tap a route to study beta, log your ascent, and compare community grades.',
-        ]);
-
-        callout.setAttribute('role', 'status');
-        callout.tabIndex = 0;
-        callout.addEventListener('click', () => {
-          if (activeInfoCallout?.element === callout) {
-            clearInfoHighlights();
-          }
-        });
-
-        return {
-          target: infoButton,
-          element: callout,
-          options: { placement: 'bottom', offset: 12, margin: 20 },
-        };
-      }
-
-      function showWelcomeCallout() {
-        if (hasShownWelcomeCallout || infoModeActive) {
-          return;
-        }
-
-        const entry = buildWelcomeCallout();
-        if (!entry) {
-          return;
-        }
-
-        hasShownWelcomeCallout = true;
-
-        requestAnimationFrame(() => {
-          showTemporaryInfoCallout(entry, 11000);
-        });
       }
 
       function positionCallout(entry) {
@@ -1658,6 +2450,7 @@
         if (clearCallout) {
           clearInfoHighlights();
         }
+
       }
 
       function toggleInfoMode() {
@@ -1782,6 +2575,10 @@
         [30, '#C10407'],
         [31, '#BD0306'],
       ]);
+      const DEFAULT_GRADELESS_COLOR = '#6b7280';
+      const MIN_BREZER_STROKE_WIDTH = 2;
+      const MAX_BREZER_STROKE_WIDTH = 40;
+      const DEFAULT_BREZER_STROKE_WIDTH = 10;
       const VIEW_MODE_HOLD_COLORS = 'hold-colors';
       const VIEW_MODE_GRADE_COLORS = 'grade-colors';
 
@@ -1818,6 +2615,18 @@
         const clamped = Math.min(
           Math.max(Math.round(numeric), MIN_RECTANGLE_SIZE),
           MAX_RECTANGLE_SIZE,
+        );
+        return clamped;
+      }
+
+      function normalizeBrezerStrokeWidth(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return DEFAULT_BREZER_STROKE_WIDTH;
+        }
+        const clamped = Math.min(
+          Math.max(Math.round(numeric), MIN_BREZER_STROKE_WIDTH),
+          MAX_BREZER_STROKE_WIDTH,
         );
         return clamped;
       }
@@ -1873,6 +2682,7 @@
             pointDiameter: DEFAULT_POINT_DIAMETER,
             rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
             rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
+            brezerStrokeWidth: DEFAULT_BREZER_STROKE_WIDTH,
             gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
             gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
             gradeBarWidth: DEFAULT_GRADE_BAR_WIDTH,
@@ -1890,6 +2700,7 @@
           raw.rectangleHeight,
           DEFAULT_RECTANGLE_HEIGHT,
         );
+        const brezerStrokeWidth = normalizeBrezerStrokeWidth(raw.brezerStrokeWidth);
         const gradeBarBaseHeight = normalizeGradeBarHeight(
           raw.gradeBarBaseHeight,
           DEFAULT_GRADE_BAR_BASE_HEIGHT,
@@ -1910,6 +2721,7 @@
           pointDiameter,
           rectangleWidth,
           rectangleHeight,
+          brezerStrokeWidth,
           gradeBarBaseHeight,
           gradeBarMaxHeight,
           gradeBarWidth,
@@ -1950,6 +2762,7 @@
           pointDiameter: DEFAULT_POINT_DIAMETER,
           rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
           rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
+          brezerStrokeWidth: DEFAULT_BREZER_STROKE_WIDTH,
           gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
           gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
           gradeBarWidth: DEFAULT_GRADE_BAR_WIDTH,
@@ -2213,7 +3026,9 @@
         }
 
         const showingGradeColors = viewMode === VIEW_MODE_GRADE_COLORS;
-        const labelText = showingGradeColors ? 'Show Hold Colors' : 'Show Grade Colors';
+        const labelText = showingGradeColors
+          ? 'Switch to Coloring by Holds'
+          : 'Switch to Coloring by Grade';
         viewToggleButton.setAttribute('aria-pressed', showingGradeColors ? 'true' : 'false');
         viewToggleButton.setAttribute('aria-label', labelText);
         viewToggleButton.setAttribute('title', labelText);
@@ -2769,6 +3584,48 @@
         });
       }
 
+      if (tutorialPrimaryAction) {
+        tutorialPrimaryAction.addEventListener('click', () => {
+          if (!tutorialActive) {
+            return;
+          }
+
+          if (tutorialStepIndex >= tutorialSteps.length - 1) {
+            void finishTutorial();
+          } else {
+            void goToTutorialStep(tutorialStepIndex + 1);
+          }
+        });
+      }
+
+      if (tutorialSecondaryAction) {
+        tutorialSecondaryAction.addEventListener('click', () => {
+          if (!tutorialActive) {
+            return;
+          }
+
+          const mode = tutorialSecondaryAction.dataset.mode || tutorialSecondaryActionMode;
+          if (mode === 'skip') {
+            void skipTutorial();
+            return;
+          }
+
+          if (tutorialStepIndex <= 0) {
+            return;
+          }
+
+          void goToTutorialStep(tutorialStepIndex - 1);
+        });
+      }
+
+      if (tutorialOverlay) {
+        tutorialOverlay.addEventListener('click', (event) => {
+          if (event.target === tutorialOverlay) {
+            void finishTutorial();
+          }
+        });
+      }
+
       if (locationModalClose) {
         locationModalClose.addEventListener('click', (event) => {
           event.preventDefault();
@@ -3026,22 +3883,28 @@
             role: trimmedRole,
           };
 
-          if (effectiveLower !== normalizedUsername || !existingData.username) {
-            try {
-              await setDoc(
-                roleRef,
-                {
-                  username: normalizedUsername,
-                  usernameLower: normalizedUsername,
-                  updatedAt: serverTimestamp(),
-                },
-                { merge: true },
-              );
-              mergedData.username = normalizedUsername;
-              mergedData.usernameLower = normalizedUsername;
-              effectiveLower = normalizedUsername;
-            } catch (error) {
-              console.warn('Failed to synchronise username on role document:', error);
+          const needsUsernameUpdate =
+            effectiveLower !== normalizedUsername || !existingData.username;
+
+          if (needsUsernameUpdate) {
+            mergedData.username = normalizedUsername;
+            mergedData.usernameLower = normalizedUsername;
+            effectiveLower = normalizedUsername;
+
+            if (trimmedRole !== 'default') {
+              try {
+                await setDoc(
+                  roleRef,
+                  {
+                    username: normalizedUsername,
+                    usernameLower: normalizedUsername,
+                    updatedAt: serverTimestamp(),
+                  },
+                  { merge: true },
+                );
+              } catch (error) {
+                console.warn('Failed to synchronise username on role document:', error);
+              }
             }
           }
 
@@ -3069,11 +3932,21 @@
           role,
           username: normalizedUsername,
           usernameLower: normalizedUsername,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
         };
 
-        await setDoc(roleRef, roleData, { merge: true });
+        if (role === 'default') {
+          return roleData;
+        }
+
+        await setDoc(
+          roleRef,
+          {
+            ...roleData,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true },
+        );
         return roleData;
       }
 
@@ -3104,7 +3977,9 @@
             return;
           }
 
-          const shouldHideSetterLink = role !== 'setter';
+          const normalizedRole = typeof role === 'string' ? role.trim().toLowerCase() : '';
+          const shouldHideSetterLink =
+            normalizedRole !== 'setter' && normalizedRole !== 'admin';
           setterLink.classList.toggle('hidden', shouldHideSetterLink);
 
           if (shouldHideSetterLink && activeInfoCallout?.target === setterLink) {
@@ -3138,16 +4013,16 @@
           updateNavigationForRole(role);
           appContent.classList.remove('hidden');
 
-          try {
-            await loadAscents({ userId: user.uid, username: currentUsername });
-            await loadRoutes();
-          } finally {
-            showWelcomeCallout();
+          await loadAscents({ userId: user.uid, username: currentUsername });
+          await loadRoutes();
+          if (!tutorialOptOut) {
+            await startTutorial();
           }
         } else {
           authOverlay.classList.remove('hidden');
           appContent.classList.add('hidden');
           setterLink.classList.add('hidden');
+          void finishTutorial();
           if (infoModeActive) {
             deactivateInfoMode({ clearCallout: true });
           } else if (activeInfoCallout) {
@@ -3157,13 +4032,13 @@
           setAuthMode('login');
           routes = [];
           focusedRouteId = null;
+          updateClearFocusButton();
           currentUser = null;
           currentUsername = '';
           authenticatedUsernameClaim = '';
           ascendedRoutes.clear();
           routeGrades.clear();
           routeMedianGrades = new Map();
-          hasShownWelcomeCallout = false;
           hideTooltip({ force: true });
           redraw();
         }
@@ -3173,7 +4048,16 @@
 
       const canvasContainer = document.querySelector('.canvas-container');
       const canvas = document.getElementById('previewCanvas');
+      const clearFocusButton = document.getElementById('clearFocusButton');
       const ctx = canvas.getContext('2d');
+
+      if (clearFocusButton) {
+        clearFocusButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          clearRouteFocus();
+        });
+      }
 
       syncViewModeState();
       updateViewToggleButton();
@@ -3194,6 +4078,96 @@
       let userAscentDetails = new Map();
       let routeMedianGrades = new Map();
       let progressionPreviouslyFocusedElement = null;
+      const CLICK_DRAG_DISTANCE_THRESHOLD = 8;
+      const CLICK_DRAG_DISTANCE_THRESHOLD_SQUARED =
+        CLICK_DRAG_DISTANCE_THRESHOLD * CLICK_DRAG_DISTANCE_THRESHOLD;
+      let activePointerInteraction = null;
+
+      const DOUBLE_FOCUS_TIME_THRESHOLD = 350;
+      const DOUBLE_FOCUS_DISTANCE_THRESHOLD = 32;
+      let lastFocusActivation = {
+        time: 0,
+        routeId: null,
+        pointerType: '',
+        x: 0,
+        y: 0,
+      };
+
+      updateClearFocusButton();
+
+      function resetLastFocusActivation() {
+        lastFocusActivation = {
+          time: 0,
+          routeId: null,
+          pointerType: '',
+          x: 0,
+          y: 0,
+        };
+      }
+
+      function resolvePointerType(event) {
+        if (!event) {
+          return '';
+        }
+
+        if (typeof event.pointerType === 'string') {
+          return event.pointerType;
+        }
+
+        if (typeof event.type === 'string') {
+          if (event.type.startsWith('mouse')) {
+            return 'mouse';
+          }
+          if (event.type.startsWith('touch')) {
+            return 'touch';
+          }
+          if (event.type.startsWith('pen')) {
+            return 'pen';
+          }
+        }
+
+        return '';
+      }
+
+      function shouldFocusFromInteraction(event, entry) {
+        if (!entry || !entry.route || typeof entry.route.id !== 'string') {
+          resetLastFocusActivation();
+          return false;
+        }
+
+        const pointerType = resolvePointerType(event);
+        const now = typeof event?.timeStamp === 'number' ? event.timeStamp : Date.now();
+        const clickCount = typeof event?.detail === 'number' ? event.detail : 0;
+        let isDoubleActivation = clickCount >= 2;
+
+        if (!isDoubleActivation && lastFocusActivation.routeId) {
+          const elapsed = now - lastFocusActivation.time;
+          if (elapsed <= DOUBLE_FOCUS_TIME_THRESHOLD) {
+            const pointerMatches =
+              !pointerType || !lastFocusActivation.pointerType
+                ? true
+                : pointerType === lastFocusActivation.pointerType;
+            if (pointerMatches && entry.route.id === lastFocusActivation.routeId) {
+              const dx = (entry.canvasX ?? 0) - (lastFocusActivation.x ?? 0);
+              const dy = (entry.canvasY ?? 0) - (lastFocusActivation.y ?? 0);
+              const distanceSquared = dx * dx + dy * dy;
+              if (distanceSquared <= DOUBLE_FOCUS_DISTANCE_THRESHOLD * DOUBLE_FOCUS_DISTANCE_THRESHOLD) {
+                isDoubleActivation = true;
+              }
+            }
+          }
+        }
+
+        lastFocusActivation = {
+          time: now,
+          routeId: entry.route.id,
+          pointerType,
+          x: entry.canvasX ?? 0,
+          y: entry.canvasY ?? 0,
+        };
+
+        return isDoubleActivation;
+      }
 
       function synchroniseAscentsWithRoutes(options = {}) {
         const { shouldRedraw = true } = options;
@@ -3977,23 +4951,6 @@
           ensureActionsContainer().appendChild(actionButton);
         }
 
-        const focusButton = document.createElement('button');
-        focusButton.type = 'button';
-        focusButton.className = 'tooltip-action-button focus-toggle';
-        const isFocused = focusedRouteId === route.id;
-        if (!isFocused) {
-          focusButton.classList.add('is-quiet');
-        }
-        focusButton.textContent = isFocused ? 'Remove focus' : 'Focus';
-        focusButton.setAttribute('aria-pressed', isFocused ? 'true' : 'false');
-        focusButton.dataset.infoTarget = 'route-focus';
-        focusButton.addEventListener('click', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          toggleRouteFocus(route);
-        });
-        ensureActionsContainer().appendChild(focusButton);
-
         fragment.appendChild(gradeCluster);
         if (actionsContainer) {
           fragment.appendChild(actionsContainer);
@@ -4114,6 +5071,50 @@
         pinnedPosition = null;
       }
 
+      function updateClearFocusButton() {
+        if (!clearFocusButton) {
+          return;
+        }
+
+        const hasFocusedRoute = Boolean(focusedRouteId);
+        clearFocusButton.classList.toggle('hidden', !hasFocusedRoute);
+        clearFocusButton.setAttribute('aria-hidden', hasFocusedRoute ? 'false' : 'true');
+
+        if (hasFocusedRoute) {
+          clearFocusButton.removeAttribute('disabled');
+        } else {
+          clearFocusButton.setAttribute('disabled', 'true');
+          if (document.activeElement === clearFocusButton && typeof clearFocusButton.blur === 'function') {
+            clearFocusButton.blur();
+          }
+        }
+      }
+
+      function clearRouteFocus() {
+        if (!focusedRouteId) {
+          return;
+        }
+
+        resetLastFocusActivation();
+
+        const activeRoutes = Array.isArray(routes) ? routes : [];
+        const fallbackRoutes = Array.isArray(allRoutes) ? allRoutes : [];
+        const route =
+          activeRoutes.find((entry) => entry?.id === focusedRouteId) ||
+          fallbackRoutes.find((entry) => entry?.id === focusedRouteId) ||
+          null;
+
+        if (route) {
+          setRouteFocus(route, false);
+          return;
+        }
+
+        focusedRouteId = null;
+        updateClearFocusButton();
+        redraw();
+        renderProgressionList();
+      }
+
       function setRouteFocus(route, shouldFocus) {
         if (!route || typeof route.id !== 'string') {
           return;
@@ -4125,6 +5126,7 @@
         );
 
         if (focusedRouteId === nextFocusedId) {
+          updateClearFocusButton();
           redraw();
 
           if (tooltip && tooltip.classList.contains('visible') && activeRouteId === route.id) {
@@ -4145,6 +5147,7 @@
         }
 
         focusedRouteId = nextFocusedId;
+        updateClearFocusButton();
 
         redraw();
 
@@ -4163,15 +5166,12 @@
       }
 
       function focusRoute(route) {
+        const shouldCloseProgression = isProgressionModalOpen();
         setRouteFocus(route, true);
-      }
 
-      function toggleRouteFocus(route) {
-        if (!route || typeof route.id !== 'string') {
-          return;
+        if (shouldCloseProgression) {
+          closeProgressionModal();
         }
-
-        setRouteFocus(route, focusedRouteId !== route.id);
       }
 
       function extractClientPoint(event) {
@@ -4264,6 +5264,91 @@
         return null;
       }
 
+      function beginPointerInteraction(event) {
+        const point = extractClientPoint(event);
+        if (!point) {
+          activePointerInteraction = null;
+          return;
+        }
+
+        const pointerId = 'pointerId' in event ? event.pointerId : null;
+        activePointerInteraction = {
+          pointerId,
+          startX: point.x,
+          startY: point.y,
+          latestX: point.x,
+          latestY: point.y,
+          dragging: false,
+        };
+      }
+
+      function updatePointerInteraction(event) {
+        if (!activePointerInteraction) {
+          return;
+        }
+
+        if (
+          'pointerId' in event &&
+          activePointerInteraction.pointerId !== null &&
+          event.pointerId !== activePointerInteraction.pointerId
+        ) {
+          return;
+        }
+
+        const point = extractClientPoint(event);
+        if (!point) {
+          return;
+        }
+
+        activePointerInteraction.latestX = point.x;
+        activePointerInteraction.latestY = point.y;
+
+        if (!activePointerInteraction.dragging) {
+          const movementSquared = distanceSquared(
+            activePointerInteraction.startX,
+            activePointerInteraction.startY,
+            point.x,
+            point.y,
+          );
+
+          if (movementSquared > CLICK_DRAG_DISTANCE_THRESHOLD_SQUARED) {
+            activePointerInteraction.dragging = true;
+          }
+        }
+      }
+
+      function concludePointerInteraction(event) {
+        if (!activePointerInteraction) {
+          return null;
+        }
+
+        if (
+          'pointerId' in event &&
+          activePointerInteraction.pointerId !== null &&
+          event.pointerId !== activePointerInteraction.pointerId
+        ) {
+          return null;
+        }
+
+        const point = extractClientPoint(event);
+        const resolvedX = point?.x ?? activePointerInteraction.latestX;
+        const resolvedY = point?.y ?? activePointerInteraction.latestY;
+
+        const result = {
+          x: resolvedX,
+          y: resolvedY,
+          dragging: activePointerInteraction.dragging,
+        };
+
+        activePointerInteraction = null;
+        return result;
+      }
+
+      function cancelPointerInteraction() {
+        activePointerInteraction = null;
+        resetLastFocusActivation();
+      }
+
       function applyLocationFilter() {
         const desiredLocation = normalizeLocationName(currentLocation?.name);
         const fallbackLocation = normalizeLocationName(getDefaultLocation()?.name);
@@ -4285,6 +5370,7 @@
           const hasFocusedRoute = routes.some((route) => route.id === focusedRouteId);
           if (!hasFocusedRoute) {
             focusedRouteId = null;
+            updateClearFocusButton();
             hideTooltip({ force: true });
           }
         }
@@ -4387,6 +5473,7 @@
                 pointDiameter: data.pointDiameter,
                 rectangleWidth: data.rectangleWidth,
                 rectangleHeight: data.rectangleHeight,
+                brezerStrokeWidth: data.brezerStrokeWidth,
                 gradeBarBaseHeight: data.gradeBarBaseHeight,
                 gradeBarMaxHeight: data.gradeBarMaxHeight,
                 gradeBarWidth: data.gradeBarWidth,
@@ -4411,6 +5498,7 @@
                 pointDiameter: wallSettings.pointDiameter,
                 rectangleWidth: wallSettings.rectangleWidth,
                 rectangleHeight: wallSettings.rectangleHeight,
+                brezerStrokeWidth: wallSettings.brezerStrokeWidth,
                 gradeBarBaseHeight: wallSettings.gradeBarBaseHeight,
                 gradeBarMaxHeight: wallSettings.gradeBarMaxHeight,
                 gradeBarWidth: wallSettings.gradeBarWidth,
@@ -4431,6 +5519,7 @@
           allRoutes = [];
           routes = [];
           focusedRouteId = null;
+          updateClearFocusButton();
           routeMedianGrades = new Map();
           renderProgressionList();
           redraw();
@@ -4607,6 +5696,7 @@
             focusedRoutePointKeys = buildNormalizedPointKeySet(resolvedFocusRoute.points);
           } else {
             focusedRouteId = null;
+            updateClearFocusButton();
           }
         }
 
@@ -4755,7 +5845,8 @@
 
       function getRouteDisplayColor(route) {
         if (viewMode === VIEW_MODE_GRADE_COLORS) {
-          return getRouteGradeColor(route) ?? getRouteStrokeColor(route);
+          const gradeColor = getRouteGradeColor(route);
+          return gradeColor ?? DEFAULT_GRADELESS_COLOR;
         }
         return getRouteStrokeColor(route);
       }
@@ -4958,6 +6049,9 @@
 
       function calculateRouteStrokeWidth(route) {
         const pathType = normalizePathType(route?.pathType);
+        if (pathType === PATH_TYPE_BREZER) {
+          return normalizeBrezerStrokeWidth(route?.brezerStrokeWidth);
+        }
         if (pathType === PATH_TYPE_POINT) {
           const diameter = normalizePointDiameter(route?.pointDiameter);
           return Math.max(2, Math.round(diameter / 10));
@@ -4967,7 +6061,7 @@
           const height = normalizeRectangleSize(route?.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT);
           return Math.max(2, Math.round(Math.max(width, height) / 10));
         }
-        return 10;
+        return DEFAULT_BREZER_STROKE_WIDTH;
       }
 
       function drawRoute(route, options = {}) {
@@ -5192,6 +6286,8 @@
       }
 
       function handlePointerMove(event) {
+        updatePointerInteraction(event);
+
         if ('pointerType' in event) {
           const pointerType = event.pointerType;
           if (pointerType && pointerType !== 'mouse' && pointerType !== 'pen') {
@@ -5200,7 +6296,13 @@
           }
         }
 
-        const entry = getRouteEntryAtClientPoint(event.clientX, event.clientY);
+        const point = extractClientPoint(event);
+        if (!point) {
+          canvas.style.cursor = '';
+          return;
+        }
+
+        const entry = getRouteEntryAtClientPoint(point.x, point.y);
 
         if (entry && entry.route) {
           canvas.style.cursor = 'pointer';
@@ -5220,18 +6322,37 @@
       }
 
       function handleCanvasPointerDown(event) {
-        const point = extractClientPoint(event);
-        if (!point) {
+        beginPointerInteraction(event);
+      }
+
+      function handleCanvasPointerUp(event) {
+        const interaction = concludePointerInteraction(event);
+        if (!interaction) {
           return;
         }
 
-        const entry = getRouteEntryAtClientPoint(point.x, point.y);
+        if (interaction.dragging) {
+          return;
+        }
+
+        const entry = getRouteEntryAtClientPoint(interaction.x, interaction.y);
 
         if (entry && entry.route) {
-          showTooltip(entry.route, point.x, point.y, { pin: true });
-        } else if (!pinnedRouteId) {
-          hideTooltip({ force: true });
+          const shouldFocusRoute = shouldFocusFromInteraction(event, entry);
+          showTooltip(entry.route, interaction.x, interaction.y, { pin: true });
+          if (shouldFocusRoute) {
+            focusRoute(entry.route);
+          }
+        } else {
+          resetLastFocusActivation();
+          if (!pinnedRouteId) {
+            hideTooltip({ force: true });
+          }
         }
+      }
+
+      function handleCanvasPointerCancel() {
+        cancelPointerInteraction();
       }
 
       function handleDocumentPointerDown(event) {
@@ -5258,12 +6379,18 @@
         canvas.addEventListener('pointermove', handlePointerMove);
         canvas.addEventListener('pointerleave', handlePointerLeave);
         canvas.addEventListener('pointerdown', handleCanvasPointerDown);
+        document.addEventListener('pointerup', handleCanvasPointerUp);
+        document.addEventListener('pointercancel', handleCanvasPointerCancel);
         document.addEventListener('pointerdown', handleDocumentPointerDown);
       } else {
         canvas.addEventListener('mousemove', handlePointerMove);
         canvas.addEventListener('mouseleave', handlePointerLeave);
         canvas.addEventListener('mousedown', handleCanvasPointerDown);
+        document.addEventListener('mouseup', handleCanvasPointerUp);
         canvas.addEventListener('touchstart', handleCanvasPointerDown);
+        canvas.addEventListener('touchmove', handlePointerMove);
+        document.addEventListener('touchend', handleCanvasPointerUp);
+        document.addEventListener('touchcancel', handleCanvasPointerCancel);
         document.addEventListener('mousedown', handleDocumentPointerDown);
         document.addEventListener('touchstart', handleDocumentPointerDown);
       }

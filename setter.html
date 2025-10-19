@@ -42,6 +42,208 @@
       -webkit-overflow-scrolling: touch;
     }
 
+    .focus-footer {
+      position: absolute;
+      left: 50%;
+      bottom: 1.25rem;
+      transform: translateX(-50%);
+      z-index: 7;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .clear-focus-button {
+      pointer-events: auto;
+      border-radius: 999px;
+      border: 1px solid rgba(126, 217, 87, 0.75);
+      background: linear-gradient(135deg, rgba(126, 217, 87, 0.95), rgba(126, 217, 87, 0.7));
+      color: #0c1905;
+      font-weight: 600;
+      padding: 0.6rem 1.5rem;
+      font-size: 0.95rem;
+      cursor: pointer;
+      box-shadow: 0 14px 30px rgba(126, 217, 87, 0.35);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+        border-color 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: 0.01em;
+    }
+
+    .clear-focus-button:hover,
+    .clear-focus-button:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 36px rgba(126, 217, 87, 0.4);
+      outline: none;
+      border-color: rgba(126, 217, 87, 0.9);
+      background: linear-gradient(135deg, rgba(126, 217, 87, 1), rgba(126, 217, 87, 0.82));
+    }
+
+    .tutorial-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      background-color: transparent;
+      backdrop-filter: none;
+      z-index: 30;
+    }
+
+    .tutorial-overlay.is-bottom-aligned {
+      align-items: flex-end;
+    }
+
+    .tutorial-overlay.is-bottom-aligned .tutorial-card {
+      margin-bottom: clamp(1.5rem, 8vh, 4rem);
+    }
+
+    .tutorial-card {
+      width: min(520px, 100%);
+      background: rgba(12, 18, 15, 0.95);
+      border-radius: 1rem;
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.15rem;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(126, 217, 87, 0.2);
+    }
+
+    .tutorial-progress {
+      font-size: 0.85rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: rgba(126, 217, 87, 0.8);
+    }
+
+    .tutorial-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .tutorial-description {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      color: rgba(248, 250, 252, 0.92);
+      font-size: 0.98rem;
+      line-height: 1.55;
+    }
+
+    .tutorial-description p {
+      margin: 0;
+    }
+
+    .tutorial-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: flex-end;
+    }
+
+    .tutorial-button {
+      border-radius: 999px;
+      border: none;
+      padding: 0.65rem 1.4rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+        color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .tutorial-primary {
+      background: #7ed957;
+      color: #0c1a07;
+      box-shadow: 0 12px 22px rgba(126, 217, 87, 0.3);
+    }
+
+    .tutorial-primary:hover,
+    .tutorial-primary:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 30px rgba(126, 217, 87, 0.35);
+      outline: none;
+    }
+
+    .tutorial-secondary {
+      background: rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .tutorial-secondary:hover,
+    .tutorial-secondary:focus-visible {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 34px rgba(0, 0, 0, 0.4);
+      outline: none;
+    }
+
+    .tutorial-highlight {
+      position: relative;
+      z-index: 50;
+      outline: 3px solid rgba(126, 217, 87, 0.9);
+      border-radius: 1rem;
+    }
+
+    .tutorial-illuminated {
+      animation: tutorial-illuminate 1.2s ease-in-out infinite;
+    }
+
+    .tutorial-pointer {
+      position: fixed;
+      width: 102px;
+      height: 162px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 60;
+      transform: translate(-50%, 0);
+    }
+
+    .tutorial-pointer.hidden {
+      display: none;
+    }
+
+    .tutorial-pointer svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+      animation: tutorial-pointer-bounce 1.05s ease-in-out infinite;
+    }
+
+    @media (max-width: 768px) {
+      .tutorial-pointer {
+        width: 51px;
+        height: 81px;
+      }
+    }
+
+    @keyframes tutorial-pointer-bounce {
+      0%,
+      100% {
+        transform: translateY(4px);
+      }
+      50% {
+        transform: translateY(-6px);
+      }
+    }
+
+    @keyframes tutorial-illuminate {
+      0%,
+      100% {
+        box-shadow: 0 0 0 6px rgba(126, 217, 87, 0.7), 0 0 28px rgba(126, 217, 87, 0.55);
+      }
+      50% {
+        box-shadow: 0 0 0 10px rgba(255, 140, 66, 0.85), 0 0 42px rgba(255, 140, 66, 0.75);
+      }
+    }
+
     .sidebar-actions {
       display: flex;
       flex-direction: column;
@@ -719,6 +921,16 @@
       color: #fff;
     }
 
+    #personalDashboardButton {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
+
+    #adminConsoleButton {
+      background: rgba(255, 232, 78, 0.95);
+      color: #111;
+    }
+
     #signOutButton {
       background: rgba(255, 116, 116, 0.9);
       color: #111;
@@ -870,11 +1082,6 @@
 
     .appearance-save-button {
       background: #7ed957;
-    }
-
-    #grantSetterButton {
-      background: rgba(126, 217, 87, 0.85);
-      color: #111;
     }
 
     #deleteButton {
@@ -1032,6 +1239,10 @@
     .status-message[data-variant='info'] {
       color: #f1f1f1;
     }
+
+    .status-message[data-variant='warning'] {
+      color: #facc15;
+    }
   </style>
 </head>
 <body>
@@ -1058,6 +1269,17 @@
   <div id="appContent" class="hidden">
     <div class="canvas-container">
       <canvas id="drawingCanvas"></canvas>
+      <div class="focus-footer">
+        <button
+          id="clearFocusButton"
+          class="clear-focus-button hidden"
+          type="button"
+          data-info-target="route-focus"
+          aria-hidden="true"
+        >
+          Clear Focus
+        </button>
+      </div>
     </div>
     <div class="control-panel" data-expanded="true">
       <div id="panelSidebar" class="panel-sidebar">
@@ -1359,6 +1581,24 @@
                 />
               </label>
               <label
+                id="brezerStrokeWidthField"
+                class="control-field"
+                data-help-text="Set the thickness of Brezer lines for freeform paths on this wall."
+              >
+                <span>
+                  Brezer stroke width
+                  <span id="brezerStrokeWidthValue"></span>
+                </span>
+                <input
+                  id="brezerStrokeWidthSlider"
+                  type="range"
+                  min="2"
+                  max="40"
+                  step="1"
+                  value="10"
+                />
+              </label>
+              <label
                 id="unfocusedTransparencyField"
                 class="control-field"
                 data-help-text="Control how transparent inactive routes appear for climbers."
@@ -1383,22 +1623,6 @@
               </button>
             </div>
             <div class="control-section">
-              <h3 class="control-section-title">Grant setter access</h3>
-              <label class="control-field" data-help-text="Enter the username that should receive setter permissions.">
-                <span>Username</span>
-                <input id="roleUsernameInput" type="text" placeholder="username" autocomplete="off" />
-              </label>
-              <button id="grantSetterButton" type="button" data-help-text="Grant setter permissions to the username above.">
-                Grant setter role
-              </button>
-              <p
-                id="roleStatusMessage"
-                class="status-message hidden"
-                role="status"
-                aria-live="polite"
-              ></p>
-            </div>
-            <div class="control-section">
               <h3 class="control-section-title">Session actions</h3>
               <div class="global-actions">
                 <button
@@ -1410,6 +1634,23 @@
                   <span class="button-label">Climber View</span>
                 </button>
                 <button
+                  id="personalDashboardButton"
+                  class="global-action-button"
+                  type="button"
+                  data-help-text="Jump to your personal dashboard to review ascents and progress."
+                >
+                  <span class="button-label">Personal Dashboard</span>
+                </button>
+                <button
+                  id="adminConsoleButton"
+                  class="global-action-button"
+                  type="button"
+                  data-help-text="Open the admin console for database management."
+                >
+                  <span class="button-icon" aria-hidden="true">🛡️</span>
+                  <span class="button-label">Admin</span>
+                </button>
+                <button
                   id="signOutButton"
                   class="global-action-button"
                   type="button"
@@ -1419,6 +1660,12 @@
                   <span class="button-label">Sign Out</span>
                 </button>
               </div>
+              <p
+                id="adminConsoleStatus"
+                class="status-message hidden"
+                role="status"
+                aria-live="polite"
+              ></p>
             </div>
           </div>
           <div
@@ -1528,6 +1775,41 @@
     </div>
   </div>
 
+  <div
+    id="tutorialOverlay"
+    class="tutorial-overlay hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+    aria-labelledby="tutorialTitle"
+    aria-describedby="tutorialDescription"
+    data-tutorial-exempt="true"
+  >
+    <div id="tutorialDialogCard" class="tutorial-card" role="document" tabindex="-1">
+      <div id="tutorialProgress" class="tutorial-progress hidden" aria-live="polite"></div>
+      <h2 id="tutorialTitle" class="tutorial-title"></h2>
+      <div id="tutorialDescription" class="tutorial-description"></div>
+      <div class="tutorial-actions">
+        <button
+          id="tutorialSecondaryAction"
+          class="tutorial-button tutorial-secondary hidden"
+          type="button"
+          data-tutorial-exempt="true"
+        >
+          Back
+        </button>
+        <button
+          id="tutorialPrimaryAction"
+          class="tutorial-button tutorial-primary"
+          type="button"
+          data-tutorial-exempt="true"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import {
@@ -1552,6 +1834,7 @@
       where,
       deleteDoc,
       deleteField,
+      Timestamp,
     } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { firebaseConfig } from './config.js';
 
@@ -1563,6 +1846,7 @@
     const appContent = document.getElementById('appContent');
     const canvasContainer = document.querySelector('.canvas-container');
     const canvas = document.getElementById('drawingCanvas');
+    const clearFocusButton = document.getElementById('clearFocusButton');
     const authForm = document.getElementById('authForm');
     const authUsername = document.getElementById('authUsername');
     const authPassword = document.getElementById('authPassword');
@@ -1587,6 +1871,9 @@
     const infoButton = document.getElementById('infoButton');
     const infoPopover = document.getElementById('infoPopover');
     const climberViewButton = document.getElementById('climberViewButton');
+    const personalDashboardButton = document.getElementById('personalDashboardButton');
+    const adminConsoleButton = document.getElementById('adminConsoleButton');
+    const adminConsoleStatus = document.getElementById('adminConsoleStatus');
     const previewLink = document.getElementById('previewLink');
     const previewLinkBaseHref = previewLink?.getAttribute('href') || 'index.html';
     const climberViewBaseHref = 'index.html';
@@ -1603,9 +1890,6 @@
       window.location.href = 'index.html';
       return true;
     }
-    const roleUsernameInput = document.getElementById('roleUsernameInput');
-    const grantSetterButton = document.getElementById('grantSetterButton');
-    const roleStatusMessage = document.getElementById('roleStatusMessage');
     const locationButton = document.getElementById('locationButton');
     const locationButtonLabel = locationButton?.querySelector('.button-label');
     const locationModal = document.getElementById('locationModal');
@@ -1627,12 +1911,26 @@
     const createWallStatus = document.getElementById('createWallStatus');
     const wallVisibilityToggleWrapper = document.getElementById('wallVisibilityToggleWrapper');
     const wallVisibilityToggle = document.getElementById('wallVisibilityToggle');
+    const tutorialOverlay = document.getElementById('tutorialOverlay');
+    const tutorialDialogCard = document.getElementById('tutorialDialogCard');
+    const tutorialTitle = document.getElementById('tutorialTitle');
+    const tutorialDescription = document.getElementById('tutorialDescription');
+    const tutorialPrimaryAction = document.getElementById('tutorialPrimaryAction');
+    const tutorialSecondaryAction = document.getElementById('tutorialSecondaryAction');
+    const tutorialProgress = document.getElementById('tutorialProgress');
 
-    let welcomeCalloutElement = null;
-    let welcomeCalloutTimer = null;
-    let hasShownWelcomeCallout = false;
-    let pendingWelcomeCalloutFrame = null;
     let isUpdatingWallVisibility = false;
+    let tutorialPointer = null;
+    let tutorialPointerTarget = null;
+    let tutorialHighlightedElement = null;
+    let tutorialHighlightedElementOptions = { illuminate: false };
+    let tutorialPreviousFocus = null;
+    let tutorialActive = false;
+    let tutorialTransitionInProgress = false;
+    let tutorialStepIndex = -1;
+    let tutorialSteps = [];
+    let tutorialPreviousTabId = null;
+    let tutorialSecondaryActionMode = 'back';
 
     const LOCATIONS = [
       { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
@@ -1654,6 +1952,9 @@
     const MAX_RECTANGLE_SIZE = 200;
     const DEFAULT_RECTANGLE_WIDTH = 80;
     const DEFAULT_RECTANGLE_HEIGHT = 60;
+    const MIN_BREZER_STROKE_WIDTH = 2;
+    const MAX_BREZER_STROKE_WIDTH = 40;
+    const DEFAULT_BREZER_STROKE_WIDTH = 10;
     const MIN_UNFOCUSED_TRANSPARENCY = 0;
     const MAX_UNFOCUSED_TRANSPARENCY = 1;
     const DEFAULT_UNFOCUSED_TRANSPARENCY = 0.25;
@@ -1677,6 +1978,10 @@
     };
 
     const normalizeWallKey = (value) => normalizeLocationName(value);
+
+    const BUILTIN_LOCATION_KEYS = new Set(
+      LOCATIONS.map((location) => normalizeWallKey(location?.key || location?.name)).filter(Boolean),
+    );
 
     const findLocationByKey = (key) => LOCATIONS.find((location) => location.key === key);
 
@@ -2135,6 +2440,7 @@
       const changed = previousKey !== nextKey;
 
       currentLocation = canonicalLocation;
+      clearRouteFocus();
       updateWallVisibilityControls();
       updateLocationButtonLabel();
       updateLocationOptionsState();
@@ -2164,6 +2470,7 @@
             const wallSettings = getWallSettingsForLocation(nextKey);
             updateRoutesForWall(nextKey, wallSettings);
             pointDiameter = wallSettings.pointDiameter;
+            brezerStrokeWidth = wallSettings.brezerStrokeWidth;
             unfocusedTransparency = wallSettings.unfocusedTransparency;
             gradeBarBaseHeight = wallSettings.gradeBarBaseHeight;
             gradeBarMaxHeight = wallSettings.gradeBarMaxHeight;
@@ -2245,6 +2552,32 @@
       updateDeleteWallButtonState();
     };
 
+    function resetLocationsToBuiltins() {
+      for (let index = LOCATIONS.length - 1; index >= 0; index -= 1) {
+        const entry = LOCATIONS[index];
+        if (!entry) {
+          continue;
+        }
+
+        const normalizedKey = normalizeWallKey(entry.key || entry.name);
+        if (!BUILTIN_LOCATION_KEYS.has(normalizedKey)) {
+          LOCATIONS.splice(index, 1);
+        }
+      }
+
+      renderLocationOptions();
+
+      const currentKey = normalizeWallKey(currentLocation?.key || currentLocation?.name);
+      if (!currentKey || !BUILTIN_LOCATION_KEYS.has(currentKey)) {
+        setLocation(DEFAULT_LOCATION, { persist: true, refreshRoutes: false });
+      } else {
+        synchronizeCurrentLocationReference();
+        updateLocationOptionsState();
+      }
+
+      updateDeleteWallButtonState();
+    }
+
     backgroundImage.onload = () => {
       backgroundReady = true;
       if (backgroundImage.naturalWidth > 0 && backgroundImage.naturalHeight > 0) {
@@ -2290,7 +2623,6 @@
         }
       }
 
-      scheduleWelcomeCalloutReposition();
     };
 
     const updateDrawingToggle = () => {
@@ -2319,132 +2651,6 @@
       }
       isDrawingEnabled = next;
       updateDrawingToggle();
-    }
-
-    function ensureWelcomeCalloutElement() {
-      if (welcomeCalloutElement) {
-        return welcomeCalloutElement;
-      }
-
-      const callout = document.createElement('div');
-      callout.className = 'welcome-callout';
-      callout.dataset.arrow = 'top';
-      callout.setAttribute('role', 'status');
-      callout.tabIndex = 0;
-
-      const heading = document.createElement('strong');
-      heading.textContent = 'Welcome setter';
-      callout.appendChild(heading);
-
-      const summary = document.createElement('p');
-      summary.textContent = 'Build and manage climbs from this workspace.';
-      callout.appendChild(summary);
-
-      const guidance = document.createElement('p');
-      guidance.textContent =
-        'Draw routes, fine-tune appearance, and publish updates so climbers see the latest beta.';
-      callout.appendChild(guidance);
-
-      callout.addEventListener('click', (event) => {
-        event.stopPropagation();
-        dismissWelcomeCallout();
-      });
-
-      welcomeCalloutElement = callout;
-      return welcomeCalloutElement;
-    }
-
-    function dismissWelcomeCallout() {
-      if (pendingWelcomeCalloutFrame) {
-        cancelAnimationFrame(pendingWelcomeCalloutFrame);
-        pendingWelcomeCalloutFrame = null;
-      }
-
-      if (welcomeCalloutTimer) {
-        clearTimeout(welcomeCalloutTimer);
-        welcomeCalloutTimer = null;
-      }
-
-      if (welcomeCalloutElement?.parentElement) {
-        welcomeCalloutElement.parentElement.removeChild(welcomeCalloutElement);
-      }
-    }
-
-    function positionWelcomeCallout() {
-      if (!welcomeCalloutElement || !welcomeCalloutElement.isConnected || !infoButton) {
-        return;
-      }
-
-      const targetRect = infoButton.getBoundingClientRect();
-      if (targetRect.width === 0 && targetRect.height === 0) {
-        welcomeCalloutElement.style.opacity = '0';
-        return;
-      }
-
-      welcomeCalloutElement.style.opacity = '1';
-      welcomeCalloutElement.dataset.arrow = 'top';
-
-      const offset = 12;
-      const margin = 16;
-      const targetCenter = targetRect.left + targetRect.width / 2;
-
-      welcomeCalloutElement.style.top = `${targetRect.bottom + offset}px`;
-      welcomeCalloutElement.style.left = `${targetCenter}px`;
-      welcomeCalloutElement.style.transform = 'translate(-50%, 0)';
-
-      const calloutRect = welcomeCalloutElement.getBoundingClientRect();
-      const minCenter = margin + calloutRect.width / 2;
-      const maxCenter = window.innerWidth - margin - calloutRect.width / 2;
-      const clampedCenter = clamp(targetCenter, minCenter, maxCenter);
-      welcomeCalloutElement.style.left = `${clampedCenter}px`;
-
-      const updatedRect = welcomeCalloutElement.getBoundingClientRect();
-      const arrowOffset = clamp(targetCenter - updatedRect.left, 12, updatedRect.width - 12);
-      welcomeCalloutElement.style.setProperty('--callout-arrow-offset', `${arrowOffset}px`);
-    }
-
-    function scheduleWelcomeCalloutReposition() {
-      if (!welcomeCalloutElement || !welcomeCalloutElement.isConnected) {
-        return;
-      }
-
-      if (pendingWelcomeCalloutFrame) {
-        cancelAnimationFrame(pendingWelcomeCalloutFrame);
-      }
-
-      pendingWelcomeCalloutFrame = requestAnimationFrame(() => {
-        pendingWelcomeCalloutFrame = null;
-        positionWelcomeCallout();
-      });
-    }
-
-    function showWelcomeCallout() {
-      if (hasShownWelcomeCallout || infoModeActive || !infoButton) {
-        return;
-      }
-
-      const callout = ensureWelcomeCalloutElement();
-      if (!callout) {
-        return;
-      }
-
-      hasShownWelcomeCallout = true;
-
-      if (!document.body.contains(callout)) {
-        document.body.appendChild(callout);
-      }
-
-      positionWelcomeCallout();
-      requestAnimationFrame(positionWelcomeCallout);
-
-      if (welcomeCalloutTimer) {
-        clearTimeout(welcomeCalloutTimer);
-      }
-
-      welcomeCalloutTimer = window.setTimeout(() => {
-        welcomeCalloutTimer = null;
-        dismissWelcomeCallout();
-      }, 11000);
     }
 
     function registerHelpTargets(root = document) {
@@ -2485,6 +2691,511 @@
       }
       const rect = element.getBoundingClientRect();
       return rect.width > 0 && rect.height > 0;
+    }
+
+    function setTutorialDescriptionContent(content = []) {
+      if (!tutorialDescription) {
+        return;
+      }
+
+      tutorialDescription.innerHTML = '';
+
+      const fragment = document.createDocumentFragment();
+      const items = Array.isArray(content) ? content : [content];
+
+      items.forEach((item) => {
+        if (typeof item === 'string') {
+          const paragraph = document.createElement('p');
+          paragraph.textContent = item;
+          fragment.appendChild(paragraph);
+          return;
+        }
+
+        if (typeof item === 'function') {
+          try {
+            const result = item();
+            if (result instanceof Node) {
+              fragment.appendChild(result);
+              return;
+            }
+
+            if (typeof result === 'string') {
+              const paragraph = document.createElement('p');
+              paragraph.textContent = result;
+              fragment.appendChild(paragraph);
+            }
+          } catch (error) {
+            console.warn('Unable to render tutorial content item:', error);
+          }
+          return;
+        }
+
+        if (item instanceof Node) {
+          fragment.appendChild(item);
+        }
+      });
+
+      tutorialDescription.appendChild(fragment);
+    }
+
+    function ensureTutorialPointer() {
+      if (tutorialPointer) {
+        return tutorialPointer;
+      }
+
+      tutorialPointer = document.createElement('div');
+      tutorialPointer.className = 'tutorial-pointer hidden';
+      tutorialPointer.setAttribute('aria-hidden', 'true');
+      tutorialPointer.innerHTML =
+        '<svg viewBox="0 0 64 96" role="presentation" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path fill="#27b4db" d="M32 0l32 36H44v56H20V36H0z"/></svg>';
+      document.body.appendChild(tutorialPointer);
+
+      return tutorialPointer;
+    }
+
+    function updateTutorialPointerPosition() {
+      if (!tutorialPointer || tutorialPointer.classList.contains('hidden')) {
+        return;
+      }
+
+      if (!tutorialPointerTarget || !isElementVisible(tutorialPointerTarget)) {
+        hideTutorialPointer();
+        return;
+      }
+
+      const rect = tutorialPointerTarget.getBoundingClientRect();
+      const verticalOffset = 12;
+
+      tutorialPointer.style.left = `${rect.left + rect.width / 2}px`;
+      tutorialPointer.style.top = `${rect.bottom + verticalOffset}px`;
+    }
+
+    function showTutorialPointerFor(element) {
+      if (!(element instanceof HTMLElement) || !isElementVisible(element)) {
+        hideTutorialPointer();
+        return;
+      }
+
+      ensureTutorialPointer();
+
+      tutorialPointerTarget = element;
+      tutorialPointer.classList.remove('hidden');
+      tutorialPointer.setAttribute('aria-hidden', 'false');
+      updateTutorialPointerPosition();
+    }
+
+    function hideTutorialPointer() {
+      if (!tutorialPointer) {
+        tutorialPointerTarget = null;
+        return;
+      }
+
+      tutorialPointerTarget = null;
+      tutorialPointer.classList.add('hidden');
+      tutorialPointer.setAttribute('aria-hidden', 'true');
+    }
+
+    window.addEventListener('resize', updateTutorialPointerPosition);
+    window.addEventListener('scroll', updateTutorialPointerPosition, true);
+
+    function highlightTutorialElement(element, options = {}) {
+      const shouldIlluminate = options?.illuminate === true;
+
+      if (tutorialHighlightedElement) {
+        if (tutorialHighlightedElement !== element || !element) {
+          tutorialHighlightedElement.classList.remove('tutorial-highlight');
+          tutorialHighlightedElement.classList.remove('tutorial-illuminated');
+          tutorialHighlightedElementOptions = { illuminate: false };
+        } else if (tutorialHighlightedElementOptions.illuminate !== shouldIlluminate) {
+          tutorialHighlightedElement.classList.toggle('tutorial-illuminated', shouldIlluminate);
+          tutorialHighlightedElementOptions = { illuminate: shouldIlluminate };
+          return;
+        } else {
+          return;
+        }
+      }
+
+      if (element instanceof HTMLElement) {
+        element.classList.add('tutorial-highlight');
+        element.classList.toggle('tutorial-illuminated', shouldIlluminate);
+        tutorialHighlightedElement = element;
+        tutorialHighlightedElementOptions = { illuminate: shouldIlluminate };
+      } else {
+        tutorialHighlightedElement = null;
+        tutorialHighlightedElementOptions = { illuminate: false };
+      }
+    }
+
+    function setTutorialOverlayAlignment(alignment = 'center') {
+      if (!tutorialOverlay) {
+        return;
+      }
+
+      const shouldAlignBottom = alignment === 'bottom';
+      tutorialOverlay.classList.toggle('is-bottom-aligned', shouldAlignBottom);
+    }
+
+    function openTutorialOverlay() {
+      if (!tutorialOverlay) {
+        return;
+      }
+
+      tutorialPreviousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+      tutorialOverlay.classList.remove('hidden');
+      tutorialOverlay.setAttribute('aria-hidden', 'false');
+
+      if (tutorialDialogCard && typeof tutorialDialogCard.focus === 'function') {
+        tutorialDialogCard.focus();
+      }
+    }
+
+    function closeTutorialOverlay() {
+      if (!tutorialOverlay) {
+        return;
+      }
+
+      tutorialOverlay.classList.add('hidden');
+      tutorialOverlay.setAttribute('aria-hidden', 'true');
+
+      if (tutorialPreviousFocus && typeof tutorialPreviousFocus.focus === 'function') {
+        tutorialPreviousFocus.focus();
+      }
+
+      tutorialPreviousFocus = null;
+    }
+
+    function attachTutorialKeydown() {
+      document.addEventListener('keydown', handleTutorialKeydown, true);
+    }
+
+    function detachTutorialKeydown() {
+      document.removeEventListener('keydown', handleTutorialKeydown, true);
+    }
+
+    function renderTutorialStep() {
+      if (!tutorialActive) {
+        return;
+      }
+
+      const step = tutorialSteps[tutorialStepIndex];
+      if (!step) {
+        return;
+      }
+
+      if (tutorialTitle) {
+        tutorialTitle.textContent = step.title || '';
+      }
+
+      setTutorialDescriptionContent(step.body || []);
+
+      if (tutorialProgress) {
+        tutorialProgress.textContent = `Step ${tutorialStepIndex + 1} of ${tutorialSteps.length}`;
+        tutorialProgress.classList.toggle('hidden', tutorialSteps.length <= 1);
+      }
+
+      if (tutorialPrimaryAction) {
+        tutorialPrimaryAction.textContent =
+          tutorialStepIndex === tutorialSteps.length - 1 ? 'Finish' : 'Next';
+      }
+
+      if (tutorialSecondaryAction) {
+        const secondaryConfig = step.secondaryAction || null;
+        let secondaryLabel = 'Back';
+        let shouldShowSecondary = tutorialStepIndex > 0;
+        tutorialSecondaryActionMode = 'back';
+
+        if (secondaryConfig && (secondaryConfig.mode === 'skip' || secondaryConfig.mode === 'close')) {
+          tutorialSecondaryActionMode = 'skip';
+          secondaryLabel =
+            typeof secondaryConfig.label === 'string' && secondaryConfig.label.trim().length
+              ? secondaryConfig.label
+              : 'Skip';
+          shouldShowSecondary = true;
+        }
+
+        tutorialSecondaryAction.textContent = secondaryLabel;
+        tutorialSecondaryAction.dataset.mode = tutorialSecondaryActionMode;
+        tutorialSecondaryAction.classList.toggle('hidden', !shouldShowSecondary);
+      }
+    }
+
+    function buildSetterTutorialSteps() {
+      const steps = [
+        {
+          title: 'Welcome to the setter workspace',
+          body: [
+            'Design, update, and publish climbs from here. The wall preview on the left responds instantly as you draw or tweak route details.',
+            'Use the sidebar tabs to switch between saved routes, manage walls, and adjust how problems appear to climbers.',
+          ],
+          secondaryAction: { mode: 'skip', label: 'Skip' },
+          onEnter: () => {
+            setTutorialOverlayAlignment('center');
+            highlightTutorialElement(null);
+            hideTutorialPointer();
+            deactivateInfoMode({ clearTooltip: true });
+          },
+          onExit: () => {
+            highlightTutorialElement(null);
+          },
+        },
+        {
+          title: 'Routes panel',
+          body: [
+            'Select existing problems or start fresh, then fill in setter info, descriptions, and notes for climbers.',
+            'Pick colours, change path types, and save or clear drawings while you iterate on new ideas.',
+          ],
+          onEnter: () => {
+            setTutorialOverlayAlignment('bottom');
+            activateTab('routesTab');
+            if (routesTabButton && isElementVisible(routesTabButton)) {
+              highlightTutorialElement(routesTabButton, { illuminate: true });
+              showTutorialPointerFor(routesTabButton);
+            } else {
+              highlightTutorialElement(null);
+              hideTutorialPointer();
+            }
+          },
+          onExit: () => {
+            hideTutorialPointer();
+            highlightTutorialElement(null);
+          },
+        },
+        {
+          title: 'Walls panel',
+          body: [
+            'Switch the active wall, create new backgrounds, or temporarily hide a wall from climbers.',
+            'Use it to manage rotations and keep your wall list tidy as sets change over time.',
+          ],
+          onEnter: () => {
+            setTutorialOverlayAlignment('bottom');
+            activateTab('wallsTab');
+            if (wallsTabButton && isElementVisible(wallsTabButton)) {
+              highlightTutorialElement(wallsTabButton, { illuminate: true });
+              showTutorialPointerFor(wallsTabButton);
+            } else {
+              highlightTutorialElement(null);
+              hideTutorialPointer();
+            }
+          },
+          onExit: () => {
+            hideTutorialPointer();
+            highlightTutorialElement(null);
+          },
+        },
+        {
+          title: 'Configuration panel',
+          body: [
+            'Tune how holds render by adjusting point sizes, rectangle dimensions, and transparency defaults.',
+            'Save appearance settings so climbers see consistent visuals across every wall you manage.',
+          ],
+          onEnter: () => {
+            setTutorialOverlayAlignment('bottom');
+            activateTab('configurationTab');
+            if (configurationTabButton && isElementVisible(configurationTabButton)) {
+              highlightTutorialElement(configurationTabButton, { illuminate: true });
+              showTutorialPointerFor(configurationTabButton);
+            } else {
+              highlightTutorialElement(null);
+              hideTutorialPointer();
+            }
+          },
+          onExit: () => {
+            hideTutorialPointer();
+            highlightTutorialElement(null);
+          },
+        },
+        {
+          title: 'Enable drawing',
+          body: [
+            'Toggle drawing mode when you want to sketch new holds or edit existing shapes directly on the wall.',
+            'Switch it off to pan around freely or inspect details without leaving stray marks behind.',
+          ],
+          onEnter: () => {
+            setTutorialOverlayAlignment('bottom');
+            if (drawingToggle && isElementVisible(drawingToggle)) {
+              highlightTutorialElement(drawingToggle, { illuminate: true });
+              showTutorialPointerFor(drawingToggle);
+            } else {
+              highlightTutorialElement(null);
+              hideTutorialPointer();
+            }
+          },
+          onExit: () => {
+            hideTutorialPointer();
+            highlightTutorialElement(null);
+          },
+        },
+        {
+          title: 'Info mode',
+          body: [
+            'Tap the info button any time for quick tooltips explaining each control in the sidebar.',
+            'Info mode stays active until you toggle it off, so you can explore every setting at your own pace.',
+          ],
+          onEnter: () => {
+            setTutorialOverlayAlignment('bottom');
+            deactivateInfoMode({ clearTooltip: true });
+            if (infoButton && isElementVisible(infoButton)) {
+              highlightTutorialElement(infoButton, { illuminate: true });
+              showTutorialPointerFor(infoButton);
+            } else {
+              highlightTutorialElement(null);
+              hideTutorialPointer();
+            }
+          },
+          onExit: () => {
+            hideTutorialPointer();
+            highlightTutorialElement(null);
+          },
+        },
+      ];
+
+      return steps;
+    }
+
+    async function goToTutorialStep(index) {
+      if (!tutorialActive || tutorialTransitionInProgress) {
+        return;
+      }
+
+      if (index < 0 || index >= tutorialSteps.length) {
+        return;
+      }
+
+      tutorialTransitionInProgress = true;
+
+      if (tutorialStepIndex >= 0 && tutorialStepIndex < tutorialSteps.length) {
+        const currentStep = tutorialSteps[tutorialStepIndex];
+        if (currentStep && typeof currentStep.onExit === 'function') {
+          try {
+            await currentStep.onExit();
+          } catch (error) {
+            console.warn('Tutorial step cleanup failed:', error);
+          }
+        }
+      }
+
+      tutorialStepIndex = index;
+      renderTutorialStep();
+
+      const nextStep = tutorialSteps[tutorialStepIndex];
+      if (nextStep && typeof nextStep.onEnter === 'function') {
+        try {
+          await nextStep.onEnter();
+        } catch (error) {
+          console.warn('Tutorial step setup failed:', error);
+        }
+      }
+
+      tutorialTransitionInProgress = false;
+
+      if (tutorialPrimaryAction) {
+        tutorialPrimaryAction.focus();
+      }
+    }
+
+    async function startTutorial() {
+      if (tutorialActive) {
+        return;
+      }
+
+      tutorialSteps = buildSetterTutorialSteps();
+      if (!Array.isArray(tutorialSteps) || tutorialSteps.length === 0) {
+        return;
+      }
+
+      const activeTabButton = tabButtons.find((button) => button?.getAttribute('aria-selected') === 'true');
+      tutorialPreviousTabId = activeTabButton?.dataset?.target || null;
+
+      tutorialActive = true;
+      tutorialStepIndex = -1;
+      tutorialTransitionInProgress = false;
+      tutorialSecondaryActionMode = 'back';
+
+      if (tutorialProgress) {
+        tutorialProgress.classList.remove('hidden');
+      }
+
+      setTutorialOverlayAlignment('center');
+      openTutorialOverlay();
+      attachTutorialKeydown();
+
+      await goToTutorialStep(0);
+    }
+
+    async function finishTutorial() {
+      if (!tutorialActive && !tutorialTransitionInProgress) {
+        tutorialPreviousTabId = null;
+        tutorialSecondaryActionMode = 'back';
+        return;
+      }
+
+      tutorialTransitionInProgress = true;
+
+      if (tutorialStepIndex >= 0 && tutorialStepIndex < tutorialSteps.length) {
+        const finalStep = tutorialSteps[tutorialStepIndex];
+        if (finalStep && typeof finalStep.onExit === 'function') {
+          try {
+            await finalStep.onExit();
+          } catch (error) {
+            console.warn('Tutorial completion cleanup failed:', error);
+          }
+        }
+      }
+
+      tutorialActive = false;
+      tutorialStepIndex = -1;
+      tutorialTransitionInProgress = false;
+      tutorialSteps = [];
+      tutorialSecondaryActionMode = 'back';
+
+      highlightTutorialElement(null);
+      hideTutorialPointer();
+      setTutorialOverlayAlignment('center');
+
+      if (tutorialProgress) {
+        tutorialProgress.classList.add('hidden');
+      }
+
+      closeTutorialOverlay();
+      detachTutorialKeydown();
+
+      if (tutorialPreviousTabId) {
+        activateTab(tutorialPreviousTabId);
+      } else {
+        activateTab('routesTab');
+      }
+
+      tutorialPreviousTabId = null;
+    }
+
+    function handleTutorialKeydown(event) {
+      if (!tutorialActive) {
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        void finishTutorial();
+        return;
+      }
+
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        if (tutorialStepIndex >= tutorialSteps.length - 1) {
+          void finishTutorial();
+        } else {
+          void goToTutorialStep(tutorialStepIndex + 1);
+        }
+        return;
+      }
+
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        if (tutorialStepIndex > 0) {
+          void goToTutorialStep(tutorialStepIndex - 1);
+        }
+      }
     }
 
     function updateHelpTooltips() {
@@ -2606,8 +3317,6 @@
       if (infoModeActive) {
         return;
       }
-
-      dismissWelcomeCallout();
 
       infoModeActive = true;
       awaitingHelpTargetSelection = true;
@@ -2794,13 +3503,6 @@
 
     deleteButton.disabled = true;
     routeSelector.disabled = true;
-    if (grantSetterButton) {
-      grantSetterButton.disabled = true;
-    }
-    if (roleUsernameInput) {
-      roleUsernameInput.disabled = true;
-    }
-
     const ctx = canvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
     const pathTypeSelect = document.getElementById('pathTypeSelect');
@@ -2813,6 +3515,9 @@
     const rectangleHeightField = document.getElementById('rectangleHeightField');
     const rectangleHeightSlider = document.getElementById('rectangleHeightSlider');
     const rectangleHeightValue = document.getElementById('rectangleHeightValue');
+    const brezerStrokeWidthField = document.getElementById('brezerStrokeWidthField');
+    const brezerStrokeWidthSlider = document.getElementById('brezerStrokeWidthSlider');
+    const brezerStrokeWidthValue = document.getElementById('brezerStrokeWidthValue');
     const unfocusedTransparencyField = document.getElementById('unfocusedTransparencyField');
     const unfocusedTransparencySlider = document.getElementById('unfocusedTransparencySlider');
     const appearancePointDiameterInput = document.getElementById('appearancePointDiameterInput');
@@ -2883,6 +3588,18 @@
       const clamped = Math.min(
         Math.max(Math.round(numeric), MIN_RECTANGLE_SIZE),
         MAX_RECTANGLE_SIZE,
+      );
+      return clamped;
+    }
+
+    function normalizeBrezerStrokeWidth(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return DEFAULT_BREZER_STROKE_WIDTH;
+      }
+      const clamped = Math.min(
+        Math.max(Math.round(numeric), MIN_BREZER_STROKE_WIDTH),
+        MAX_BREZER_STROKE_WIDTH,
       );
       return clamped;
     }
@@ -2970,6 +3687,7 @@
         pointDiameter: DEFAULT_POINT_DIAMETER,
         rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
         rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
+        brezerStrokeWidth: DEFAULT_BREZER_STROKE_WIDTH,
         unfocusedTransparency: DEFAULT_UNFOCUSED_TRANSPARENCY,
         gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
         gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
@@ -2992,6 +3710,7 @@
         raw.rectangleHeight,
         DEFAULT_RECTANGLE_HEIGHT,
       );
+      const brezerStrokeWidth = normalizeBrezerStrokeWidth(raw.brezerStrokeWidth);
       const gradeBarBaseHeight = normalizeGradeBarHeight(
         raw.gradeBarBaseHeight,
         DEFAULT_GRADE_BAR_BASE_HEIGHT,
@@ -3008,6 +3727,7 @@
         pointDiameter,
         rectangleWidth,
         rectangleHeight,
+        brezerStrokeWidth,
         unfocusedTransparency: normalizeUnfocusedTransparency(raw.unfocusedTransparency),
         gradeBarBaseHeight,
         gradeBarMaxHeight,
@@ -3045,6 +3765,7 @@
       pointDiameter = settings.pointDiameter;
       rectangleWidth = settings.rectangleWidth;
       rectangleHeight = settings.rectangleHeight;
+      brezerStrokeWidth = settings.brezerStrokeWidth;
       unfocusedTransparency = settings.unfocusedTransparency;
       gradeBarBaseHeight = settings.gradeBarBaseHeight;
       gradeBarMaxHeight = settings.gradeBarMaxHeight;
@@ -3202,6 +3923,7 @@
           routesCache.set(routeKey, {
             ...data,
             pointDiameter: settings.pointDiameter,
+            brezerStrokeWidth: settings.brezerStrokeWidth,
             rectangleWidth: settings.rectangleWidth,
             rectangleHeight: settings.rectangleHeight,
             gradeBarBaseHeight: settings.gradeBarBaseHeight,
@@ -3224,6 +3946,7 @@
         routesCache.set(key, {
           ...data,
           pointDiameter: settings.pointDiameter,
+          brezerStrokeWidth: settings.brezerStrokeWidth,
           rectangleWidth: settings.rectangleWidth,
           rectangleHeight: settings.rectangleHeight,
           gradeBarBaseHeight: settings.gradeBarBaseHeight,
@@ -3250,6 +3973,7 @@
 
       if (getCurrentLocationKey() === normalizedKey) {
         pointDiameter = merged.pointDiameter;
+        brezerStrokeWidth = merged.brezerStrokeWidth;
         unfocusedTransparency = merged.unfocusedTransparency;
         gradeBarBaseHeight = merged.gradeBarBaseHeight;
         gradeBarMaxHeight = merged.gradeBarMaxHeight;
@@ -3274,6 +3998,7 @@
           pointDiameter: merged.pointDiameter,
           rectangleWidth: merged.rectangleWidth,
           rectangleHeight: merged.rectangleHeight,
+          brezerStrokeWidth: merged.brezerStrokeWidth,
           unfocusedTransparency: merged.unfocusedTransparency,
           gradeBarBaseHeight: merged.gradeBarBaseHeight,
           gradeBarMaxHeight: merged.gradeBarMaxHeight,
@@ -3559,7 +4284,8 @@
         if (fallbackLocation) {
           setLocation(fallbackLocation, { persist: true, refreshRoutes: false });
         } else {
-          currentLocation = null;
+        currentLocation = null;
+        clearRouteFocus();
           updateLocationButtonLabel();
           updateLocationOptionsState();
           applyBodyBackground('');
@@ -3614,6 +4340,7 @@
     let pointDiameter = DEFAULT_POINT_DIAMETER;
     let rectangleWidth = DEFAULT_RECTANGLE_WIDTH;
     let rectangleHeight = DEFAULT_RECTANGLE_HEIGHT;
+    let brezerStrokeWidth = DEFAULT_BREZER_STROKE_WIDTH;
     let unfocusedTransparency = DEFAULT_UNFOCUSED_TRANSPARENCY;
     let gradeBarBaseHeight = DEFAULT_GRADE_BAR_BASE_HEIGHT;
     let gradeBarMaxHeight = DEFAULT_GRADE_BAR_MAX_HEIGHT;
@@ -3658,6 +4385,48 @@
       });
     }
 
+    if (tutorialPrimaryAction) {
+      tutorialPrimaryAction.addEventListener('click', () => {
+        if (!tutorialActive) {
+          return;
+        }
+
+        if (tutorialStepIndex >= tutorialSteps.length - 1) {
+          void finishTutorial();
+        } else {
+          void goToTutorialStep(tutorialStepIndex + 1);
+        }
+      });
+    }
+
+    if (tutorialSecondaryAction) {
+      tutorialSecondaryAction.addEventListener('click', () => {
+        if (!tutorialActive) {
+          return;
+        }
+
+        const mode = tutorialSecondaryAction.dataset.mode || tutorialSecondaryActionMode;
+        if (mode === 'skip' || mode === 'close') {
+          void finishTutorial();
+          return;
+        }
+
+        if (tutorialStepIndex <= 0) {
+          return;
+        }
+
+        void goToTutorialStep(tutorialStepIndex - 1);
+      });
+    }
+
+    if (tutorialOverlay) {
+      tutorialOverlay.addEventListener('click', (event) => {
+        if (event.target === tutorialOverlay) {
+          void finishTutorial();
+        }
+      });
+    }
+
     window.addEventListener('keydown', (event) => {
       if (event.code !== 'Space') {
         return;
@@ -3688,6 +4457,14 @@
       updatePanModifierState(false);
     });
 
+    if (clearFocusButton) {
+      clearFocusButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        clearRouteFocus();
+      });
+    }
+
     if (canvas) {
       canvas.addEventListener('pointerdown', handleCanvasPointerDown);
       canvas.addEventListener('pointermove', handleCanvasPointerMove);
@@ -3699,6 +4476,247 @@
     const routesCache = new Map();
     let routeMedianGrades = new Map();
     let queuedGradeBarOverlays = [];
+    let focusedRouteKey = '';
+    let overlayInteractionEntries = [];
+
+    const DOUBLE_FOCUS_TIME_THRESHOLD = 350;
+    const DOUBLE_FOCUS_DISTANCE_THRESHOLD = 32;
+    let lastFocusActivation = {
+      time: 0,
+      routeKey: '',
+      pointerType: '',
+      x: 0,
+      y: 0,
+    };
+
+    const updateClearFocusButton = () => {
+      if (!clearFocusButton) {
+        return;
+      }
+
+      const hasFocus = Boolean(focusedRouteKey);
+      clearFocusButton.classList.toggle('hidden', !hasFocus);
+      clearFocusButton.setAttribute('aria-hidden', hasFocus ? 'false' : 'true');
+
+      if (hasFocus) {
+        clearFocusButton.removeAttribute('disabled');
+      } else {
+        clearFocusButton.setAttribute('disabled', 'true');
+        if (document.activeElement === clearFocusButton && typeof clearFocusButton.blur === 'function') {
+          clearFocusButton.blur();
+        }
+      }
+    };
+
+    const resetLastFocusActivation = () => {
+      lastFocusActivation = {
+        time: 0,
+        routeKey: '',
+        pointerType: '',
+        x: 0,
+        y: 0,
+      };
+    };
+
+    const resolvePointerType = (event) => {
+      if (!event) {
+        return '';
+      }
+
+      if (typeof event.pointerType === 'string') {
+        return event.pointerType;
+      }
+
+      if (typeof event.type === 'string') {
+        if (event.type.startsWith('mouse')) {
+          return 'mouse';
+        }
+        if (event.type.startsWith('touch')) {
+          return 'touch';
+        }
+        if (event.type.startsWith('pen')) {
+          return 'pen';
+        }
+      }
+
+      return '';
+    };
+
+    const shouldFocusFromInteraction = (event, entry) => {
+      if (!entry || typeof entry.routeKey !== 'string' || !entry.routeKey) {
+        resetLastFocusActivation();
+        return false;
+      }
+
+      const pointerType = resolvePointerType(event);
+      const now = typeof event?.timeStamp === 'number' ? event.timeStamp : Date.now();
+      const clickCount = typeof event?.detail === 'number' ? event.detail : 0;
+      let isDoubleActivation = clickCount >= 2;
+
+      if (!isDoubleActivation && lastFocusActivation.routeKey) {
+        const elapsed = now - lastFocusActivation.time;
+        if (elapsed <= DOUBLE_FOCUS_TIME_THRESHOLD) {
+          const pointerMatches =
+            !pointerType || !lastFocusActivation.pointerType
+              ? true
+              : pointerType === lastFocusActivation.pointerType;
+          if (pointerMatches && entry.routeKey === lastFocusActivation.routeKey) {
+            const dx = (entry.canvasX ?? 0) - (lastFocusActivation.x ?? 0);
+            const dy = (entry.canvasY ?? 0) - (lastFocusActivation.y ?? 0);
+            const distanceSquared = dx * dx + dy * dy;
+            if (distanceSquared <= DOUBLE_FOCUS_DISTANCE_THRESHOLD * DOUBLE_FOCUS_DISTANCE_THRESHOLD) {
+              isDoubleActivation = true;
+            }
+          }
+        }
+      }
+
+      lastFocusActivation = {
+        time: now,
+        routeKey: entry.routeKey,
+        pointerType,
+        x: entry.canvasX ?? 0,
+        y: entry.canvasY ?? 0,
+      };
+
+      return isDoubleActivation;
+    };
+
+    const distanceSquared = (x1, y1, x2, y2) => {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      return dx * dx + dy * dy;
+    };
+
+    const isPointNearSegment = (px, py, x1, y1, x2, y2, padding = 0) => {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const lengthSquared = dx * dx + dy * dy;
+
+      if (lengthSquared <= 0.0001) {
+        return distanceSquared(px, py, x1, y1) <= padding * padding;
+      }
+
+      let t = ((px - x1) * dx + (py - y1) * dy) / lengthSquared;
+      t = Math.max(0, Math.min(1, t));
+
+      const projX = x1 + t * dx;
+      const projY = y1 + t * dy;
+      return distanceSquared(px, py, projX, projY) <= padding * padding;
+    };
+
+    const getOverlayRouteAtCanvasPoint = (canvasX, canvasY) => {
+      if (!overlayInteractionEntries.length) {
+        return null;
+      }
+
+      for (let index = overlayInteractionEntries.length - 1; index >= 0; index -= 1) {
+        const entry = overlayInteractionEntries[index];
+        if (!entry || !entry.routeKey) {
+          continue;
+        }
+
+        if (entry.type === 'circle') {
+          const radius = Number(entry.radius) || 0;
+          if (radius > 0) {
+            const distance = distanceSquared(canvasX, canvasY, Number(entry.cx), Number(entry.cy));
+            if (distance <= radius * radius) {
+              return {
+                routeKey: entry.routeKey,
+                canvasX: entry.cx,
+                canvasY: entry.cy,
+                route: routesCache.get(entry.routeKey) || null,
+              };
+            }
+          }
+        } else if (entry.type === 'rect') {
+          const left = Number(entry.left);
+          const right = Number(entry.right);
+          const top = Number(entry.top);
+          const bottom = Number(entry.bottom);
+          if (canvasX >= left && canvasX <= right && canvasY >= top && canvasY <= bottom) {
+            return {
+              routeKey: entry.routeKey,
+              canvasX: (left + right) / 2,
+              canvasY: (top + bottom) / 2,
+              route: routesCache.get(entry.routeKey) || null,
+            };
+          }
+        } else if (entry.type === 'segment') {
+          const padding = Number(entry.padding) || 0;
+          const x1 = Number(entry.x1);
+          const y1 = Number(entry.y1);
+          const x2 = Number(entry.x2);
+          const y2 = Number(entry.y2);
+          if (isPointNearSegment(canvasX, canvasY, x1, y1, x2, y2, padding)) {
+            return {
+              routeKey: entry.routeKey,
+              canvasX: (x1 + x2) / 2,
+              canvasY: (y1 + y2) / 2,
+              route: routesCache.get(entry.routeKey) || null,
+            };
+          }
+        }
+      }
+
+      return null;
+    };
+
+    const setFocusedRouteKey = (routeKey) => {
+      const normalizedKey = typeof routeKey === 'string' ? routeKey : '';
+      if (focusedRouteKey === normalizedKey) {
+        updateClearFocusButton();
+        return;
+      }
+
+      focusedRouteKey = normalizedKey;
+      updateClearFocusButton();
+      redraw();
+    };
+
+    const clearRouteFocus = () => {
+      if (!focusedRouteKey) {
+        return;
+      }
+
+      focusedRouteKey = '';
+      resetLastFocusActivation();
+      updateClearFocusButton();
+      redraw();
+    };
+
+    const handlePotentialOverlayFocus = (event) => {
+      if (!canvas) {
+        return;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      const canvasX = event.clientX - rect.left;
+      const canvasY = event.clientY - rect.top;
+
+      if (!Number.isFinite(canvasX) || !Number.isFinite(canvasY)) {
+        resetLastFocusActivation();
+        return;
+      }
+
+      const entry = getOverlayRouteAtCanvasPoint(canvasX, canvasY);
+      if (!entry || !entry.routeKey) {
+        resetLastFocusActivation();
+        return;
+      }
+
+      const shouldFocusRoute = shouldFocusFromInteraction(event, {
+        routeKey: entry.routeKey,
+        canvasX: entry.canvasX,
+        canvasY: entry.canvasY,
+      });
+
+      if (shouldFocusRoute) {
+        setFocusedRouteKey(entry.routeKey);
+      }
+    };
+
+    updateClearFocusButton();
 
     const updatePanelToggleState = () => {
       if (!panelToggleButton || !controlPanel) {
@@ -3741,9 +4759,6 @@
       }
     }
 
-    window.addEventListener('resize', scheduleWelcomeCalloutReposition);
-    window.addEventListener('scroll', scheduleWelcomeCalloutReposition, true);
-
     if (panelToggleButton) {
       panelToggleButton.addEventListener('click', () => {
         const isExpanded = controlPanel?.getAttribute('data-expanded') !== 'false';
@@ -3767,22 +4782,6 @@
         event.stopPropagation();
       });
     }
-
-    document.addEventListener(
-      'pointerdown',
-      (event) => {
-        if (!welcomeCalloutElement || !welcomeCalloutElement.isConnected) {
-          return;
-        }
-
-        if (welcomeCalloutElement.contains(event.target)) {
-          return;
-        }
-
-        dismissWelcomeCallout();
-      },
-      true,
-    );
 
     document.addEventListener(
       'click',
@@ -3816,8 +4815,6 @@
 
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
-        dismissWelcomeCallout();
-
         if (infoModeActive) {
           deactivateInfoMode({ clearTooltip: true });
           if (infoButton) {
@@ -4296,117 +5293,56 @@
       });
     }
 
-    function setRoleControlsEnabled(enabled) {
-      const allow = Boolean(enabled);
-      if (grantSetterButton) {
-        grantSetterButton.disabled = !allow;
-      }
-      if (roleUsernameInput) {
-        roleUsernameInput.disabled = !allow;
-      }
-    }
-
-    function resetRoleManagementUI(message = '') {
-      if (roleUsernameInput) {
-        roleUsernameInput.value = '';
-      }
-
-      if (message) {
-        setRoleStatus(message, 'info');
-      } else {
-        clearRoleStatus();
-      }
-    }
-
-    const isLikelyUsername = (value) => isValidUsername(value);
-
-    if (grantSetterButton && roleUsernameInput) {
-      grantSetterButton.addEventListener('click', async () => {
-        const rawUsername = roleUsernameInput.value;
-        const trimmedUsername = typeof rawUsername === 'string' ? rawUsername.trim() : '';
-
-        if (!trimmedUsername) {
-          setRoleStatus('Enter the user\'s username.', 'info');
-          return;
-        }
-
-        if (!isLikelyUsername(trimmedUsername)) {
-          setRoleStatus('Enter a valid username (letters, numbers, underscores).', 'error');
-          return;
-        }
-
-        const normalizedUsername = normalizeUsername(trimmedUsername);
-
-        try {
-          setRoleControlsEnabled(false);
-          setRoleStatus(`Granting setter role to ${trimmedUsername}…`, 'info');
-
-          const usernameRef = doc(db, 'usernames', normalizedUsername);
-          const usernameSnap = await getDoc(usernameRef);
-
-          if (!usernameSnap.exists()) {
-            setRoleStatus('No user found with that username.', 'error');
-            return;
-          }
-
-          const usernameData = usernameSnap.data() || {};
-          const targetUid = typeof usernameData.uid === 'string' ? usernameData.uid.trim() : '';
-
-          if (!targetUid) {
-            setRoleStatus('Unable to resolve that username to a user account.', 'error');
-            return;
-          }
-
-          const roleRef = doc(db, 'roles', targetUid);
-          const roleSnap = await getDoc(roleRef);
-          const existingData = roleSnap.exists() ? roleSnap.data() || {} : {};
-          const existingRole = typeof existingData.role === 'string' ? existingData.role.trim() : '';
-          const existingLowerRaw =
-            typeof existingData.usernameLower === 'string'
-              ? existingData.usernameLower
-              : typeof existingData.username === 'string'
-              ? existingData.username
-              : '';
-          const existingLower = normalizeUsername(existingLowerRaw);
-
-          if (existingRole === 'setter' && existingLower === normalizedUsername) {
-            setRoleStatus(`${trimmedUsername} is already a setter.`, 'success');
-            if (roleUsernameInput) {
-              roleUsernameInput.value = '';
-            }
-            return;
-          }
-
-          const payload = {
-            role: 'setter',
-            username: normalizedUsername,
-            usernameLower: normalizedUsername,
-            updatedAt: serverTimestamp(),
-          };
-
-          if (!existingData.createdAt) {
-            payload.createdAt = serverTimestamp();
-          }
-
-          await setDoc(roleRef, payload, { merge: true });
-
-          setRoleStatus(`Setter role granted to ${trimmedUsername}.`, 'success');
-          if (roleUsernameInput) {
-            roleUsernameInput.value = '';
-          }
-        } catch (error) {
-          console.error('Failed to grant setter role:', error);
-          setRoleStatus('Unable to grant setter role. Please try again.', 'error');
-        } finally {
-          setRoleControlsEnabled(true);
-          if (roleUsernameInput) {
-            roleUsernameInput.focus();
-          }
-        }
+    if (personalDashboardButton) {
+      personalDashboardButton.addEventListener('click', () => {
+        window.location.href = 'personal.html';
       });
     }
 
-    resetRoleManagementUI('Enter the username of the user you want to promote.');
+    const ADMIN_CONSOLE_PATH = 'admin.html';
+
+    if (adminConsoleButton) {
+      adminConsoleButton.addEventListener('click', () => {
+        if (adminConsoleButton.disabled) {
+          return;
+        }
+
+        window.location.href = ADMIN_CONSOLE_PATH;
+      });
+    }
+
+    function updateAdminConsoleAccess(role) {
+      const normalized = typeof role === 'string' ? role.trim().toLowerCase() : '';
+      const isAdmin = normalized === 'admin';
+
+      if (adminConsoleButton) {
+        adminConsoleButton.classList.toggle('hidden', !isAdmin);
+        adminConsoleButton.disabled = !isAdmin;
+      }
+
+      if (!adminConsoleStatus) {
+        return;
+      }
+
+      if (isAdmin) {
+        adminConsoleStatus.textContent = 'Open the admin console to manage database operations.';
+        adminConsoleStatus.dataset.variant = 'info';
+        adminConsoleStatus.classList.remove('hidden');
+        return;
+      }
+
+      adminConsoleStatus.textContent = '';
+      adminConsoleStatus.classList.add('hidden');
+      delete adminConsoleStatus.dataset.variant;
+    }
+
+    updateAdminConsoleAccess('');
+
+    
+
+    
+
+    
 
     function normalizeDateValue(value) {
       if (!value) {
@@ -4484,6 +5420,7 @@
         rest.rectangleHeight,
         DEFAULT_RECTANGLE_HEIGHT,
       );
+      const fallbackBrezerStrokeWidth = normalizeBrezerStrokeWidth(rest.brezerStrokeWidth);
       const gradeBarBaseHeight = normalizeGradeBarHeight(
         rest.gradeBarBaseHeight,
         DEFAULT_GRADE_BAR_BASE_HEIGHT,
@@ -4500,6 +5437,7 @@
         pointDiameter: fallbackPointDiameter,
         rectangleWidth: fallbackRectangleWidth,
         rectangleHeight: fallbackRectangleHeight,
+        brezerStrokeWidth: fallbackBrezerStrokeWidth,
         gradeBarBaseHeight,
         gradeBarMaxHeight,
         gradeBarWidth,
@@ -4525,6 +5463,7 @@
         pointDiameter: wallSettings.pointDiameter,
         rectangleWidth: wallSettings.rectangleWidth,
         rectangleHeight: wallSettings.rectangleHeight,
+        brezerStrokeWidth: wallSettings.brezerStrokeWidth,
         gradeBarBaseHeight: wallSettings.gradeBarBaseHeight,
         gradeBarMaxHeight: wallSettings.gradeBarMaxHeight,
         gradeBarWidth: wallSettings.gradeBarWidth,
@@ -4692,31 +5631,21 @@
       delete createWallStatus.dataset.variant;
     }
 
-    function setRoleStatus(message, variant = 'info') {
-      if (!roleStatusMessage) {
-        return;
-      }
-      if (!message) {
-        clearRoleStatus();
-        return;
-      }
-      roleStatusMessage.textContent = message;
-      roleStatusMessage.classList.remove('hidden');
-      if (variant) {
-        roleStatusMessage.dataset.variant = variant;
-      } else {
-        delete roleStatusMessage.dataset.variant;
-      }
-    }
+    
 
-    function clearRoleStatus() {
-      if (!roleStatusMessage) {
-        return;
-      }
-      roleStatusMessage.textContent = '';
-      roleStatusMessage.classList.add('hidden');
-      delete roleStatusMessage.dataset.variant;
-    }
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
 
     function markUnsavedChange() {
       if (!hasUnsavedChanges) {
@@ -4750,6 +5679,12 @@
       }
       if (rectangleHeightValue) {
         rectangleHeightValue.textContent = `${rectangleHeight}px`;
+      }
+      if (brezerStrokeWidthSlider) {
+        brezerStrokeWidthSlider.value = String(brezerStrokeWidth);
+      }
+      if (brezerStrokeWidthValue) {
+        brezerStrokeWidthValue.textContent = `${brezerStrokeWidth}px`;
       }
       if (unfocusedTransparencySlider) {
         unfocusedTransparencySlider.value = String(
@@ -4872,6 +5807,7 @@
         pointDiameter,
         rectangleWidth,
         rectangleHeight,
+        brezerStrokeWidth,
       );
       if (points.length) {
         queueGradeBarOverlay({
@@ -4935,6 +5871,7 @@
       routePointDiameter = DEFAULT_POINT_DIAMETER,
       routeRectangleWidth = DEFAULT_RECTANGLE_WIDTH,
       routeRectangleHeight = DEFAULT_RECTANGLE_HEIGHT,
+      routeBrezerStrokeWidth = DEFAULT_BREZER_STROKE_WIDTH,
     ) {
       if (!Array.isArray(routePoints) || !routePoints.length) {
         return;
@@ -4955,7 +5892,8 @@
       );
 
       if (effectivePathType === PATH_TYPE_BREZER && routePoints.length >= 2) {
-        ctx.lineWidth = 10;
+        const strokeWidth = normalizeBrezerStrokeWidth(routeBrezerStrokeWidth);
+        ctx.lineWidth = strokeWidth;
         ctx.strokeStyle = color;
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
@@ -5260,6 +6198,12 @@
 
     function drawExistingRoutesOverlay() {
       if (!routesCache.size) {
+        overlayInteractionEntries = [];
+        if (focusedRouteKey) {
+          focusedRouteKey = '';
+          updateClearFocusButton();
+          resetLastFocusActivation();
+        }
         return;
       }
 
@@ -5269,6 +6213,13 @@
       const focusPointKeys = points.length
         ? buildNormalizedPointKeySetFromCanvasPoints(points)
         : null;
+
+      if (focusedRouteKey && !routesCache.has(focusedRouteKey)) {
+        focusedRouteKey = '';
+        updateClearFocusButton();
+      }
+
+      overlayInteractionEntries = [];
 
       const overlayEntries = [];
 
@@ -5299,6 +6250,7 @@
           canvasPoints,
           normalizedPoints,
           pointDiameter: normalizePointDiameter(data.pointDiameter),
+          brezerStrokeWidth: normalizeBrezerStrokeWidth(data.brezerStrokeWidth),
           rectangleWidth: normalizeRectangleSize(data.rectangleWidth, DEFAULT_RECTANGLE_WIDTH),
           rectangleHeight: normalizeRectangleSize(data.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT),
           alpha: overlayAlpha,
@@ -5337,6 +6289,73 @@
         const supportsPattern =
           routePathType === PATH_TYPE_POINT || routePathType === PATH_TYPE_RECTANGLE;
         const visiblePoints = [];
+        const isFocused = !focusedRouteKey || entry.id === focusedRouteKey;
+        const routeAlpha = isFocused ? 1 : alpha;
+
+        if (Array.isArray(canvasPoints) && canvasPoints.length) {
+          if (routePathType === PATH_TYPE_POINT) {
+            const radius = Math.max(6, entryPointDiameter / 2);
+            canvasPoints.forEach((point) => {
+              if (!point) {
+                return;
+              }
+              overlayInteractionEntries.push({
+                type: 'circle',
+                cx: point.x,
+                cy: point.y,
+                radius,
+                routeKey: entry.id,
+              });
+            });
+          } else if (routePathType === PATH_TYPE_RECTANGLE) {
+            const halfWidth = Math.max(4, entryRectangleWidth / 2);
+            const halfHeight = Math.max(4, entryRectangleHeight / 2);
+            canvasPoints.forEach((point) => {
+              if (!point) {
+                return;
+              }
+              overlayInteractionEntries.push({
+                type: 'rect',
+                left: point.x - halfWidth,
+                right: point.x + halfWidth,
+                top: point.y - halfHeight,
+                bottom: point.y + halfHeight,
+                routeKey: entry.id,
+              });
+            });
+          } else if (routePathType === PATH_TYPE_BREZER && canvasPoints.length >= 2) {
+            const strokeWidth = normalizeBrezerStrokeWidth(entry.brezerStrokeWidth);
+            const padding = Math.max(10, strokeWidth / 2);
+            for (let i = 0; i < canvasPoints.length - 1; i += 1) {
+              const start = canvasPoints[i];
+              const end = canvasPoints[i + 1];
+              if (!start || !end) {
+                continue;
+              }
+              overlayInteractionEntries.push({
+                type: 'segment',
+                x1: start.x,
+                y1: start.y,
+                x2: end.x,
+                y2: end.y,
+                padding,
+                routeKey: entry.id,
+              });
+            }
+            canvasPoints.forEach((point) => {
+              if (!point) {
+                return;
+              }
+              overlayInteractionEntries.push({
+                type: 'circle',
+                cx: point.x,
+                cy: point.y,
+                radius: Math.max(6, strokeWidth / 2),
+                routeKey: entry.id,
+              });
+            });
+          }
+        }
 
         canvasPoints.forEach((point, index) => {
           const normalized = Array.isArray(normalizedPoints) ? normalizedPoints[index] : null;
@@ -5389,18 +6408,19 @@
           drawRouteFromCanvasPoints(
             visiblePoints,
             color,
-            alpha,
+            routeAlpha,
             routePathType,
             entryPointDiameter,
             entryRectangleWidth,
             entryRectangleHeight,
+            entry.brezerStrokeWidth,
           );
         }
 
         queueGradeBarOverlay({
           routePoints: canvasPoints,
           color,
-          alpha,
+          alpha: routeAlpha,
           medianGrade,
           baseHeight: gradeBarBaseHeight,
           maxHeight: gradeBarMaxHeight,
@@ -5582,6 +6602,7 @@
       }
 
       if (!isDrawingEnabled) {
+        handlePotentialOverlayFocus(event);
         return;
       }
 
@@ -5657,6 +6678,7 @@
           pointDiameter: data.pointDiameter,
           rectangleWidth: data.rectangleWidth,
           rectangleHeight: data.rectangleHeight,
+          brezerStrokeWidth: data.brezerStrokeWidth,
           gradeBarBaseHeight: data.gradeBarBaseHeight,
           gradeBarMaxHeight: data.gradeBarMaxHeight,
           gradeBarWidth: data.gradeBarWidth,
@@ -5704,6 +6726,7 @@
       pointDiameter = wallSettings.pointDiameter;
       rectangleWidth = wallSettings.rectangleWidth;
       rectangleHeight = wallSettings.rectangleHeight;
+      brezerStrokeWidth = wallSettings.brezerStrokeWidth;
       unfocusedTransparency = wallSettings.unfocusedTransparency;
       gradeBarBaseHeight = wallSettings.gradeBarBaseHeight;
       gradeBarMaxHeight = wallSettings.gradeBarMaxHeight;
@@ -5935,6 +6958,7 @@
             id: routeKey,
             ...payload,
             pointDiameter: normalizedPointDiameter,
+            brezerStrokeWidth: wallSettings.brezerStrokeWidth,
             rectangleWidth: normalizedRectangleWidth,
             rectangleHeight: normalizedRectangleHeight,
           }),
@@ -6042,6 +7066,7 @@
         try {
           await persistWallSettings(locationKey, {
             pointDiameter: nextPointDiameter,
+            brezerStrokeWidth,
             gradeBarBaseHeight: nextGradeBarBaseHeight,
             gradeBarMaxHeight: nextGradeBarMaxHeight,
             gradeBarWidth: nextGradeBarWidth,
@@ -6144,6 +7169,7 @@
             pointDiameter: nextValue,
             rectangleWidth,
             rectangleHeight,
+            brezerStrokeWidth,
             unfocusedTransparency,
             gradeBarBaseHeight,
             gradeBarMaxHeight,
@@ -6194,6 +7220,7 @@
             pointDiameter,
             rectangleWidth: nextValue,
             rectangleHeight,
+            brezerStrokeWidth,
             unfocusedTransparency,
             gradeBarBaseHeight,
             gradeBarMaxHeight,
@@ -6243,6 +7270,7 @@
             pointDiameter,
             rectangleWidth,
             rectangleHeight: nextValue,
+            brezerStrokeWidth,
             unfocusedTransparency,
             gradeBarBaseHeight,
             gradeBarMaxHeight,
@@ -6274,6 +7302,56 @@
       });
     }
 
+    if (brezerStrokeWidthSlider) {
+      brezerStrokeWidthSlider.addEventListener('input', (event) => {
+        const nextValue = normalizeBrezerStrokeWidth(event.target.value);
+        if (brezerStrokeWidth === nextValue) {
+          updatePathControls();
+          return;
+        }
+
+        brezerStrokeWidth = nextValue;
+        updatePathControls();
+
+        const locationKey = getCurrentLocationKey();
+        const normalizedKey = normalizeWallKey(locationKey);
+        if (normalizedKey) {
+          const previewSettings = normalizeWallSettings({
+            pointDiameter,
+            rectangleWidth,
+            rectangleHeight,
+            brezerStrokeWidth: nextValue,
+            unfocusedTransparency,
+            gradeBarBaseHeight,
+            gradeBarMaxHeight,
+            gradeBarWidth,
+            gradeBarTransparency,
+          });
+          wallSettingsCache.set(normalizedKey, previewSettings);
+          updateRoutesForWall(normalizedKey, previewSettings);
+        }
+
+        redraw();
+      });
+
+      brezerStrokeWidthSlider.addEventListener('change', async (event) => {
+        const nextValue = normalizeBrezerStrokeWidth(event.target.value);
+        if (brezerStrokeWidth !== nextValue) {
+          brezerStrokeWidth = nextValue;
+          updatePathControls();
+        }
+
+        const locationKey = getCurrentLocationKey();
+        if (locationKey) {
+          try {
+            await persistWallSettings(locationKey, { brezerStrokeWidth: nextValue });
+          } catch (error) {
+            console.error('Failed to persist Brezer stroke width:', error);
+          }
+        }
+      });
+    }
+
     if (unfocusedTransparencySlider) {
       unfocusedTransparencySlider.addEventListener('input', (event) => {
         const nextValue = sliderValueToUnfocusedTransparency(event.target.value);
@@ -6292,6 +7370,7 @@
             pointDiameter,
             rectangleWidth,
             rectangleHeight,
+            brezerStrokeWidth,
             unfocusedTransparency: nextValue,
             gradeBarBaseHeight,
             gradeBarMaxHeight,
@@ -6556,22 +7635,28 @@
             role: trimmedRole,
           };
 
-          if (effectiveLower !== normalizedUsername || !data.username) {
-            try {
-              await setDoc(
-                roleRef,
-                {
-                  username: normalizedUsername,
-                  usernameLower: normalizedUsername,
-                  updatedAt: serverTimestamp(),
-                },
-                { merge: true },
-              );
-              mergedData.username = normalizedUsername;
-              mergedData.usernameLower = normalizedUsername;
-              effectiveLower = normalizedUsername;
-            } catch (error) {
-              console.warn('Failed to synchronise username on role document:', error);
+          const needsUsernameUpdate =
+            effectiveLower !== normalizedUsername || !data.username;
+
+          if (needsUsernameUpdate) {
+            mergedData.username = normalizedUsername;
+            mergedData.usernameLower = normalizedUsername;
+            effectiveLower = normalizedUsername;
+
+            if (trimmedRole !== 'default') {
+              try {
+                await setDoc(
+                  roleRef,
+                  {
+                    username: normalizedUsername,
+                    usernameLower: normalizedUsername,
+                    updatedAt: serverTimestamp(),
+                  },
+                  { merge: true },
+                );
+              } catch (error) {
+                console.warn('Failed to synchronise username on role document:', error);
+              }
             }
           }
 
@@ -6599,11 +7684,21 @@
           role,
           username: normalizedUsername,
           usernameLower: normalizedUsername,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
         };
 
-        await setDoc(roleRef, roleData, { merge: true });
+        if (role === 'default') {
+          return roleData;
+        }
+
+        await setDoc(
+          roleRef,
+          {
+            ...roleData,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true },
+        );
         return roleData;
       } catch (error) {
         console.error('Failed to ensure user role:', error);
@@ -6638,18 +7733,16 @@
       routeSelector.disabled = true;
       deleteButton.disabled = true;
       clearStatus();
-      setRoleControlsEnabled(false);
-      resetRoleManagementUI('Setter access required to manage roles.');
-      dismissWelcomeCallout();
-      hasShownWelcomeCallout = false;
+      updateAdminConsoleAccess('');
+      void finishTutorial();
     }
 
-    function handleAuthorized() {
+    function handleAuthorized(role) {
       unauthorizedNotice.classList.add('hidden');
       appContent.classList.remove('hidden');
       routeSelector.disabled = false;
-      setRoleControlsEnabled(true);
-      clearRoleStatus();
+      const normalizedRole = typeof role === 'string' ? role.trim().toLowerCase() : '';
+      updateAdminConsoleAccess(normalizedRole);
     }
 
     onAuthStateChanged(auth, async (user) => {
@@ -6675,14 +7768,12 @@
           return;
         }
 
-        if (role !== 'setter') {
+        if (role !== 'setter' && role !== 'admin') {
           handleUnauthorized();
           return;
         }
 
-        handleAuthorized();
-
-        showWelcomeCallout();
+        handleAuthorized(role);
 
         try {
           await loadRoutesList(currentRouteKey);
@@ -6694,6 +7785,8 @@
         } catch (error) {
           console.error('Unable to initialise routes:', error);
         }
+
+        await startTutorial();
       } else {
         currentUsername = '';
         currentUserId = null;
@@ -6705,11 +7798,9 @@
         authForm.reset();
         prepareNewRoute();
         clearStatus();
-        setRoleControlsEnabled(false);
-        resetRoleManagementUI();
         setAuthMode('login');
-        dismissWelcomeCallout();
-        hasShownWelcomeCallout = false;
+        updateAdminConsoleAccess('');
+        void finishTutorial();
       }
     });
 
