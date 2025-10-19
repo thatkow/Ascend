@@ -221,37 +221,39 @@
         display: block;
       }
 
-      .view-toggle {
+      .view-mode-toggle-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+
+      .view-mode-toggle-group .view-toggle-option {
         position: relative;
       }
 
-      .view-toggle .view-toggle-icon {
-        display: none;
+      .view-mode-toggle-group .view-toggle-option .view-toggle-icon {
+        display: block;
         width: 20px;
         height: 20px;
       }
 
-      .view-toggle .view-toggle-icon svg {
+      .view-mode-toggle-group .view-toggle-option .view-toggle-icon svg {
         width: 100%;
         height: 100%;
       }
 
-      .view-toggle[aria-pressed='false'] .view-toggle-icon-grade,
-      .view-toggle[aria-pressed='true'] .view-toggle-icon-difficulty {
-        display: block;
+      .view-mode-toggle-group .view-toggle-option.is-active {
+        background: linear-gradient(135deg, rgba(148, 163, 184, 0.45), rgba(30, 41, 59, 0.65));
+        color: #fff;
+        border-color: rgba(148, 163, 184, 0.55);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.4);
       }
+
       .header-icon-button:hover,
       .header-icon-button:focus-visible {
         transform: translateY(-1px);
         box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
         outline: none;
-      }
-
-      .view-toggle[aria-pressed='true'] {
-        background: linear-gradient(135deg, rgba(148, 163, 184, 0.45), rgba(30, 41, 59, 0.65));
-        color: #fff;
-        border-color: rgba(148, 163, 184, 0.55);
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.4);
       }
 
       .location-modal {
@@ -901,7 +903,7 @@
         --tooltip-muted-foreground: #d1d5db;
         --tooltip-surface: #0e150f;
         --tooltip-border-color: #7ed957;
-        --tooltip-grade-size: 3.75rem;
+        --tooltip-grade-size: 4.5rem;
         position: fixed;
         pointer-events: none;
         color: var(--tooltip-foreground, #fff);
@@ -1195,31 +1197,75 @@
         </div>
       </div>
       <header class="app-header">
-        <button
-          id="viewToggle"
-          class="header-icon-button view-toggle"
-          type="button"
-          aria-pressed="false"
-          aria-label="Switch to Coloring by Grade"
-          title="Switch to Coloring by Grade"
+        <div
+          id="viewToggleGroup"
+          class="view-mode-toggle-group"
+          role="group"
+          aria-label="Route coloring mode"
         >
-          <span class="view-toggle-icon view-toggle-icon-grade" aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-              <path
-                d="M6 19a3 3 0 0 1 0-6h12a2 2 0 0 0 0-4H8a4 4 0 0 1 0-8h10v2H8a2 2 0 0 0 0 4h10a4 4 0 0 1 0 8H6a1 1 0 0 0 0 2h12v2H6a3 3 0 0 1-3-3Z"
-                fill="#ffffff"
-              />
-            </svg>
-          </span>
-          <span class="view-toggle-icon view-toggle-icon-difficulty" aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-              <rect x="5" y="13.5" width="3.5" height="6" rx="1.75" fill="#2f9e44" />
-              <rect x="10.25" y="9.5" width="3.5" height="10" rx="1.75" fill="#facc15" />
-              <rect x="15.5" y="5" width="3.5" height="14.5" rx="1.75" fill="#ef4444" />
-              <rect x="4" y="20" width="16" height="1.5" rx="0.75" fill="#ffffff" fill-opacity="0.55" />
-            </svg>
-          </span>
-        </button>
+          <button
+            type="button"
+            class="header-icon-button view-toggle-option"
+            data-view-mode="ascent-status"
+            data-tooltip="Show if Ascended"
+            aria-pressed="false"
+            aria-label="Show if Ascended"
+            title="Show if Ascended"
+          >
+            <span class="sr-only">Show if Ascended</span>
+            <span class="view-toggle-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
+                <path
+                  d="m9.2 12.8 2.1 2.1 4.5-5.6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
+          <button
+            type="button"
+            class="header-icon-button view-toggle-option"
+            data-view-mode="grade-colors"
+            data-tooltip="Show by Grade"
+            aria-pressed="false"
+            aria-label="Show by Grade"
+            title="Show by Grade"
+          >
+            <span class="sr-only">Show by Grade</span>
+            <span class="view-toggle-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path
+                  d="M6 19a3 3 0 0 1 0-6h12a2 2 0 0 0 0-4H8a4 4 0 0 1 0-8h10v2H8a2 2 0 0 0 0 4h10a4 4 0 0 1 0 8H6a1 1 0 0 0 0 2h12v2H6a3 3 0 0 1-3-3Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+          </button>
+          <button
+            type="button"
+            class="header-icon-button view-toggle-option"
+            data-view-mode="hold-colors"
+            data-tooltip="Show by Color of Holds"
+            aria-pressed="false"
+            aria-label="Show by Color of Holds"
+            title="Show by Color of Holds"
+          >
+            <span class="sr-only">Show by Color of Holds</span>
+            <span class="view-toggle-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <rect x="5" y="13.5" width="3.5" height="6" rx="1.75" fill="#2f9e44" />
+                <rect x="10.25" y="9.5" width="3.5" height="10" rx="1.75" fill="#facc15" />
+                <rect x="15.5" y="5" width="3.5" height="14.5" rx="1.75" fill="#ef4444" />
+                <rect x="4" y="20" width="16" height="1.5" rx="0.75" fill="#ffffff" fill-opacity="0.55" />
+              </svg>
+            </span>
+          </button>
+        </div>
         <button
           id="progressionButton"
           class="header-icon-button progression-button"
@@ -1435,7 +1481,31 @@
       const infoButton = document.getElementById('infoButton');
       const infoPopover = document.getElementById('infoPopover');
       const locationButton = document.getElementById('locationButton');
-      const viewToggleButton = document.getElementById('viewToggle');
+      const viewToggleGroup = document.getElementById('viewToggleGroup');
+      const viewToggleButtons = Array.from(
+        viewToggleGroup?.querySelectorAll('[data-view-mode]') ?? [],
+      );
+      const viewToggleButtonMap = new Map();
+      viewToggleButtons.forEach((button) => {
+        const mode = button?.dataset?.viewMode;
+        if (mode) {
+          viewToggleButtonMap.set(mode, button);
+        }
+      });
+
+      function getViewToggleButtonForMode(mode) {
+        if (!mode) {
+          return null;
+        }
+        return viewToggleButtonMap.get(mode) ?? null;
+      }
+
+      function isViewToggleElement(element) {
+        if (!element) {
+          return false;
+        }
+        return viewToggleButtons.includes(element);
+      }
       const progressionButton = document.getElementById('progressionButton');
       const locationModal = document.getElementById('locationModal');
       const locationOptions = document.getElementById('locationOptions');
@@ -1468,6 +1538,7 @@
       let tutorialSteps = [];
       let tutorialSecondaryActionMode = 'back';
       let tutorialHighlightedRouteId = null;
+      let tutorialPreviousViewMode = null;
 
       let tutorialOptOut = false;
 
@@ -1955,6 +2026,38 @@
             },
           },
           {
+            title: 'Color the wall your way',
+            body: [
+              'Use Show if Ascended to light up the problems you have already sent in green.',
+              'Switch to Show by Grade for a consensus difficulty heatmap or back to hold colours to match the tape.',
+              'Each mode is just a tap away in the three toggle buttons up top.',
+            ],
+            onEnter: () => {
+              setTutorialOverlayAlignment('center');
+              highlightTutorialElement(null);
+              const ascendButton =
+                getViewToggleButtonForMode(VIEW_MODE_ASCENT_STATUS) || viewToggleButtons[0];
+              tutorialPreviousViewMode = viewMode;
+              if (viewMode !== VIEW_MODE_ASCENT_STATUS) {
+                setViewMode(VIEW_MODE_ASCENT_STATUS);
+              }
+              if (ascendButton) {
+                highlightTutorialElement(ascendButton, { illuminate: true });
+                showTutorialPointerFor(ascendButton);
+              } else {
+                hideTutorialPointer();
+              }
+            },
+            onExit: () => {
+              hideTutorialPointer();
+              highlightTutorialElement(null);
+              if (tutorialPreviousViewMode && tutorialPreviousViewMode !== viewMode) {
+                setViewMode(tutorialPreviousViewMode);
+              }
+              tutorialPreviousViewMode = null;
+            },
+          },
+          {
             title: 'Track your progression',
             body: [
               'Open the Progression button to review your ascents, see focused projects, and keep tabs on what\'s next.',
@@ -2098,6 +2201,7 @@
         tutorialStepIndex = -1;
         tutorialTransitionInProgress = false;
         tutorialSteps = [];
+        tutorialPreviousViewMode = null;
 
         highlightTutorialElement(null);
         hideTutorialPointer();
@@ -2151,31 +2255,57 @@
       }
 
 
-      function buildViewModeCallout() {
-        if (!viewToggleButton) {
+      function buildViewModeCallout(context = {}) {
+        let target = null;
+        if (context?.button instanceof Element && isElementVisible(context.button)) {
+          target = context.button;
+        } else {
+          target =
+            getViewToggleButtonForMode(viewMode) ||
+            getViewToggleButtonForMode(VIEW_MODE_HOLD_COLORS) ||
+            viewToggleButtons[0] ||
+            null;
+          if (!isElementVisible(target)) {
+            target = null;
+          }
+        }
+
+        if (!target) {
           return null;
         }
 
-        const showingGradeColors = viewMode === VIEW_MODE_GRADE_COLORS;
-        const title = showingGradeColors ? 'Grade colors' : 'Hold colors';
-        const lines = showingGradeColors
-          ? [
-              'Routes are tinted by difficulty right now.',
-              'Climbs without a recorded grade show a neutral grey until someone logs one.',
-              'Tap the palette icon to switch back to Coloring by Holds whenever you want setter colours again.',
-            ]
-          : [
-              'Routes are showing the colour of each hold set.',
-              'Switch to Coloring by Grade with the palette icon to compare difficulty at a glance.',
-            ];
+        const mode = target.dataset?.viewMode || viewMode;
+        let title = 'Route colors';
+        let lines = [];
+
+        if (mode === VIEW_MODE_ASCENT_STATUS) {
+          title = 'Show if Ascended';
+          lines = [
+            'Sends you have logged glow green so your ticklist stands out instantly.',
+            'Projects still in progress stay grey until you tap Ascended in the tooltip.',
+          ];
+        } else if (mode === VIEW_MODE_GRADE_COLORS) {
+          title = 'Show by Grade';
+          lines = [
+            'Routes are tinted by consensus difficulty right now.',
+            'Problems without a community grade stay bright white until someone logs one.',
+            'Swap back to hold colours whenever you want to match the tape on the wall.',
+          ];
+        } else {
+          title = 'Show by Color of Holds';
+          lines = [
+            'Routes are showing the colour of each hold set.',
+            'Switch to Show by Grade when you want a quick difficulty heatmap.',
+          ];
+        }
 
         const callout = createBasicCallout(title, lines);
-        if (showingGradeColors) {
+        if (mode === VIEW_MODE_GRADE_COLORS) {
           callout.appendChild(createGradeChartElement());
         }
 
         return {
-          target: viewToggleButton,
+          target,
           element: callout,
           options: { placement: 'bottom', offset: 14 },
         };
@@ -2481,7 +2611,7 @@
         let entry = null;
         switch (targetKey) {
           case 'view-toggle':
-            entry = buildViewModeCallout();
+            entry = buildViewModeCallout(context);
             break;
           case 'setter-link':
             entry = buildSetterCallout();
@@ -2576,12 +2706,15 @@
         [30, '#C10407'],
         [31, '#BD0306'],
       ]);
-      const DEFAULT_GRADELESS_COLOR = '#6b7280';
+      const DEFAULT_GRADELESS_COLOR = '#ffffff';
       const MIN_BREZER_STROKE_WIDTH = 2;
       const MAX_BREZER_STROKE_WIDTH = 40;
       const DEFAULT_BREZER_STROKE_WIDTH = 10;
+      const VIEW_MODE_ASCENT_STATUS = 'ascent-status';
       const VIEW_MODE_HOLD_COLORS = 'hold-colors';
       const VIEW_MODE_GRADE_COLORS = 'grade-colors';
+      const ASCENT_STATUS_ASCENDED_COLOR = '#7ed957';
+      const ASCENT_STATUS_PROJECT_COLOR = '#4b5563';
 
       function normalizePathType(value) {
         if (typeof value === 'string') {
@@ -3019,32 +3152,46 @@
         }
         document.body.classList.toggle('view-mode-grade-colors', viewMode === VIEW_MODE_GRADE_COLORS);
         document.body.classList.toggle('view-mode-hold-colors', viewMode === VIEW_MODE_HOLD_COLORS);
+        document.body.classList.toggle('view-mode-ascents', viewMode === VIEW_MODE_ASCENT_STATUS);
       }
 
-      function updateViewToggleButton() {
-        if (!viewToggleButton) {
+      function updateViewToggleButtons() {
+        if (!viewToggleButtons.length) {
           return;
         }
 
-        const showingGradeColors = viewMode === VIEW_MODE_GRADE_COLORS;
-        const labelText = showingGradeColors
-          ? 'Switch to Coloring by Holds'
-          : 'Switch to Coloring by Grade';
-        viewToggleButton.setAttribute('aria-pressed', showingGradeColors ? 'true' : 'false');
-        viewToggleButton.setAttribute('aria-label', labelText);
-        viewToggleButton.setAttribute('title', labelText);
+        viewToggleButtons.forEach((button) => {
+          if (!button) {
+            return;
+          }
+
+          const mode = button.dataset?.viewMode;
+          const tooltip = button.dataset?.tooltip;
+          if (tooltip) {
+            button.setAttribute('title', tooltip);
+            button.setAttribute('aria-label', tooltip);
+          }
+
+          const isActive = mode === viewMode;
+          button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+          button.classList.toggle('is-active', isActive);
+        });
       }
 
       function setViewMode(mode) {
-        const normalized =
-          mode === VIEW_MODE_GRADE_COLORS ? VIEW_MODE_GRADE_COLORS : VIEW_MODE_HOLD_COLORS;
+        const allowedModes = new Set([
+          VIEW_MODE_ASCENT_STATUS,
+          VIEW_MODE_GRADE_COLORS,
+          VIEW_MODE_HOLD_COLORS,
+        ]);
+        const normalized = allowedModes.has(mode) ? mode : VIEW_MODE_HOLD_COLORS;
         if (viewMode === normalized) {
           return;
         }
 
         viewMode = normalized;
         syncViewModeState();
-        updateViewToggleButton();
+        updateViewToggleButtons();
         hideTooltip({ force: true });
         if (canvas) {
           canvas.style.cursor = '';
@@ -3543,17 +3690,23 @@
         });
       }
 
-      if (viewToggleButton) {
-        viewToggleButton.addEventListener('click', (event) => {
-          if (handleInfoRequestFor('view-toggle', event)) {
+      if (viewToggleButtons.length) {
+        viewToggleButtons.forEach((button) => {
+          if (!button) {
             return;
           }
-          if (activeInfoCallout?.target === viewToggleButton) {
-            clearInfoHighlights();
-          }
-          const nextMode =
-            viewMode === VIEW_MODE_HOLD_COLORS ? VIEW_MODE_GRADE_COLORS : VIEW_MODE_HOLD_COLORS;
-          setViewMode(nextMode);
+
+          button.addEventListener('click', (event) => {
+            if (handleInfoRequestFor('view-toggle', event, { button })) {
+              return;
+            }
+            if (activeInfoCallout?.target && isViewToggleElement(activeInfoCallout.target)) {
+              clearInfoHighlights();
+            }
+
+            const targetMode = button.dataset?.viewMode;
+            setViewMode(targetMode);
+          });
         });
       }
 
@@ -4062,7 +4215,7 @@
       }
 
       syncViewModeState();
-      updateViewToggleButton();
+      updateViewToggleButtons();
 
       const DEFAULT_CANVAS_ASPECT_RATIO = 1536 / 1024;
       let canvasAspectRatio = DEFAULT_CANVAS_ASPECT_RATIO;
@@ -5808,6 +5961,11 @@
       }
 
       function getRouteDisplayColor(route) {
+        if (viewMode === VIEW_MODE_ASCENT_STATUS) {
+          const routeId = route?.id;
+          const isAscended = Boolean(routeId && ascendedRoutes.has(routeId));
+          return isAscended ? ASCENT_STATUS_ASCENDED_COLOR : ASCENT_STATUS_PROJECT_COLOR;
+        }
         if (viewMode === VIEW_MODE_GRADE_COLORS) {
           const gradeColor = getRouteGradeColor(route);
           return gradeColor ?? DEFAULT_GRADELESS_COLOR;
