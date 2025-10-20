@@ -394,6 +394,9 @@
     </section>
 
     <section class="secondary-actions">
+      <button id="removeOrphanedAscentsButton" class="secondary-button" type="button">
+        Remove ascents for deleted users
+      </button>
       <button id="adminSetterToolsButton" class="secondary-button" type="button">Open setter tools</button>
       <button id="adminSignOutButton" class="secondary-button" type="button">Sign out</button>
     </section>
@@ -453,6 +456,7 @@
     const adminClearButton = document.getElementById('adminClearButton');
     const adminSignOutButton = document.getElementById('adminSignOutButton');
     const adminSetterToolsButton = document.getElementById('adminSetterToolsButton');
+    const removeOrphanedAscentsButton = document.getElementById('removeOrphanedAscentsButton');
     const roleUsernameInput = document.getElementById('roleUsernameInput');
     const grantSetterButton = document.getElementById('grantSetterButton');
     const revokeSetterButton = document.getElementById('revokeSetterButton');
@@ -560,7 +564,7 @@
 
     function setControlsEnabled(enabled) {
       const allow = Boolean(enabled);
-      [adminDumpButton, adminImportButton, adminClearButton].forEach((button) => {
+      [adminDumpButton, adminImportButton, adminClearButton, removeOrphanedAscentsButton].forEach((button) => {
         if (button) {
           button.disabled = !allow;
         }
@@ -1359,6 +1363,69 @@
         setAdminStatus(message, 'error');
       } finally {
         resetImportInput();
+        setControlsEnabled(true);
+      }
+    });
+
+    removeOrphanedAscentsButton?.addEventListener('click', async () => {
+      if (removeOrphanedAscentsButton.disabled) {
+        return;
+      }
+
+      setAdminStatus('Scanning routes for ascents linked to missing users…', 'info');
+      setControlsEnabled(false);
+
+      try {
+        const [usersSnapshot, routesSnapshot] = await Promise.all([
+          getDocs(collection(db, 'users')),
+          getDocs(collection(db, 'routes')),
+        ]);
+
+        const existingUserIds = new Set(usersSnapshot.docs.map((userDoc) => userDoc.id));
+        let checkedRoutes = 0;
+        let cleanedRoutes = 0;
+        let removedAscents = 0;
+
+        for (const routeDoc of routesSnapshot.docs) {
+          checkedRoutes += 1;
+          const routeData = routeDoc.data();
+          const ascents = routeData && typeof routeData === 'object' ? routeData.ascents : null;
+
+          if (!ascents || typeof ascents !== 'object') {
+            continue;
+          }
+
+          const updates = {};
+          let hasChanges = false;
+
+          for (const [userId] of Object.entries(ascents)) {
+            if (!existingUserIds.has(userId)) {
+              updates[`ascents.${userId}`] = deleteField();
+              hasChanges = true;
+              removedAscents += 1;
+            }
+          }
+
+          if (hasChanges) {
+            await setDoc(routeDoc.ref, updates, { merge: true });
+            cleanedRoutes += 1;
+          }
+        }
+
+        if (removedAscents === 0) {
+          setAdminStatus(`Checked ${checkedRoutes} routes. No orphaned ascents found.`, 'info');
+        } else {
+          const routeLabel = cleanedRoutes === 1 ? 'route' : 'routes';
+          const ascentLabel = removedAscents === 1 ? 'ascent' : 'ascents';
+          setAdminStatus(
+            `Removed ${removedAscents} orphaned ${ascentLabel} across ${cleanedRoutes} ${routeLabel}.`,
+            'success',
+          );
+        }
+      } catch (error) {
+        console.error('Failed to remove orphaned ascents:', error);
+        setAdminStatus('Failed to remove orphaned ascents. Check console for details.', 'error');
+      } finally {
         setControlsEnabled(true);
       }
     });
