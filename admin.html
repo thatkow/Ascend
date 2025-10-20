@@ -533,6 +533,7 @@
       where,
       limit,
       setDoc,
+      updateDoc,
       deleteDoc,
       serverTimestamp,
       Timestamp,
@@ -1776,7 +1777,7 @@
           }
 
           if (hasChanges) {
-            await setDoc(routeDoc.ref, updates, { merge: true });
+            await updateDoc(routeDoc.ref, updates);
             cleanedRoutes += 1;
           }
         }
