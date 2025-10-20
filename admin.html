@@ -377,7 +377,7 @@
     </section>
 
     <section id="roleManager" class="role-manager">
-      <h2>Manage setter access</h2>
+      <h2>Manage user access</h2>
       <label for="roleUsernameInput">
         <span>Username</span>
         <input id="roleUsernameInput" type="text" placeholder="username" autocomplete="off" />
@@ -389,6 +389,13 @@
         type="button"
       >
         Revoke setter role
+      </button>
+      <button
+        id="deleteUserButton"
+        class="role-action-button role-revoke-button"
+        type="button"
+      >
+        Delete user account
       </button>
       <p id="roleStatusMessage" class="status-message hidden" role="status" aria-live="polite"></p>
     </section>
@@ -460,6 +467,7 @@
     const roleUsernameInput = document.getElementById('roleUsernameInput');
     const grantSetterButton = document.getElementById('grantSetterButton');
     const revokeSetterButton = document.getElementById('revokeSetterButton');
+    const deleteUserButton = document.getElementById('deleteUserButton');
     const roleStatusMessage = document.getElementById('roleStatusMessage');
 
     const SYNTHETIC_EMAIL_DOMAIN = 'users.anuascend.local';
@@ -539,6 +547,9 @@
       }
       if (revokeSetterButton) {
         revokeSetterButton.disabled = !allow;
+      }
+      if (deleteUserButton) {
+        deleteUserButton.disabled = !allow;
       }
       if (roleUsernameInput) {
         roleUsernameInput.disabled = !allow;
@@ -1218,6 +1229,83 @@
         } catch (error) {
           console.error('Failed to revoke setter role:', error);
           setRoleStatus('Unable to revoke setter role. Please try again.', 'error');
+        } finally {
+          setRoleControlsEnabled(Boolean(currentAdminUser));
+          if (roleUsernameInput && !roleUsernameInput.disabled) {
+            roleUsernameInput.focus();
+          }
+        }
+      });
+    }
+
+    if (deleteUserButton && roleUsernameInput) {
+      deleteUserButton.addEventListener('click', async () => {
+        const rawUsername = roleUsernameInput.value;
+        const trimmedUsername = typeof rawUsername === 'string' ? rawUsername.trim() : '';
+
+        if (!trimmedUsername) {
+          setRoleStatus("Enter the user's username.", 'info');
+          return;
+        }
+
+        if (!isLikelyUsername(trimmedUsername)) {
+          setRoleStatus('Enter a valid username (letters, numbers, underscores).', 'error');
+          return;
+        }
+
+        const normalizedUsername = normalizeUsername(trimmedUsername);
+
+        try {
+          setRoleControlsEnabled(false);
+          setRoleStatus(`Deleting account for ${trimmedUsername}…`, 'info');
+
+          const snapshot = await getDocs(
+            query(collection(db, 'users'), where('username', '==', normalizedUsername), limit(1)),
+          );
+
+          if (snapshot.empty) {
+            setRoleStatus('No user found with that username.', 'error');
+            return;
+          }
+
+          const userDoc = snapshot.docs[0];
+          const userData = userDoc.data() || {};
+          const targetUid = userDoc.id;
+
+          if (!targetUid) {
+            setRoleStatus('Unable to resolve that username to a user account.', 'error');
+            return;
+          }
+
+          if (currentAdminUser && targetUid === currentAdminUser.uid) {
+            setRoleStatus('You cannot delete your own admin account.', 'warning');
+            return;
+          }
+
+          const existingRole =
+            typeof userData.role === 'string' ? userData.role.trim().toLowerCase() : '';
+
+          if (existingRole === 'admin') {
+            setRoleStatus('Admin accounts cannot be deleted. Demote the user first.', 'warning');
+            return;
+          }
+
+          const confirmed = window.confirm(
+            `Delete the user profile for "${trimmedUsername}"? This action cannot be undone.`,
+          );
+
+          if (!confirmed) {
+            setRoleStatus('User deletion cancelled.', 'info');
+            return;
+          }
+
+          await deleteDoc(doc(db, 'users', targetUid));
+
+          setRoleStatus(`Deleted user profile for ${trimmedUsername}.`, 'success');
+          roleUsernameInput.value = '';
+        } catch (error) {
+          console.error('Failed to delete user:', error);
+          setRoleStatus('Unable to delete user. Please try again.', 'error');
         } finally {
           setRoleControlsEnabled(Boolean(currentAdminUser));
           if (roleUsernameInput && !roleUsernameInput.disabled) {
