@@ -311,6 +311,90 @@
       color: #dbeafe;
     }
 
+    .user-directory {
+      display: grid;
+      gap: 0.75rem;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 1.25rem;
+      padding: 1.25rem;
+    }
+
+    .user-directory-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .user-directory h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .user-directory .user-list-status {
+      margin-top: 0.25rem;
+    }
+
+    .user-list {
+      list-style: none;
+      display: grid;
+      gap: 0.6rem;
+      margin: 0;
+      padding: 0;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+
+    .user-list::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .user-list::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.35);
+      border-radius: 999px;
+    }
+
+    .user-list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 0.9rem;
+      background: rgba(30, 41, 59, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .user-list-name {
+      font-weight: 600;
+      color: #f8fafc;
+    }
+
+    .user-role-badge {
+      border-radius: 999px;
+      padding: 0.2rem 0.65rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: rgba(96, 165, 250, 0.2);
+      color: #bfdbfe;
+      border: 1px solid rgba(96, 165, 250, 0.4);
+      text-transform: capitalize;
+      white-space: nowrap;
+    }
+
+    .user-role-badge[data-role='admin'] {
+      background: rgba(248, 113, 113, 0.2);
+      color: #fecaca;
+      border-color: rgba(248, 113, 113, 0.5);
+    }
+
+    .user-role-badge[data-role='setter'] {
+      background: rgba(34, 197, 94, 0.25);
+      color: #bbf7d0;
+      border-color: rgba(34, 197, 94, 0.45);
+    }
+
     .unauthorized {
       width: min(420px, 100%);
       background: rgba(185, 28, 28, 0.12);
@@ -400,6 +484,20 @@
       <p id="roleStatusMessage" class="status-message hidden" role="status" aria-live="polite"></p>
     </section>
 
+    <section id="userDirectory" class="user-directory">
+      <div class="user-directory-header">
+        <h2>Current users</h2>
+        <button id="refreshUserListButton" class="secondary-button" type="button">Refresh list</button>
+      </div>
+      <p
+        id="userListStatus"
+        class="status-message hidden user-list-status"
+        role="status"
+        aria-live="polite"
+      ></p>
+      <ul id="userList" class="user-list hidden"></ul>
+    </section>
+
     <section class="secondary-actions">
       <button id="removeOrphanedAscentsButton" class="secondary-button" type="button">
         Remove ascents for deleted users
@@ -469,6 +567,9 @@
     const revokeSetterButton = document.getElementById('revokeSetterButton');
     const deleteUserButton = document.getElementById('deleteUserButton');
     const roleStatusMessage = document.getElementById('roleStatusMessage');
+    const refreshUserListButton = document.getElementById('refreshUserListButton');
+    const userListElement = document.getElementById('userList');
+    const userListStatus = document.getElementById('userListStatus');
 
     const SYNTHETIC_EMAIL_DOMAIN = 'users.anuascend.local';
     const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
@@ -573,9 +674,175 @@
     resetRoleManagementUI();
     setRoleControlsEnabled(false);
 
+    function setUserListStatus(message, variant = 'info') {
+      if (!userListStatus) {
+        return;
+      }
+
+      if (!message) {
+        userListStatus.textContent = '';
+        userListStatus.classList.add('hidden');
+        delete userListStatus.dataset.variant;
+        return;
+      }
+
+      userListStatus.textContent = message;
+      userListStatus.classList.remove('hidden');
+      if (variant) {
+        userListStatus.dataset.variant = variant;
+      } else {
+        delete userListStatus.dataset.variant;
+      }
+    }
+
+    function clearUserListStatus() {
+      setUserListStatus('');
+    }
+
+    function setUserListControlsEnabled(enabled) {
+      if (refreshUserListButton) {
+        refreshUserListButton.disabled = !enabled;
+      }
+    }
+
+    function resetUserListUI(message = '', variant = 'info') {
+      if (userListElement) {
+        userListElement.innerHTML = '';
+        userListElement.classList.add('hidden');
+      }
+
+      if (message) {
+        setUserListStatus(message, variant);
+      } else {
+        clearUserListStatus();
+      }
+    }
+
+    function renderUserList(users) {
+      if (!userListElement) {
+        return;
+      }
+
+      userListElement.innerHTML = '';
+
+      if (!Array.isArray(users) || users.length === 0) {
+        userListElement.classList.add('hidden');
+        setUserListStatus('No user profiles found.', 'info');
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+
+      for (const user of users) {
+        const listItem = document.createElement('li');
+        listItem.className = 'user-list-item';
+        listItem.title = user.uid;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'user-list-name';
+        nameSpan.textContent = user.displayName;
+        listItem.appendChild(nameSpan);
+
+        if (user.roleLabel) {
+          const roleSpan = document.createElement('span');
+          roleSpan.className = 'user-role-badge';
+          roleSpan.dataset.role = user.roleValue;
+          roleSpan.textContent = user.roleLabel;
+          listItem.appendChild(roleSpan);
+        }
+
+        fragment.appendChild(listItem);
+      }
+
+      userListElement.appendChild(fragment);
+      userListElement.classList.remove('hidden');
+      const label = users.length === 1 ? 'user' : 'users';
+      setUserListStatus(`Showing ${users.length} ${label}.`, 'info');
+    }
+
+    async function refreshUserList() {
+      if (!currentAdminUser) {
+        resetUserListUI('Admin access required to view user profiles.', 'warning');
+        return;
+      }
+
+      if (userListElement) {
+        userListElement.innerHTML = '';
+        userListElement.classList.add('hidden');
+      }
+      setUserListStatus('Loading user profiles…', 'info');
+
+      const previousDisabled = refreshUserListButton ? refreshUserListButton.disabled : false;
+      if (refreshUserListButton) {
+        refreshUserListButton.disabled = true;
+      }
+
+      try {
+        const snapshot = await getDocs(collection(db, 'users'));
+        const users = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data() || {};
+          const storedUsername =
+            typeof data.username === 'string' ? data.username.trim() : '';
+          const normalizedUsername = normalizeUsername(storedUsername);
+          const roleValueRaw =
+            typeof data.role === 'string' ? data.role.trim().toLowerCase() : '';
+
+          let roleLabel = '';
+          if (roleValueRaw === 'admin') {
+            roleLabel = 'Admin';
+          } else if (roleValueRaw === 'setter') {
+            roleLabel = 'Setter';
+          } else if (roleValueRaw && roleValueRaw !== 'default') {
+            roleLabel = roleValueRaw.charAt(0).toUpperCase() + roleValueRaw.slice(1);
+          }
+
+          return {
+            uid: docSnap.id,
+            username: normalizedUsername,
+            displayName: normalizedUsername || '(no username)',
+            roleValue: roleValueRaw || 'default',
+            roleLabel,
+          };
+        });
+
+        users.sort((a, b) => {
+          const hasAName = Boolean(a.username);
+          const hasBName = Boolean(b.username);
+          if (hasAName && hasBName) {
+            return a.username.localeCompare(b.username);
+          }
+          if (hasAName) {
+            return -1;
+          }
+          if (hasBName) {
+            return 1;
+          }
+          return a.uid.localeCompare(b.uid);
+        });
+
+        renderUserList(users);
+      } catch (error) {
+        console.error('Failed to load user list:', error);
+        setUserListStatus('Failed to load user list. Please try again.', 'error');
+      } finally {
+        if (refreshUserListButton) {
+          refreshUserListButton.disabled = previousDisabled || !currentAdminUser;
+        }
+      }
+    }
+
+    resetUserListUI('Sign in to load user profiles.', 'info');
+    setUserListControlsEnabled(false);
+
     function setControlsEnabled(enabled) {
       const allow = Boolean(enabled);
-      [adminDumpButton, adminImportButton, adminClearButton, removeOrphanedAscentsButton].forEach((button) => {
+      [
+        adminDumpButton,
+        adminImportButton,
+        adminClearButton,
+        removeOrphanedAscentsButton,
+        refreshUserListButton,
+      ].forEach((button) => {
         if (button) {
           button.disabled = !allow;
         }
@@ -584,6 +851,7 @@
         adminImportInput.disabled = !allow;
       }
       setRoleControlsEnabled(allow && Boolean(currentAdminUser));
+      setUserListControlsEnabled(allow && Boolean(currentAdminUser));
     }
 
     function showAuthOverlay(message = '') {
@@ -597,7 +865,9 @@
       unauthorizedNotice.classList.add('hidden');
       clearAdminStatus();
       resetRoleManagementUI();
+      resetUserListUI('Sign in to load user profiles.', 'info');
       setControlsEnabled(false);
+      setUserListControlsEnabled(false);
     }
 
     function showAdminApp() {
@@ -608,6 +878,8 @@
       adminApp.removeAttribute('aria-hidden');
       resetRoleManagementUI('Enter the username of the user you want to manage.', 'info');
       setRoleControlsEnabled(Boolean(currentAdminUser));
+      resetUserListUI('Loading user profiles…', 'info');
+      setUserListControlsEnabled(Boolean(currentAdminUser));
     }
 
     function showUnauthorizedNotice() {
@@ -617,6 +889,8 @@
       setControlsEnabled(false);
       clearAdminStatus();
       resetRoleManagementUI('Admin access required to manage roles.', 'warning');
+      resetUserListUI('Admin access required to view user profiles.', 'warning');
+      setUserListControlsEnabled(false);
     }
 
     function resetImportInput() {
@@ -1058,6 +1332,10 @@
       window.location.href = 'setter.html';
     });
 
+    refreshUserListButton?.addEventListener('click', () => {
+      void refreshUserList();
+    });
+
     function ensureImportIntentHandled() {
       const hash = window.location.hash.replace('#', '').toLowerCase();
       if (hash === 'import' && adminImportButton && !adminImportButton.disabled) {
@@ -1143,6 +1421,7 @@
 
           setRoleStatus(`Setter role granted to ${trimmedUsername}.`, 'success');
           roleUsernameInput.value = '';
+          void refreshUserList();
         } catch (error) {
           console.error('Failed to grant setter role:', error);
           setRoleStatus('Unable to grant setter role. Please try again.', 'error');
@@ -1226,6 +1505,7 @@
 
           setRoleStatus(`Setter role revoked for ${trimmedUsername}.`, 'success');
           roleUsernameInput.value = '';
+          void refreshUserList();
         } catch (error) {
           console.error('Failed to revoke setter role:', error);
           setRoleStatus('Unable to revoke setter role. Please try again.', 'error');
@@ -1303,6 +1583,7 @@
 
           setRoleStatus(`Deleted user profile for ${trimmedUsername}.`, 'success');
           roleUsernameInput.value = '';
+          void refreshUserList();
         } catch (error) {
           console.error('Failed to delete user:', error);
           setRoleStatus('Unable to delete user. Please try again.', 'error');
@@ -1651,6 +1932,7 @@
       currentAdminUsername = resolvedUsername;
       showAdminApp();
       setControlsEnabled(true);
+      void refreshUserList();
       clearAdminStatus();
       ensureImportIntentHandled();
     });
