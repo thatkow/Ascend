@@ -3787,8 +3787,23 @@
         }
 
         try {
+          const userRef = doc(db, 'users', user.uid);
+          const snapshot = await getDoc(userRef);
+
+          if (!snapshot.exists()) {
+            try {
+              await ensureUserRole(user, normalizedUsername);
+            } catch (creationError) {
+              console.warn(
+                'Failed to create user record while synchronising username mapping:',
+                creationError,
+              );
+              return;
+            }
+          }
+
           await setDoc(
-            doc(db, 'users', user.uid),
+            userRef,
             {
               username: normalizedUsername,
               updatedAt: serverTimestamp(),
