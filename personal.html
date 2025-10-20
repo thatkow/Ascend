@@ -6348,20 +6348,38 @@
           throw new Error('You cannot upvote your own beta tip.');
         }
 
-        const usersMap = routeUsersCache.get(routeId);
-        const targetDetails =
-          usersMap instanceof Map ? usersMap.get(normalizedTarget) : null;
-        const targetBetatip =
-          typeof targetDetails?.betatip === 'string' && targetDetails.betatip
+        const routeRef = doc(db, 'routes', routeId);
+        const routeSnapshot = await getDoc(routeRef);
+
+        if (!routeSnapshot.exists()) {
+          throw new Error('This beta tip is no longer available.');
+        }
+
+        const routeData = routeSnapshot.data() ?? {};
+        const usersMapData =
+          routeData.users && typeof routeData.users === 'object'
+            ? routeData.users
+            : {};
+        const targetDetails = usersMapData[normalizedTarget];
+
+        if (!targetDetails || typeof targetDetails !== 'object') {
+          throw new Error('This beta tip is no longer available.');
+        }
+
+        const targetBetatipRaw =
+          typeof targetDetails.betatip === 'string'
             ? targetDetails.betatip
-            : null;
+            : typeof targetDetails.text === 'string'
+            ? targetDetails.text
+            : '';
+        const targetBetatip = targetBetatipRaw.replace(/\r\n/g, '\n').trim();
 
         if (!targetBetatip) {
           throw new Error('This beta tip is no longer available.');
         }
 
         const upvoteSet = normalizeUpvoteList(
-          targetDetails?.betatipUpvotes ?? targetDetails?.betatipupvotes,
+          targetDetails.betatipUpvotes ?? targetDetails.betatipupvotes,
         );
         const alreadyUpvoted = upvoteSet.has(voter);
 
@@ -6371,22 +6389,21 @@
           upvoteSet.add(voter);
         }
 
-        const targetGrade = normalizeGradeValue(targetDetails?.grade);
-        const targetAscended = targetDetails?.ascended === true;
+        const serializedUpvotes = serializeUpvoteSet(upvoteSet);
 
-        const userPayload = {
-          grade: targetGrade,
-          ascended: targetAscended,
-          betatip: targetBetatip,
-          betatipupvotes: serializeUpvoteSet(upvoteSet),
-        };
-
-        const routeRef = doc(db, 'routes', routeId);
         await updateDoc(routeRef, {
-          [`users.${normalizedTarget}`]: userPayload,
+          [`users.${normalizedTarget}.betatipupvotes`]:
+            serializedUpvotes.length > 0 ? serializedUpvotes : [],
         });
 
-        updateCachesForUser(routeId, normalizedTarget, userPayload);
+        const cachePayload = {
+          grade: targetDetails.grade,
+          ascended: targetDetails.ascended,
+          betatip: targetBetatipRaw,
+          betatipupvotes: serializedUpvotes,
+        };
+
+        updateCachesForUser(routeId, normalizedTarget, cachePayload);
 
         return {
           hasUpvoted: !alreadyUpvoted,
