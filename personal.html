@@ -921,7 +921,9 @@
         border-radius: 0.75rem;
         font-size: 0.85rem;
         line-height: 1.4;
-        max-width: min(280px, 80vw);
+        width: 50vw;
+        max-width: 90vw;
+        max-height: calc(90vh - 2rem);
         z-index: 6;
         opacity: 0;
         transform: translate(-50%, -12px);
@@ -929,11 +931,34 @@
         display: flex;
         flex-direction: column;
         gap: 0.35rem;
-        overflow: visible;
+        overflow: hidden;
         background-color: var(--tooltip-surface, #0e150f);
         background: var(--tooltip-surface, #0e150f);
         border: 1px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
         box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
+      }
+
+      .route-tooltip .tooltip-content {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        overflow-y: auto;
+        padding-right: 0.25rem;
+        flex: 1;
+        min-height: 0;
+      }
+
+      .route-tooltip .tooltip-content::-webkit-scrollbar {
+        width: 0.5rem;
+      }
+
+      .route-tooltip .tooltip-content::-webkit-scrollbar-thumb {
+        background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.4);
+        border-radius: 999px;
+      }
+
+      .route-tooltip .tooltip-content::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.25);
       }
 
       .route-tooltip.pinned {
@@ -1261,12 +1286,12 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 0.15rem;
+        padding: 0.35rem;
         border-radius: 0.5rem;
         border: 1px solid rgba(255, 255, 255, 0.35);
         background: rgba(0, 0, 0, 0.25);
         color: var(--tooltip-foreground, #fff);
-        font-size: 1rem;
+        font-size: 1.5rem;
         line-height: 1;
         min-width: 0;
         transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease,
@@ -1282,9 +1307,16 @@
       }
 
       .route-tooltip .tooltip-close-button svg {
-        width: 1em;
-        height: 1em;
+        width: 1.75em;
+        height: 1.75em;
         display: block;
+      }
+
+      @media (max-width: 768px) {
+        .route-tooltip {
+          width: 90vw;
+          max-height: calc(90vh - 1.5rem);
+        }
       }
 
     </style>
@@ -5404,11 +5436,15 @@
             setSavingState(true);
 
             try {
-              const previousScrollTop = tooltip ? tooltip.scrollTop : 0;
+              const scrollContainer = tooltip?.querySelector('.tooltip-content');
+              const previousScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
               await saveBetatipForRoute(route, textarea.value);
               if (tooltip) {
                 updateTooltipContent(route);
-                tooltip.scrollTop = previousScrollTop;
+                const nextScrollContainer = tooltip.querySelector('.tooltip-content');
+                if (nextScrollContainer) {
+                  nextScrollContainer.scrollTop = previousScrollTop;
+                }
               }
             } catch (error) {
               console.error('Failed to save beta tip:', error);
@@ -5430,11 +5466,15 @@
               setSavingState(true);
 
               try {
-                const previousScrollTop = tooltip ? tooltip.scrollTop : 0;
+                const scrollContainer = tooltip?.querySelector('.tooltip-content');
+                const previousScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
                 await saveBetatipForRoute(route, '');
                 if (tooltip) {
                   updateTooltipContent(route);
-                  tooltip.scrollTop = previousScrollTop;
+                  const nextScrollContainer = tooltip.querySelector('.tooltip-content');
+                  if (nextScrollContainer) {
+                    nextScrollContainer.scrollTop = previousScrollTop;
+                  }
                 }
               } catch (error) {
                 console.error('Failed to remove beta tip:', error);
@@ -5732,7 +5772,11 @@
           fragment.appendChild(betatipsSection);
         }
 
-        tooltip.replaceChildren(fragment);
+        const content = document.createElement('div');
+        content.className = 'tooltip-content';
+        content.appendChild(fragment);
+
+        tooltip.replaceChildren(content);
 
         if (ariaLines.length) {
           tooltip.setAttribute('aria-label', ariaLines.join('\n'));
