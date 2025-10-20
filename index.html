@@ -2417,12 +2417,15 @@
       }
 
       const PATH_TYPE_BREZER = 'brezer';
-      const PATH_TYPE_POINT = 'point';
+      const PATH_TYPE_HOLLOW_POINT = 'hollow-point';
+      const PATH_TYPE_FILLED_POINT = 'filled-point';
       const PATH_TYPE_RECTANGLE = 'rectangle';
       const DEFAULT_PATH_TYPE = PATH_TYPE_BREZER;
       const MIN_POINT_DIAMETER = 12;
       const MAX_POINT_DIAMETER = 160;
-      const DEFAULT_POINT_DIAMETER = 48;
+      const DEFAULT_HOLLOW_POINT_DIAMETER = 48;
+      const DEFAULT_FILLED_POINT_DIAMETER = 48;
+      const DEFAULT_POINT_DIAMETER = DEFAULT_HOLLOW_POINT_DIAMETER;
       const MIN_RECTANGLE_SIZE = 12;
       const MAX_RECTANGLE_SIZE = 200;
       const DEFAULT_RECTANGLE_WIDTH = 80;
@@ -2495,24 +2498,47 @@
 
       function normalizePathType(value) {
         if (typeof value === 'string') {
-          const normalized = value.trim().toLowerCase();
-          if (normalized === PATH_TYPE_POINT) {
-            return PATH_TYPE_POINT;
+          const normalized = value.trim().toLowerCase().replace(/\s+/g, '-');
+          if (normalized === PATH_TYPE_BREZER) {
+            return PATH_TYPE_BREZER;
           }
           if (normalized === PATH_TYPE_RECTANGLE) {
             return PATH_TYPE_RECTANGLE;
+          }
+          if (normalized === PATH_TYPE_FILLED_POINT) {
+            return PATH_TYPE_FILLED_POINT;
+          }
+          if (normalized === PATH_TYPE_HOLLOW_POINT || normalized === 'point') {
+            return PATH_TYPE_HOLLOW_POINT;
           }
         }
         return DEFAULT_PATH_TYPE;
       }
 
-      function normalizePointDiameter(value) {
+      function isNormalizedPointPathType(value) {
+        return value === PATH_TYPE_HOLLOW_POINT || value === PATH_TYPE_FILLED_POINT;
+      }
+
+      function getDefaultPointDiameterForPathType(pathTypeValue) {
+        const normalized = normalizePathType(pathTypeValue);
+        if (normalized === PATH_TYPE_FILLED_POINT) {
+          return DEFAULT_FILLED_POINT_DIAMETER;
+        }
+        if (normalized === PATH_TYPE_HOLLOW_POINT) {
+          return DEFAULT_HOLLOW_POINT_DIAMETER;
+        }
+        return DEFAULT_POINT_DIAMETER;
+      }
+
+      function normalizePointDiameter(value, fallback = DEFAULT_POINT_DIAMETER) {
         const numeric = Number(value);
-        if (!Number.isFinite(numeric)) {
-          return DEFAULT_POINT_DIAMETER;
+        let candidate = numeric;
+        if (!Number.isFinite(candidate)) {
+          const fallbackNumeric = Number(fallback);
+          candidate = Number.isFinite(fallbackNumeric) ? fallbackNumeric : DEFAULT_POINT_DIAMETER;
         }
         const clamped = Math.min(
-          Math.max(Math.round(numeric), MIN_POINT_DIAMETER),
+          Math.max(Math.round(candidate), MIN_POINT_DIAMETER),
           MAX_POINT_DIAMETER,
         );
         return clamped;
@@ -2590,7 +2616,9 @@
       function normalizeWallSettings(raw = {}) {
         if (!raw || typeof raw !== 'object') {
           return {
-            pointDiameter: DEFAULT_POINT_DIAMETER,
+            pointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
+            hollowPointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
+            filledPointDiameter: DEFAULT_FILLED_POINT_DIAMETER,
             rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
             rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
             gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
@@ -2601,7 +2629,15 @@
           };
         }
 
-        const pointDiameter = normalizePointDiameter(raw.pointDiameter);
+        const hollowPointDiameter = normalizePointDiameter(
+          raw.hollowPointDiameter ?? raw.pointDiameter,
+          DEFAULT_HOLLOW_POINT_DIAMETER,
+        );
+        const filledPointDiameter = normalizePointDiameter(
+          raw.filledPointDiameter ?? raw.pointDiameter,
+          DEFAULT_FILLED_POINT_DIAMETER,
+        );
+        const pointDiameter = hollowPointDiameter;
         const rectangleWidth = normalizeRectangleSize(
           raw.rectangleWidth,
           DEFAULT_RECTANGLE_WIDTH,
@@ -2629,6 +2665,8 @@
 
         return {
           pointDiameter,
+          hollowPointDiameter,
+          filledPointDiameter,
           rectangleWidth,
           rectangleHeight,
           brezerStrokeWidth,
@@ -2638,6 +2676,46 @@
           gradeBarTransparency,
           unfocusedTransparency,
         };
+      }
+
+      function getWallPointDiameterForPathType(settings, pathTypeValue) {
+        const normalized = normalizePathType(pathTypeValue);
+        if (!settings || typeof settings !== 'object') {
+          return getDefaultPointDiameterForPathType(normalized);
+        }
+        if (normalized === PATH_TYPE_FILLED_POINT) {
+          return normalizePointDiameter(
+            settings.filledPointDiameter ?? settings.pointDiameter,
+            DEFAULT_FILLED_POINT_DIAMETER,
+          );
+        }
+        if (normalized === PATH_TYPE_HOLLOW_POINT) {
+          return normalizePointDiameter(
+            settings.hollowPointDiameter ?? settings.pointDiameter,
+            DEFAULT_HOLLOW_POINT_DIAMETER,
+          );
+        }
+        return getDefaultPointDiameterForPathType(normalized);
+      }
+
+      function getRoutePointDiameterForPathType(route, pathTypeValue) {
+        const normalized = normalizePathType(pathTypeValue ?? route?.pathType);
+        if (!route || typeof route !== 'object') {
+          return getDefaultPointDiameterForPathType(normalized);
+        }
+        if (normalized === PATH_TYPE_FILLED_POINT) {
+          return normalizePointDiameter(
+            route.filledPointDiameter ?? route.pointDiameter,
+            DEFAULT_FILLED_POINT_DIAMETER,
+          );
+        }
+        if (normalized === PATH_TYPE_HOLLOW_POINT) {
+          return normalizePointDiameter(
+            route.hollowPointDiameter ?? route.pointDiameter,
+            DEFAULT_HOLLOW_POINT_DIAMETER,
+          );
+        }
+        return getDefaultPointDiameterForPathType(normalized);
       }
 
       const wallSettingsCache = new Map();
@@ -2670,6 +2748,8 @@
 
         return {
           pointDiameter: DEFAULT_POINT_DIAMETER,
+          hollowPointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
+          filledPointDiameter: DEFAULT_FILLED_POINT_DIAMETER,
           rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
           rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
           brezerStrokeWidth: DEFAULT_BREZER_STROKE_WIDTH,
@@ -6406,6 +6486,8 @@
 
               const fallbackWallSettings = {
                 pointDiameter: data.pointDiameter,
+                hollowPointDiameter: data.hollowPointDiameter ?? data.pointDiameter,
+                filledPointDiameter: data.filledPointDiameter ?? data.pointDiameter,
                 rectangleWidth: data.rectangleWidth,
                 rectangleHeight: data.rectangleHeight,
                 brezerStrokeWidth: data.brezerStrokeWidth,
@@ -6431,6 +6513,8 @@
                 medianGrade,
                 pathType: normalizePathType(data.pathType),
                 pointDiameter: wallSettings.pointDiameter,
+                hollowPointDiameter: wallSettings.hollowPointDiameter,
+                filledPointDiameter: wallSettings.filledPointDiameter,
                 rectangleWidth: wallSettings.rectangleWidth,
                 rectangleHeight: wallSettings.rectangleHeight,
                 brezerStrokeWidth: wallSettings.brezerStrokeWidth,
@@ -6772,7 +6856,7 @@
           }
 
           const pathType = normalizePathType(route.pathType);
-          if (pathType !== PATH_TYPE_POINT && pathType !== PATH_TYPE_RECTANGLE) {
+          if (!isNormalizedPointPathType(pathType) && pathType !== PATH_TYPE_RECTANGLE) {
             return;
           }
 
@@ -6782,7 +6866,7 @@
           }
 
           const strokeColor = getRouteStrokeColor(route);
-          const normalizedPointDiameter = normalizePointDiameter(route.pointDiameter);
+          const normalizedPointDiameter = getRoutePointDiameterForPathType(route, pathType);
           const normalizedRectangleWidth = normalizeRectangleSize(
             route.rectangleWidth,
             DEFAULT_RECTANGLE_WIDTH,
@@ -6953,8 +7037,12 @@
         if (pathType === PATH_TYPE_BREZER) {
           return normalizeBrezerStrokeWidth(route?.brezerStrokeWidth);
         }
-        if (pathType === PATH_TYPE_POINT) {
-          const diameter = normalizePointDiameter(route?.pointDiameter);
+        if (pathType === PATH_TYPE_HOLLOW_POINT) {
+          const diameter = getRoutePointDiameterForPathType(route, PATH_TYPE_HOLLOW_POINT);
+          return Math.max(2, Math.round(diameter / 10));
+        }
+        if (pathType === PATH_TYPE_FILLED_POINT) {
+          const diameter = getRoutePointDiameterForPathType(route, PATH_TYPE_FILLED_POINT);
           return Math.max(2, Math.round(diameter / 10));
         }
         if (pathType === PATH_TYPE_RECTANGLE) {
@@ -6990,7 +7078,7 @@
 
         const pathType = normalizePathType(route.pathType);
         const supportsOverlapPattern =
-          pathType === PATH_TYPE_POINT || pathType === PATH_TYPE_RECTANGLE;
+          isNormalizedPointPathType(pathType) || pathType === PATH_TYPE_RECTANGLE;
         const shouldFilterOverlaps =
           omitOverlapKeys && omitOverlapKeys.size > 0 && supportsOverlapPattern;
 
@@ -7044,7 +7132,7 @@
               handledOverlapKeys.add(overlapKey);
             }
 
-            if (pathType === PATH_TYPE_POINT) {
+            if (isNormalizedPointPathType(pathType)) {
               drawOverlappingPointGroup(ctx, scaledPoint, entriesWithAlpha);
             } else if (pathType === PATH_TYPE_RECTANGLE) {
               drawOverlappingRectangleGroup(ctx, scaledPoint, entriesWithAlpha);
@@ -7059,15 +7147,15 @@
           return;
         }
 
-        const pointDiameter = normalizePointDiameter(route.pointDiameter);
+        const resolvedPointDiameter = getRoutePointDiameterForPathType(route, pathType);
         const rectangleWidth = normalizeRectangleSize(route.rectangleWidth, DEFAULT_RECTANGLE_WIDTH);
         const rectangleHeight = normalizeRectangleSize(route.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT);
 
         ctx.save();
         ctx.globalAlpha = routeAlpha;
-        if (pathType === PATH_TYPE_POINT) {
-          const circleRadius = Math.max(1, pointDiameter / 2);
-          const strokeWidth = Math.max(2, Math.round(pointDiameter / 10));
+        if (pathType === PATH_TYPE_HOLLOW_POINT) {
+          const circleRadius = Math.max(1, resolvedPointDiameter / 2);
+          const strokeWidth = Math.max(2, Math.round(resolvedPointDiameter / 10));
           if (visiblePoints.length) {
             const path = new Path2D();
 
@@ -7085,6 +7173,31 @@
             ctx.restore();
 
             const padding = Math.max(4, strokeWidth / 2);
+            visiblePoints.forEach((point) => {
+              interactionRegions.push({
+                type: 'circle',
+                cx: point.x,
+                cy: point.y,
+                r: circleRadius + padding,
+              });
+            });
+          }
+        } else if (pathType === PATH_TYPE_FILLED_POINT) {
+          const circleRadius = Math.max(1, resolvedPointDiameter / 2);
+          if (visiblePoints.length) {
+            const path = new Path2D();
+
+            visiblePoints.forEach((point) => {
+              path.moveTo(point.x + circleRadius, point.y);
+              path.arc(point.x, point.y, circleRadius, 0, Math.PI * 2);
+            });
+
+            ctx.save();
+            ctx.fillStyle = strokeColor;
+            ctx.fill(path);
+            ctx.restore();
+
+            const padding = Math.max(4, circleRadius / 2);
             visiblePoints.forEach((point) => {
               interactionRegions.push({
                 type: 'circle',
@@ -7126,7 +7239,7 @@
               });
             });
           }
-        } else if (pathPoints.length >= 2) {
+        } else if (pathType === PATH_TYPE_BREZER && pathPoints.length >= 2) {
           const path = new Path2D();
           path.moveTo(pathPoints[0].x, pathPoints[0].y);
 
