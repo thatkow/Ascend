@@ -391,6 +391,33 @@
       color: rgba(255, 255, 255, 0.85);
     }
 
+    .info-popover-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .info-popover-button {
+      border: none;
+      border-radius: 999px;
+      padding: 0.5rem 1rem;
+      background: rgba(126, 217, 87, 0.85);
+      color: #041305;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .info-popover-button:hover,
+    .info-popover-button:focus-visible {
+      background: rgba(126, 217, 87, 1);
+      box-shadow: 0 12px 28px rgba(126, 217, 87, 0.35);
+      transform: translateY(-1px);
+      outline: none;
+    }
+
     .welcome-callout {
       position: fixed;
       z-index: 60;
@@ -1390,6 +1417,11 @@
             >
               <p>Select any setter control to learn what it does.</p>
               <p>The next control you activate will show its tooltip and close this message.</p>
+              <div class="info-popover-actions">
+                <button id="startTutorialButton" class="info-popover-button" type="button">
+                  Take the setter tour
+                </button>
+              </div>
             </div>
           </div>
           <button
@@ -1947,6 +1979,7 @@
     const panelToggleButton = document.getElementById('panelToggle');
     const infoButton = document.getElementById('infoButton');
     const infoPopover = document.getElementById('infoPopover');
+    const startTutorialButton = document.getElementById('startTutorialButton');
     const climberViewButton = document.getElementById('climberViewButton');
     const personalDashboardButton = document.getElementById('personalDashboardButton');
     const adminConsoleButton = document.getElementById('adminConsoleButton');
@@ -2008,6 +2041,8 @@
     let tutorialSteps = [];
     let tutorialPreviousTabId = null;
     let tutorialSecondaryActionMode = 'back';
+    let tutorialAutostartTimeoutId = null;
+    let tutorialAutostartAttempts = 0;
 
     const LOCATIONS = [
       { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
@@ -3176,15 +3211,37 @@
       }
     }
 
-    async function startTutorial() {
-      if (tutorialActive) {
-        return;
+    async function startTutorial(options = {}) {
+      const { force = false } = options;
+
+      if (
+        !tutorialOverlay ||
+        !tutorialDialogCard ||
+        !tutorialTitle ||
+        !tutorialDescription ||
+        !tutorialPrimaryAction
+      ) {
+        return false;
+      }
+
+      if (tutorialTransitionInProgress) {
+        if (!force) {
+          return false;
+        }
+        await finishTutorial();
+      } else if (tutorialActive) {
+        if (!force) {
+          return false;
+        }
+        await finishTutorial();
       }
 
       tutorialSteps = buildSetterTutorialSteps();
       if (!Array.isArray(tutorialSteps) || tutorialSteps.length === 0) {
-        return;
+        return false;
       }
+
+      cancelTutorialAutostart();
 
       const activeTabButton = tabButtons.find((button) => button?.getAttribute('aria-selected') === 'true');
       tutorialPreviousTabId = activeTabButton?.dataset?.target || null;
@@ -3203,9 +3260,40 @@
       attachTutorialKeydown();
 
       await goToTutorialStep(0);
+      tutorialAutostartAttempts = 0;
+
+      return true;
+    }
+
+    function cancelTutorialAutostart() {
+      if (tutorialAutostartTimeoutId !== null) {
+        clearTimeout(tutorialAutostartTimeoutId);
+        tutorialAutostartTimeoutId = null;
+      }
+    }
+
+    function scheduleTutorialAutostart() {
+      cancelTutorialAutostart();
+      tutorialAutostartAttempts = 0;
+
+      const attemptStart = async () => {
+        tutorialAutostartTimeoutId = null;
+        const started = await startTutorial();
+        if (!started) {
+          if (tutorialAutostartAttempts < 2) {
+            tutorialAutostartAttempts += 1;
+            tutorialAutostartTimeoutId = window.setTimeout(attemptStart, 450);
+          }
+        } else {
+          tutorialAutostartAttempts = 0;
+        }
+      };
+
+      tutorialAutostartTimeoutId = window.setTimeout(attemptStart, 0);
     }
 
     async function finishTutorial() {
+      cancelTutorialAutostart();
       if (!tutorialActive && !tutorialTransitionInProgress) {
         tutorialPreviousTabId = null;
         tutorialSecondaryActionMode = 'back';
@@ -4942,6 +5030,19 @@
       infoPopover.addEventListener('click', (event) => {
         event.stopPropagation();
       });
+
+      if (startTutorialButton) {
+        startTutorialButton.addEventListener('click', async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          cancelTutorialAutostart();
+          deactivateInfoMode({ clearTooltip: true });
+          const started = await startTutorial({ force: true });
+          if (!started) {
+            scheduleTutorialAutostart();
+          }
+        });
+      }
     }
 
     document.addEventListener(
@@ -8416,6 +8517,7 @@
       deleteButton.disabled = true;
       clearStatus();
       updateAdminConsoleAccess('');
+      cancelTutorialAutostart();
       void finishTutorial();
     }
 
@@ -8468,7 +8570,7 @@
           console.error('Unable to initialise routes:', error);
         }
 
-        await startTutorial();
+        scheduleTutorialAutostart();
       } else {
         currentUsername = '';
         currentUserId = null;
@@ -8482,6 +8584,7 @@
         clearStatus();
         setAuthMode('login');
         updateAdminConsoleAccess('');
+        cancelTutorialAutostart();
         void finishTutorial();
       }
     });
