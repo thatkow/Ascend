@@ -268,8 +268,8 @@
       .location-modal {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.75);
-        backdrop-filter: blur(3px);
+        background: transparent;
+        backdrop-filter: none;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -663,6 +663,10 @@
         outline: none;
       }
 
+      .is-tutorial-disabled {
+        pointer-events: none !important;
+      }
+
       .tutorial-highlight {
         position: relative;
         z-index: 50;
@@ -916,8 +920,7 @@
         position: fixed;
         pointer-events: none;
         color: var(--tooltip-foreground, #fff);
-        padding: 0.75rem 1rem;
-        padding-right: calc(1rem + var(--tooltip-grade-size, 3.75rem) * 0.7);
+        padding: 1.25rem;
         border-radius: 0.75rem;
         font-size: 0.85rem;
         line-height: 1.4;
@@ -972,10 +975,11 @@
 
       .route-tooltip .tooltip-header {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: flex-start;
         gap: 0.5rem;
         margin-bottom: 0.35rem;
+        padding-right: calc(var(--tooltip-grade-size, 3.75rem) + 1.25rem);
       }
 
       .route-tooltip .tooltip-title {
@@ -1133,15 +1137,16 @@
 
       .route-tooltip .tooltip-grade-cluster {
         position: absolute;
-        top: 0;
-        right: 0;
-        transform: translate(50%, -50%);
+        top: 1rem;
+        right: 1rem;
+        transform: none;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 0.55rem;
+        gap: 0.5rem;
         min-width: var(--tooltip-grade-size, 3.75rem);
         z-index: 1;
+        pointer-events: none;
       }
 
       .route-tooltip .tooltip-grade-badge {
@@ -1286,12 +1291,12 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 0.35rem;
+        padding: 0.2rem;
         border-radius: 0.5rem;
         border: 1px solid rgba(255, 255, 255, 0.35);
         background: rgba(0, 0, 0, 0.25);
         color: var(--tooltip-foreground, #fff);
-        font-size: 1.5rem;
+        font-size: 1rem;
         line-height: 1;
         min-width: 0;
         transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease,
@@ -1307,8 +1312,8 @@
       }
 
       .route-tooltip .tooltip-close-button svg {
-        width: 1.75em;
-        height: 1.75em;
+        width: 1.1em;
+        height: 1.1em;
         display: block;
       }
 
@@ -5386,7 +5391,10 @@
         } else {
           const empty = document.createElement('p');
           empty.className = 'tooltip-betatips-empty';
-          empty.textContent = 'No beta tips yet. Share yours below.';
+          const emptyMessage = currentUser
+            ? 'No beta tips yet. Share yours below.'
+            : 'No beta tips yet.';
+          empty.textContent = emptyMessage;
           list.appendChild(empty);
           if (Array.isArray(ariaLines)) {
             ariaLines.push('No beta tips yet.');
