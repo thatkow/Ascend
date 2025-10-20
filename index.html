@@ -136,6 +136,64 @@
         margin-top: 0.35rem;
       }
 
+      .tutorial-portrait-graphic {
+        width: 130px;
+        display: flex;
+        justify-content: center;
+      }
+
+      .tutorial-portrait-graphic svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .tutorial-portrait-graphic .tutorial-portrait-finger {
+        animation: tutorial-portrait-finger-swipe 2.6s ease-in-out infinite;
+        transform-box: fill-box;
+        transform-origin: center;
+      }
+
+      @keyframes tutorial-portrait-finger-swipe {
+        0% {
+          transform: translateX(-14px);
+        }
+        50% {
+          transform: translateX(14px);
+        }
+        100% {
+          transform: translateX(-14px);
+        }
+      }
+
+      .tutorial-portrait-graphic .tutorial-portrait-arrow {
+        stroke: rgba(126, 217, 87, 0.85);
+        stroke-width: 4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        fill: none;
+        opacity: 0.85;
+      }
+
+      .tutorial-portrait-graphic .tutorial-portrait-arrow--left,
+      .tutorial-portrait-graphic .tutorial-portrait-arrow--right {
+        animation: tutorial-portrait-arrow 2.6s ease-in-out infinite;
+      }
+
+      .tutorial-portrait-graphic .tutorial-portrait-arrow--right {
+        animation-delay: 0.1s;
+      }
+
+      @keyframes tutorial-portrait-arrow {
+        0%,
+        100% {
+          opacity: 0.3;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
       .tutorial-illustration-caption {
         font-size: 0.78rem;
         letter-spacing: 0.08em;
@@ -202,42 +260,6 @@
         right: 22%;
         background: rgba(59, 130, 246, 0.45);
         box-shadow: 0 0 22px rgba(59, 130, 246, 0.35);
-      }
-
-      .tutorial-illustration--portrait .tutorial-phone-screen {
-        animation: tutorial-pan-screen 2.6s ease-in-out infinite;
-      }
-
-      .tutorial-pan-track {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-      }
-
-      .tutorial-pan-arrow {
-        width: 42px;
-        height: 42px;
-        border-radius: 999px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid rgba(126, 217, 87, 0.6);
-        background: rgba(12, 18, 15, 0.6);
-        color: rgba(126, 217, 87, 0.95);
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.45);
-      }
-
-      .tutorial-pan-arrow svg {
-        width: 20px;
-        height: 20px;
-      }
-
-      .tutorial-pan-arrow--left {
-        animation: tutorial-pan-arrow-left 2s ease-in-out infinite;
-      }
-
-      .tutorial-pan-arrow--right {
-        animation: tutorial-pan-arrow-right 2s ease-in-out infinite;
       }
 
       .tutorial-progress {
@@ -381,40 +403,6 @@
         }
         50% {
           filter: brightness(1.35);
-        }
-      }
-
-      @keyframes tutorial-pan-arrow-left {
-        0%,
-        100% {
-          transform: translateX(0);
-          opacity: 0.65;
-        }
-        50% {
-          transform: translateX(-10px);
-          opacity: 1;
-        }
-      }
-
-      @keyframes tutorial-pan-arrow-right {
-        0%,
-        100% {
-          transform: translateX(0);
-          opacity: 0.65;
-        }
-        50% {
-          transform: translateX(10px);
-          opacity: 1;
-        }
-      }
-
-      @keyframes tutorial-pan-screen {
-        0%,
-        100% {
-          transform: translateX(-6%);
-        }
-        50% {
-          transform: translateX(6%);
         }
       }
 
@@ -1972,27 +1960,42 @@
         return phone;
       }
 
-      function createTutorialPanArrow(direction) {
-        const arrow = document.createElement('span');
-        arrow.className = `tutorial-pan-arrow tutorial-pan-arrow--${direction}`;
-        arrow.setAttribute('role', 'presentation');
-        arrow.setAttribute('aria-hidden', 'true');
+      function createPortraitSwipeIllustration() {
+        const container = document.createElement('div');
+        container.className = 'tutorial-portrait-graphic';
+        container.setAttribute('role', 'presentation');
+        container.setAttribute('aria-hidden', 'true');
 
-        const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        icon.setAttribute('viewBox', '0 0 24 24');
-        icon.setAttribute('aria-hidden', 'true');
+        container.innerHTML = `
+          <svg viewBox="0 0 160 220" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="tutorialPortraitScreenGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.55" />
+                <stop offset="50%" stop-color="#1e293b" stop-opacity="0.95" />
+                <stop offset="100%" stop-color="#0f172a" stop-opacity="0.8" />
+              </linearGradient>
+            </defs>
+            <g class="tutorial-portrait-phone">
+              <rect x="30" y="8" width="100" height="204" rx="20" fill="#0f172a" stroke="#94a3b8" stroke-opacity="0.4" stroke-width="3" />
+              <rect x="44" y="30" width="72" height="152" rx="14" fill="url(#tutorialPortraitScreenGradient)" stroke="#94a3b8" stroke-opacity="0.45" stroke-width="2" />
+              <circle cx="80" cy="20" r="4" fill="#94a3b8" fill-opacity="0.6" />
+            </g>
+            <g class="tutorial-portrait-arrows">
+              <path class="tutorial-portrait-arrow tutorial-portrait-arrow--left" d="M60 112 L48 124 L60 136" />
+              <path class="tutorial-portrait-arrow tutorial-portrait-arrow--right" d="M100 112 L112 124 L100 136" />
+              <line x1="60" y1="124" x2="100" y2="124" stroke="#7ed957" stroke-opacity="0.6" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 10" />
+            </g>
+            <g class="tutorial-portrait-finger">
+              <circle cx="82" cy="140" r="13" fill="#fde68a" stroke="#b45309" stroke-width="2" />
+              <rect x="75" y="140" width="14" height="60" rx="7" fill="#fbbf24" stroke="#b45309" stroke-width="2" />
+              <path d="M72 192v-12c0-4.97 4.03-9 9-9s9 4.03 9 9v12" fill="#f97316" stroke="#b45309" stroke-width="2" stroke-linejoin="round" />
+              <path d="M70 192h22c10.5 0 19 8.5 19 19s-8.5 19-19 19H70c-10.5 0-19-8.5-19-19s8.5-19 19-19z" fill="#f59e0b" stroke="#b45309" stroke-width="2" stroke-linejoin="round" />
+              <circle cx="86" cy="134" r="5" fill="#fff" fill-opacity="0.35" />
+            </g>
+          </svg>
+        `;
 
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('fill', 'currentColor');
-        if (direction === 'left') {
-          path.setAttribute('d', 'M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z');
-        } else {
-          path.setAttribute('d', 'M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z');
-        }
-        icon.appendChild(path);
-
-        arrow.appendChild(icon);
-        return arrow;
+        return container;
       }
 
       function createMobileOrientationIllustration(orientation) {
@@ -2000,15 +2003,7 @@
         wrapper.className = `tutorial-illustration tutorial-illustration--${orientation}`;
 
         if (orientation === 'portrait') {
-          const track = document.createElement('div');
-          track.className = 'tutorial-pan-track';
-          track.setAttribute('aria-hidden', 'true');
-
-          track.appendChild(createTutorialPanArrow('left'));
-          track.appendChild(createTutorialPhoneElement('portrait'));
-          track.appendChild(createTutorialPanArrow('right'));
-
-          wrapper.appendChild(track);
+          wrapper.appendChild(createPortraitSwipeIllustration());
         } else {
           wrapper.appendChild(createTutorialPhoneElement('landscape'));
         }
