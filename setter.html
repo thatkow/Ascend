@@ -1508,6 +1508,13 @@
                 <span>Date set</span>
                 <input id="routeDateSetInput" type="datetime-local" />
               </label>
+              <label
+                class="control-toggle"
+                data-help-text="Temporarily hide this route from the climber and personal pages without deleting it."
+              >
+                <span>Hide route from climbers</span>
+                <input id="routeHiddenCheckbox" type="checkbox" role="switch" aria-checked="false" />
+              </label>
             </div>
             <div class="control-section">
               <label class="control-field" data-help-text="Choose the colour used to draw this route on the wall preview.">
@@ -1933,6 +1940,7 @@
     const routeDateSetInput = document.getElementById('routeDateSetInput');
     const deleteButton = document.getElementById('deleteButton');
     const routeStatus = document.getElementById('routeStatus');
+    const routeHiddenCheckbox = document.getElementById('routeHiddenCheckbox');
     const controlPanel = document.querySelector('.control-panel');
     const drawingToggle = document.getElementById('drawingToggle');
     const panelSidebar = document.getElementById('panelSidebar');
@@ -5637,6 +5645,7 @@
         location: locationName,
         locationKey,
         medianGrade,
+        hiddenFromClimbers: rest.hiddenFromClimbers === true,
       };
     }
 
@@ -6900,6 +6909,11 @@
       routeDateSetInput.value = isoStringToInputValue(data.date_set) || '';
       strokeColor = data.strokeColor;
       currentRouteMedianGrade = data.medianGrade ?? null;
+      if (routeHiddenCheckbox) {
+        const isHidden = data.hiddenFromClimbers === true;
+        routeHiddenCheckbox.checked = isHidden;
+        routeHiddenCheckbox.setAttribute('aria-checked', isHidden ? 'true' : 'false');
+      }
       colorPicker.value = strokeColor;
       syncAdvancedColorPicker(strokeColor);
       applyNormalizedPoints(data.points);
@@ -6920,6 +6934,10 @@
       routeTitleInput.value = '';
       routeDescriptionInput.value = '';
       routeDateSetInput.value = getNowInputValue();
+      if (routeHiddenCheckbox) {
+        routeHiddenCheckbox.checked = false;
+        routeHiddenCheckbox.setAttribute('aria-checked', 'false');
+      }
       strokeColor = '#ffde59';
       colorPicker.value = strokeColor;
       syncAdvancedColorPicker(strokeColor);
@@ -7124,6 +7142,7 @@
       const normalizedRectangleWidth = wallSettings.rectangleWidth;
       const normalizedRectangleHeight = wallSettings.rectangleHeight;
       const normalizedUnfocusedTransparency = wallSettings.unfocusedTransparency;
+      const hiddenFromClimbers = routeHiddenCheckbox?.checked === true;
       pathType = normalizedPathType;
       pointDiameter = normalizedHollowPointDiameter;
       filledPointDiameter = normalizedFilledPointDiameter;
@@ -7143,6 +7162,7 @@
         date_removed: deleteField(),
         location: currentLocation?.name || DEFAULT_LOCATION?.name || null,
         updatedAt: serverTimestamp(),
+        hiddenFromClimbers: hiddenFromClimbers ? true : deleteField(),
       };
 
       const routeRef = doc(db, 'routes', routeKey);
@@ -7273,6 +7293,14 @@
     if (routeDateSetInput) {
       routeDateSetInput.addEventListener('change', markUnsavedChange);
       routeDateSetInput.addEventListener('input', markUnsavedChange);
+    }
+
+    if (routeHiddenCheckbox) {
+      routeHiddenCheckbox.addEventListener('change', (event) => {
+        const isHidden = event.target.checked === true;
+        event.target.setAttribute('aria-checked', isHidden ? 'true' : 'false');
+        markUnsavedChange();
+      });
     }
 
     if (saveAppearanceButton) {

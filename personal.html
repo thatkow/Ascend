@@ -6338,6 +6338,9 @@
               routeAscentsCache.set(docSnap.id, ascentsMap);
               const betatipsMap = normalizeRouteBetatipsMap(data.betatips);
               routeBetatipsCache.set(docSnap.id, betatipsMap);
+              if (data.hiddenFromClimbers === true) {
+                return null;
+              }
 
               const medianValue = computeMedianFromAscentsMap(ascentsMap);
               const medianGrade =
