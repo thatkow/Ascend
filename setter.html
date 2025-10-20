@@ -7212,7 +7212,13 @@
         },
       });
 
-      pathType = normalizePathType(data.pathType) || DEFAULT_PATH_TYPE;
+      const savedPathType = normalizePathType(data.pathType) || DEFAULT_PATH_TYPE;
+      const nonEmptyPointEntries = collectRoutePointEntries(data);
+      const hasSavedPathPoints = nonEmptyPointEntries.some(
+        (entry) => entry.pathType === savedPathType,
+      );
+      const fallbackEntry = hasSavedPathPoints ? null : nonEmptyPointEntries[0] || null;
+      pathType = fallbackEntry?.pathType || savedPathType;
       updatePathControls();
 
       currentRouteKey = routeKey;
@@ -7231,12 +7237,25 @@
       colorPicker.value = strokeColor;
       syncAdvancedColorPicker(strokeColor);
       synchroniseNormalizedPoints(data.pointsByType ?? data.points, pathType);
+      const activeNormalizedPoints = sanitizeNormalizedPointsArray(
+        normalizedPointsByPathType.get(pathType),
+      );
+      const cachedPointsByType = new Map();
+      normalizedPointsByPathType.forEach((value, key) => {
+        cachedPointsByType.set(key, sanitizeNormalizedPointsArray(value));
+      });
       deleteButton.disabled = !routeKey;
       resetUnsavedState();
 
       if (routeKey) {
-        routesCache.set(routeKey, data);
-        const label = data.title || routeKey;
+        const cachedRouteData = {
+          ...data,
+          pathType,
+          points: activeNormalizedPoints,
+          pointsByType: cachedPointsByType,
+        };
+        routesCache.set(routeKey, cachedRouteData);
+        const label = cachedRouteData.title || routeKey;
         setStatus(`Loaded route “${label}”.`, 'success');
       }
     }
