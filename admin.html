@@ -428,6 +428,7 @@
       deleteDoc,
       serverTimestamp,
       Timestamp,
+      deleteField,
     } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { firebaseConfig } from './config.js';
 
@@ -976,7 +977,7 @@
         }
 
         const data = userSnap.data() || {};
-        const storedRole = typeof data.role === 'string' ? data.role.trim().toLowerCase() : 'default';
+        const storedRole = typeof data.role === 'string' ? data.role.trim().toLowerCase() : '';
         const storedUsername = normalizeUsername(
           typeof data.username === 'string' ? data.username : '',
         );
@@ -1012,7 +1013,7 @@
           }
         }
 
-        return storedRole || 'default';
+        return storedRole ? storedRole : 'default';
       } catch (error) {
         console.error('Failed to resolve user role:', error);
         return 'default';
@@ -1104,7 +1105,7 @@
           }
 
           const existingRole =
-            typeof userData.role === 'string' ? userData.role.trim().toLowerCase() : 'default';
+            typeof userData.role === 'string' ? userData.role.trim().toLowerCase() : '';
           const existingUsername = normalizeUsername(
             typeof userData.username === 'string' ? userData.username : '',
           );
@@ -1184,7 +1185,7 @@
           }
 
           const existingRole =
-            typeof userData.role === 'string' ? userData.role.trim().toLowerCase() : 'default';
+            typeof userData.role === 'string' ? userData.role.trim().toLowerCase() : '';
 
           if (existingRole === 'admin') {
             setRoleStatus(
@@ -1202,7 +1203,7 @@
           await setDoc(
             doc(db, 'users', targetUid),
             {
-              role: 'default',
+              role: deleteField(),
               updatedAt: serverTimestamp(),
             },
             { merge: true },

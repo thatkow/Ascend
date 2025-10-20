@@ -7927,7 +7927,7 @@
       const normalizedUsername = normalizeUsername(username);
 
       if (!normalizedUsername) {
-        return { role: 'default' };
+        return { role: '' };
       }
 
       const userRef = doc(db, 'users', user.uid);
@@ -7941,7 +7941,7 @@
             typeof data.username === 'string' ? data.username : '',
           );
           const trimmedRole =
-            typeof data.role === 'string' ? data.role.trim().toLowerCase() : 'default';
+            typeof data.role === 'string' ? data.role.trim().toLowerCase() : '';
 
           const updates = {};
 
@@ -7966,14 +7966,12 @@
             await setDoc(userRef, updates, { merge: true });
           }
 
-          const mergedData = {
+          return {
             ...data,
             ...(updates.username ? { username: normalizedUsername } : {}),
             ...(updates.updatedAt ? { updatedAt: updates.updatedAt } : {}),
-            role: trimmedRole || 'default',
+            role: trimmedRole,
           };
-
-          return mergedData;
         }
 
         const conflictSnapshot = await getDocs(
@@ -7986,30 +7984,19 @@
           throw usernameError;
         }
 
-        let role = 'default';
-
-        try {
-          const snapshot = await getDocs(
-            query(collection(db, 'users'), where('role', '==', 'setter'), limit(1)),
-          );
-          if (snapshot.empty) {
-            role = 'setter';
-          }
-        } catch (inspectionError) {
-          console.warn('Unable to inspect existing users for setter role:', inspectionError);
-        }
-
         const timestamp = serverTimestamp();
         const userData = {
           username: normalizedUsername,
-          role,
           createdAt: timestamp,
           updatedAt: timestamp,
         };
 
         await setDoc(userRef, userData);
 
-        return userData;
+        return {
+          ...userData,
+          role: '',
+        };
       } catch (error) {
         console.error('Failed to ensure user record:', error);
         throw error;
@@ -8028,7 +8015,7 @@
 
       try {
         const ensuredRole = await ensureUserRole(user, normalizedUsername);
-        return typeof ensuredRole?.role === 'string'
+        return typeof ensuredRole?.role === 'string' && ensuredRole.role.trim()
           ? ensuredRole.role.trim().toLowerCase()
           : 'default';
       } catch (error) {
