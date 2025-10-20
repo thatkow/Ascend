@@ -1415,12 +1415,12 @@
             type="button"
             class="header-icon-button view-toggle-option"
             data-view-mode="grade-colors"
-            data-tooltip="Color by Grade"
+            data-tooltip="Showing by Grade"
             aria-pressed="false"
-            aria-label="Color by Grade"
-            title="Color by Grade"
+            aria-label="Showing by Grade"
+            title="Showing by Grade"
           >
-            <span class="sr-only">Color by Grade</span>
+            <span class="sr-only">Showing by Grade</span>
             <span class="view-toggle-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
                 <path
@@ -1434,12 +1434,12 @@
             type="button"
             class="header-icon-button view-toggle-option"
             data-view-mode="hold-colors"
-            data-tooltip="Color by Holds"
+            data-tooltip="Showing by Color of Holds"
             aria-pressed="false"
-            aria-label="Color by Holds"
-            title="Color by Holds"
+            aria-label="Showing by Color of Holds"
+            title="Showing by Color of Holds"
           >
-            <span class="sr-only">Color by Holds</span>
+            <span class="sr-only">Showing by Color of Holds</span>
             <span class="view-toggle-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
                 <rect x="5" y="13.5" width="3.5" height="6" rx="1.75" fill="#2f9e44" />
@@ -2257,9 +2257,9 @@
       const VIEW_MODE_HOLD_COLORS = 'hold-colors';
       const VIEW_MODE_GRADE_COLORS = 'grade-colors';
       const VIEW_MODE_TOOLTIP_LABELS = {
-        [VIEW_MODE_ASCENT_STATUS]: 'Color by Ascended',
-        [VIEW_MODE_GRADE_COLORS]: 'Color by Grade',
-        [VIEW_MODE_HOLD_COLORS]: 'Color by Holds',
+        [VIEW_MODE_ASCENT_STATUS]: 'Ascended',
+        [VIEW_MODE_GRADE_COLORS]: 'Grade',
+        [VIEW_MODE_HOLD_COLORS]: 'Color of Holds',
       };
       const ASCENT_STATUS_ASCENDED_COLOR = '#7ed957';
       const ASCENT_STATUS_PROJECT_COLOR = '#4b5563';
@@ -2714,22 +2714,36 @@
 
           const mode = button.dataset?.viewMode;
           const isActive = mode === viewMode;
-          const baseTooltip =
+          const baseLabel =
             VIEW_MODE_TOOLTIP_LABELS[mode] ||
             button.dataset?.tooltipBase ||
             button.dataset?.tooltip ||
             '';
-          if (baseTooltip) {
-            const tooltipText = isActive
-              ? `${baseTooltip} (active)`
-              : `Switch to ${baseTooltip}`;
-            button.setAttribute('title', tooltipText);
-            button.setAttribute('aria-label', tooltipText);
-            button.dataset.tooltipActive = tooltipText;
+          const activeTooltip = baseLabel ? `Showing by ${baseLabel}` : '';
+
+          if (isActive && activeTooltip) {
+            button.setAttribute('title', activeTooltip);
+            button.setAttribute('aria-label', activeTooltip);
+            button.dataset.tooltip = activeTooltip;
+            button.dataset.tooltipActive = activeTooltip;
           } else {
             button.removeAttribute('title');
-            button.removeAttribute('aria-label');
+            if (baseLabel) {
+              const inactiveLabel = `Show by ${baseLabel}`;
+              button.setAttribute('aria-label', inactiveLabel);
+              button.dataset.tooltip = inactiveLabel;
+            } else {
+              button.removeAttribute('aria-label');
+              delete button.dataset.tooltip;
+            }
             delete button.dataset.tooltipActive;
+          }
+
+          const srLabel = button.querySelector('.sr-only');
+          if (srLabel && baseLabel) {
+            srLabel.textContent = isActive
+              ? `Showing by ${baseLabel}`
+              : `Show by ${baseLabel}`;
           }
 
           button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
@@ -5690,8 +5704,38 @@
         gradeCluster.className = 'tooltip-grade-cluster';
         gradeCluster.appendChild(gradeBadge);
 
+        let gradeControls = null;
+        let actionsContainer = null;
+
+        if (currentUser) {
+          gradeControls = buildGradeControls(route);
+
+          const actionButton = document.createElement('button');
+          actionButton.type = 'button';
+          actionButton.className = 'tooltip-action-button ascend-toggle';
+          actionButton.setAttribute('aria-pressed', isAscended ? 'true' : 'false');
+          actionButton.textContent = isAscended ? 'Ascended' : 'Not ascended';
+          actionButton.dataset.infoTarget = 'route-ascent';
+          actionButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleRouteAscent(route);
+          });
+
+          actionsContainer = document.createElement('div');
+          actionsContainer.className = 'tooltip-actions';
+          actionsContainer.appendChild(actionButton);
+        }
+
         fragment.appendChild(gradeCluster);
+        if (gradeControls) {
+          fragment.appendChild(gradeControls);
+        }
+        if (actionsContainer) {
+          fragment.appendChild(actionsContainer);
+        }
         ariaLines.push(`Grade: ${gradeDisplay}`);
+        ariaLines.push(isAscended ? 'Ascended' : 'Not ascended');
 
         const infoContainer = document.createElement('div');
         infoContainer.className = 'tooltip-lines';

@@ -1391,12 +1391,12 @@
             class="header-icon-button view-toggle-option"
             data-view-mode="hold-colors"
             data-view-mode-cycle="ascent-status grade-colors hold-colors"
-            data-tooltip="Color by Holds"
+            data-tooltip="Showing by Color of Holds"
             aria-pressed="true"
-            aria-label="Color by Holds"
-            title="Color by Holds"
+            aria-label="Showing by Color of Holds"
+            title="Showing by Color of Holds"
           >
-            <span class="sr-only" data-view-toggle-label>Color by Holds</span>
+            <span class="sr-only" data-view-toggle-label>Showing by Color of Holds</span>
             <span class="view-toggle-icon view-toggle-icon--ascents" aria-hidden="true">
               <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
                 <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
@@ -2946,18 +2946,15 @@
       ];
       const VIEW_MODE_META = {
         [VIEW_MODE_ASCENT_STATUS]: {
-          label: 'Show if Ascended',
-          colorLabel: 'Color by Ascended',
+          label: 'Showing by Ascended',
           next: VIEW_MODE_GRADE_COLORS,
         },
         [VIEW_MODE_GRADE_COLORS]: {
-          label: 'Show by Grade',
-          colorLabel: 'Color by Grade',
+          label: 'Showing by Grade',
           next: VIEW_MODE_HOLD_COLORS,
         },
         [VIEW_MODE_HOLD_COLORS]: {
-          label: 'Show by Color of Holds',
-          colorLabel: 'Color by Holds',
+          label: 'Showing by Color of Holds',
           next: VIEW_MODE_ASCENT_STATUS,
         },
       };
@@ -3431,13 +3428,8 @@
           if (button.dataset?.viewModeCycle) {
             const metadata = getViewModeMetadata(viewMode);
             const label = metadata?.label ?? '';
-            const colorLabel = metadata?.colorLabel ?? label;
+            const tooltipText = label || 'Showing routes';
             const nextMode = metadata?.next ?? getNextViewMode(viewMode);
-            const nextMetadata = getViewModeMetadata(nextMode);
-            const nextColorLabel = nextMetadata?.colorLabel ?? nextMetadata?.label ?? '';
-            const tooltipText = nextColorLabel
-              ? `${colorLabel} (active). Next: ${nextColorLabel}.`
-              : `${colorLabel} (active).`;
 
             button.dataset.viewMode = viewMode;
             button.dataset.tooltip = tooltipText;
@@ -3456,9 +3448,7 @@
 
             const srLabel = button.querySelector('[data-view-toggle-label]');
             if (srLabel) {
-              srLabel.textContent = nextColorLabel
-                ? `${colorLabel} selected. Next: ${nextColorLabel}.`
-                : `${colorLabel} selected.`;
+              srLabel.textContent = tooltipText;
             }
 
             return;
@@ -5750,16 +5740,12 @@
         gradeCluster.className = 'tooltip-grade-cluster';
         gradeCluster.appendChild(gradeBadge);
 
+        let gradeControls = null;
         let actionsContainer = null;
-        const ensureActionsContainer = () => {
-          if (!actionsContainer) {
-            actionsContainer = document.createElement('div');
-            actionsContainer.className = 'tooltip-actions';
-          }
-          return actionsContainer;
-        };
 
         if (currentUser) {
+          gradeControls = buildGradeControls(route);
+
           const actionButton = document.createElement('button');
           actionButton.type = 'button';
           actionButton.className = 'tooltip-action-button ascend-toggle';
@@ -5771,10 +5757,16 @@
             event.stopPropagation();
             toggleRouteAscent(route);
           });
-          ensureActionsContainer().appendChild(actionButton);
+
+          actionsContainer = document.createElement('div');
+          actionsContainer.className = 'tooltip-actions';
+          actionsContainer.appendChild(actionButton);
         }
 
         fragment.appendChild(gradeCluster);
+        if (gradeControls) {
+          fragment.appendChild(gradeControls);
+        }
         if (actionsContainer) {
           fragment.appendChild(actionsContainer);
         }
@@ -5804,13 +5796,6 @@
         appendInfoLine(descriptionText ? `Description: ${descriptionText}` : 'Description: —');
 
         appendInfoLine(`Date set: ${formatDisplayDate(route.date_set)}`);
-
-        if (currentUser) {
-          const gradeControls = buildGradeControls(route);
-          if (gradeControls) {
-            fragment.appendChild(gradeControls);
-          }
-        }
 
         const betatipsSection = buildBetatipsSection(route, ariaLines);
         if (betatipsSection) {
