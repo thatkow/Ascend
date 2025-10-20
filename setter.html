@@ -5623,8 +5623,16 @@
         typeof rawMedianGrade === 'number' && Number.isFinite(rawMedianGrade)
           ? Math.min(Math.max(rawMedianGrade, MIN_GRADE_VALUE), MAX_GRADE_VALUE)
           : null;
+      let pointsSource = rest.points;
+      if (
+        rest.pointsByType instanceof Map ||
+        (rest.pointsByType && typeof rest.pointsByType === 'object' && !Array.isArray(rest.pointsByType))
+      ) {
+        pointsSource = rest.pointsByType;
+      }
+
       const { pointsByType, activePoints } = normalizeRoutePoints(
-        rest.points,
+        pointsSource,
         normalizedPathType,
       );
 
