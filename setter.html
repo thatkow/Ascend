@@ -467,7 +467,8 @@
     .control-panel {
       position: fixed;
       top: 0;
-      right: 0;
+      left: 0;
+      right: auto;
       height: 100vh;
       display: flex;
       align-items: stretch;
@@ -485,10 +486,10 @@
       justify-content: center;
       gap: 0.85rem;
       align-self: center;
-      order: 1;
+      order: 2;
       padding: 1rem 0.5rem;
       background: rgba(0, 0, 0, 0.6);
-      border-radius: 0.85rem 0 0 0.85rem;
+      border-radius: 0 0.85rem 0.85rem 0;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     }
 
@@ -536,15 +537,15 @@
       padding: 2rem 1.25rem 4rem;
       background: rgba(0, 0, 0, 0.55);
       backdrop-filter: blur(8px);
-      border-radius: 1rem 0 0 1rem;
+      border-radius: 0 1rem 1rem 0;
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
       overflow-y: auto;
       transition: box-shadow 0.25s ease, background 0.25s ease;
-      order: 2;
+      order: 1;
     }
 
     .control-panel[data-expanded='false'] {
-      transform: translateX(calc(100% - var(--toggle-visible-width)));
+      transform: translateX(calc(-100% + var(--toggle-visible-width)));
     }
 
     .sr-only {
@@ -1252,18 +1253,23 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 0.35rem;
-      padding: 0.55rem 1.1rem;
+      width: 44px;
+      height: 44px;
+      padding: 0;
       border-radius: 999px;
       background: linear-gradient(135deg, rgba(126, 217, 87, 0.95), rgba(126, 217, 87, 0.7));
       color: #0c1905;
-      font-weight: 600;
-      font-size: 0.9rem;
       text-decoration: none;
       box-shadow: 0 14px 30px rgba(126, 217, 87, 0.35);
       border: 1px solid rgba(126, 217, 87, 0.75);
       transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
         border-color 0.2s ease;
+    }
+
+    .personal-dashboard-link svg {
+      width: 22px;
+      height: 22px;
+      display: block;
     }
 
     .personal-dashboard-link:hover,
@@ -1298,7 +1304,19 @@
   </div>
 
   <div id="appContent" class="hidden">
-    <a class="personal-dashboard-link" href="personal.html">Personal Dashboard</a>
+    <a
+      class="personal-dashboard-link"
+      href="personal.html"
+      aria-label="Open personal dashboard"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path
+          d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.41 0-8 2.24-8 5v1h16v-1c0-2.76-3.59-5-8-5Z"
+          fill="currentColor"
+        />
+      </svg>
+      <span class="sr-only">Open personal dashboard</span>
+    </a>
     <div class="canvas-container">
       <canvas id="drawingCanvas"></canvas>
       <div class="focus-footer">
@@ -1496,11 +1514,12 @@
                 <span>Stroke colour</span>
                 <input type="color" id="colorPicker" value="#ffde59" />
               </label>
-              <label class="control-field" data-help-text="Switch between freeform lines, single points, or rectangles while drawing.">
+              <label class="control-field" data-help-text="Switch between freeform lines, hollow points, filled points, or rectangles while drawing.">
                 <span>Path</span>
                 <select id="pathTypeSelect">
                   <option value="brezer">Brezer</option>
-                  <option value="point">Point</option>
+                  <option value="hollow-point">Hollow point</option>
+                  <option value="filled-point">Filled point</option>
                   <option value="rectangle">Rectangle</option>
                 </select>
               </label>
@@ -1561,10 +1580,10 @@
               <label
                 id="pointDiameterField"
                 class="control-field"
-                data-help-text="Set the diameter for point holds drawn on this wall."
+                data-help-text="Set the diameter for hollow and filled point holds drawn on this wall."
               >
                 <span>
-                  Point diameter
+                  Hollow point diameter
                   <span id="pointDiameterValue"></span>
                 </span>
                 <input
@@ -1973,8 +1992,10 @@
     const WALL_QUERY_PARAM = 'wall';
 
     const PATH_TYPE_BREZER = 'brezer';
-    const PATH_TYPE_POINT = 'point';
+    const PATH_TYPE_HOLLOW_POINT = 'hollow-point';
+    const PATH_TYPE_FILLED_POINT = 'filled-point';
     const PATH_TYPE_RECTANGLE = 'rectangle';
+    const LEGACY_PATH_TYPE_POINT = 'point';
     const DEFAULT_PATH_TYPE = PATH_TYPE_BREZER;
     const BREZER_REMOVAL_RADIUS = 20;
     const MIN_POINT_DIAMETER = 12;
@@ -3592,15 +3613,26 @@
 
     function normalizePathType(value) {
       if (typeof value === 'string') {
-        const normalized = value.trim().toLowerCase();
-        if (normalized === PATH_TYPE_POINT) {
-          return PATH_TYPE_POINT;
+        const trimmed = value.trim().toLowerCase();
+        const normalized = trimmed.replace(/\s+/g, '-');
+        if (normalized === PATH_TYPE_BREZER) {
+          return PATH_TYPE_BREZER;
         }
         if (normalized === PATH_TYPE_RECTANGLE) {
           return PATH_TYPE_RECTANGLE;
         }
+        if (normalized === PATH_TYPE_FILLED_POINT) {
+          return PATH_TYPE_FILLED_POINT;
+        }
+        if (normalized === PATH_TYPE_HOLLOW_POINT || normalized === LEGACY_PATH_TYPE_POINT) {
+          return PATH_TYPE_HOLLOW_POINT;
+        }
       }
       return DEFAULT_PATH_TYPE;
+    }
+
+    function isNormalizedPointPathType(value) {
+      return value === PATH_TYPE_HOLLOW_POINT || value === PATH_TYPE_FILLED_POINT;
     }
 
     function normalizePointDiameter(value) {
@@ -5963,7 +5995,7 @@
         ctx.stroke();
       }
 
-      if (effectivePathType === PATH_TYPE_POINT) {
+      if (effectivePathType === PATH_TYPE_HOLLOW_POINT) {
         const radius = Math.max(1, effectivePointDiameter / 2);
         const strokeWidth = Math.max(2, Math.round(effectivePointDiameter / 10));
         ctx.lineWidth = strokeWidth;
@@ -5972,6 +6004,14 @@
           ctx.beginPath();
           ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
           ctx.stroke();
+        });
+      } else if (effectivePathType === PATH_TYPE_FILLED_POINT) {
+        const radius = Math.max(1, effectivePointDiameter / 2);
+        ctx.fillStyle = color;
+        routePoints.forEach((point) => {
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+          ctx.fill();
         });
       } else if (effectivePathType === PATH_TYPE_RECTANGLE) {
         const halfWidth = Math.max(1, effectiveRectangleWidth / 2);
@@ -5994,7 +6034,7 @@
         ctx.fillStyle = color;
         routePoints.forEach((point) => {
           ctx.beginPath();
-          ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+          ctx.arc(point.x, point.y, Math.max(1, effectivePointDiameter / 2), 0, Math.PI * 2);
           ctx.fill();
         });
       }
@@ -6073,7 +6113,7 @@
 
         const { pathType: pathTypeValue, normalizedPoints } = entry;
         if (
-          (pathTypeValue !== PATH_TYPE_POINT && pathTypeValue !== PATH_TYPE_RECTANGLE) ||
+          (!isNormalizedPointPathType(pathTypeValue) && pathTypeValue !== PATH_TYPE_RECTANGLE) ||
           !Array.isArray(normalizedPoints) ||
           !normalizedPoints.length
         ) {
@@ -6333,13 +6373,13 @@
         } = entry;
 
         const supportsPattern =
-          routePathType === PATH_TYPE_POINT || routePathType === PATH_TYPE_RECTANGLE;
+          isNormalizedPointPathType(routePathType) || routePathType === PATH_TYPE_RECTANGLE;
         const visiblePoints = [];
         const isFocused = !focusedRouteKey || entry.id === focusedRouteKey;
         const routeAlpha = isFocused ? 1 : alpha;
 
         if (Array.isArray(canvasPoints) && canvasPoints.length) {
-          if (routePathType === PATH_TYPE_POINT) {
+          if (isNormalizedPointPathType(routePathType)) {
             const radius = Math.max(6, entryPointDiameter / 2);
             canvasPoints.forEach((point) => {
               if (!point) {
@@ -6439,7 +6479,7 @@
 
             handledOverlapKeys.add(overlapKey);
 
-            if (routePathType === PATH_TYPE_POINT) {
+            if (isNormalizedPointPathType(routePathType)) {
               drawOverlayPointGroup(point, overlapGroup.entries);
             } else if (routePathType === PATH_TYPE_RECTANGLE) {
               drawOverlayRectangleGroup(point, entryRectangleWidth, entryRectangleHeight, overlapGroup.entries);
@@ -6558,7 +6598,7 @@
       }
 
       const activePathType = normalizePathType(pathType);
-      if (activePathType !== PATH_TYPE_POINT && activePathType !== PATH_TYPE_RECTANGLE) {
+      if (!isNormalizedPointPathType(activePathType) && activePathType !== PATH_TYPE_RECTANGLE) {
         return null;
       }
 
@@ -6591,7 +6631,7 @@
 
         let detectionRadius = activeDetectionRadius;
 
-        if (activePathType === PATH_TYPE_POINT) {
+        if (isNormalizedPointPathType(activePathType)) {
           const routeDiameter = normalizePointDiameter(
             typeof data?.pointDiameter === 'number' ? data.pointDiameter : pointDiameter,
           );
@@ -6666,7 +6706,7 @@
           return;
         }
       }
-      if (currentPathType === PATH_TYPE_POINT || currentPathType === PATH_TYPE_RECTANGLE) {
+      if (isNormalizedPointPathType(currentPathType) || currentPathType === PATH_TYPE_RECTANGLE) {
         const detectionRadius =
           currentPathType === PATH_TYPE_RECTANGLE
             ? getRectangleDetectionRadius(rectangleWidth, rectangleHeight)
