@@ -4963,6 +4963,94 @@
         return { x, y };
       }
 
+      function sanitizeNormalizedPointsArray(rawPoints) {
+        if (!Array.isArray(rawPoints)) {
+          return [];
+        }
+
+        return rawPoints.map(sanitizeNormalizedPoint).filter(Boolean);
+      }
+
+      function collectCandidatePoints(value) {
+        if (Array.isArray(value)) {
+          return value;
+        }
+
+        if (value instanceof Map) {
+          return Array.from(value.values());
+        }
+
+        if (value && typeof value === 'object') {
+          return Object.values(value);
+        }
+
+        return [];
+      }
+
+      function normalizeRoutePointsByType(rawPoints, fallbackPathType) {
+        const normalized = {};
+        const fallbackType = normalizePathType(fallbackPathType) || DEFAULT_PATH_TYPE;
+
+        const assignPoints = (pathTypeKey, value) => {
+          const normalizedType = normalizePathType(pathTypeKey);
+          if (!normalizedType || normalized[normalizedType]) {
+            return;
+          }
+
+          normalized[normalizedType] = sanitizeNormalizedPointsArray(collectCandidatePoints(value));
+        };
+
+        if (rawPoints instanceof Map) {
+          rawPoints.forEach((value, key) => assignPoints(key, value));
+        } else if (rawPoints && typeof rawPoints === 'object' && !Array.isArray(rawPoints)) {
+          Object.entries(rawPoints).forEach(([key, value]) => assignPoints(key, value));
+        } else if (Array.isArray(rawPoints)) {
+          assignPoints(fallbackType, rawPoints);
+        }
+
+        if (!Object.prototype.hasOwnProperty.call(normalized, fallbackType)) {
+          normalized[fallbackType] = [];
+        }
+
+        return normalized;
+      }
+
+      function getRoutePointEntries(route) {
+        const entries = [];
+        if (!route) {
+          return entries;
+        }
+
+        const seenTypes = new Set();
+        const appendEntry = (pathTypeKey, pointsValue) => {
+          const normalizedType = normalizePathType(pathTypeKey);
+          if (!normalizedType || seenTypes.has(normalizedType)) {
+            return;
+          }
+
+          const pointsArray = sanitizeNormalizedPointsArray(collectCandidatePoints(pointsValue));
+          seenTypes.add(normalizedType);
+          entries.push({
+            pathType: normalizedType,
+            points: pointsArray,
+          });
+        };
+
+        const { pointsByType } = route;
+        if (pointsByType instanceof Map) {
+          pointsByType.forEach((value, key) => appendEntry(key, value));
+        } else if (pointsByType && typeof pointsByType === 'object' && !Array.isArray(pointsByType)) {
+          Object.entries(pointsByType).forEach(([key, value]) => appendEntry(key, value));
+        }
+
+        if (!entries.length) {
+          const fallbackPoints = Array.isArray(route.points) ? route.points : [];
+          appendEntry(route.pathType, fallbackPoints);
+        }
+
+        return entries.filter((entry) => Array.isArray(entry.points) && entry.points.length);
+      }
+
       function selectNormalizedPointsForPath(rawPoints, pathType) {
         const normalizedType = normalizePathType(pathType) || PATH_TYPE_BREZER;
 
@@ -6489,8 +6577,12 @@
                 routeMedianGrades.set(docSnap.id, medianGrade);
               }
 
-              const normalizedPoints = selectNormalizedPointsForPath(
+              const pointsByType = normalizeRoutePointsByType(
                 data.points,
+                data.pathType,
+              );
+              const normalizedPoints = selectNormalizedPointsForPath(
+                pointsByType,
                 data.pathType,
               );
 
@@ -6523,6 +6615,7 @@
                 id: docSnap.id,
                 strokeColor: typeof data.strokeColor === 'string' ? data.strokeColor : '#ffde59',
                 points: normalizedPoints,
+                pointsByType,
                 title: typeof data.title === 'string' ? data.title : '',
                 setter: typeof data.setter === 'string' ? data.setter : '',
                 description: typeof data.description === 'string' ? data.description : '',
@@ -6906,18 +6999,12 @@
             return;
           }
 
-          const pathType = normalizePathType(route.pathType);
-          if (!isNormalizedPointPathType(pathType) && pathType !== PATH_TYPE_RECTANGLE) {
-            return;
-          }
-
-          const points = Array.isArray(route.points) ? route.points : [];
-          if (!points.length) {
+          const pointEntries = getRoutePointEntries(route);
+          if (!pointEntries.length) {
             return;
           }
 
           const strokeColor = getRouteStrokeColor(route);
-          const normalizedPointDiameter = getRoutePointDiameterForPathType(route, pathType);
           const normalizedRectangleWidth = normalizeRectangleSize(
             route.rectangleWidth,
             DEFAULT_RECTANGLE_WIDTH,
@@ -6927,33 +7014,45 @@
             DEFAULT_RECTANGLE_HEIGHT,
           );
 
-          points.forEach((point) => {
-            const normalizedX = Number(point?.x);
-            const normalizedY = Number(point?.y);
-            const pointKey = createNormalizedPointKey(normalizedX, normalizedY);
-            if (!pointKey) {
+          pointEntries.forEach(({ pathType, points }) => {
+            if (
+              !Array.isArray(points) ||
+              !points.length ||
+              (!isNormalizedPointPathType(pathType) && pathType !== PATH_TYPE_RECTANGLE)
+            ) {
               return;
             }
 
-            const groupKey = createOverlapGroupKey(pathType, pointKey);
-            if (!groupKey) {
-              return;
-            }
+            const normalizedPointDiameter = getRoutePointDiameterForPathType(route, pathType);
 
-            if (!groups.has(groupKey)) {
-              groups.set(groupKey, {
-                pathType,
-                entries: [],
+            points.forEach((point) => {
+              const normalizedX = Number(point?.x);
+              const normalizedY = Number(point?.y);
+              const pointKey = createNormalizedPointKey(normalizedX, normalizedY);
+              if (!pointKey) {
+                return;
+              }
+
+              const groupKey = createOverlapGroupKey(pathType, pointKey);
+              if (!groupKey) {
+                return;
+              }
+
+              if (!groups.has(groupKey)) {
+                groups.set(groupKey, {
+                  pathType,
+                  entries: [],
+                });
+              }
+
+              const group = groups.get(groupKey);
+              group.entries.push({
+                routeId: route.id,
+                color: strokeColor,
+                pointDiameter: normalizedPointDiameter,
+                rectangleWidth: normalizedRectangleWidth,
+                rectangleHeight: normalizedRectangleHeight,
               });
-            }
-
-            const group = groups.get(groupKey);
-            group.entries.push({
-              routeId: route.id,
-              color: strokeColor,
-              pointDiameter: normalizedPointDiameter,
-              rectangleWidth: normalizedRectangleWidth,
-              rectangleHeight: normalizedRectangleHeight,
             });
           });
         });
@@ -7083,8 +7182,8 @@
         });
       }
 
-      function calculateRouteStrokeWidth(route) {
-        const pathType = normalizePathType(route?.pathType);
+      function calculateRouteStrokeWidth(route, pathTypeOverride = undefined) {
+        const pathType = normalizePathType(pathTypeOverride ?? route?.pathType);
         if (pathType === PATH_TYPE_BREZER) {
           return normalizeBrezerStrokeWidth(route?.brezerStrokeWidth);
         }
@@ -7106,7 +7205,7 @@
 
       function drawRoute(route, options = {}) {
         const strokeColor = getRouteDisplayColor(route);
-        const points = Array.isArray(route.points) ? route.points : [];
+        const pointEntries = getRoutePointEntries(route);
 
         const alphaValue = Number(options.alpha);
         const routeAlpha = Number.isFinite(alphaValue)
@@ -7123,219 +7222,227 @@
           options?.routeAlphaMap instanceof Map ? options.routeAlphaMap : null;
         const isFocusedRoute = Boolean(options?.isFocused);
 
-        if (!points.length) {
+        if (!pointEntries.length) {
           return;
         }
 
-        const pathType = normalizePathType(route.pathType);
-        const supportsOverlapPattern =
-          isNormalizedPointPathType(pathType) || pathType === PATH_TYPE_RECTANGLE;
-        const shouldFilterOverlaps =
-          omitOverlapKeys && omitOverlapKeys.size > 0 && supportsOverlapPattern;
-
-        const pathPoints = [];
-        const visiblePoints = [];
         const interactionRegions = [];
 
-        points.forEach((point) => {
-          const normalizedX = Number(point?.x);
-          const normalizedY = Number(point?.y);
-          if (!Number.isFinite(normalizedX) || !Number.isFinite(normalizedY)) {
+        pointEntries.forEach(({ pathType, points }) => {
+          if (!Array.isArray(points) || !points.length) {
             return;
           }
 
-          const scaledPoint = {
-            x: normalizedX * canvas.width,
-            y: normalizedY * canvas.height,
-          };
-          pathPoints.push(scaledPoint);
+          const supportsOverlapPattern =
+            isNormalizedPointPathType(pathType) || pathType === PATH_TYPE_RECTANGLE;
+          const shouldFilterOverlaps =
+            omitOverlapKeys && omitOverlapKeys.size > 0 && supportsOverlapPattern;
 
-          const pointKey = supportsOverlapPattern
-            ? createNormalizedPointKey(normalizedX, normalizedY)
-            : null;
+          const pathPoints = [];
+          const visiblePoints = [];
 
-          if (shouldFilterOverlaps && pointKey && omitOverlapKeys.has(pointKey)) {
-            return;
-          }
-
-          const overlapKey =
-            pointKey && overlapGroups ? createOverlapGroupKey(pathType, pointKey) : null;
-          const overlapGroup =
-            overlapKey && overlapGroups ? overlapGroups.get(overlapKey) : null;
-
-          if (
-            overlapGroup &&
-            Array.isArray(overlapGroup.entries) &&
-            overlapGroup.entries.length > 1 &&
-            !isFocusedRoute
-          ) {
-            if (handledOverlapKeys && handledOverlapKeys.has(overlapKey)) {
+          points.forEach((point) => {
+            const normalizedX = Number(point?.x);
+            const normalizedY = Number(point?.y);
+            if (!Number.isFinite(normalizedX) || !Number.isFinite(normalizedY)) {
               return;
             }
 
-            const entriesWithAlpha = overlapGroup.entries.map((entry) => {
-              const mappedAlpha = routeAlphaMap?.get(entry.routeId);
-              const entryAlpha = Number.isFinite(mappedAlpha) ? mappedAlpha : 1;
-              return { ...entry, alpha: entryAlpha };
-            });
+            const scaledPoint = {
+              x: normalizedX * canvas.width,
+              y: normalizedY * canvas.height,
+            };
+            pathPoints.push(scaledPoint);
 
-            if (handledOverlapKeys) {
-              handledOverlapKeys.add(overlapKey);
+            const pointKey = supportsOverlapPattern
+              ? createNormalizedPointKey(normalizedX, normalizedY)
+              : null;
+
+            if (shouldFilterOverlaps && pointKey && omitOverlapKeys.has(pointKey)) {
+              return;
             }
 
-            if (isNormalizedPointPathType(pathType)) {
-              drawOverlappingPointGroup(ctx, scaledPoint, entriesWithAlpha);
-            } else if (pathType === PATH_TYPE_RECTANGLE) {
-              drawOverlappingRectangleGroup(ctx, scaledPoint, entriesWithAlpha);
+            const overlapKey =
+              pointKey && overlapGroups ? createOverlapGroupKey(pathType, pointKey) : null;
+            const overlapGroup =
+              overlapKey && overlapGroups ? overlapGroups.get(overlapKey) : null;
+
+            if (
+              overlapGroup &&
+              Array.isArray(overlapGroup.entries) &&
+              overlapGroup.entries.length > 1 &&
+              !isFocusedRoute
+            ) {
+              if (handledOverlapKeys && handledOverlapKeys.has(overlapKey)) {
+                return;
+              }
+
+              const entriesWithAlpha = overlapGroup.entries.map((entry) => {
+                const mappedAlpha = routeAlphaMap?.get(entry.routeId);
+                const entryAlpha = Number.isFinite(mappedAlpha) ? mappedAlpha : 1;
+                return { ...entry, alpha: entryAlpha };
+              });
+
+              if (handledOverlapKeys) {
+                handledOverlapKeys.add(overlapKey);
+              }
+
+              if (isNormalizedPointPathType(pathType)) {
+                drawOverlappingPointGroup(ctx, scaledPoint, entriesWithAlpha);
+              } else if (pathType === PATH_TYPE_RECTANGLE) {
+                drawOverlappingRectangleGroup(ctx, scaledPoint, entriesWithAlpha);
+              }
+              return;
             }
+
+            visiblePoints.push(scaledPoint);
+          });
+
+          if (!pathPoints.length) {
             return;
           }
 
-          visiblePoints.push(scaledPoint);
-        });
-
-        if (!pathPoints.length) {
-          return;
-        }
-
-        const resolvedPointDiameter = getRoutePointDiameterForPathType(route, pathType);
-        const rectangleWidth = normalizeRectangleSize(route.rectangleWidth, DEFAULT_RECTANGLE_WIDTH);
-        const rectangleHeight = normalizeRectangleSize(route.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT);
-
-        ctx.save();
-        ctx.globalAlpha = routeAlpha;
-        if (pathType === PATH_TYPE_HOLLOW_POINT) {
-          const circleRadius = Math.max(1, resolvedPointDiameter / 2);
-          const strokeWidth = Math.max(2, Math.round(resolvedPointDiameter / 10));
-          if (visiblePoints.length) {
-            const path = new Path2D();
-
-            visiblePoints.forEach((point) => {
-              path.moveTo(point.x + circleRadius, point.y);
-              path.arc(point.x, point.y, circleRadius, 0, Math.PI * 2);
-            });
-
-            ctx.save();
-            ctx.lineWidth = strokeWidth;
-            ctx.strokeStyle = strokeColor;
-            ctx.lineJoin = 'round';
-            ctx.lineCap = 'round';
-            ctx.stroke(path);
-            ctx.restore();
-
-            const padding = Math.max(4, strokeWidth / 2);
-            visiblePoints.forEach((point) => {
-              interactionRegions.push({
-                type: 'circle',
-                cx: point.x,
-                cy: point.y,
-                r: circleRadius + padding,
-              });
-            });
-          }
-        } else if (pathType === PATH_TYPE_FILLED_POINT) {
-          const circleRadius = Math.max(1, resolvedPointDiameter / 2);
-          if (visiblePoints.length) {
-            const path = new Path2D();
-
-            visiblePoints.forEach((point) => {
-              path.moveTo(point.x + circleRadius, point.y);
-              path.arc(point.x, point.y, circleRadius, 0, Math.PI * 2);
-            });
-
-            ctx.save();
-            ctx.fillStyle = strokeColor;
-            ctx.fill(path);
-            ctx.restore();
-
-            const padding = Math.max(4, circleRadius / 2);
-            visiblePoints.forEach((point) => {
-              interactionRegions.push({
-                type: 'circle',
-                cx: point.x,
-                cy: point.y,
-                r: circleRadius + padding,
-              });
-            });
-          }
-        } else if (pathType === PATH_TYPE_RECTANGLE) {
-          const rectWidth = Math.max(1, rectangleWidth);
-          const rectHeight = Math.max(1, rectangleHeight);
-          const halfWidth = Math.max(1, rectWidth / 2);
-          const halfHeight = Math.max(1, rectHeight / 2);
-          const strokeWidth = Math.max(2, Math.round(Math.max(rectWidth, rectHeight) / 10));
-          if (visiblePoints.length) {
-            const path = new Path2D();
-
-            visiblePoints.forEach((point) => {
-              path.rect(point.x - halfWidth, point.y - halfHeight, rectWidth, rectHeight);
-            });
-
-            ctx.save();
-            ctx.lineWidth = strokeWidth;
-            ctx.strokeStyle = strokeColor;
-            ctx.lineJoin = 'round';
-            ctx.lineCap = 'round';
-            ctx.stroke(path);
-            ctx.restore();
-
-            const padding = Math.max(4, strokeWidth / 2);
-            visiblePoints.forEach((point) => {
-              interactionRegions.push({
-                type: 'rect',
-                left: point.x - halfWidth - padding,
-                right: point.x + halfWidth + padding,
-                top: point.y - halfHeight - padding,
-                bottom: point.y + halfHeight + padding,
-              });
-            });
-          }
-        } else if (pathType === PATH_TYPE_BREZER && pathPoints.length >= 2) {
-          const path = new Path2D();
-          path.moveTo(pathPoints[0].x, pathPoints[0].y);
-
-          for (let i = 0; i < pathPoints.length - 1; i++) {
-            const p0 = i === 0 ? pathPoints[0] : pathPoints[i - 1];
-            const p1 = pathPoints[i];
-            const p2 = pathPoints[i + 1];
-            const p3 = i + 2 < pathPoints.length ? pathPoints[i + 2] : pathPoints[i + 1];
-
-            const cp1x = p1.x + (p2.x - p0.x) / 6;
-            const cp1y = p1.y + (p2.y - p0.y) / 6;
-            const cp2x = p2.x - (p3.x - p1.x) / 6;
-            const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-            path.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-          }
+          const resolvedPointDiameter = getRoutePointDiameterForPathType(route, pathType);
+          const rectangleWidth = normalizeRectangleSize(route.rectangleWidth, DEFAULT_RECTANGLE_WIDTH);
+          const rectangleHeight = normalizeRectangleSize(route.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT);
 
           ctx.save();
-          const strokeWidth = Math.max(6, Math.round(calculateRouteStrokeWidth(route)) || 6);
-          ctx.lineWidth = strokeWidth;
-          ctx.strokeStyle = strokeColor;
-          ctx.lineJoin = 'round';
-          ctx.lineCap = 'round';
-          ctx.stroke(path);
-          ctx.restore();
+          ctx.globalAlpha = routeAlpha;
 
-          const padding = Math.max(6, strokeWidth / 2 + 4);
-          for (let i = 0; i < pathPoints.length - 1; i += 1) {
-            const start = pathPoints[i];
-            const end = pathPoints[i + 1];
-            if (!start || !end) {
-              continue;
+          if (pathType === PATH_TYPE_HOLLOW_POINT) {
+            const circleRadius = Math.max(1, resolvedPointDiameter / 2);
+            const strokeWidth = Math.max(2, Math.round(resolvedPointDiameter / 10));
+            if (visiblePoints.length) {
+              const path = new Path2D();
+
+              visiblePoints.forEach((point) => {
+                path.moveTo(point.x + circleRadius, point.y);
+                path.arc(point.x, point.y, circleRadius, 0, Math.PI * 2);
+              });
+
+              ctx.save();
+              ctx.lineWidth = strokeWidth;
+              ctx.strokeStyle = strokeColor;
+              ctx.lineJoin = 'round';
+              ctx.lineCap = 'round';
+              ctx.stroke(path);
+              ctx.restore();
+
+              const padding = Math.max(4, strokeWidth / 2);
+              visiblePoints.forEach((point) => {
+                interactionRegions.push({
+                  type: 'circle',
+                  cx: point.x,
+                  cy: point.y,
+                  r: circleRadius + padding,
+                });
+              });
+            }
+          } else if (pathType === PATH_TYPE_FILLED_POINT) {
+            const circleRadius = Math.max(1, resolvedPointDiameter / 2);
+            if (visiblePoints.length) {
+              const path = new Path2D();
+
+              visiblePoints.forEach((point) => {
+                path.moveTo(point.x + circleRadius, point.y);
+                path.arc(point.x, point.y, circleRadius, 0, Math.PI * 2);
+              });
+
+              ctx.save();
+              ctx.fillStyle = strokeColor;
+              ctx.fill(path);
+              ctx.restore();
+
+              const padding = Math.max(4, circleRadius / 2);
+              visiblePoints.forEach((point) => {
+                interactionRegions.push({
+                  type: 'circle',
+                  cx: point.x,
+                  cy: point.y,
+                  r: circleRadius + padding,
+                });
+              });
+            }
+          } else if (pathType === PATH_TYPE_RECTANGLE) {
+            const rectWidth = Math.max(1, rectangleWidth);
+            const rectHeight = Math.max(1, rectangleHeight);
+            const halfWidth = Math.max(1, rectWidth / 2);
+            const halfHeight = Math.max(1, rectHeight / 2);
+            const strokeWidth = Math.max(2, Math.round(Math.max(rectWidth, rectHeight) / 10));
+            if (visiblePoints.length) {
+              const path = new Path2D();
+
+              visiblePoints.forEach((point) => {
+                path.rect(point.x - halfWidth, point.y - halfHeight, rectWidth, rectHeight);
+              });
+
+              ctx.save();
+              ctx.lineWidth = strokeWidth;
+              ctx.strokeStyle = strokeColor;
+              ctx.lineJoin = 'round';
+              ctx.lineCap = 'round';
+              ctx.stroke(path);
+              ctx.restore();
+
+              const padding = Math.max(4, strokeWidth / 2);
+              visiblePoints.forEach((point) => {
+                interactionRegions.push({
+                  type: 'rect',
+                  left: point.x - halfWidth - padding,
+                  right: point.x + halfWidth + padding,
+                  top: point.y - halfHeight - padding,
+                  bottom: point.y + halfHeight + padding,
+                });
+              });
+            }
+          } else if (pathType === PATH_TYPE_BREZER && pathPoints.length >= 2) {
+            const path = new Path2D();
+            path.moveTo(pathPoints[0].x, pathPoints[0].y);
+
+            for (let i = 0; i < pathPoints.length - 1; i++) {
+              const p0 = i === 0 ? pathPoints[0] : pathPoints[i - 1];
+              const p1 = pathPoints[i];
+              const p2 = pathPoints[i + 1];
+              const p3 = i + 2 < pathPoints.length ? pathPoints[i + 2] : pathPoints[i + 1];
+
+              const cp1x = p1.x + (p2.x - p0.x) / 6;
+              const cp1y = p1.y + (p2.y - p0.y) / 6;
+              const cp2x = p2.x - (p3.x - p1.x) / 6;
+              const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+              path.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
             }
 
-            interactionRegions.push({
-              type: 'segment',
-              x1: start.x,
-              y1: start.y,
-              x2: end.x,
-              y2: end.y,
-              padding,
-            });
+            ctx.save();
+            const strokeWidth = Math.max(6, Math.round(calculateRouteStrokeWidth(route, pathType)) || 6);
+            ctx.lineWidth = strokeWidth;
+            ctx.strokeStyle = strokeColor;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.stroke(path);
+            ctx.restore();
+
+            const padding = Math.max(6, strokeWidth / 2 + 4);
+            for (let i = 0; i < pathPoints.length - 1; i += 1) {
+              const start = pathPoints[i];
+              const end = pathPoints[i + 1];
+              if (!start || !end) {
+                continue;
+              }
+
+              interactionRegions.push({
+                type: 'segment',
+                x1: start.x,
+                y1: start.y,
+                x2: end.x,
+                y2: end.y,
+                padding,
+              });
+            }
           }
-        }
-        ctx.restore();
+
+          ctx.restore();
+        });
 
         if (interactionRegions.length) {
           interactionRegions.forEach((region) => {
@@ -7349,7 +7456,6 @@
           });
         }
       }
-
       function handlePointerMove(event) {
         updatePointerInteraction(event);
 
