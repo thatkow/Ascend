@@ -1716,7 +1716,7 @@
 
       const PERSONAL_TUTORIAL_OPT_OUT_KEY = 'ascend.personalTutorial.optOut';
       const PERSONAL_TUTORIAL_VERSION_KEY = 'ascend.personalTutorial.version';
-      const PERSONAL_TUTORIAL_VERSION = '2024-10-color-cycle';
+      const PERSONAL_TUTORIAL_VERSION = '2024-11-mobile-refresh';
 
       function readStoredTutorialOptOut() {
         try {
@@ -5763,12 +5763,6 @@
           actionsContainer.appendChild(actionButton);
         }
 
-        if (gradeControls) {
-          fragment.appendChild(gradeControls);
-        }
-        if (actionsContainer) {
-          fragment.appendChild(actionsContainer);
-        }
         ariaLines.push(`Grade: ${gradeDisplay}`);
         ariaLines.push(isAscended ? 'Ascended' : 'Not ascended');
 
@@ -5795,6 +5789,13 @@
         appendInfoLine(descriptionText ? `Description: ${descriptionText}` : 'Description: —');
 
         appendInfoLine(`Date set: ${formatDisplayDate(route.date_set)}`);
+
+        if (gradeControls) {
+          fragment.appendChild(gradeControls);
+        }
+        if (actionsContainer) {
+          fragment.appendChild(actionsContainer);
+        }
 
         const betatipsSection = buildBetatipsSection(route, ariaLines);
         if (betatipsSection) {
