@@ -5734,6 +5734,43 @@
         };
       }
 
+      function collectRoutePointEntries(routeData) {
+        const entries = [];
+        if (!routeData) {
+          return entries;
+        }
+
+        const appendEntry = (pathTypeKey, pointsValue) => {
+          const normalizedType = normalizePathType(pathTypeKey);
+          if (!normalizedType) {
+            return;
+          }
+
+          const normalizedPoints = sanitizeNormalizedPointsArray(pointsValue);
+          if (!Array.isArray(normalizedPoints) || !normalizedPoints.length) {
+            return;
+          }
+
+          entries.push({
+            pathType: normalizedType,
+            normalizedPoints,
+          });
+        };
+
+        const { pointsByType } = routeData;
+        if (pointsByType instanceof Map) {
+          pointsByType.forEach((value, key) => appendEntry(key, value));
+        } else if (pointsByType && typeof pointsByType === 'object' && !Array.isArray(pointsByType)) {
+          Object.entries(pointsByType).forEach(([key, value]) => appendEntry(key, value));
+        }
+
+        if (!entries.length) {
+          appendEntry(routeData.pathType, routeData.points);
+        }
+
+        return entries;
+      }
+
       function serialiseNormalizedPointsByType(pointsByType) {
         const payload = {};
         if (!(pointsByType instanceof Map)) {
@@ -6153,6 +6190,7 @@
 
       queuedGradeBarOverlays = [];
       drawExistingRoutesOverlay();
+      drawStoredPathPreviews();
       const activePointDiameter = getStatePointDiameterForPathType(pathType);
       drawRouteFromCanvasPoints(
         points,
@@ -6178,6 +6216,44 @@
         });
       }
       renderQueuedGradeBarOverlays();
+    }
+
+    function drawStoredPathPreviews() {
+      if (!(normalizedPointsByPathType instanceof Map) || !normalizedPointsByPathType.size) {
+        return;
+      }
+
+      const activeType = normalizePathType(pathType);
+      normalizedPointsByPathType.forEach((value, type) => {
+        const normalizedType = normalizePathType(type);
+        if (!normalizedType || normalizedType === activeType) {
+          return;
+        }
+
+        const normalizedPoints = sanitizeNormalizedPointsArray(value);
+        if (!Array.isArray(normalizedPoints) || !normalizedPoints.length) {
+          return;
+        }
+
+        normalizedPointsByPathType.set(normalizedType, normalizedPoints);
+
+        const canvasPoints = convertNormalizedToCanvasPoints(normalizedPoints);
+        if (!Array.isArray(canvasPoints) || !canvasPoints.length) {
+          return;
+        }
+
+        const previewPointDiameter = getStatePointDiameterForPathType(normalizedType);
+        drawRouteFromCanvasPoints(
+          canvasPoints,
+          strokeColor,
+          0.7,
+          normalizedType,
+          previewPointDiameter,
+          rectangleWidth,
+          rectangleHeight,
+          brezerStrokeWidth,
+        );
+      });
     }
 
     function clamp(value, min, max) {
@@ -6250,8 +6326,8 @@
       );
 
       if (effectivePathType === PATH_TYPE_BREZER) {
+        const strokeWidth = normalizeBrezerStrokeWidth(routeBrezerStrokeWidth);
         if (routePoints.length >= 2) {
-          const strokeWidth = normalizeBrezerStrokeWidth(routeBrezerStrokeWidth);
           ctx.lineWidth = strokeWidth;
           ctx.strokeStyle = color;
           ctx.lineJoin = 'round';
@@ -6275,6 +6351,17 @@
 
           ctx.stroke();
         }
+
+        const anchorRadius = Math.max(2, Math.round(Math.max(strokeWidth, 2) / 3));
+        ctx.fillStyle = color;
+        routePoints.forEach((point) => {
+          if (!point) {
+            return;
+          }
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, anchorRadius, 0, Math.PI * 2);
+          ctx.fill();
+        });
 
         ctx.restore();
         return;
@@ -6607,31 +6694,46 @@
           return;
         }
 
-        const normalizedPoints = Array.isArray(data.points) ? data.points : [];
-        const canvasPoints = convertNormalizedToCanvasPoints(normalizedPoints);
-        if (!canvasPoints.length) {
-          return;
-        }
-
         const color = sanitizeColor(data.strokeColor);
-        const normalizedPathType = normalizePathType(data.pathType);
-        const entryPointDiameter = getRoutePointDiameterForPathType(data, normalizedPathType);
-        overlayEntries.push({
-          id: key,
-          color,
-          pathType: normalizedPathType,
-          canvasPoints,
-          normalizedPoints,
-          pointDiameter: entryPointDiameter,
-          brezerStrokeWidth: normalizeBrezerStrokeWidth(data.brezerStrokeWidth),
-          rectangleWidth: normalizeRectangleSize(data.rectangleWidth, DEFAULT_RECTANGLE_WIDTH),
-          rectangleHeight: normalizeRectangleSize(data.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT),
-          alpha: overlayAlpha,
-          medianGrade: data.medianGrade,
-          gradeBarBaseHeight: data.gradeBarBaseHeight,
-          gradeBarMaxHeight: data.gradeBarMaxHeight,
-          gradeBarWidth: data.gradeBarWidth,
-          gradeBarTransparency: data.gradeBarTransparency,
+        const normalizedRectangleWidth = normalizeRectangleSize(
+          data.rectangleWidth,
+          DEFAULT_RECTANGLE_WIDTH,
+        );
+        const normalizedRectangleHeight = normalizeRectangleSize(
+          data.rectangleHeight,
+          DEFAULT_RECTANGLE_HEIGHT,
+        );
+        const normalizedBrezerWidth = normalizeBrezerStrokeWidth(data.brezerStrokeWidth);
+
+        const pointEntries = collectRoutePointEntries(data);
+        pointEntries.forEach(({ pathType: entryPathType, normalizedPoints }) => {
+          if (!Array.isArray(normalizedPoints) || !normalizedPoints.length) {
+            return;
+          }
+
+          const canvasPoints = convertNormalizedToCanvasPoints(normalizedPoints);
+          if (!canvasPoints.length) {
+            return;
+          }
+
+          const entryPointDiameter = getRoutePointDiameterForPathType(data, entryPathType);
+          overlayEntries.push({
+            id: key,
+            color,
+            pathType: entryPathType,
+            canvasPoints,
+            normalizedPoints,
+            pointDiameter: entryPointDiameter,
+            brezerStrokeWidth: normalizedBrezerWidth,
+            rectangleWidth: normalizedRectangleWidth,
+            rectangleHeight: normalizedRectangleHeight,
+            alpha: overlayAlpha,
+            medianGrade: data.medianGrade,
+            gradeBarBaseHeight: data.gradeBarBaseHeight,
+            gradeBarMaxHeight: data.gradeBarMaxHeight,
+            gradeBarWidth: data.gradeBarWidth,
+            gradeBarTransparency: data.gradeBarTransparency,
+          });
         });
       });
 
