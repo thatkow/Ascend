@@ -1033,6 +1033,65 @@
         background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.18);
       }
 
+      .route-tooltip .betatip-body {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.55rem;
+      }
+
+      .route-tooltip .betatip-upvote-count {
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        min-width: 1.5rem;
+        text-align: right;
+        color: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.8);
+        position: relative;
+      }
+
+      .route-tooltip .betatip-upvote-button {
+        border-radius: 999px;
+        border: 1px solid rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.5);
+        background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.15);
+        color: var(--tooltip-accent, #7ed957);
+        width: 2.15rem;
+        height: 2.15rem;
+        min-width: 2.15rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease,
+          background 0.2s ease, opacity 0.2s ease;
+        padding: 0;
+      }
+
+      .route-tooltip .betatip-upvote-button:hover,
+      .route-tooltip .betatip-upvote-button:focus-visible {
+        outline: none;
+        transform: translateY(-1px);
+        box-shadow: 0 10px 22px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.3);
+        border-color: var(--tooltip-accent, #7ed957);
+        background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.25);
+      }
+
+      .route-tooltip .betatip-upvote-button.is-upvoted {
+        background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.32);
+        border-color: var(--tooltip-accent, #7ed957);
+        box-shadow: inset 0 0 0 1px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.45);
+      }
+
+      .route-tooltip .betatip-upvote-button:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .route-tooltip .betatip-upvote-icon {
+        font-size: 1.15rem;
+        line-height: 1;
+      }
+
       .route-tooltip .betatip-username {
         font-weight: 600;
         letter-spacing: 0.01em;
@@ -1048,6 +1107,7 @@
         line-height: 1.5;
         color: var(--tooltip-muted-foreground, #d1d5db);
         white-space: pre-line;
+        flex: 1;
       }
 
       .route-tooltip .tooltip-betatips-empty {
@@ -4871,6 +4931,43 @@
         return numeric;
       }
 
+      function normalizeUpvoteList(value) {
+        const normalized = new Set();
+
+        const addCandidate = (candidate) => {
+          if (typeof candidate !== 'string') {
+            return;
+          }
+          const normalizedName = normalizeUsername(candidate);
+          if (normalizedName) {
+            normalized.add(normalizedName);
+          }
+        };
+
+        if (value instanceof Set) {
+          value.forEach(addCandidate);
+        } else if (Array.isArray(value)) {
+          value.forEach(addCandidate);
+        } else if (value && typeof value === 'object') {
+          Object.values(value).forEach(addCandidate);
+        } else {
+          addCandidate(value);
+        }
+
+        return normalized;
+      }
+
+      function serializeUpvoteSet(upvoteSet) {
+        if (!(upvoteSet instanceof Set)) {
+          return [];
+        }
+
+        return Array.from(upvoteSet)
+          .map((candidate) => (typeof candidate === 'string' ? normalizeUsername(candidate) : ''))
+          .filter(Boolean)
+          .sort((a, b) => a.localeCompare(b));
+      }
+
       function sanitizeRouteUserEntry(details) {
         const source = details && typeof details === 'object' ? details : {};
         const gradeValue = normalizeGradeValue(source.grade);
@@ -4879,11 +4976,38 @@
           typeof source.betatip === 'string'
             ? source.betatip.replace(/\r\n/g, '\n').trim()
             : '';
+        const upvotes = normalizeUpvoteList(source.betatipUpvotes ?? source.betatipupvotes);
 
         return {
           grade: gradeValue,
           ascended,
           betatip: betatipValue || null,
+          betatipUpvotes: upvotes,
+        };
+      }
+
+      function createBetatipCacheEntry(details) {
+        if (!details) {
+          return null;
+        }
+
+        const text =
+          typeof details.betatip === 'string'
+            ? details.betatip.replace(/\r\n/g, '\n').trim()
+            : '';
+        if (!text) {
+          return null;
+        }
+
+        const upvoteSource =
+          details.betatipUpvotes instanceof Set || Array.isArray(details.betatipUpvotes)
+            ? details.betatipUpvotes
+            : details.betatipupvotes;
+        const upvoters = normalizeUpvoteList(upvoteSource);
+
+        return {
+          text,
+          upvoters,
         };
       }
 
@@ -4936,13 +5060,12 @@
             return;
           }
 
-          const text =
-            typeof details.betatip === 'string'
-              ? details.betatip.replace(/\r\n/g, '\n').trim()
-              : '';
-
-          if (text) {
-            normalized.set(username, text);
+          const cacheEntry = createBetatipCacheEntry(details);
+          if (cacheEntry) {
+            normalized.set(username, {
+              text: cacheEntry.text,
+              upvoters: cacheEntry.upvoters,
+            });
           }
         });
 
@@ -5124,6 +5247,84 @@
         }
 
         return map;
+      }
+
+      function normalizeBetatipCacheValue(value) {
+        if (typeof value === 'string') {
+          return {
+            text: value.replace(/\r\n/g, '\n').trim(),
+            upvoters: new Set(),
+          };
+        }
+
+        if (value && typeof value === 'object') {
+          const rawText =
+            typeof value.text === 'string'
+              ? value.text
+              : typeof value.betatip === 'string'
+              ? value.betatip
+              : '';
+          const text = rawText.replace(/\r\n/g, '\n').trim();
+          const upvoteSource =
+            value.upvoters instanceof Set || Array.isArray(value.upvoters)
+              ? value.upvoters
+              : value.betatipUpvotes ?? value.betatipupvotes;
+          const upvoters = normalizeUpvoteList(upvoteSource);
+
+          return {
+            text,
+            upvoters,
+          };
+        }
+
+        return {
+          text: '',
+          upvoters: new Set(),
+        };
+      }
+
+      function updateCachesForUser(routeId, username, userPayload) {
+        if (!routeId || typeof routeId !== 'string') {
+          return null;
+        }
+
+        if (!isValidUsername(username)) {
+          return null;
+        }
+
+        const sanitizedEntry = sanitizeRouteUserEntry(userPayload);
+
+        let usersMap = routeUsersCache.get(routeId);
+        if (!(usersMap instanceof Map)) {
+          usersMap = new Map();
+          routeUsersCache.set(routeId, usersMap);
+        }
+        usersMap.set(username, sanitizedEntry);
+
+        const betatipsMap = getRouteBetatipsMap(routeId);
+        const cacheEntry = createBetatipCacheEntry(sanitizedEntry);
+        if (cacheEntry) {
+          betatipsMap.set(username, {
+            text: cacheEntry.text,
+            upvoters: cacheEntry.upvoters,
+          });
+        } else {
+          betatipsMap.delete(username);
+        }
+
+        [allRoutes, routes].forEach((collection) => {
+          if (!Array.isArray(collection)) {
+            return;
+          }
+
+          collection.forEach((entry) => {
+            if (entry && entry.id === routeId) {
+              entry.betatips = betatipsMap;
+            }
+          });
+        });
+
+        return sanitizedEntry;
       }
 
       function computeMedianFromUsersMap(usersMap) {
@@ -5556,7 +5757,7 @@
         const entries = [];
 
         if (betatipsMap instanceof Map) {
-          betatipsMap.forEach((text, username) => {
+          betatipsMap.forEach((value, username) => {
             if (typeof username !== 'string') {
               return;
             }
@@ -5566,14 +5767,16 @@
               return;
             }
 
-            if (typeof text !== 'string') {
-              return;
-            }
-
-            const trimmed = text.trim();
+            const { text: trimmed, upvoters } = normalizeBetatipCacheValue(value);
             if (!trimmed) {
               return;
             }
+
+            const upvoteSet = upvoters instanceof Set ? upvoters : new Set();
+            const upvoteCount = upvoteSet.size;
+            const hasUpvoted = normalizedCurrentUsername
+              ? upvoteSet.has(normalizedCurrentUsername)
+              : false;
 
             entries.push({
               username: normalizedUsername,
@@ -5581,6 +5784,8 @@
               isCurrent: normalizedCurrentUsername
                 ? normalizedUsername === normalizedCurrentUsername
                 : false,
+              upvoteCount,
+              hasUpvoted,
             });
           });
         }
@@ -5603,7 +5808,7 @@
         list.className = 'tooltip-betatips-list';
 
         if (entries.length) {
-          entries.forEach(({ username, text, isCurrent }) => {
+          entries.forEach(({ username, text, isCurrent, upvoteCount, hasUpvoted }) => {
             const entry = document.createElement('article');
             entry.className = 'betatip-entry';
             if (isCurrent) {
@@ -5615,17 +5820,112 @@
             nameEl.textContent = isCurrent ? `${username} (you)` : username;
             entry.appendChild(nameEl);
 
+            const body = document.createElement('div');
+            body.className = 'betatip-body';
+
+            const countWrapper = document.createElement('span');
+            countWrapper.className = 'betatip-upvote-count';
+            const displayCount = upvoteCount > 0 ? String(upvoteCount) : '—';
+            countWrapper.textContent = displayCount;
+            countWrapper.setAttribute('aria-hidden', 'true');
+            body.appendChild(countWrapper);
+
+            const countSr = document.createElement('span');
+            countSr.className = 'sr-only';
+            if (upvoteCount === 0) {
+              countSr.textContent = 'No upvotes yet';
+            } else if (upvoteCount === 1) {
+              countSr.textContent = '1 upvote';
+            } else {
+              countSr.textContent = `${upvoteCount} upvotes`;
+            }
+            body.appendChild(countSr);
+
             const textEl = document.createElement('p');
             textEl.className = 'betatip-text';
             textEl.textContent = text;
-            entry.appendChild(textEl);
+            body.appendChild(textEl);
+
+            const upvoteButton = document.createElement('button');
+            upvoteButton.type = 'button';
+            upvoteButton.className = 'betatip-upvote-button';
+            upvoteButton.setAttribute('aria-pressed', hasUpvoted ? 'true' : 'false');
+            if (hasUpvoted) {
+              upvoteButton.classList.add('is-upvoted');
+            }
+
+            const icon = document.createElement('span');
+            icon.className = 'betatip-upvote-icon';
+            icon.setAttribute('aria-hidden', 'true');
+            icon.textContent = '👍';
+            upvoteButton.appendChild(icon);
+
+            const srLabel = document.createElement('span');
+            srLabel.className = 'sr-only';
+            if (!currentUser) {
+              srLabel.textContent = 'Sign in to upvote beta tips.';
+              upvoteButton.disabled = true;
+              upvoteButton.title = 'Sign in to upvote beta tips';
+            } else if (isCurrent) {
+              srLabel.textContent = 'You cannot upvote your own beta tip.';
+              upvoteButton.disabled = true;
+              upvoteButton.title = 'You cannot upvote your own beta tip';
+            } else if (hasUpvoted) {
+              srLabel.textContent = `Remove your upvote from ${username}'s beta tip.`;
+              upvoteButton.title = 'Remove your upvote';
+            } else {
+              srLabel.textContent = `Upvote ${username}'s beta tip.`;
+              upvoteButton.title = 'Upvote this beta tip';
+            }
+            upvoteButton.appendChild(srLabel);
+
+            if (currentUser && !isCurrent) {
+              let isProcessingUpvote = false;
+              upvoteButton.addEventListener('click', async (event) => {
+                event.preventDefault();
+                if (isProcessingUpvote) {
+                  return;
+                }
+
+                isProcessingUpvote = true;
+                upvoteButton.disabled = true;
+
+                try {
+                  const scrollContainer = tooltip?.querySelector('.tooltip-content');
+                  const previousScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+                  await toggleBetatipUpvote(route, username);
+                  if (tooltip) {
+                    updateTooltipContent(route);
+                    const nextScrollContainer = tooltip.querySelector('.tooltip-content');
+                    if (nextScrollContainer) {
+                      nextScrollContainer.scrollTop = previousScrollTop;
+                    }
+                  }
+                  isProcessingUpvote = false;
+                } catch (error) {
+                  console.error('Failed to update beta tip upvote:', error);
+                  upvoteButton.disabled = false;
+                  isProcessingUpvote = false;
+                  return;
+                }
+              });
+            }
+
+            body.appendChild(upvoteButton);
+            entry.appendChild(body);
 
             list.appendChild(entry);
 
             if (Array.isArray(ariaLines)) {
+              const upvoteSummary =
+                upvoteCount === 0
+                  ? 'no upvotes'
+                  : upvoteCount === 1
+                  ? '1 upvote'
+                  : `${upvoteCount} upvotes`;
               const ariaText = text.replace(/\s+/g, ' ').trim();
               ariaLines.push(
-                `Beta from ${username}${isCurrent ? ' (you)' : ''}: ${ariaText}`,
+                `Beta from ${username}${isCurrent ? ' (you)' : ''}: ${ariaText} (${upvoteSummary})`,
               );
             }
           });
@@ -5663,10 +5963,11 @@
           textarea.className = 'tooltip-betatips-textarea';
           textarea.maxLength = MAX_BETATIP_LENGTH;
           textarea.placeholder = 'Add your tip for this climb';
-          const existingText =
+          const existingEntry =
             betatipsMap instanceof Map && normalizedCurrentUsername
-              ? betatipsMap.get(normalizedCurrentUsername) || ''
-              : '';
+              ? normalizeBetatipCacheValue(betatipsMap.get(normalizedCurrentUsername))
+              : { text: '', upvoters: new Set() };
+          const existingText = existingEntry.text || '';
           textarea.value = existingText;
 
           label.appendChild(textarea);
@@ -5817,12 +6118,16 @@
           typeof previousDetails?.betatip === 'string' && previousDetails.betatip
             ? previousDetails.betatip
             : null;
+        const existingUpvotes = normalizeUpvoteList(
+          previousDetails?.betatipUpvotes ?? previousDetails?.betatipupvotes,
+        );
 
         try {
           const userPayload = {
             grade: sanitizedGrade,
             ascended: isAscended,
             betatip: existingBetatip,
+            betatipupvotes: existingBetatip ? serializeUpvoteSet(existingUpvotes) : null,
           };
 
           await updateDoc(routeRef, {
@@ -5845,19 +6150,7 @@
             userAscentDetails.set(route.id, nextEntry);
           }
 
-          let usersMap = routeUsersCache.get(route.id);
-          if (!(usersMap instanceof Map)) {
-            usersMap = new Map();
-            routeUsersCache.set(route.id, usersMap);
-          }
-          usersMap.set(username, userPayload);
-
-          const betatipsMap = getRouteBetatipsMap(route.id);
-          if (existingBetatip) {
-            betatipsMap.set(username, existingBetatip);
-          } else {
-            betatipsMap.delete(username);
-          }
+          updateCachesForUser(route.id, username, userPayload);
 
           updateMedianForRoute(route.id);
 
@@ -5902,44 +6195,102 @@
             : null;
         const gradeValue = normalizeGradeValue(existingDetails?.grade);
         const ascendedValue = existingDetails?.ascended === true;
+        const existingUpvotes = normalizeUpvoteList(
+          existingDetails?.betatipUpvotes ?? existingDetails?.betatipupvotes,
+        );
 
         const userPayload = {
           grade: gradeValue,
           ascended: ascendedValue,
           betatip: limitedText || null,
+          betatipupvotes: limitedText ? serializeUpvoteSet(existingUpvotes) : null,
         };
 
         await updateDoc(routeRef, {
           [`users.${username}`]: userPayload,
         });
 
-        let usersMap = routeUsersCache.get(routeId);
-        if (!(usersMap instanceof Map)) {
-          usersMap = new Map();
-          routeUsersCache.set(routeId, usersMap);
-        }
-        usersMap.set(username, userPayload);
-
-        const betatipsMap = getRouteBetatipsMap(routeId);
-        if (limitedText) {
-          betatipsMap.set(username, limitedText);
-        } else {
-          betatipsMap.delete(username);
-        }
-
-        [allRoutes, routes].forEach((collection) => {
-          if (!Array.isArray(collection)) {
-            return;
-          }
-
-          collection.forEach((entry) => {
-            if (entry && entry.id === routeId) {
-              entry.betatips = betatipsMap;
-            }
-          });
-        });
+        updateCachesForUser(routeId, username, userPayload);
 
         return limitedText;
+      }
+
+      async function toggleBetatipUpvote(route, targetUsername) {
+        if (!currentUser) {
+          throw new Error('You must be signed in to upvote beta tips.');
+        }
+
+        const routeId = typeof route?.id === 'string' ? route.id.trim() : '';
+        if (!routeId) {
+          throw new Error('Unable to determine which route to update.');
+        }
+
+        let voter = isValidUsername(currentUsername) ? normalizeUsername(currentUsername) : '';
+        if (!voter) {
+          const resolved = await resolveAuthenticatedUsername();
+          if (isValidUsername(resolved)) {
+            voter = normalizeUsername(resolved);
+            currentUsername = voter;
+          }
+        }
+
+        if (!isValidUsername(voter)) {
+          throw new Error('Unable to resolve your username.');
+        }
+
+        const normalizedTarget = normalizeUsername(targetUsername);
+        if (!normalizedTarget) {
+          throw new Error('We could not determine which beta tip to upvote.');
+        }
+
+        if (normalizedTarget === voter) {
+          throw new Error('You cannot upvote your own beta tip.');
+        }
+
+        const usersMap = routeUsersCache.get(routeId);
+        const targetDetails =
+          usersMap instanceof Map ? usersMap.get(normalizedTarget) : null;
+        const targetBetatip =
+          typeof targetDetails?.betatip === 'string' && targetDetails.betatip
+            ? targetDetails.betatip
+            : null;
+
+        if (!targetBetatip) {
+          throw new Error('This beta tip is no longer available.');
+        }
+
+        const upvoteSet = normalizeUpvoteList(
+          targetDetails?.betatipUpvotes ?? targetDetails?.betatipupvotes,
+        );
+        const alreadyUpvoted = upvoteSet.has(voter);
+
+        if (alreadyUpvoted) {
+          upvoteSet.delete(voter);
+        } else {
+          upvoteSet.add(voter);
+        }
+
+        const targetGrade = normalizeGradeValue(targetDetails?.grade);
+        const targetAscended = targetDetails?.ascended === true;
+
+        const userPayload = {
+          grade: targetGrade,
+          ascended: targetAscended,
+          betatip: targetBetatip,
+          betatipupvotes: serializeUpvoteSet(upvoteSet),
+        };
+
+        const routeRef = doc(db, 'routes', routeId);
+        await updateDoc(routeRef, {
+          [`users.${normalizedTarget}`]: userPayload,
+        });
+
+        updateCachesForUser(routeId, normalizedTarget, userPayload);
+
+        return {
+          hasUpvoted: !alreadyUpvoted,
+          upvoteCount: upvoteSet.size,
+        };
       }
 
       async function refreshMedianGrades() {
@@ -6704,6 +7055,9 @@
           typeof previousDetails?.betatip === 'string' && previousDetails.betatip
             ? previousDetails.betatip
             : null;
+        const existingUpvotes = normalizeUpvoteList(
+          previousDetails?.betatipUpvotes ?? previousDetails?.betatipupvotes,
+        );
 
         try {
           const nextAscended = !isAscended;
@@ -6711,6 +7065,7 @@
             grade: normalizedGrade,
             ascended: nextAscended,
             betatip: existingBetatip,
+            betatipupvotes: existingBetatip ? serializeUpvoteSet(existingUpvotes) : null,
           };
 
           await updateDoc(routeRef, {
@@ -6722,19 +7077,7 @@
             grade: normalizedGrade,
           });
 
-          let usersMap = routeUsersCache.get(routeId);
-          if (!(usersMap instanceof Map)) {
-            usersMap = new Map();
-            routeUsersCache.set(routeId, usersMap);
-          }
-          usersMap.set(username, userPayload);
-
-          const betatipsMap = getRouteBetatipsMap(routeId);
-          if (existingBetatip) {
-            betatipsMap.set(username, existingBetatip);
-          } else {
-            betatipsMap.delete(username);
-          }
+          updateCachesForUser(routeId, username, userPayload);
 
           updateMedianForRoute(routeId);
 
