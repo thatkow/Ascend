@@ -4373,34 +4373,34 @@
               setTutorialOverlayAlignment('center');
             },
           },
-          {
-            title: 'Coloring by Holds',
-            body: [
-              'Routes are showing the colour of each hold set right now so you can match what's taped on the wall.',
-              'Click the palette icon to switch to Coloring by Grade when you want quick difficulty cues.',
-            ],
-            onEnter: () => {
-              setTutorialOverlayAlignment('center');
-              const holdButton = getViewToggleButtonForMode(VIEW_MODE_HOLD_COLORS);
-              if (holdButton) {
-                tutorialPreviousViewMode = viewMode;
-                if (viewMode !== VIEW_MODE_HOLD_COLORS) {
-                  setViewMode(VIEW_MODE_HOLD_COLORS);
+            {
+              title: 'Coloring by Holds',
+              body: [
+                "Routes are showing the colour of each hold set right now so you can match what's taped on the wall.",
+                'Click the palette icon to switch to Coloring by Grade when you want quick difficulty cues.',
+              ],
+              onEnter: () => {
+                setTutorialOverlayAlignment('center');
+                const holdButton = getViewToggleButtonForMode(VIEW_MODE_HOLD_COLORS);
+                if (holdButton) {
+                  tutorialPreviousViewMode = viewMode;
+                  if (viewMode !== VIEW_MODE_HOLD_COLORS) {
+                    setViewMode(VIEW_MODE_HOLD_COLORS);
+                  }
+                  highlightTutorialElement(holdButton, { illuminate: true });
+                  showTutorialPointerFor(holdButton);
+                } else {
+                  hideTutorialPointer();
                 }
-                highlightTutorialElement(holdButton, { illuminate: true });
-                showTutorialPointerFor(holdButton);
-              } else {
+              },
+              onExit: () => {
                 hideTutorialPointer();
-              }
-            },
-            onExit: () => {
-              hideTutorialPointer();
-              highlightTutorialElement(null);
-              if (tutorialPreviousViewMode && tutorialPreviousViewMode !== viewMode) {
-                setViewMode(tutorialPreviousViewMode);
-              }
-              tutorialPreviousViewMode = null;
-            },
+                highlightTutorialElement(null);
+                if (tutorialPreviousViewMode && tutorialPreviousViewMode !== viewMode) {
+                  setViewMode(tutorialPreviousViewMode);
+                }
+                tutorialPreviousViewMode = null;
+              },
           },
           {
             title: 'Coloring by Grade',
