@@ -1415,12 +1415,12 @@
             type="button"
             class="header-icon-button view-toggle-option"
             data-view-mode="grade-colors"
-            data-tooltip="Show by Grade"
+            data-tooltip="Color by Grade"
             aria-pressed="false"
-            aria-label="Show by Grade"
-            title="Show by Grade"
+            aria-label="Color by Grade"
+            title="Color by Grade"
           >
-            <span class="sr-only">Show by Grade</span>
+            <span class="sr-only">Color by Grade</span>
             <span class="view-toggle-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
                 <path
@@ -1434,12 +1434,12 @@
             type="button"
             class="header-icon-button view-toggle-option"
             data-view-mode="hold-colors"
-            data-tooltip="Show by Color of Holds"
+            data-tooltip="Color by Holds"
             aria-pressed="false"
-            aria-label="Show by Color of Holds"
-            title="Show by Color of Holds"
+            aria-label="Color by Holds"
+            title="Color by Holds"
           >
-            <span class="sr-only">Show by Color of Holds</span>
+            <span class="sr-only">Color by Holds</span>
             <span class="view-toggle-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
                 <rect x="5" y="13.5" width="3.5" height="6" rx="1.75" fill="#2f9e44" />
@@ -1610,6 +1610,10 @@
         const mode = button?.dataset?.viewMode;
         if (mode) {
           viewToggleButtonMap.set(mode, button);
+        }
+
+        if (button && !button.dataset.tooltipBase) {
+          button.dataset.tooltipBase = button.dataset.tooltip || '';
         }
       });
 
@@ -2252,6 +2256,11 @@
       const VIEW_MODE_ASCENT_STATUS = 'ascent-status';
       const VIEW_MODE_HOLD_COLORS = 'hold-colors';
       const VIEW_MODE_GRADE_COLORS = 'grade-colors';
+      const VIEW_MODE_TOOLTIP_LABELS = {
+        [VIEW_MODE_ASCENT_STATUS]: 'Color by Ascended',
+        [VIEW_MODE_GRADE_COLORS]: 'Color by Grade',
+        [VIEW_MODE_HOLD_COLORS]: 'Color by Holds',
+      };
       const ASCENT_STATUS_ASCENDED_COLOR = '#7ed957';
       const ASCENT_STATUS_PROJECT_COLOR = '#4b5563';
 
@@ -2704,13 +2713,25 @@
           }
 
           const mode = button.dataset?.viewMode;
-          const tooltip = button.dataset?.tooltip;
-          if (tooltip) {
-            button.setAttribute('title', tooltip);
-            button.setAttribute('aria-label', tooltip);
+          const isActive = mode === viewMode;
+          const baseTooltip =
+            VIEW_MODE_TOOLTIP_LABELS[mode] ||
+            button.dataset?.tooltipBase ||
+            button.dataset?.tooltip ||
+            '';
+          if (baseTooltip) {
+            const tooltipText = isActive
+              ? `${baseTooltip} (active)`
+              : `Switch to ${baseTooltip}`;
+            button.setAttribute('title', tooltipText);
+            button.setAttribute('aria-label', tooltipText);
+            button.dataset.tooltipActive = tooltipText;
+          } else {
+            button.removeAttribute('title');
+            button.removeAttribute('aria-label');
+            delete button.dataset.tooltipActive;
           }
 
-          const isActive = mode === viewMode;
           button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
           button.classList.toggle('is-active', isActive);
         });

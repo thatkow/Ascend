@@ -1386,12 +1386,12 @@
             class="header-icon-button view-toggle-option"
             data-view-mode="hold-colors"
             data-view-mode-cycle="ascent-status grade-colors hold-colors"
-            data-tooltip="Show by Color of Holds"
+            data-tooltip="Color by Holds"
             aria-pressed="true"
-            aria-label="Show by Color of Holds"
-            title="Show by Color of Holds"
+            aria-label="Color by Holds"
+            title="Color by Holds"
           >
-            <span class="sr-only" data-view-toggle-label>Show by Color of Holds</span>
+            <span class="sr-only" data-view-toggle-label>Color by Holds</span>
             <span class="view-toggle-icon view-toggle-icon--ascents" aria-hidden="true">
               <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
                 <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
@@ -1710,10 +1710,24 @@
       let tutorialOptOut = false;
 
       const PERSONAL_TUTORIAL_OPT_OUT_KEY = 'ascend.personalTutorial.optOut';
+      const PERSONAL_TUTORIAL_VERSION_KEY = 'ascend.personalTutorial.version';
+      const PERSONAL_TUTORIAL_VERSION = '2024-10-color-cycle';
 
       function readStoredTutorialOptOut() {
         try {
-          return window.localStorage?.getItem(PERSONAL_TUTORIAL_OPT_OUT_KEY) === 'true';
+          const storage = window.localStorage;
+          if (!storage) {
+            return false;
+          }
+
+          const storedVersion = storage.getItem(PERSONAL_TUTORIAL_VERSION_KEY);
+          if (storedVersion !== PERSONAL_TUTORIAL_VERSION) {
+            storage.setItem(PERSONAL_TUTORIAL_VERSION_KEY, PERSONAL_TUTORIAL_VERSION);
+            storage.removeItem(PERSONAL_TUTORIAL_OPT_OUT_KEY);
+            return false;
+          }
+
+          return storage.getItem(PERSONAL_TUTORIAL_OPT_OUT_KEY) === 'true';
         } catch (error) {
           console.warn('Failed to read tutorial preference:', error);
           return false;
@@ -1722,10 +1736,17 @@
 
       function persistTutorialOptOut(value) {
         try {
+          const storage = window.localStorage;
+          if (!storage) {
+            return;
+          }
+
+          storage.setItem(PERSONAL_TUTORIAL_VERSION_KEY, PERSONAL_TUTORIAL_VERSION);
+
           if (value) {
-            window.localStorage?.setItem(PERSONAL_TUTORIAL_OPT_OUT_KEY, 'true');
+            storage.setItem(PERSONAL_TUTORIAL_OPT_OUT_KEY, 'true');
           } else {
-            window.localStorage?.removeItem(PERSONAL_TUTORIAL_OPT_OUT_KEY);
+            storage.removeItem(PERSONAL_TUTORIAL_OPT_OUT_KEY);
           }
         } catch (error) {
           console.warn('Failed to persist tutorial preference:', error);
@@ -2921,14 +2942,17 @@
       const VIEW_MODE_META = {
         [VIEW_MODE_ASCENT_STATUS]: {
           label: 'Show if Ascended',
+          colorLabel: 'Color by Ascended',
           next: VIEW_MODE_GRADE_COLORS,
         },
         [VIEW_MODE_GRADE_COLORS]: {
           label: 'Show by Grade',
+          colorLabel: 'Color by Grade',
           next: VIEW_MODE_HOLD_COLORS,
         },
         [VIEW_MODE_HOLD_COLORS]: {
           label: 'Show by Color of Holds',
+          colorLabel: 'Color by Holds',
           next: VIEW_MODE_ASCENT_STATUS,
         },
       };
@@ -3402,23 +3426,36 @@
           if (button.dataset?.viewModeCycle) {
             const metadata = getViewModeMetadata(viewMode);
             const label = metadata?.label ?? '';
+            const colorLabel = metadata?.colorLabel ?? label;
             const nextMode = metadata?.next ?? getNextViewMode(viewMode);
+            const nextMetadata = getViewModeMetadata(nextMode);
+            const nextColorLabel = nextMetadata?.colorLabel ?? nextMetadata?.label ?? '';
+            const tooltipText = nextColorLabel
+              ? `${colorLabel} (active). Next: ${nextColorLabel}.`
+              : `${colorLabel} (active).`;
+
             button.dataset.viewMode = viewMode;
-            button.dataset.tooltip = label;
+            button.dataset.tooltip = tooltipText;
             button.dataset.nextViewMode = nextMode;
-            if (label) {
-              button.setAttribute('title', label);
-              button.setAttribute('aria-label', label);
+
+            if (tooltipText) {
+              button.setAttribute('title', tooltipText);
+              button.setAttribute('aria-label', tooltipText);
             } else {
               button.removeAttribute('title');
               button.removeAttribute('aria-label');
             }
+
             button.setAttribute('aria-pressed', 'true');
             button.classList.add('is-active');
+
             const srLabel = button.querySelector('[data-view-toggle-label]');
             if (srLabel) {
-              srLabel.textContent = label;
+              srLabel.textContent = nextColorLabel
+                ? `${colorLabel} selected. Next: ${nextColorLabel}.`
+                : `${colorLabel} selected.`;
             }
+
             return;
           }
 
