@@ -5640,10 +5640,7 @@
         } else {
           const empty = document.createElement('p');
           empty.className = 'tooltip-betatips-empty';
-          const emptyMessage = currentUser
-            ? 'No beta tips yet. Share yours below.'
-            : 'No beta tips yet.';
-          empty.textContent = emptyMessage;
+          empty.textContent = 'No beta tips yet.';
           list.appendChild(empty);
           if (Array.isArray(ariaLines)) {
             ariaLines.push('No beta tips yet.');
@@ -5651,136 +5648,6 @@
         }
 
         section.appendChild(list);
-
-        if (currentUser) {
-          const form = document.createElement('form');
-          form.className = 'tooltip-betatips-form';
-          form.noValidate = true;
-
-          const textareaId = `betatip-${route.id.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
-          const label = document.createElement('label');
-          label.className = 'tooltip-betatips-label';
-          label.setAttribute('for', textareaId);
-
-          const labelText = document.createElement('span');
-          labelText.textContent = 'Share your beta';
-          label.appendChild(labelText);
-
-          const textarea = document.createElement('textarea');
-          textarea.id = textareaId;
-          textarea.className = 'tooltip-betatips-textarea';
-          textarea.maxLength = MAX_BETATIP_LENGTH;
-          textarea.placeholder = 'Add your tip for this climb';
-          const existingText =
-            betatipsMap instanceof Map && normalizedCurrentUsername
-              ? betatipsMap.get(normalizedCurrentUsername) || ''
-              : '';
-          textarea.value = existingText;
-
-          label.appendChild(textarea);
-          form.appendChild(label);
-
-          const actions = document.createElement('div');
-          actions.className = 'tooltip-betatips-actions';
-
-          const saveButton = document.createElement('button');
-          saveButton.type = 'submit';
-          saveButton.textContent = 'Save tip';
-          actions.appendChild(saveButton);
-
-          let removeButton = null;
-          if (existingText) {
-            removeButton = document.createElement('button');
-            removeButton.type = 'button';
-            removeButton.className = 'is-quiet';
-            removeButton.textContent = 'Remove tip';
-            actions.appendChild(removeButton);
-          }
-
-          form.appendChild(actions);
-
-          const status = document.createElement('p');
-          status.className = 'tooltip-betatips-status';
-          status.setAttribute('role', 'status');
-          status.textContent = '';
-          form.appendChild(status);
-
-          const setSavingState = (saving) => {
-            textarea.disabled = saving;
-            saveButton.disabled = saving;
-            if (removeButton) {
-              removeButton.disabled = saving;
-            }
-          };
-
-          textarea.addEventListener('input', () => {
-            status.textContent = '';
-          });
-
-          let isSaving = false;
-
-          form.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            if (isSaving) {
-              return;
-            }
-
-            status.textContent = '';
-            isSaving = true;
-            setSavingState(true);
-
-            try {
-              const scrollContainer = tooltip?.querySelector('.tooltip-content');
-              const previousScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
-              await saveBetatipForRoute(route, textarea.value);
-              if (tooltip) {
-                updateTooltipContent(route);
-                const nextScrollContainer = tooltip.querySelector('.tooltip-content');
-                if (nextScrollContainer) {
-                  nextScrollContainer.scrollTop = previousScrollTop;
-                }
-              }
-            } catch (error) {
-              console.error('Failed to save beta tip:', error);
-              status.textContent = 'We couldn’t save your beta. Please try again.';
-              setSavingState(false);
-              isSaving = false;
-            }
-          });
-
-          if (removeButton) {
-            removeButton.addEventListener('click', async (event) => {
-              event.preventDefault();
-              if (isSaving) {
-                return;
-              }
-
-              status.textContent = '';
-              isSaving = true;
-              setSavingState(true);
-
-              try {
-                const scrollContainer = tooltip?.querySelector('.tooltip-content');
-                const previousScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
-                await saveBetatipForRoute(route, '');
-                if (tooltip) {
-                  updateTooltipContent(route);
-                  const nextScrollContainer = tooltip.querySelector('.tooltip-content');
-                  if (nextScrollContainer) {
-                    nextScrollContainer.scrollTop = previousScrollTop;
-                  }
-                }
-              } catch (error) {
-                console.error('Failed to remove beta tip:', error);
-                status.textContent = 'We couldn’t remove your beta. Please try again.';
-                setSavingState(false);
-                isSaving = false;
-              }
-            });
-          }
-
-          section.appendChild(form);
-        }
 
         return section;
       }
@@ -5999,29 +5866,6 @@
         gradeCluster.className = 'tooltip-grade-cluster';
         gradeCluster.appendChild(gradeBadge);
 
-        let gradeControls = null;
-        let actionsContainer = null;
-
-        if (currentUser) {
-          gradeControls = buildGradeControls(route);
-
-          const actionButton = document.createElement('button');
-          actionButton.type = 'button';
-          actionButton.className = 'tooltip-action-button ascend-toggle';
-          actionButton.setAttribute('aria-pressed', isAscended ? 'true' : 'false');
-          actionButton.textContent = isAscended ? 'Ascended' : 'Not ascended';
-          actionButton.dataset.infoTarget = 'route-ascent';
-          actionButton.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            toggleRouteAscent(route);
-          });
-
-          actionsContainer = document.createElement('div');
-          actionsContainer.className = 'tooltip-actions';
-          actionsContainer.appendChild(actionButton);
-        }
-
         ariaLines.push(`Grade: ${gradeDisplay}`);
         ariaLines.push(isAscended ? 'Ascended' : 'Not ascended');
 
@@ -6048,13 +5892,6 @@
         appendInfoLine(descriptionText ? `Description: ${descriptionText}` : 'Description: —');
 
         appendInfoLine(`Date set: ${formatDisplayDate(route.date_set)}`);
-
-        if (gradeControls) {
-          fragment.appendChild(gradeControls);
-        }
-        if (actionsContainer) {
-          fragment.appendChild(actionsContainer);
-        }
 
         const betatipsSection = buildBetatipsSection(route, ariaLines);
         if (betatipsSection) {
