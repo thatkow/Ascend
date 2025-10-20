@@ -990,6 +990,142 @@
         white-space: pre-line;
       }
 
+      .route-tooltip .tooltip-betatips {
+        margin-top: 1.25rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.25);
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .route-tooltip .tooltip-betatips-heading {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--tooltip-foreground, #fff);
+      }
+
+      .route-tooltip .tooltip-betatips-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+
+      .route-tooltip .betatip-entry {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.1);
+        border-radius: 0.75rem;
+        padding: 0.75rem 0.9rem;
+        border: 1px solid rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.2);
+      }
+
+      .route-tooltip .betatip-entry.is-current-user {
+        border-color: var(--tooltip-accent, #7ed957);
+        background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.18);
+      }
+
+      .route-tooltip .betatip-username {
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        color: var(--tooltip-foreground, #fff);
+      }
+
+      .route-tooltip .betatip-entry.is-current-user .betatip-username {
+        color: var(--tooltip-accent, #7ed957);
+      }
+
+      .route-tooltip .betatip-text {
+        font-size: 0.95rem;
+        line-height: 1.5;
+        color: var(--tooltip-muted-foreground, #d1d5db);
+        white-space: pre-line;
+      }
+
+      .route-tooltip .tooltip-betatips-empty {
+        font-size: 0.95rem;
+        color: var(--tooltip-muted-foreground, #d1d5db);
+        font-style: italic;
+      }
+
+      .route-tooltip .tooltip-betatips-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+
+      .route-tooltip .tooltip-betatips-label {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        font-size: 0.95rem;
+        color: var(--tooltip-foreground, #fff);
+      }
+
+      .route-tooltip .tooltip-betatips-textarea {
+        width: 100%;
+        min-height: 4.5rem;
+        resize: vertical;
+        border-radius: 0.75rem;
+        border: 1px solid rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.35);
+        background: rgba(14, 21, 15, 0.9);
+        color: var(--tooltip-foreground, #fff);
+        padding: 0.75rem 0.85rem;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .route-tooltip .tooltip-betatips-textarea:focus {
+        outline: none;
+        border-color: var(--tooltip-accent, #7ed957);
+        box-shadow: 0 0 0 2px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.35);
+      }
+
+      .route-tooltip .tooltip-betatips-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .route-tooltip .tooltip-betatips-actions button {
+        border-radius: 999px;
+        border: 1px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
+        padding: 0.5rem 1.1rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        background: var(--tooltip-accent, #7ed957);
+        color: var(--tooltip-on-accent, #000);
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      }
+
+      .route-tooltip .tooltip-betatips-actions button:hover,
+      .route-tooltip .tooltip-betatips-actions button:focus-visible {
+        transform: translateY(-1px);
+        outline: none;
+        box-shadow: 0 10px 24px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.35);
+      }
+
+      .route-tooltip .tooltip-betatips-actions button.is-quiet {
+        background: transparent;
+        color: var(--tooltip-muted-foreground, #d1d5db);
+        border-color: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.35);
+      }
+
+      .route-tooltip .tooltip-betatips-actions button.is-quiet:hover,
+      .route-tooltip .tooltip-betatips-actions button.is-quiet:focus-visible {
+        border-color: var(--tooltip-accent, #7ed957);
+        color: var(--tooltip-foreground, #fff);
+      }
+
+      .route-tooltip .tooltip-betatips-status {
+        font-size: 0.85rem;
+        min-height: 1rem;
+        color: #fca5a5;
+      }
+
       .route-tooltip .tooltip-line {
         display: block;
       }
@@ -2031,6 +2167,7 @@
       const DEFAULT_RECTANGLE_HEIGHT = 60;
       const MIN_GRADE_VALUE = 1;
       const MAX_GRADE_VALUE = 31;
+      const MAX_BETATIP_LENGTH = 600;
       const MIN_GRADE_BAR_BASE_HEIGHT = 0;
       const MAX_GRADE_BAR_HEIGHT = 1000;
       const DEFAULT_GRADE_BAR_BASE_HEIGHT = 40;
@@ -2773,6 +2910,32 @@
         return '';
       }
 
+      async function ensureUidUsernameMapping(user, username) {
+        if (!user) {
+          return;
+        }
+
+        const normalizedUsername = normalizeUsername(username);
+        if (!isValidUsername(normalizedUsername)) {
+          return;
+        }
+
+        try {
+          await setDoc(
+            doc(db, 'usernames', user.uid),
+            {
+              uid: user.uid,
+              username: normalizedUsername,
+              usernameLower: normalizedUsername,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true },
+          );
+        } catch (error) {
+          console.warn('Failed to synchronise username mapping for betatips:', error);
+        }
+      }
+
       const buildSyntheticEmail = (username) => {
         const normalized = normalizeUsername(username);
         return normalized ? `${normalized}@${SYNTHETIC_EMAIL_DOMAIN}` : '';
@@ -3502,6 +3665,7 @@
         userAscentDetails = new Map();
         routeMedianGrades = new Map();
         routeAscentsCache.clear();
+        routeBetatipsCache.clear();
         hideTooltip({ force: true });
 
         await loadRoutes();
@@ -4237,6 +4401,8 @@
             currentUsername = canonicalUsername;
           }
 
+          await ensureUidUsernameMapping(user, currentUsername);
+
           const role = await resolveUserRole(user, currentUsername);
 
           updateNavigationForRole(role);
@@ -4282,6 +4448,7 @@
       const ascendedRoutes = new Set();
       const routeGrades = new Map();
       const routeAscentsCache = new Map();
+      const routeBetatipsCache = new Map();
       let userAscentDetails = new Map();
       let routeMedianGrades = new Map();
       const CLICK_DRAG_DISTANCE_THRESHOLD = 8;
@@ -4548,6 +4715,55 @@
         });
 
         return normalized;
+      }
+
+      function normalizeRouteBetatipsMap(rawBetatips) {
+        const normalized = new Map();
+
+        if (!rawBetatips || typeof rawBetatips !== 'object') {
+          return normalized;
+        }
+
+        Object.entries(rawBetatips).forEach(([username, value]) => {
+          if (typeof username !== 'string') {
+            return;
+          }
+
+          const normalizedUsername = normalizeUsername(username);
+          if (!normalizedUsername) {
+            return;
+          }
+
+          let text = '';
+          if (typeof value === 'string') {
+            text = value.replace(/\r\n/g, '\n').trim();
+          } else if (value !== null && value !== undefined) {
+            text = String(value).trim();
+          }
+
+          if (!text) {
+            return;
+          }
+
+          normalized.set(normalizedUsername, text);
+        });
+
+        return normalized;
+      }
+
+      function getRouteBetatipsMap(routeId) {
+        if (typeof routeId !== 'string' || !routeId.trim()) {
+          return new Map();
+        }
+
+        const normalizedId = routeId.trim();
+        let map = routeBetatipsCache.get(normalizedId);
+        if (!(map instanceof Map)) {
+          map = new Map();
+          routeBetatipsCache.set(normalizedId, map);
+        }
+
+        return map;
       }
 
       function computeMedianFromAscentsMap(ascentsMap) {
@@ -4968,6 +5184,228 @@
         return container;
       }
 
+      function buildBetatipsSection(route, ariaLines = []) {
+        if (!route || !route.id) {
+          return null;
+        }
+
+        const betatipsMap = getRouteBetatipsMap(route.id);
+        const normalizedCurrentUsername = isValidUsername(currentUsername)
+          ? normalizeUsername(currentUsername)
+          : '';
+        const entries = [];
+
+        if (betatipsMap instanceof Map) {
+          betatipsMap.forEach((text, username) => {
+            if (typeof username !== 'string') {
+              return;
+            }
+
+            const normalizedUsername = normalizeUsername(username);
+            if (!normalizedUsername) {
+              return;
+            }
+
+            if (typeof text !== 'string') {
+              return;
+            }
+
+            const trimmed = text.trim();
+            if (!trimmed) {
+              return;
+            }
+
+            entries.push({
+              username: normalizedUsername,
+              text: trimmed,
+              isCurrent: normalizedCurrentUsername
+                ? normalizedUsername === normalizedCurrentUsername
+                : false,
+            });
+          });
+        }
+
+        entries.sort((a, b) => a.username.localeCompare(b.username));
+
+        const section = document.createElement('section');
+        section.className = 'tooltip-betatips';
+
+        const heading = document.createElement('h3');
+        heading.className = 'tooltip-betatips-heading';
+        heading.textContent = 'Beta tips';
+        section.appendChild(heading);
+
+        if (Array.isArray(ariaLines)) {
+          ariaLines.push('Beta tips');
+        }
+
+        const list = document.createElement('div');
+        list.className = 'tooltip-betatips-list';
+
+        if (entries.length) {
+          entries.forEach(({ username, text, isCurrent }) => {
+            const entry = document.createElement('article');
+            entry.className = 'betatip-entry';
+            if (isCurrent) {
+              entry.classList.add('is-current-user');
+            }
+
+            const nameEl = document.createElement('span');
+            nameEl.className = 'betatip-username';
+            nameEl.textContent = isCurrent ? `${username} (you)` : username;
+            entry.appendChild(nameEl);
+
+            const textEl = document.createElement('p');
+            textEl.className = 'betatip-text';
+            textEl.textContent = text;
+            entry.appendChild(textEl);
+
+            list.appendChild(entry);
+
+            if (Array.isArray(ariaLines)) {
+              const ariaText = text.replace(/\s+/g, ' ').trim();
+              ariaLines.push(
+                `Beta from ${username}${isCurrent ? ' (you)' : ''}: ${ariaText}`,
+              );
+            }
+          });
+        } else {
+          const empty = document.createElement('p');
+          empty.className = 'tooltip-betatips-empty';
+          empty.textContent = 'No beta tips yet. Share yours below.';
+          list.appendChild(empty);
+          if (Array.isArray(ariaLines)) {
+            ariaLines.push('No beta tips yet.');
+          }
+        }
+
+        section.appendChild(list);
+
+        if (currentUser) {
+          const form = document.createElement('form');
+          form.className = 'tooltip-betatips-form';
+          form.noValidate = true;
+
+          const textareaId = `betatip-${route.id.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+          const label = document.createElement('label');
+          label.className = 'tooltip-betatips-label';
+          label.setAttribute('for', textareaId);
+
+          const labelText = document.createElement('span');
+          labelText.textContent = 'Share your beta';
+          label.appendChild(labelText);
+
+          const textarea = document.createElement('textarea');
+          textarea.id = textareaId;
+          textarea.className = 'tooltip-betatips-textarea';
+          textarea.maxLength = MAX_BETATIP_LENGTH;
+          textarea.placeholder = 'Add your tip for this climb';
+          const existingText =
+            betatipsMap instanceof Map && normalizedCurrentUsername
+              ? betatipsMap.get(normalizedCurrentUsername) || ''
+              : '';
+          textarea.value = existingText;
+
+          label.appendChild(textarea);
+          form.appendChild(label);
+
+          const actions = document.createElement('div');
+          actions.className = 'tooltip-betatips-actions';
+
+          const saveButton = document.createElement('button');
+          saveButton.type = 'submit';
+          saveButton.textContent = 'Save tip';
+          actions.appendChild(saveButton);
+
+          let removeButton = null;
+          if (existingText) {
+            removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.className = 'is-quiet';
+            removeButton.textContent = 'Remove tip';
+            actions.appendChild(removeButton);
+          }
+
+          form.appendChild(actions);
+
+          const status = document.createElement('p');
+          status.className = 'tooltip-betatips-status';
+          status.setAttribute('role', 'status');
+          status.textContent = '';
+          form.appendChild(status);
+
+          const setSavingState = (saving) => {
+            textarea.disabled = saving;
+            saveButton.disabled = saving;
+            if (removeButton) {
+              removeButton.disabled = saving;
+            }
+          };
+
+          textarea.addEventListener('input', () => {
+            status.textContent = '';
+          });
+
+          let isSaving = false;
+
+          form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (isSaving) {
+              return;
+            }
+
+            status.textContent = '';
+            isSaving = true;
+            setSavingState(true);
+
+            try {
+              const previousScrollTop = tooltip ? tooltip.scrollTop : 0;
+              await saveBetatipForRoute(route, textarea.value);
+              if (tooltip) {
+                updateTooltipContent(route);
+                tooltip.scrollTop = previousScrollTop;
+              }
+            } catch (error) {
+              console.error('Failed to save beta tip:', error);
+              status.textContent = 'We couldn’t save your beta. Please try again.';
+              setSavingState(false);
+              isSaving = false;
+            }
+          });
+
+          if (removeButton) {
+            removeButton.addEventListener('click', async (event) => {
+              event.preventDefault();
+              if (isSaving) {
+                return;
+              }
+
+              status.textContent = '';
+              isSaving = true;
+              setSavingState(true);
+
+              try {
+                const previousScrollTop = tooltip ? tooltip.scrollTop : 0;
+                await saveBetatipForRoute(route, '');
+                if (tooltip) {
+                  updateTooltipContent(route);
+                  tooltip.scrollTop = previousScrollTop;
+                }
+              } catch (error) {
+                console.error('Failed to remove beta tip:', error);
+                status.textContent = 'We couldn’t remove your beta. Please try again.';
+                setSavingState(false);
+                isSaving = false;
+              }
+            });
+          }
+
+          section.appendChild(form);
+        }
+
+        return section;
+      }
+
       async function applyUserRouteGrade(route, gradeValue) {
         if (!route || !route.id) {
           return;
@@ -5034,16 +5472,72 @@
         }
       }
 
+      async function saveBetatipForRoute(route, rawText) {
+        if (!currentUser) {
+          throw new Error('You must be signed in to share beta tips.');
+        }
+
+        const routeId = typeof route?.id === 'string' ? route.id.trim() : '';
+        if (!routeId) {
+          throw new Error('Unable to determine which route to update.');
+        }
+
+        let username = isValidUsername(currentUsername) ? normalizeUsername(currentUsername) : '';
+        if (!username) {
+          const resolved = await resolveAuthenticatedUsername();
+          if (isValidUsername(resolved)) {
+            username = normalizeUsername(resolved);
+            currentUsername = username;
+          }
+        }
+
+        if (!isValidUsername(username)) {
+          throw new Error('Unable to resolve your username.');
+        }
+
+        const normalizedText = typeof rawText === 'string' ? rawText.replace(/\r\n/g, '\n').trim() : '';
+        const limitedText = normalizedText ? normalizedText.slice(0, MAX_BETATIP_LENGTH) : '';
+
+        const routeRef = doc(db, 'routes', routeId);
+        await updateDoc(routeRef, {
+          [`betatips.${username}`]: limitedText || null,
+        });
+
+        const betatipsMap = getRouteBetatipsMap(routeId);
+        if (limitedText) {
+          betatipsMap.set(username, limitedText);
+        } else {
+          betatipsMap.delete(username);
+        }
+
+        [allRoutes, routes].forEach((collection) => {
+          if (!Array.isArray(collection)) {
+            return;
+          }
+
+          collection.forEach((entry) => {
+            if (entry && entry.id === routeId) {
+              entry.betatips = betatipsMap;
+            }
+          });
+        });
+
+        return limitedText;
+      }
+
       async function refreshMedianGrades() {
         try {
           const snapshot = await getDocs(collection(db, 'routes'));
           const nextAscentsCache = new Map();
           const nextMedianMap = new Map();
+          const nextBetatipsCache = new Map();
 
           snapshot.forEach((docSnap) => {
             const data = docSnap.data() ?? {};
             const ascentsMap = normalizeRouteAscentsMap(data.ascents);
             nextAscentsCache.set(docSnap.id, ascentsMap);
+            const betatipsMap = normalizeRouteBetatipsMap(data.betatips);
+            nextBetatipsCache.set(docSnap.id, betatipsMap);
 
             const median = computeMedianFromAscentsMap(ascentsMap);
             if (typeof median === 'number' && Number.isFinite(median)) {
@@ -5055,6 +5549,10 @@
           nextAscentsCache.forEach((value, key) => {
             routeAscentsCache.set(key, value);
           });
+          routeBetatipsCache.clear();
+          nextBetatipsCache.forEach((value, key) => {
+            routeBetatipsCache.set(key, value);
+          });
 
           routeMedianGrades = nextMedianMap;
 
@@ -5063,6 +5561,8 @@
               const median = routeMedianGrades.get(route.id);
               route.medianGrade =
                 typeof median === 'number' && Number.isFinite(median) ? median : null;
+              const betatipsMap = routeBetatipsCache.get(route.id);
+              route.betatips = betatipsMap instanceof Map ? betatipsMap : new Map();
             });
           }
 
@@ -5146,6 +5646,11 @@
         appendInfoLine(descriptionText ? `Description: ${descriptionText}` : 'Description: —');
 
         appendInfoLine(`Date set: ${formatDisplayDate(route.date_set)}`);
+
+        const betatipsSection = buildBetatipsSection(route, ariaLines);
+        if (betatipsSection) {
+          fragment.appendChild(betatipsSection);
+        }
 
         tooltip.replaceChildren(fragment);
 
@@ -5553,6 +6058,7 @@
           ]);
 
           routeAscentsCache.clear();
+          routeBetatipsCache.clear();
           routeMedianGrades = new Map();
 
           wallSettingsCache.clear();
@@ -5612,6 +6118,8 @@
               const data = docSnap.data() ?? {};
               const ascentsMap = normalizeRouteAscentsMap(data.ascents);
               routeAscentsCache.set(docSnap.id, ascentsMap);
+              const betatipsMap = normalizeRouteBetatipsMap(data.betatips);
+              routeBetatipsCache.set(docSnap.id, betatipsMap);
 
               const medianValue = computeMedianFromAscentsMap(ascentsMap);
               const medianGrade =
@@ -5681,6 +6189,7 @@
                 gradeBarWidth: wallSettings.gradeBarWidth,
                 gradeBarTransparency: wallSettings.gradeBarTransparency,
                 unfocusedTransparency: wallSettings.unfocusedTransparency,
+                betatips: betatipsMap,
               };
             })
             .filter(Boolean)
@@ -5699,6 +6208,7 @@
           updateClearFocusButton();
           routeMedianGrades = new Map();
           routeAscentsCache.clear();
+          routeBetatipsCache.clear();
           renderProgressionList();
           redraw();
         }
