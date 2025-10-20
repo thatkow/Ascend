@@ -221,25 +221,43 @@
         display: block;
       }
 
-      .view-toggle {
+      .view-mode-toggle-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+
+      .view-mode-toggle-group .view-toggle-option {
         position: relative;
       }
 
-      .view-toggle .view-toggle-icon {
+      .view-mode-toggle-group .view-toggle-option .view-toggle-icon {
         display: none;
         width: 20px;
         height: 20px;
       }
 
-      .view-toggle .view-toggle-icon svg {
+      .view-mode-toggle-group .view-toggle-option[data-view-mode='ascent-status']
+        .view-toggle-icon--ascents,
+      .view-mode-toggle-group .view-toggle-option[data-view-mode='grade-colors']
+        .view-toggle-icon--grades,
+      .view-mode-toggle-group .view-toggle-option[data-view-mode='hold-colors']
+        .view-toggle-icon--holds {
+        display: block;
+      }
+
+      .view-mode-toggle-group .view-toggle-option .view-toggle-icon svg {
         width: 100%;
         height: 100%;
       }
 
-      .view-toggle[aria-pressed='false'] .view-toggle-icon-grade,
-      .view-toggle[aria-pressed='true'] .view-toggle-icon-difficulty {
-        display: block;
+      .view-mode-toggle-group .view-toggle-option.is-active {
+        background: linear-gradient(135deg, rgba(148, 163, 184, 0.45), rgba(30, 41, 59, 0.65));
+        color: #fff;
+        border-color: rgba(148, 163, 184, 0.55);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.4);
       }
+
       .header-icon-button:hover,
       .header-icon-button:focus-visible {
         transform: translateY(-1px);
@@ -247,18 +265,11 @@
         outline: none;
       }
 
-      .view-toggle[aria-pressed='true'] {
-        background: linear-gradient(135deg, rgba(148, 163, 184, 0.45), rgba(30, 41, 59, 0.65));
-        color: #fff;
-        border-color: rgba(148, 163, 184, 0.55);
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.4);
-      }
-
       .location-modal {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.75);
-        backdrop-filter: blur(3px);
+        background: transparent;
+        backdrop-filter: none;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -566,6 +577,7 @@
         padding: 1.5rem;
         background: transparent;
         z-index: 40;
+        pointer-events: none;
       }
 
       .tutorial-overlay.is-bottom-aligned {
@@ -581,6 +593,7 @@
         display: flex;
         flex-direction: column;
         gap: 1rem;
+        pointer-events: auto;
       }
 
       .tutorial-progress {
@@ -650,6 +663,10 @@
         transform: translateY(-2px);
         box-shadow: 0 16px 34px rgba(0, 0, 0, 0.4);
         outline: none;
+      }
+
+      .is-tutorial-disabled {
+        pointer-events: none !important;
       }
 
       .tutorial-highlight {
@@ -901,16 +918,17 @@
         --tooltip-muted-foreground: #d1d5db;
         --tooltip-surface: #0e150f;
         --tooltip-border-color: #7ed957;
-        --tooltip-grade-size: 3.75rem;
+        --tooltip-grade-size: 4.5rem;
         position: fixed;
         pointer-events: none;
         color: var(--tooltip-foreground, #fff);
-        padding: 0.75rem 1rem;
-        padding-right: calc(1rem + var(--tooltip-grade-size, 3.75rem) * 0.7);
+        padding: 1.25rem;
         border-radius: 0.75rem;
         font-size: 0.85rem;
         line-height: 1.4;
-        max-width: min(280px, 80vw);
+        width: 50vw;
+        max-width: 90vw;
+        max-height: calc(90vh - 2rem);
         z-index: 6;
         opacity: 0;
         transform: translate(-50%, -12px);
@@ -918,11 +936,34 @@
         display: flex;
         flex-direction: column;
         gap: 0.35rem;
-        overflow: visible;
+        overflow: hidden;
         background-color: var(--tooltip-surface, #0e150f);
         background: var(--tooltip-surface, #0e150f);
         border: 1px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
         box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
+      }
+
+      .route-tooltip .tooltip-content {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        overflow-y: auto;
+        padding-right: 0.25rem;
+        flex: 1;
+        min-height: 0;
+      }
+
+      .route-tooltip .tooltip-content::-webkit-scrollbar {
+        width: 0.5rem;
+      }
+
+      .route-tooltip .tooltip-content::-webkit-scrollbar-thumb {
+        background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.4);
+        border-radius: 999px;
+      }
+
+      .route-tooltip .tooltip-content::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.25);
       }
 
       .route-tooltip.pinned {
@@ -936,10 +977,11 @@
 
       .route-tooltip .tooltip-header {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: flex-start;
         gap: 0.5rem;
         margin-bottom: 0.35rem;
+        padding-right: calc(var(--tooltip-grade-size, 3.75rem) + 1.25rem);
       }
 
       .route-tooltip .tooltip-title {
@@ -955,21 +997,158 @@
         white-space: pre-line;
       }
 
+      .route-tooltip .tooltip-betatips {
+        margin-top: 1.25rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.25);
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .route-tooltip .tooltip-betatips-heading {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--tooltip-foreground, #fff);
+      }
+
+      .route-tooltip .tooltip-betatips-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+
+      .route-tooltip .betatip-entry {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.1);
+        border-radius: 0.75rem;
+        padding: 0.75rem 0.9rem;
+        border: 1px solid rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.2);
+      }
+
+      .route-tooltip .betatip-entry.is-current-user {
+        border-color: var(--tooltip-accent, #7ed957);
+        background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.18);
+      }
+
+      .route-tooltip .betatip-username {
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        color: var(--tooltip-foreground, #fff);
+      }
+
+      .route-tooltip .betatip-entry.is-current-user .betatip-username {
+        color: var(--tooltip-accent, #7ed957);
+      }
+
+      .route-tooltip .betatip-text {
+        font-size: 0.95rem;
+        line-height: 1.5;
+        color: var(--tooltip-muted-foreground, #d1d5db);
+        white-space: pre-line;
+      }
+
+      .route-tooltip .tooltip-betatips-empty {
+        font-size: 0.95rem;
+        color: var(--tooltip-muted-foreground, #d1d5db);
+        font-style: italic;
+      }
+
+      .route-tooltip .tooltip-betatips-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+
+      .route-tooltip .tooltip-betatips-label {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        font-size: 0.95rem;
+        color: var(--tooltip-foreground, #fff);
+      }
+
+      .route-tooltip .tooltip-betatips-textarea {
+        width: 100%;
+        min-height: 4.5rem;
+        resize: vertical;
+        border-radius: 0.75rem;
+        border: 1px solid rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.35);
+        background: rgba(14, 21, 15, 0.9);
+        color: var(--tooltip-foreground, #fff);
+        padding: 0.75rem 0.85rem;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .route-tooltip .tooltip-betatips-textarea:focus {
+        outline: none;
+        border-color: var(--tooltip-accent, #7ed957);
+        box-shadow: 0 0 0 2px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.35);
+      }
+
+      .route-tooltip .tooltip-betatips-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .route-tooltip .tooltip-betatips-actions button {
+        border-radius: 999px;
+        border: 1px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
+        padding: 0.5rem 1.1rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        background: var(--tooltip-accent, #7ed957);
+        color: var(--tooltip-on-accent, #000);
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      }
+
+      .route-tooltip .tooltip-betatips-actions button:hover,
+      .route-tooltip .tooltip-betatips-actions button:focus-visible {
+        transform: translateY(-1px);
+        outline: none;
+        box-shadow: 0 10px 24px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.35);
+      }
+
+      .route-tooltip .tooltip-betatips-actions button.is-quiet {
+        background: transparent;
+        color: var(--tooltip-muted-foreground, #d1d5db);
+        border-color: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.35);
+      }
+
+      .route-tooltip .tooltip-betatips-actions button.is-quiet:hover,
+      .route-tooltip .tooltip-betatips-actions button.is-quiet:focus-visible {
+        border-color: var(--tooltip-accent, #7ed957);
+        color: var(--tooltip-foreground, #fff);
+      }
+
+      .route-tooltip .tooltip-betatips-status {
+        font-size: 0.85rem;
+        min-height: 1rem;
+        color: #fca5a5;
+      }
+
       .route-tooltip .tooltip-line {
         display: block;
       }
 
       .route-tooltip .tooltip-grade-cluster {
         position: absolute;
-        top: 0;
-        right: 0;
-        transform: translate(50%, -50%);
+        top: 1rem;
+        right: 1rem;
+        transform: none;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 0.55rem;
+        gap: 0.5rem;
         min-width: var(--tooltip-grade-size, 3.75rem);
         z-index: 1;
+        pointer-events: none;
       }
 
       .route-tooltip .tooltip-grade-badge {
@@ -1114,7 +1293,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 0.15rem;
+        padding: 0.2rem;
         border-radius: 0.5rem;
         border: 1px solid rgba(255, 255, 255, 0.35);
         background: rgba(0, 0, 0, 0.25);
@@ -1135,9 +1314,16 @@
       }
 
       .route-tooltip .tooltip-close-button svg {
-        width: 1em;
-        height: 1em;
+        width: 1.1em;
+        height: 1.1em;
         display: block;
+      }
+
+      @media (max-width: 768px) {
+        .route-tooltip {
+          width: 90vw;
+          max-height: calc(90vh - 1.5rem);
+        }
       }
 
     </style>
@@ -1195,31 +1381,55 @@
         </div>
       </div>
       <header class="app-header">
-        <button
-          id="viewToggle"
-          class="header-icon-button view-toggle"
-          type="button"
-          aria-pressed="false"
-          aria-label="Switch to Coloring by Grade"
-          title="Switch to Coloring by Grade"
+        <div
+          id="viewToggleGroup"
+          class="view-mode-toggle-group"
+          role="group"
+          aria-label="Route coloring mode"
         >
-          <span class="view-toggle-icon view-toggle-icon-grade" aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-              <path
-                d="M6 19a3 3 0 0 1 0-6h12a2 2 0 0 0 0-4H8a4 4 0 0 1 0-8h10v2H8a2 2 0 0 0 0 4h10a4 4 0 0 1 0 8H6a1 1 0 0 0 0 2h12v2H6a3 3 0 0 1-3-3Z"
-                fill="#ffffff"
-              />
-            </svg>
-          </span>
-          <span class="view-toggle-icon view-toggle-icon-difficulty" aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-              <rect x="5" y="13.5" width="3.5" height="6" rx="1.75" fill="#2f9e44" />
-              <rect x="10.25" y="9.5" width="3.5" height="10" rx="1.75" fill="#facc15" />
-              <rect x="15.5" y="5" width="3.5" height="14.5" rx="1.75" fill="#ef4444" />
-              <rect x="4" y="20" width="16" height="1.5" rx="0.75" fill="#ffffff" fill-opacity="0.55" />
-            </svg>
-          </span>
-        </button>
+          <button
+            type="button"
+            id="viewModeCycleButton"
+            class="header-icon-button view-toggle-option"
+            data-view-mode="hold-colors"
+            data-view-mode-cycle="ascent-status grade-colors hold-colors"
+            data-tooltip="Showing by Color of Holds"
+            aria-pressed="true"
+            aria-label="Showing by Color of Holds"
+            title="Showing by Color of Holds"
+          >
+            <span class="sr-only" data-view-toggle-label>Showing by Color of Holds</span>
+            <span class="view-toggle-icon view-toggle-icon--ascents" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
+                <path
+                  d="m9.2 12.8 2.1 2.1 4.5-5.6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            <span class="view-toggle-icon view-toggle-icon--grades" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <rect x="5" y="13.5" width="3.5" height="6" rx="1.75" fill="#2f9e44" />
+                <rect x="10.25" y="9.5" width="3.5" height="10" rx="1.75" fill="#facc15" />
+                <rect x="15.5" y="5" width="3.5" height="14.5" rx="1.75" fill="#ef4444" />
+                <rect x="4" y="20" width="16" height="1.5" rx="0.75" fill="#ffffff" fill-opacity="0.55" />
+              </svg>
+            </span>
+            <span class="view-toggle-icon view-toggle-icon--holds" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path
+                  d="M6 19a3 3 0 0 1 0-6h12a2 2 0 0 0 0-4H8a4 4 0 0 1 0-8h10v2H8a2 2 0 0 0 0 4h10a4 4 0 0 1 0 8H6a1 1 0 0 0 0 2h12v2H6a3 3 0 0 1-3-3Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+          </button>
+        </div>
         <button
           id="progressionButton"
           class="header-icon-button progression-button"
@@ -1404,6 +1614,7 @@
         doc,
         getDoc,
         setDoc,
+        updateDoc,
         serverTimestamp,
         collection,
         getDocs,
@@ -1434,7 +1645,41 @@
       const infoButton = document.getElementById('infoButton');
       const infoPopover = document.getElementById('infoPopover');
       const locationButton = document.getElementById('locationButton');
-      const viewToggleButton = document.getElementById('viewToggle');
+      const viewToggleGroup = document.getElementById('viewToggleGroup');
+      const viewToggleButtons = Array.from(
+        viewToggleGroup?.querySelectorAll('[data-view-mode]') ?? [],
+      );
+      const viewToggleButtonMap = new Map();
+      viewToggleButtons.forEach((button) => {
+        const mode = button?.dataset?.viewMode;
+        if (mode) {
+          viewToggleButtonMap.set(mode, button);
+        }
+        const cycle = button?.dataset?.viewModeCycle;
+        if (cycle) {
+          cycle
+            .split(/\s+/)
+            .map((value) => value.trim())
+            .filter(Boolean)
+            .forEach((cycleMode) => {
+              viewToggleButtonMap.set(cycleMode, button);
+            });
+        }
+      });
+
+      function getViewToggleButtonForMode(mode) {
+        if (!mode) {
+          return null;
+        }
+        return viewToggleButtonMap.get(mode) ?? null;
+      }
+
+      function isViewToggleElement(element) {
+        if (!element) {
+          return false;
+        }
+        return viewToggleButtons.includes(element);
+      }
       const progressionButton = document.getElementById('progressionButton');
       const locationModal = document.getElementById('locationModal');
       const locationOptions = document.getElementById('locationOptions');
@@ -1467,14 +1712,29 @@
       let tutorialSteps = [];
       let tutorialSecondaryActionMode = 'back';
       let tutorialHighlightedRouteId = null;
+      let tutorialPreviousViewMode = null;
 
       let tutorialOptOut = false;
 
       const PERSONAL_TUTORIAL_OPT_OUT_KEY = 'ascend.personalTutorial.optOut';
+      const PERSONAL_TUTORIAL_VERSION_KEY = 'ascend.personalTutorial.version';
+      const PERSONAL_TUTORIAL_VERSION = '2024-11-mobile-refresh';
 
       function readStoredTutorialOptOut() {
         try {
-          return window.localStorage?.getItem(PERSONAL_TUTORIAL_OPT_OUT_KEY) === 'true';
+          const storage = window.localStorage;
+          if (!storage) {
+            return false;
+          }
+
+          const storedVersion = storage.getItem(PERSONAL_TUTORIAL_VERSION_KEY);
+          if (storedVersion !== PERSONAL_TUTORIAL_VERSION) {
+            storage.setItem(PERSONAL_TUTORIAL_VERSION_KEY, PERSONAL_TUTORIAL_VERSION);
+            storage.removeItem(PERSONAL_TUTORIAL_OPT_OUT_KEY);
+            return false;
+          }
+
+          return storage.getItem(PERSONAL_TUTORIAL_OPT_OUT_KEY) === 'true';
         } catch (error) {
           console.warn('Failed to read tutorial preference:', error);
           return false;
@@ -1483,10 +1743,17 @@
 
       function persistTutorialOptOut(value) {
         try {
+          const storage = window.localStorage;
+          if (!storage) {
+            return;
+          }
+
+          storage.setItem(PERSONAL_TUTORIAL_VERSION_KEY, PERSONAL_TUTORIAL_VERSION);
+
           if (value) {
-            window.localStorage?.setItem(PERSONAL_TUTORIAL_OPT_OUT_KEY, 'true');
+            storage.setItem(PERSONAL_TUTORIAL_OPT_OUT_KEY, 'true');
           } else {
-            window.localStorage?.removeItem(PERSONAL_TUTORIAL_OPT_OUT_KEY);
+            storage.removeItem(PERSONAL_TUTORIAL_OPT_OUT_KEY);
           }
         } catch (error) {
           console.warn('Failed to persist tutorial preference:', error);
@@ -1954,6 +2221,69 @@
             },
           },
           {
+            title: 'Spot your sends instantly',
+            body: [
+              'Tap the color button until it says Show if Ascended to light up the problems you have already sent in green.',
+              'Projects still in progress stay grey until you mark them Ascended in the tooltip.',
+            ],
+            onEnter: () => {
+              setTutorialOverlayAlignment('center');
+              highlightTutorialElement(null);
+              const toggleButton =
+                getViewToggleButtonForMode(VIEW_MODE_ASCENT_STATUS) || viewToggleButtons[0];
+              tutorialPreviousViewMode = viewMode;
+              if (viewMode !== VIEW_MODE_ASCENT_STATUS) {
+                setViewMode(VIEW_MODE_ASCENT_STATUS);
+              }
+              if (toggleButton) {
+                highlightTutorialElement(toggleButton, { illuminate: true });
+                showTutorialPointerFor(toggleButton);
+              } else {
+                hideTutorialPointer();
+              }
+            },
+            onExit: () => {
+              hideTutorialPointer();
+              highlightTutorialElement(null);
+              if (tutorialPreviousViewMode && tutorialPreviousViewMode !== viewMode) {
+                setViewMode(tutorialPreviousViewMode);
+              }
+              tutorialPreviousViewMode = null;
+            },
+          },
+          {
+            title: 'Color the wall your way',
+            body: [
+              'Press the same button again to cycle through Show by Grade and Show by Color of Holds.',
+              'Show by Grade gives you a consensus difficulty heatmap while ungraded problems stay bright white.',
+              'Show by Color of Holds matches the tape on the wall when you just want the set colours.',
+            ],
+            onEnter: () => {
+              setTutorialOverlayAlignment('center');
+              highlightTutorialElement(null);
+              const toggleButton =
+                getViewToggleButtonForMode(VIEW_MODE_GRADE_COLORS) || viewToggleButtons[0];
+              tutorialPreviousViewMode = viewMode;
+              if (viewMode !== VIEW_MODE_GRADE_COLORS) {
+                setViewMode(VIEW_MODE_GRADE_COLORS);
+              }
+              if (toggleButton) {
+                highlightTutorialElement(toggleButton, { illuminate: true });
+                showTutorialPointerFor(toggleButton);
+              } else {
+                hideTutorialPointer();
+              }
+            },
+            onExit: () => {
+              hideTutorialPointer();
+              highlightTutorialElement(null);
+              if (tutorialPreviousViewMode && tutorialPreviousViewMode !== viewMode) {
+                setViewMode(tutorialPreviousViewMode);
+              }
+              tutorialPreviousViewMode = null;
+            },
+          },
+          {
             title: 'Track your progression',
             body: [
               'Open the Progression button to review your ascents, see focused projects, and keep tabs on what\'s next.',
@@ -2097,6 +2427,7 @@
         tutorialStepIndex = -1;
         tutorialTransitionInProgress = false;
         tutorialSteps = [];
+        tutorialPreviousViewMode = null;
 
         highlightTutorialElement(null);
         hideTutorialPointer();
@@ -2150,31 +2481,58 @@
       }
 
 
-      function buildViewModeCallout() {
-        if (!viewToggleButton) {
+      function buildViewModeCallout(context = {}) {
+        let target = null;
+        if (context?.button instanceof Element && isElementVisible(context.button)) {
+          target = context.button;
+        } else {
+          target =
+            getViewToggleButtonForMode(viewMode) ||
+            getViewToggleButtonForMode(VIEW_MODE_HOLD_COLORS) ||
+            viewToggleButtons[0] ||
+            null;
+          if (!isElementVisible(target)) {
+            target = null;
+          }
+        }
+
+        if (!target) {
           return null;
         }
 
-        const showingGradeColors = viewMode === VIEW_MODE_GRADE_COLORS;
-        const title = showingGradeColors ? 'Grade colors' : 'Hold colors';
-        const lines = showingGradeColors
-          ? [
-              'Routes are tinted by difficulty right now.',
-              'Climbs without a recorded grade show a neutral grey until someone logs one.',
-              'Tap the palette icon to switch back to Coloring by Holds whenever you want setter colours again.',
-            ]
-          : [
-              'Routes are showing the colour of each hold set.',
-              'Switch to Coloring by Grade with the palette icon to compare difficulty at a glance.',
-            ];
+        const mode = target.dataset?.viewMode || viewMode;
+        let title = 'Route colors';
+        let lines = [];
+
+        if (mode === VIEW_MODE_ASCENT_STATUS) {
+          title = 'Show if Ascended';
+          lines = [
+            'Sends you have logged glow green so your ticklist stands out instantly.',
+            'Projects still in progress stay grey until you tap Ascended in the tooltip.',
+            'Tap the color button again any time to cycle to the other wall views.',
+          ];
+        } else if (mode === VIEW_MODE_GRADE_COLORS) {
+          title = 'Show by Grade';
+          lines = [
+            'Routes are tinted by consensus difficulty right now.',
+            'Problems without a community grade stay bright white until someone logs one.',
+            'Tap the color button again to flip to hold colours or back to Show if Ascended.',
+          ];
+        } else {
+          title = 'Show by Color of Holds';
+          lines = [
+            'Routes are showing the colour of each hold set.',
+            'Tap the color button to view Show if Ascended or Show by Grade instead.',
+          ];
+        }
 
         const callout = createBasicCallout(title, lines);
-        if (showingGradeColors) {
+        if (mode === VIEW_MODE_GRADE_COLORS) {
           callout.appendChild(createGradeChartElement());
         }
 
         return {
-          target: viewToggleButton,
+          target,
           element: callout,
           options: { placement: 'bottom', offset: 14 },
         };
@@ -2480,7 +2838,7 @@
         let entry = null;
         switch (targetKey) {
           case 'view-toggle':
-            entry = buildViewModeCallout();
+            entry = buildViewModeCallout(context);
             break;
           case 'setter-link':
             entry = buildSetterCallout();
@@ -2530,6 +2888,7 @@
       const DEFAULT_RECTANGLE_HEIGHT = 60;
       const MIN_GRADE_VALUE = 1;
       const MAX_GRADE_VALUE = 31;
+      const MAX_BETATIP_LENGTH = 600;
       const MIN_GRADE_BAR_BASE_HEIGHT = 0;
       const MAX_GRADE_BAR_HEIGHT = 1000;
       const DEFAULT_GRADE_BAR_BASE_HEIGHT = 40;
@@ -2575,12 +2934,34 @@
         [30, '#C10407'],
         [31, '#BD0306'],
       ]);
-      const DEFAULT_GRADELESS_COLOR = '#6b7280';
+      const DEFAULT_GRADELESS_COLOR = '#ffffff';
       const MIN_BREZER_STROKE_WIDTH = 2;
       const MAX_BREZER_STROKE_WIDTH = 40;
       const DEFAULT_BREZER_STROKE_WIDTH = 10;
+      const VIEW_MODE_ASCENT_STATUS = 'ascent-status';
       const VIEW_MODE_HOLD_COLORS = 'hold-colors';
       const VIEW_MODE_GRADE_COLORS = 'grade-colors';
+      const VIEW_MODE_SEQUENCE = [
+        VIEW_MODE_ASCENT_STATUS,
+        VIEW_MODE_GRADE_COLORS,
+        VIEW_MODE_HOLD_COLORS,
+      ];
+      const VIEW_MODE_META = {
+        [VIEW_MODE_ASCENT_STATUS]: {
+          label: 'Showing by Ascended',
+          next: VIEW_MODE_GRADE_COLORS,
+        },
+        [VIEW_MODE_GRADE_COLORS]: {
+          label: 'Showing by Grade',
+          next: VIEW_MODE_HOLD_COLORS,
+        },
+        [VIEW_MODE_HOLD_COLORS]: {
+          label: 'Showing by Color of Holds',
+          next: VIEW_MODE_ASCENT_STATUS,
+        },
+      };
+      const ASCENT_STATUS_ASCENDED_COLOR = '#7ed957';
+      const ASCENT_STATUS_PROJECT_COLOR = '#4b5563';
 
       function normalizePathType(value) {
         if (typeof value === 'string') {
@@ -3004,6 +3385,21 @@
 
       const backgroundImage = new Image();
 
+      function getViewModeMetadata(mode) {
+        if (mode && VIEW_MODE_META[mode]) {
+          return VIEW_MODE_META[mode];
+        }
+        return VIEW_MODE_META[VIEW_MODE_HOLD_COLORS];
+      }
+
+      function getNextViewMode(mode) {
+        const currentIndex = VIEW_MODE_SEQUENCE.indexOf(mode);
+        if (currentIndex === -1) {
+          return VIEW_MODE_SEQUENCE[0];
+        }
+        return VIEW_MODE_SEQUENCE[(currentIndex + 1) % VIEW_MODE_SEQUENCE.length];
+      }
+
       function updateLocationButtonLabel() {
         const labelText = currentLocation?.name || 'Select wall';
         if (locationButton) {
@@ -3018,32 +3414,75 @@
         }
         document.body.classList.toggle('view-mode-grade-colors', viewMode === VIEW_MODE_GRADE_COLORS);
         document.body.classList.toggle('view-mode-hold-colors', viewMode === VIEW_MODE_HOLD_COLORS);
+        document.body.classList.toggle('view-mode-ascents', viewMode === VIEW_MODE_ASCENT_STATUS);
       }
 
-      function updateViewToggleButton() {
-        if (!viewToggleButton) {
+      function updateViewToggleButtons() {
+        if (!viewToggleButtons.length) {
           return;
         }
 
-        const showingGradeColors = viewMode === VIEW_MODE_GRADE_COLORS;
-        const labelText = showingGradeColors
-          ? 'Switch to Coloring by Holds'
-          : 'Switch to Coloring by Grade';
-        viewToggleButton.setAttribute('aria-pressed', showingGradeColors ? 'true' : 'false');
-        viewToggleButton.setAttribute('aria-label', labelText);
-        viewToggleButton.setAttribute('title', labelText);
+        viewToggleButtons.forEach((button) => {
+          if (!button) {
+            return;
+          }
+
+          if (button.dataset?.viewModeCycle) {
+            const metadata = getViewModeMetadata(viewMode);
+            const label = metadata?.label ?? '';
+            const tooltipText = label || 'Showing routes';
+            const nextMode = metadata?.next ?? getNextViewMode(viewMode);
+
+            button.dataset.viewMode = viewMode;
+            button.dataset.tooltip = tooltipText;
+            button.dataset.nextViewMode = nextMode;
+
+            if (tooltipText) {
+              button.setAttribute('title', tooltipText);
+              button.setAttribute('aria-label', tooltipText);
+            } else {
+              button.removeAttribute('title');
+              button.removeAttribute('aria-label');
+            }
+
+            button.setAttribute('aria-pressed', 'true');
+            button.classList.add('is-active');
+
+            const srLabel = button.querySelector('[data-view-toggle-label]');
+            if (srLabel) {
+              srLabel.textContent = tooltipText;
+            }
+
+            return;
+          }
+
+          const mode = button.dataset?.viewMode;
+          const tooltip = button.dataset?.tooltip;
+          if (tooltip) {
+            button.setAttribute('title', tooltip);
+            button.setAttribute('aria-label', tooltip);
+          }
+
+          const isActive = mode === viewMode;
+          button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+          button.classList.toggle('is-active', isActive);
+        });
       }
 
       function setViewMode(mode) {
-        const normalized =
-          mode === VIEW_MODE_GRADE_COLORS ? VIEW_MODE_GRADE_COLORS : VIEW_MODE_HOLD_COLORS;
+        const allowedModes = new Set([
+          VIEW_MODE_ASCENT_STATUS,
+          VIEW_MODE_GRADE_COLORS,
+          VIEW_MODE_HOLD_COLORS,
+        ]);
+        const normalized = allowedModes.has(mode) ? mode : VIEW_MODE_HOLD_COLORS;
         if (viewMode === normalized) {
           return;
         }
 
         viewMode = normalized;
         syncViewModeState();
-        updateViewToggleButton();
+        updateViewToggleButtons();
         hideTooltip({ force: true });
         if (canvas) {
           canvas.style.cursor = '';
@@ -3255,6 +3694,32 @@
         }
 
         return '';
+      }
+
+      async function ensureUidUsernameMapping(user, username) {
+        if (!user) {
+          return;
+        }
+
+        const normalizedUsername = normalizeUsername(username);
+        if (!isValidUsername(normalizedUsername)) {
+          return;
+        }
+
+        try {
+          await setDoc(
+            doc(db, 'usernames', user.uid),
+            {
+              uid: user.uid,
+              username: normalizedUsername,
+              usernameLower: normalizedUsername,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true },
+          );
+        } catch (error) {
+          console.warn('Failed to synchronise username mapping for betatips:', error);
+        }
       }
 
       const buildSyntheticEmail = (username) => {
@@ -3542,17 +4007,25 @@
         });
       }
 
-      if (viewToggleButton) {
-        viewToggleButton.addEventListener('click', (event) => {
-          if (handleInfoRequestFor('view-toggle', event)) {
+      if (viewToggleButtons.length) {
+        viewToggleButtons.forEach((button) => {
+          if (!button) {
             return;
           }
-          if (activeInfoCallout?.target === viewToggleButton) {
-            clearInfoHighlights();
-          }
-          const nextMode =
-            viewMode === VIEW_MODE_HOLD_COLORS ? VIEW_MODE_GRADE_COLORS : VIEW_MODE_HOLD_COLORS;
-          setViewMode(nextMode);
+
+          button.addEventListener('click', (event) => {
+            if (handleInfoRequestFor('view-toggle', event, { button })) {
+              return;
+            }
+            if (activeInfoCallout?.target && isViewToggleElement(activeInfoCallout.target)) {
+              clearInfoHighlights();
+            }
+
+            const targetMode = button.dataset?.viewModeCycle
+              ? button.dataset?.nextViewMode || getNextViewMode(viewMode)
+              : button.dataset?.viewMode;
+            setViewMode(targetMode);
+          });
         });
       }
 
@@ -3966,6 +4439,12 @@
             ? ensuredRole.role.trim().toLowerCase()
             : 'default';
         } catch (error) {
+          if (error && typeof error === 'object' && 'code' in error) {
+            const code = String(error.code);
+            if (code === 'permission-denied') {
+              return 'default';
+            }
+          }
           console.error('Failed to fetch user role:', error);
           return 'default';
         }
@@ -4008,13 +4487,15 @@
             currentUsername = canonicalUsername;
           }
 
+          await ensureUidUsernameMapping(user, currentUsername);
+
           const role = await resolveUserRole(user, currentUsername);
 
           updateNavigationForRole(role);
           appContent.classList.remove('hidden');
 
-          await loadAscents({ userId: user.uid, username: currentUsername });
           await loadRoutes();
+          await loadAscents({ userId: user.uid });
           if (!tutorialOptOut) {
             await startTutorial();
           }
@@ -4038,6 +4519,8 @@
           authenticatedUsernameClaim = '';
           ascendedRoutes.clear();
           routeGrades.clear();
+          routeAscentsCache.clear();
+          routeBetatipsCache.clear();
           routeMedianGrades = new Map();
           hideTooltip({ force: true });
           redraw();
@@ -4060,7 +4543,7 @@
       }
 
       syncViewModeState();
-      updateViewToggleButton();
+      updateViewToggleButtons();
 
       const DEFAULT_CANVAS_ASPECT_RATIO = 1536 / 1024;
       let canvasAspectRatio = DEFAULT_CANVAS_ASPECT_RATIO;
@@ -4075,6 +4558,8 @@
       let pinnedPosition = null;
       const ascendedRoutes = new Set();
       const routeGrades = new Map();
+      const routeAscentsCache = new Map();
+      const routeBetatipsCache = new Map();
       let userAscentDetails = new Map();
       let routeMedianGrades = new Map();
       let progressionPreviouslyFocusedElement = null;
@@ -4208,106 +4693,45 @@
         }
       }
 
-      async function loadAscents({ userId, username }) {
+      async function loadAscents({ userId }) {
         ascendedRoutes.clear();
         routeGrades.clear();
         userAscentDetails = new Map();
 
         const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
-        const normalizedUsername = normalizeUsername(username);
-        const hasValidUsername = isValidUsername(normalizedUsername);
-        if (!normalizedUserId && !hasValidUsername) {
+        if (!normalizedUserId) {
+          synchroniseAscentsWithRoutes();
           return;
         }
 
-        try {
-          let ascentData = null;
-
-          if (normalizedUserId) {
-            const ascentRef = doc(db, 'ascents', normalizedUserId);
-            const ascentSnap = await getDoc(ascentRef);
-            if (ascentSnap.exists()) {
-              ascentData = ascentSnap.data() ?? {};
-            }
-
-            if (!ascentData && hasValidUsername && normalizedUsername !== normalizedUserId) {
-              const legacyRef = doc(db, 'ascents', normalizedUsername);
-              const legacySnap = await getDoc(legacyRef);
-
-              if (legacySnap.exists()) {
-                ascentData = legacySnap.data() ?? {};
-
-                try {
-                  const migrationPayload = {
-                    ...ascentData,
-                    climber_uid: normalizedUserId,
-                    updatedAt: serverTimestamp(),
-                  };
-
-                  if (hasValidUsername) {
-                    migrationPayload.climber_username = normalizedUsername;
-                  }
-
-                  await setDoc(ascentRef, migrationPayload, { merge: true });
-                } catch (migrationError) {
-                  console.warn('Failed to migrate legacy ascent document to UID path:', migrationError);
-                }
-              }
-            }
-          }
-
-          if (!ascentData && hasValidUsername && normalizedUsername !== normalizedUserId) {
-            const ascentRef = doc(db, 'ascents', normalizedUsername);
-            const ascentSnap = await getDoc(ascentRef);
-
-            if (!ascentSnap.exists()) {
-              return;
-            }
-
-            ascentData = ascentSnap.data() ?? {};
-          }
-
-          if (!ascentData) {
+        routeAscentsCache.forEach((ascentsMap, routeId) => {
+          if (!(ascentsMap instanceof Map)) {
             return;
           }
 
-          const routesData = ascentData.routes;
-
-          if (routesData && typeof routesData === 'object') {
-            Object.entries(routesData).forEach(([routeId, details]) => {
-              if (!routeId || !details) {
-                return;
-              }
-
-              const gradeValue = normalizeGradeValue(details?.grade);
-              const normalizedDate = normalizeDate(details?.date_ascended);
-              const ascended = details?.ascended === true || Boolean(normalizedDate);
-
-              const entry = {
-                ascended,
-                grade: gradeValue,
-              };
-
-              if (normalizedDate) {
-                entry.dateAscended = normalizedDate;
-              }
-
-              userAscentDetails.set(routeId, entry);
-            });
-
-            synchroniseAscentsWithRoutes();
+          const entry = ascentsMap.get(normalizedUserId);
+          if (!entry) {
             return;
           }
 
-          const singleRouteId = typeof ascentData.route_id === 'string' ? ascentData.route_id : null;
-          if (singleRouteId) {
-            userAscentDetails.set(singleRouteId, { ascended: true, grade: null });
-            synchroniseAscentsWithRoutes();
-            return;
+          const gradeValue = normalizeGradeValue(entry.grade);
+          const ascended = entry.ascended === true;
+
+          const ascentDetails = {
+            ascended,
+            grade: gradeValue,
+          };
+
+          userAscentDetails.set(routeId, ascentDetails);
+
+          if (typeof gradeValue === 'number' && Number.isFinite(gradeValue)) {
+            routeGrades.set(routeId, gradeValue);
           }
-        } catch (error) {
-          console.error('Failed to load ascents:', error);
-        }
+
+          if (ascended) {
+            ascendedRoutes.add(routeId);
+          }
+        });
 
         synchroniseAscentsWithRoutes();
       }
@@ -4373,6 +4797,139 @@
         }
 
         return numeric;
+      }
+
+      function normalizeRouteAscentsMap(rawAscents) {
+        const normalized = new Map();
+
+        if (!rawAscents || typeof rawAscents !== 'object') {
+          return normalized;
+        }
+
+        Object.entries(rawAscents).forEach(([uid, details]) => {
+          if (typeof uid !== 'string' || !uid.trim()) {
+            return;
+          }
+
+          const normalizedUid = uid.trim();
+          if (!details || typeof details !== 'object') {
+            return;
+          }
+
+          const gradeValue = normalizeGradeValue(details.grade);
+          const ascended = details.ascended === true;
+
+          normalized.set(normalizedUid, {
+            grade: gradeValue,
+            ascended,
+          });
+        });
+
+        return normalized;
+      }
+
+      function normalizeRouteBetatipsMap(rawBetatips) {
+        const normalized = new Map();
+
+        if (!rawBetatips || typeof rawBetatips !== 'object') {
+          return normalized;
+        }
+
+        Object.entries(rawBetatips).forEach(([username, value]) => {
+          if (typeof username !== 'string') {
+            return;
+          }
+
+          const normalizedUsername = normalizeUsername(username);
+          if (!normalizedUsername) {
+            return;
+          }
+
+          let text = '';
+          if (typeof value === 'string') {
+            text = value.replace(/\r\n/g, '\n').trim();
+          } else if (value !== null && value !== undefined) {
+            text = String(value).trim();
+          }
+
+          if (!text) {
+            return;
+          }
+
+          normalized.set(normalizedUsername, text);
+        });
+
+        return normalized;
+      }
+
+      function getRouteBetatipsMap(routeId) {
+        if (typeof routeId !== 'string' || !routeId.trim()) {
+          return new Map();
+        }
+
+        const normalizedId = routeId.trim();
+        let map = routeBetatipsCache.get(normalizedId);
+        if (!(map instanceof Map)) {
+          map = new Map();
+          routeBetatipsCache.set(normalizedId, map);
+        }
+
+        return map;
+      }
+
+      function computeMedianFromAscentsMap(ascentsMap) {
+        if (!(ascentsMap instanceof Map) || ascentsMap.size === 0) {
+          return null;
+        }
+
+        const grades = [];
+
+        ascentsMap.forEach((details) => {
+          const gradeValue = normalizeGradeValue(details?.grade);
+          if (typeof gradeValue === 'number' && Number.isFinite(gradeValue)) {
+            grades.push(gradeValue);
+          }
+        });
+
+        if (!grades.length) {
+          return null;
+        }
+
+        grades.sort((a, b) => a - b);
+        const mid = Math.floor(grades.length / 2);
+        if (grades.length % 2 === 0) {
+          return (grades[mid - 1] + grades[mid]) / 2;
+        }
+
+        return grades[mid];
+      }
+
+      function updateMedianForRoute(routeId) {
+        if (!routeId) {
+          return;
+        }
+
+        const ascentsMap = routeAscentsCache.get(routeId);
+        const median = computeMedianFromAscentsMap(ascentsMap);
+        const medianValue =
+          typeof median === 'number' && Number.isFinite(median) ? median : null;
+
+        if (medianValue === null) {
+          routeMedianGrades.delete(routeId);
+        } else {
+          routeMedianGrades.set(routeId, medianValue);
+        }
+
+        [allRoutes, routes].forEach((routeCollection) => {
+          if (!Array.isArray(routeCollection)) {
+            return;
+          }
+
+          const match = routeCollection.find((entry) => entry && entry.id === routeId);
+          if (match) {
+            match.medianGrade = medianValue;
+          }
+        });
       }
 
       function formatGradeDisplay(value) {
@@ -4738,6 +5295,239 @@
         return container;
       }
 
+      function buildBetatipsSection(route, ariaLines = []) {
+        if (!route || !route.id) {
+          return null;
+        }
+
+        const betatipsMap = getRouteBetatipsMap(route.id);
+        const normalizedCurrentUsername = isValidUsername(currentUsername)
+          ? normalizeUsername(currentUsername)
+          : '';
+        const entries = [];
+
+        if (betatipsMap instanceof Map) {
+          betatipsMap.forEach((text, username) => {
+            if (typeof username !== 'string') {
+              return;
+            }
+
+            const normalizedUsername = normalizeUsername(username);
+            if (!normalizedUsername) {
+              return;
+            }
+
+            if (typeof text !== 'string') {
+              return;
+            }
+
+            const trimmed = text.trim();
+            if (!trimmed) {
+              return;
+            }
+
+            entries.push({
+              username: normalizedUsername,
+              text: trimmed,
+              isCurrent: normalizedCurrentUsername
+                ? normalizedUsername === normalizedCurrentUsername
+                : false,
+            });
+          });
+        }
+
+        entries.sort((a, b) => a.username.localeCompare(b.username));
+
+        const section = document.createElement('section');
+        section.className = 'tooltip-betatips';
+
+        const heading = document.createElement('h3');
+        heading.className = 'tooltip-betatips-heading';
+        heading.textContent = 'Beta tips';
+        section.appendChild(heading);
+
+        if (Array.isArray(ariaLines)) {
+          ariaLines.push('Beta tips');
+        }
+
+        const list = document.createElement('div');
+        list.className = 'tooltip-betatips-list';
+
+        if (entries.length) {
+          entries.forEach(({ username, text, isCurrent }) => {
+            const entry = document.createElement('article');
+            entry.className = 'betatip-entry';
+            if (isCurrent) {
+              entry.classList.add('is-current-user');
+            }
+
+            const nameEl = document.createElement('span');
+            nameEl.className = 'betatip-username';
+            nameEl.textContent = isCurrent ? `${username} (you)` : username;
+            entry.appendChild(nameEl);
+
+            const textEl = document.createElement('p');
+            textEl.className = 'betatip-text';
+            textEl.textContent = text;
+            entry.appendChild(textEl);
+
+            list.appendChild(entry);
+
+            if (Array.isArray(ariaLines)) {
+              const ariaText = text.replace(/\s+/g, ' ').trim();
+              ariaLines.push(
+                `Beta from ${username}${isCurrent ? ' (you)' : ''}: ${ariaText}`,
+              );
+            }
+          });
+        } else {
+          const empty = document.createElement('p');
+          empty.className = 'tooltip-betatips-empty';
+          const emptyMessage = currentUser
+            ? 'No beta tips yet. Share yours below.'
+            : 'No beta tips yet.';
+          empty.textContent = emptyMessage;
+          list.appendChild(empty);
+          if (Array.isArray(ariaLines)) {
+            ariaLines.push('No beta tips yet.');
+          }
+        }
+
+        section.appendChild(list);
+
+        if (currentUser) {
+          const form = document.createElement('form');
+          form.className = 'tooltip-betatips-form';
+          form.noValidate = true;
+
+          const textareaId = `betatip-${route.id.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+          const label = document.createElement('label');
+          label.className = 'tooltip-betatips-label';
+          label.setAttribute('for', textareaId);
+
+          const labelText = document.createElement('span');
+          labelText.textContent = 'Share your beta';
+          label.appendChild(labelText);
+
+          const textarea = document.createElement('textarea');
+          textarea.id = textareaId;
+          textarea.className = 'tooltip-betatips-textarea';
+          textarea.maxLength = MAX_BETATIP_LENGTH;
+          textarea.placeholder = 'Add your tip for this climb';
+          const existingText =
+            betatipsMap instanceof Map && normalizedCurrentUsername
+              ? betatipsMap.get(normalizedCurrentUsername) || ''
+              : '';
+          textarea.value = existingText;
+
+          label.appendChild(textarea);
+          form.appendChild(label);
+
+          const actions = document.createElement('div');
+          actions.className = 'tooltip-betatips-actions';
+
+          const saveButton = document.createElement('button');
+          saveButton.type = 'submit';
+          saveButton.textContent = 'Save tip';
+          actions.appendChild(saveButton);
+
+          let removeButton = null;
+          if (existingText) {
+            removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.className = 'is-quiet';
+            removeButton.textContent = 'Remove tip';
+            actions.appendChild(removeButton);
+          }
+
+          form.appendChild(actions);
+
+          const status = document.createElement('p');
+          status.className = 'tooltip-betatips-status';
+          status.setAttribute('role', 'status');
+          status.textContent = '';
+          form.appendChild(status);
+
+          const setSavingState = (saving) => {
+            textarea.disabled = saving;
+            saveButton.disabled = saving;
+            if (removeButton) {
+              removeButton.disabled = saving;
+            }
+          };
+
+          textarea.addEventListener('input', () => {
+            status.textContent = '';
+          });
+
+          let isSaving = false;
+
+          form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (isSaving) {
+              return;
+            }
+
+            status.textContent = '';
+            isSaving = true;
+            setSavingState(true);
+
+            try {
+              const scrollContainer = tooltip?.querySelector('.tooltip-content');
+              const previousScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+              await saveBetatipForRoute(route, textarea.value);
+              if (tooltip) {
+                updateTooltipContent(route);
+                const nextScrollContainer = tooltip.querySelector('.tooltip-content');
+                if (nextScrollContainer) {
+                  nextScrollContainer.scrollTop = previousScrollTop;
+                }
+              }
+            } catch (error) {
+              console.error('Failed to save beta tip:', error);
+              status.textContent = 'We couldn’t save your beta. Please try again.';
+              setSavingState(false);
+              isSaving = false;
+            }
+          });
+
+          if (removeButton) {
+            removeButton.addEventListener('click', async (event) => {
+              event.preventDefault();
+              if (isSaving) {
+                return;
+              }
+
+              status.textContent = '';
+              isSaving = true;
+              setSavingState(true);
+
+              try {
+                const scrollContainer = tooltip?.querySelector('.tooltip-content');
+                const previousScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+                await saveBetatipForRoute(route, '');
+                if (tooltip) {
+                  updateTooltipContent(route);
+                  const nextScrollContainer = tooltip.querySelector('.tooltip-content');
+                  if (nextScrollContainer) {
+                    nextScrollContainer.scrollTop = previousScrollTop;
+                  }
+                }
+              } catch (error) {
+                console.error('Failed to remove beta tip:', error);
+                status.textContent = 'We couldn’t remove your beta. Please try again.';
+                setSavingState(false);
+                isSaving = false;
+              }
+            });
+          }
+
+          section.appendChild(form);
+        }
+
+        return section;
+      }
+
       async function applyUserRouteGrade(route, gradeValue) {
         if (!route || !route.id) {
           return;
@@ -4745,12 +5535,6 @@
 
         if (!currentUser) {
           console.warn('Unable to save grade: no authenticated user.');
-          return;
-        }
-
-        const username = await resolveAuthenticatedUsername();
-        if (!username) {
-          console.warn('Unable to save grade: user username missing.');
           return;
         }
 
@@ -4766,29 +5550,18 @@
           return;
         }
 
-        const ascentRef = doc(db, 'ascents', userId);
+        const routeRef = doc(db, 'routes', route.id);
+        const isAscended = ascendedRoutes.has(route.id);
 
-        try {
-          await setDoc(
-            ascentRef,
-            {
-              climber_uid: userId,
-              climber_username: username,
-              updatedAt: serverTimestamp(),
-              routes: {
-                [route.id]: {
-                  grade: sanitizedGrade,
-                  route_id: route.id,
-                  climber_uid: userId,
-                  climber_username: username,
-                },
+          try {
+            await updateDoc(routeRef, {
+              [`ascents.${userId}`]: {
+                grade: sanitizedGrade,
+                ascended: isAscended,
               },
-            },
-            { merge: true },
-          );
+            });
 
           const existingEntry = userAscentDetails.get(route.id);
-          const isAscended = existingEntry?.ascended === true;
 
           if (sanitizedGrade === null) {
             routeGrades.delete(route.id);
@@ -4804,6 +5577,15 @@
             userAscentDetails.set(route.id, nextEntry);
           }
 
+          let ascentsMap = routeAscentsCache.get(route.id);
+          if (!(ascentsMap instanceof Map)) {
+            ascentsMap = new Map();
+            routeAscentsCache.set(route.id, ascentsMap);
+          }
+          ascentsMap.set(userId, { grade: sanitizedGrade, ascended: isAscended });
+
+          updateMedianForRoute(route.id);
+
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
           await refreshMedianGrades();
@@ -4812,71 +5594,104 @@
         }
       }
 
-      async function fetchMedianGrades() {
-        const medianMap = new Map();
-
-        try {
-          const snapshot = await getDocs(collection(db, 'ascents'));
-          const gradeBuckets = new Map();
-
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data() ?? {};
-            const routesData = data.routes;
-
-            if (!routesData || typeof routesData !== 'object') {
-              return;
-            }
-
-            Object.entries(routesData).forEach(([routeId, details]) => {
-              if (!details) {
-                return;
-              }
-
-              const grade = normalizeGradeValue(details.grade);
-              if (grade === null) {
-                return;
-              }
-
-              if (!gradeBuckets.has(routeId)) {
-                gradeBuckets.set(routeId, []);
-              }
-
-              gradeBuckets.get(routeId).push(grade);
-            });
-          });
-
-          gradeBuckets.forEach((grades, routeId) => {
-            if (!Array.isArray(grades) || grades.length === 0) {
-              return;
-            }
-
-            grades.sort((a, b) => a - b);
-            const mid = Math.floor(grades.length / 2);
-
-            if (grades.length % 2 === 0) {
-              medianMap.set(routeId, (grades[mid - 1] + grades[mid]) / 2);
-            } else {
-              medianMap.set(routeId, grades[mid]);
-            }
-          });
-        } catch (error) {
-          console.error('Failed to load route grades:', error);
+      async function saveBetatipForRoute(route, rawText) {
+        if (!currentUser) {
+          throw new Error('You must be signed in to share beta tips.');
         }
 
-        return medianMap;
+        const routeId = typeof route?.id === 'string' ? route.id.trim() : '';
+        if (!routeId) {
+          throw new Error('Unable to determine which route to update.');
+        }
+
+        let username = isValidUsername(currentUsername) ? normalizeUsername(currentUsername) : '';
+        if (!username) {
+          const resolved = await resolveAuthenticatedUsername();
+          if (isValidUsername(resolved)) {
+            username = normalizeUsername(resolved);
+            currentUsername = username;
+          }
+        }
+
+        if (!isValidUsername(username)) {
+          throw new Error('Unable to resolve your username.');
+        }
+
+        const normalizedText = typeof rawText === 'string' ? rawText.replace(/\r\n/g, '\n').trim() : '';
+        const limitedText = normalizedText ? normalizedText.slice(0, MAX_BETATIP_LENGTH) : '';
+
+        const routeRef = doc(db, 'routes', routeId);
+        await updateDoc(routeRef, {
+          [`betatips.${username}`]: limitedText || null,
+        });
+
+        const betatipsMap = getRouteBetatipsMap(routeId);
+        if (limitedText) {
+          betatipsMap.set(username, limitedText);
+        } else {
+          betatipsMap.delete(username);
+        }
+
+        [allRoutes, routes].forEach((collection) => {
+          if (!Array.isArray(collection)) {
+            return;
+          }
+
+          collection.forEach((entry) => {
+            if (entry && entry.id === routeId) {
+              entry.betatips = betatipsMap;
+            }
+          });
+        });
+
+        return limitedText;
       }
 
       async function refreshMedianGrades() {
-        routeMedianGrades = await fetchMedianGrades();
+        try {
+          const snapshot = await getDocs(collection(db, 'routes'));
+          const nextAscentsCache = new Map();
+          const nextMedianMap = new Map();
+          const nextBetatipsCache = new Map();
 
-        if (Array.isArray(allRoutes)) {
-          allRoutes.forEach((route) => {
-            const median = routeMedianGrades.get(route.id);
-            route.medianGrade = typeof median === 'number' && Number.isFinite(median) ? median : null;
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data() ?? {};
+            const ascentsMap = normalizeRouteAscentsMap(data.ascents);
+            nextAscentsCache.set(docSnap.id, ascentsMap);
+            const betatipsMap = normalizeRouteBetatipsMap(data.betatips);
+            nextBetatipsCache.set(docSnap.id, betatipsMap);
+
+            const median = computeMedianFromAscentsMap(ascentsMap);
+            if (typeof median === 'number' && Number.isFinite(median)) {
+              nextMedianMap.set(docSnap.id, median);
+            }
           });
-        }
 
-        redraw();
+          routeAscentsCache.clear();
+          nextAscentsCache.forEach((value, key) => {
+            routeAscentsCache.set(key, value);
+          });
+          routeBetatipsCache.clear();
+          nextBetatipsCache.forEach((value, key) => {
+            routeBetatipsCache.set(key, value);
+          });
+
+          routeMedianGrades = nextMedianMap;
+
+          if (Array.isArray(allRoutes)) {
+            allRoutes.forEach((route) => {
+              const median = routeMedianGrades.get(route.id);
+              route.medianGrade =
+                typeof median === 'number' && Number.isFinite(median) ? median : null;
+              const betatipsMap = routeBetatipsCache.get(route.id);
+              route.betatips = betatipsMap instanceof Map ? betatipsMap : new Map();
+            });
+          }
+
+          redraw();
+        } catch (error) {
+          console.error('Failed to load route grades:', error);
+        }
       }
 
       function updateTooltipContent(route) {
@@ -4927,16 +5742,12 @@
         gradeCluster.className = 'tooltip-grade-cluster';
         gradeCluster.appendChild(gradeBadge);
 
+        let gradeControls = null;
         let actionsContainer = null;
-        const ensureActionsContainer = () => {
-          if (!actionsContainer) {
-            actionsContainer = document.createElement('div');
-            actionsContainer.className = 'tooltip-actions';
-          }
-          return actionsContainer;
-        };
 
         if (currentUser) {
+          gradeControls = buildGradeControls(route);
+
           const actionButton = document.createElement('button');
           actionButton.type = 'button';
           actionButton.className = 'tooltip-action-button ascend-toggle';
@@ -4948,13 +5759,12 @@
             event.stopPropagation();
             toggleRouteAscent(route);
           });
-          ensureActionsContainer().appendChild(actionButton);
+
+          actionsContainer = document.createElement('div');
+          actionsContainer.className = 'tooltip-actions';
+          actionsContainer.appendChild(actionButton);
         }
 
-        fragment.appendChild(gradeCluster);
-        if (actionsContainer) {
-          fragment.appendChild(actionsContainer);
-        }
         ariaLines.push(`Grade: ${gradeDisplay}`);
         ariaLines.push(isAscended ? 'Ascended' : 'Not ascended');
 
@@ -4982,14 +5792,23 @@
 
         appendInfoLine(`Date set: ${formatDisplayDate(route.date_set)}`);
 
-        if (currentUser) {
-          const gradeControls = buildGradeControls(route);
-          if (gradeControls) {
-            fragment.appendChild(gradeControls);
-          }
+        if (gradeControls) {
+          fragment.appendChild(gradeControls);
+        }
+        if (actionsContainer) {
+          fragment.appendChild(actionsContainer);
         }
 
-        tooltip.replaceChildren(fragment);
+        const betatipsSection = buildBetatipsSection(route, ariaLines);
+        if (betatipsSection) {
+          fragment.appendChild(betatipsSection);
+        }
+
+        const content = document.createElement('div');
+        content.className = 'tooltip-content';
+        content.appendChild(fragment);
+
+        tooltip.replaceChildren(gradeCluster, content);
 
         if (ariaLines.length) {
           tooltip.setAttribute('aria-label', ariaLines.join('\n'));
@@ -5381,13 +6200,14 @@
 
       async function loadRoutes() {
         try {
-          const [routesSnapshot, medianMap, wallSnapshot] = await Promise.all([
+          const [routesSnapshot, wallSnapshot] = await Promise.all([
             getDocs(collection(db, 'routes')),
-            fetchMedianGrades(),
             getDocs(collection(db, WALL_COLLECTION)),
           ]);
 
-          routeMedianGrades = medianMap instanceof Map ? medianMap : new Map();
+          routeAscentsCache.clear();
+          routeBetatipsCache.clear();
+          routeMedianGrades = new Map();
 
           wallSettingsCache.clear();
           const hiddenWallKeys = new Set();
@@ -5443,7 +6263,22 @@
 
           allRoutes = routesSnapshot.docs
             .map((docSnap) => {
-              const data = docSnap.data();
+              const data = docSnap.data() ?? {};
+              const ascentsMap = normalizeRouteAscentsMap(data.ascents);
+              routeAscentsCache.set(docSnap.id, ascentsMap);
+              const betatipsMap = normalizeRouteBetatipsMap(data.betatips);
+              routeBetatipsCache.set(docSnap.id, betatipsMap);
+
+              const medianValue = computeMedianFromAscentsMap(ascentsMap);
+              const medianGrade =
+                typeof medianValue === 'number' && Number.isFinite(medianValue)
+                  ? medianValue
+                  : null;
+
+              if (medianGrade !== null) {
+                routeMedianGrades.set(docSnap.id, medianGrade);
+              }
+
               const normalizedPoints = Array.isArray(data.points)
                 ? data.points
                     .map((point) => {
@@ -5457,8 +6292,6 @@
                     .filter(Boolean)
                 : [];
 
-              const median = routeMedianGrades.get(docSnap.id);
-              const medianGrade = typeof median === 'number' && Number.isFinite(median) ? median : null;
               const rawLocationValue = typeof data.location === 'string' ? data.location.trim() : '';
               const defaultLocation = getDefaultLocation();
               const normalizedLocation =
@@ -5504,6 +6337,7 @@
                 gradeBarWidth: wallSettings.gradeBarWidth,
                 gradeBarTransparency: wallSettings.gradeBarTransparency,
                 unfocusedTransparency: wallSettings.unfocusedTransparency,
+                betatips: betatipsMap,
               };
             })
             .filter(Boolean)
@@ -5521,6 +6355,8 @@
           focusedRouteId = null;
           updateClearFocusButton();
           routeMedianGrades = new Map();
+          routeAscentsCache.clear();
+          routeBetatipsCache.clear();
           renderProgressionList();
           redraw();
         }
@@ -5528,12 +6364,6 @@
 
       async function toggleRouteAscent(route) {
         if (!currentUser) {
-          return;
-        }
-
-        const username = await resolveAuthenticatedUsername();
-        if (!username) {
-          console.warn('Unable to mark ascent: user username missing.');
           return;
         }
 
@@ -5548,7 +6378,7 @@
           console.warn('Unable to mark ascent: route ID missing.');
           return;
         }
-        const ascentRef = doc(db, 'ascents', userId);
+        const routeRef = doc(db, 'routes', routeId);
         const isAscended = ascendedRoutes.has(routeId);
         const previousEntry = userAscentDetails.get(routeId) || {};
         const persistedGrade =
@@ -5560,59 +6390,28 @@
             ? persistedGrade
             : null;
 
-        try {
-          if (isAscended) {
-            await setDoc(
-              ascentRef,
-              {
-                climber_uid: userId,
-                climber_username: username,
-                updatedAt: serverTimestamp(),
-                routes: {
-                  [routeId]: {
-                    route_id: routeId,
-                    climber_uid: userId,
-                    climber_username: username,
-                    grade: normalizedGrade,
-                    ascended: false,
-                    date_ascended: null,
-                  },
-                },
+          try {
+            const nextAscended = !isAscended;
+            await updateDoc(routeRef, {
+              [`ascents.${userId}`]: {
+                grade: normalizedGrade,
+                ascended: nextAscended,
               },
-              { merge: true },
-            );
+            });
 
             userAscentDetails.set(routeId, {
-              ascended: false,
+              ascended: nextAscended,
               grade: normalizedGrade,
             });
-          } else {
-            const now = new Date().toISOString();
-            await setDoc(
-              ascentRef,
-              {
-                climber_uid: userId,
-                climber_username: username,
-                updatedAt: serverTimestamp(),
-                routes: {
-                  [routeId]: {
-                    route_id: routeId,
-                    date_ascended: now,
-                    climber_uid: userId,
-                    climber_username: username,
-                    grade: normalizedGrade,
-                    ascended: true,
-                  },
-                },
-              },
-              { merge: true },
-            );
-            userAscentDetails.set(routeId, {
-              ascended: true,
-              grade: normalizedGrade,
-              dateAscended: now,
-            });
+
+          let ascentsMap = routeAscentsCache.get(routeId);
+          if (!(ascentsMap instanceof Map)) {
+            ascentsMap = new Map();
+            routeAscentsCache.set(routeId, ascentsMap);
           }
+          ascentsMap.set(userId, { grade: normalizedGrade, ascended: nextAscended });
+
+          updateMedianForRoute(routeId);
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
@@ -5844,6 +6643,11 @@
       }
 
       function getRouteDisplayColor(route) {
+        if (viewMode === VIEW_MODE_ASCENT_STATUS) {
+          const routeId = route?.id;
+          const isAscended = Boolean(routeId && ascendedRoutes.has(routeId));
+          return isAscended ? ASCENT_STATUS_ASCENDED_COLOR : ASCENT_STATUS_PROJECT_COLOR;
+        }
         if (viewMode === VIEW_MODE_GRADE_COLORS) {
           const gradeColor = getRouteGradeColor(route);
           return gradeColor ?? DEFAULT_GRADELESS_COLOR;
