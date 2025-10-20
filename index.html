@@ -125,6 +125,119 @@
         border: 1px solid rgba(126, 217, 87, 0.2);
       }
 
+      .tutorial-illustration {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        width: 100%;
+        margin-top: 0.35rem;
+      }
+
+      .tutorial-illustration-caption {
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.75);
+      }
+
+      .tutorial-phone {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.85));
+        border-radius: 1.9rem;
+        padding: 0.85rem;
+        box-shadow: 0 16px 36px rgba(15, 23, 42, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.35);
+      }
+
+      .tutorial-phone--portrait {
+        width: 120px;
+        height: 220px;
+      }
+
+      .tutorial-phone--landscape {
+        width: 220px;
+        height: 120px;
+        border-radius: 1.4rem;
+      }
+
+      .tutorial-phone-screen {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: 1.35rem;
+        background: radial-gradient(circle at 20% 20%, rgba(148, 163, 184, 0.35), transparent 60%),
+          radial-gradient(circle at 80% 25%, rgba(59, 130, 246, 0.32), transparent 65%),
+          linear-gradient(160deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.6));
+        border: 1px solid rgba(100, 116, 139, 0.4);
+        overflow: hidden;
+      }
+
+      .tutorial-phone-screen::before,
+      .tutorial-phone-screen::after {
+        content: '';
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(126, 217, 87, 0.45);
+        opacity: 0.85;
+      }
+
+      .tutorial-phone-screen::before {
+        width: 36%;
+        height: 36%;
+        top: 16%;
+        left: 20%;
+        box-shadow: 0 0 24px rgba(126, 217, 87, 0.35);
+      }
+
+      .tutorial-phone-screen::after {
+        width: 28%;
+        height: 28%;
+        bottom: 18%;
+        right: 22%;
+        background: rgba(59, 130, 246, 0.45);
+        box-shadow: 0 0 22px rgba(59, 130, 246, 0.35);
+      }
+
+      .tutorial-illustration--portrait .tutorial-phone-screen {
+        animation: tutorial-pan-screen 2.6s ease-in-out infinite;
+      }
+
+      .tutorial-pan-track {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .tutorial-pan-arrow {
+        width: 42px;
+        height: 42px;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(126, 217, 87, 0.6);
+        background: rgba(12, 18, 15, 0.6);
+        color: rgba(126, 217, 87, 0.95);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.45);
+      }
+
+      .tutorial-pan-arrow svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .tutorial-pan-arrow--left {
+        animation: tutorial-pan-arrow-left 2s ease-in-out infinite;
+      }
+
+      .tutorial-pan-arrow--right {
+        animation: tutorial-pan-arrow-right 2s ease-in-out infinite;
+      }
+
       .tutorial-progress {
         font-size: 0.85rem;
         letter-spacing: 0.04em;
@@ -266,6 +379,40 @@
         }
         50% {
           filter: brightness(1.35);
+        }
+      }
+
+      @keyframes tutorial-pan-arrow-left {
+        0%,
+        100% {
+          transform: translateX(0);
+          opacity: 0.65;
+        }
+        50% {
+          transform: translateX(-10px);
+          opacity: 1;
+        }
+      }
+
+      @keyframes tutorial-pan-arrow-right {
+        0%,
+        100% {
+          transform: translateX(0);
+          opacity: 0.65;
+        }
+        50% {
+          transform: translateX(10px);
+          opacity: 1;
+        }
+      }
+
+      @keyframes tutorial-pan-screen {
+        0%,
+        100% {
+          transform: translateX(-6%);
+        }
+        50% {
+          transform: translateX(6%);
         }
       }
 
@@ -1780,6 +1927,89 @@
 
           wrapper.appendChild(labels);
         }
+
+        return wrapper;
+      }
+
+      function isMobileDevice() {
+        if (typeof window === 'undefined') {
+          return false;
+        }
+
+        const coarsePointer =
+          typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+        const narrowViewport =
+          typeof window.matchMedia === 'function'
+            ? window.matchMedia('(max-width: 820px)').matches
+            : window.innerWidth <= 820;
+        const touchPoints =
+          typeof navigator !== 'undefined' && typeof navigator.maxTouchPoints === 'number'
+            ? navigator.maxTouchPoints > 1
+            : false;
+        const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+        const mobileAgentPattern = /(Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Windows Phone)/i;
+
+        return Boolean(coarsePointer || narrowViewport || touchPoints || mobileAgentPattern.test(userAgent));
+      }
+
+      function createTutorialPhoneElement(orientation) {
+        const phone = document.createElement('div');
+        phone.className = `tutorial-phone tutorial-phone--${orientation}`;
+        phone.setAttribute('role', 'presentation');
+        phone.setAttribute('aria-hidden', 'true');
+
+        const screen = document.createElement('div');
+        screen.className = 'tutorial-phone-screen';
+        phone.appendChild(screen);
+
+        return phone;
+      }
+
+      function createTutorialPanArrow(direction) {
+        const arrow = document.createElement('span');
+        arrow.className = `tutorial-pan-arrow tutorial-pan-arrow--${direction}`;
+        arrow.setAttribute('role', 'presentation');
+        arrow.setAttribute('aria-hidden', 'true');
+
+        const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        icon.setAttribute('viewBox', '0 0 24 24');
+        icon.setAttribute('aria-hidden', 'true');
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('fill', 'currentColor');
+        if (direction === 'left') {
+          path.setAttribute('d', 'M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z');
+        } else {
+          path.setAttribute('d', 'M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z');
+        }
+        icon.appendChild(path);
+
+        arrow.appendChild(icon);
+        return arrow;
+      }
+
+      function createMobileOrientationIllustration(orientation) {
+        const wrapper = document.createElement('div');
+        wrapper.className = `tutorial-illustration tutorial-illustration--${orientation}`;
+
+        if (orientation === 'portrait') {
+          const track = document.createElement('div');
+          track.className = 'tutorial-pan-track';
+          track.setAttribute('aria-hidden', 'true');
+
+          track.appendChild(createTutorialPanArrow('left'));
+          track.appendChild(createTutorialPhoneElement('portrait'));
+          track.appendChild(createTutorialPanArrow('right'));
+
+          wrapper.appendChild(track);
+        } else {
+          wrapper.appendChild(createTutorialPhoneElement('landscape'));
+        }
+
+        const caption = document.createElement('span');
+        caption.className = 'tutorial-illustration-caption';
+        caption.textContent = orientation === 'portrait' ? 'Portrait view' : 'Landscape view';
+        wrapper.appendChild(caption);
 
         return wrapper;
       }
@@ -4047,205 +4277,225 @@
         canvas.classList.remove('tutorial-route-pulse');
       }
 
-      const tutorialSteps = [
-        {
-          title: 'Welcome to Ascend',
-          body: [
-            'Ascend helps you explore the latest problems on the wall and stay up to date with the gym.',
-            'Use this public view to browse climbs and see what sets are available right now.',
-          ],
-          onEnter: () => {
-            setTutorialOverlayAlignment('center');
-            highlightTutorialElement(null);
-            hideTooltip({ force: true });
-            hideTutorialPointer();
+
+
+      function buildTutorialSteps() {
+        const steps = [
+          {
+            title: 'Welcome to Ascend',
+            body: [
+              'Ascend helps you explore the latest problems on the wall and stay up to date with the gym.',
+              'Use this public view to browse climbs and see what sets are available right now.',
+            ],
+            onEnter: () => {
+              setTutorialOverlayAlignment('center');
+              highlightTutorialElement(null);
+              hideTooltip({ force: true });
+              hideTutorialPointer();
+            },
+            onExit: () => {
+              highlightTutorialElement(null);
+            },
           },
-          onExit: () => {
-            highlightTutorialElement(null);
+        ];
+
+        if (isMobileDevice()) {
+          steps.push(
+            {
+              title: 'Landscape shows everything',
+              body: [
+                () => createMobileOrientationIllustration('landscape'),
+                'On mobile, rotate your phone to landscape when you want the full wall in view.',
+                'The wider layout gives you a complete snapshot of every climb at once.',
+              ],
+              onEnter: () => {
+                setTutorialOverlayAlignment('center');
+                highlightTutorialElement(null);
+                hideTooltip({ force: true });
+                hideTutorialPointer();
+              },
+              onExit: () => {
+                highlightTutorialElement(null);
+              },
+            },
+            {
+              title: 'Portrait lets you pan',
+              body: [
+                () => createMobileOrientationIllustration('portrait'),
+                'On mobile, stay in portrait when you prefer to pan horizontally across the wall.',
+                'Swipe side to side to focus on specific sections while keeping controls close by.',
+              ],
+              onEnter: () => {
+                setTutorialOverlayAlignment('center');
+                highlightTutorialElement(null);
+                hideTooltip({ force: true });
+                hideTutorialPointer();
+              },
+              onExit: () => {
+                highlightTutorialElement(null);
+              },
+            }
+          );
+        }
+
+        steps.push(
+          {
+            title: 'Route details',
+            body: [
+              'Click any climb to open its tooltip for more information.',
+              'You'll see the setter, description, and consensus grade gathered from other climbers.',
+            ],
+            onEnter: async () => {
+              setTutorialOverlayAlignment('bottom');
+              highlightTutorialElement(null);
+              await showTutorialRouteTooltip();
+            },
+            onExit: () => {
+              hideTutorialPointer();
+              stopTutorialRoutePulse();
+              closeTutorialRouteTooltip();
+              setTutorialOverlayAlignment('center');
+            },
           },
-        },
-        {
-          title: 'Landscape shows everything',
-          body: [
-            'On mobile, rotate your phone to landscape when you want the full wall in view.',
-            'The wider layout gives you a complete snapshot of every climb at once.',
-          ],
-          onEnter: () => {
-            setTutorialOverlayAlignment('center');
-            highlightTutorialElement(null);
-            hideTooltip({ force: true });
-            hideTutorialPointer();
-          },
-          onExit: () => {
-            highlightTutorialElement(null);
-          },
-        },
-        {
-          title: 'Portrait lets you pan',
-          body: [
-            'On mobile, stay in portrait when you prefer to pan horizontally across the wall.',
-            'Swipe side to side to focus on specific sections while keeping controls close by.',
-          ],
-          onEnter: () => {
-            setTutorialOverlayAlignment('center');
-            highlightTutorialElement(null);
-            hideTooltip({ force: true });
-            hideTutorialPointer();
-          },
-          onExit: () => {
-            highlightTutorialElement(null);
-          },
-        },
-        {
-          title: 'Route details',
-          body: [
-            'Click any climb to open its tooltip for more information.',
-            'You\'ll see the setter, description, and consensus grade gathered from other climbers.',
-          ],
-          onEnter: async () => {
-            setTutorialOverlayAlignment('bottom');
-            highlightTutorialElement(null);
-            await showTutorialRouteTooltip();
-          },
-          onExit: () => {
-            hideTutorialPointer();
-            stopTutorialRoutePulse();
-            closeTutorialRouteTooltip();
-            setTutorialOverlayAlignment('center');
-          },
-        },
-        {
-          title: 'Coloring by Holds',
-          body: [
-            'Routes are showing the colour of each hold set right now so you can match what\'s taped on the wall.',
-            'Click the palette icon to switch to Coloring by Grade when you want quick difficulty cues.',
-          ],
-          onEnter: () => {
-            setTutorialOverlayAlignment('center');
-            const holdButton = getViewToggleButtonForMode(VIEW_MODE_HOLD_COLORS);
-            if (holdButton) {
-              tutorialPreviousViewMode = viewMode;
-              if (viewMode !== VIEW_MODE_HOLD_COLORS) {
-                setViewMode(VIEW_MODE_HOLD_COLORS);
+          {
+            title: 'Coloring by Holds',
+            body: [
+              'Routes are showing the colour of each hold set right now so you can match what's taped on the wall.',
+              'Click the palette icon to switch to Coloring by Grade when you want quick difficulty cues.',
+            ],
+            onEnter: () => {
+              setTutorialOverlayAlignment('center');
+              const holdButton = getViewToggleButtonForMode(VIEW_MODE_HOLD_COLORS);
+              if (holdButton) {
+                tutorialPreviousViewMode = viewMode;
+                if (viewMode !== VIEW_MODE_HOLD_COLORS) {
+                  setViewMode(VIEW_MODE_HOLD_COLORS);
+                }
+                highlightTutorialElement(holdButton, { illuminate: true });
+                showTutorialPointerFor(holdButton);
+              } else {
+                hideTutorialPointer();
               }
-              highlightTutorialElement(holdButton, { illuminate: true });
-              showTutorialPointerFor(holdButton);
-            } else {
+            },
+            onExit: () => {
               hideTutorialPointer();
-            }
-          },
-          onExit: () => {
-            hideTutorialPointer();
-            highlightTutorialElement(null);
-            if (tutorialPreviousViewMode && tutorialPreviousViewMode !== viewMode) {
-              setViewMode(tutorialPreviousViewMode);
-            }
-            tutorialPreviousViewMode = null;
-          },
-        },
-        {
-          title: 'Coloring by Grade',
-          body: [
-            'Toggle Coloring by Grade to tint each climb by consensus difficulty.',
-            'Climbs without a recorded grade stay bright white until someone logs one.',
-            'Tap the same palette icon any time to jump back to Coloring by Holds.',
-            () => createGradeChartElement(),
-            "It's perfect when you want to scan the wall by difficulty at a glance.",
-          ],
-          onEnter: () => {
-            setTutorialOverlayAlignment('center');
-            const gradeButton = getViewToggleButtonForMode(VIEW_MODE_GRADE_COLORS);
-            if (gradeButton) {
-              tutorialPreviousViewMode = viewMode;
-              if (viewMode !== VIEW_MODE_GRADE_COLORS) {
-                setViewMode(VIEW_MODE_GRADE_COLORS);
+              highlightTutorialElement(null);
+              if (tutorialPreviousViewMode && tutorialPreviousViewMode !== viewMode) {
+                setViewMode(tutorialPreviousViewMode);
               }
-              highlightTutorialElement(gradeButton, { illuminate: true });
-              showTutorialPointerFor(gradeButton);
-            } else {
+              tutorialPreviousViewMode = null;
+            },
+          },
+          {
+            title: 'Coloring by Grade',
+            body: [
+              'Toggle Coloring by Grade to tint each climb by consensus difficulty.',
+              'Climbs without a recorded grade stay bright white until someone logs one.',
+              'Tap the same palette icon any time to jump back to Coloring by Holds.',
+              () => createGradeChartElement(),
+              "It's perfect when you want to scan the wall by difficulty at a glance.",
+            ],
+            onEnter: () => {
+              setTutorialOverlayAlignment('center');
+              const gradeButton = getViewToggleButtonForMode(VIEW_MODE_GRADE_COLORS);
+              if (gradeButton) {
+                tutorialPreviousViewMode = viewMode;
+                if (viewMode !== VIEW_MODE_GRADE_COLORS) {
+                  setViewMode(VIEW_MODE_GRADE_COLORS);
+                }
+                highlightTutorialElement(gradeButton, { illuminate: true });
+                showTutorialPointerFor(gradeButton);
+              } else {
+                hideTutorialPointer();
+              }
+            },
+            onExit: () => {
               hideTutorialPointer();
-            }
+              highlightTutorialElement(null);
+              if (tutorialPreviousViewMode && tutorialPreviousViewMode !== viewMode) {
+                setViewMode(tutorialPreviousViewMode);
+              }
+              tutorialPreviousViewMode = null;
+            },
           },
-          onExit: () => {
-            hideTutorialPointer();
-            highlightTutorialElement(null);
-            if (tutorialPreviousViewMode && tutorialPreviousViewMode !== viewMode) {
-              setViewMode(tutorialPreviousViewMode);
-            }
-            tutorialPreviousViewMode = null;
-          },
-        },
-        {
-          title: 'Choose a wall',
-          body: [
-            'Use the wall selector to jump between different locations in the gym.',
-            'Each wall has its own background and set of climbs to explore.',
-          ],
-          onEnter: () => {
-            setTutorialOverlayAlignment('bottom');
-            if (locationModal) {
-              locationModal.classList.add('is-top-aligned');
-            }
-            if (locationButton) {
-              highlightTutorialElement(locationButton, { illuminate: true });
-              showTutorialPointerFor(locationButton);
-              openLocationModal();
-              updateTutorialPointerPosition();
-            } else {
+          {
+            title: 'Choose a wall',
+            body: [
+              'Use the wall selector to jump between different locations in the gym.',
+              'Each wall has its own background and set of climbs to explore.',
+            ],
+            onEnter: () => {
+              setTutorialOverlayAlignment('bottom');
+              if (locationModal) {
+                locationModal.classList.add('is-top-aligned');
+              }
+              if (locationButton) {
+                highlightTutorialElement(locationButton, { illuminate: true });
+                showTutorialPointerFor(locationButton);
+                openLocationModal();
+                updateTutorialPointerPosition();
+              } else {
+                hideTutorialPointer();
+              }
+            },
+            onExit: () => {
               hideTutorialPointer();
-            }
+              highlightTutorialElement(null);
+              if (locationModal) {
+                locationModal.classList.remove('is-top-aligned');
+              }
+              closeLocationModal();
+              setTutorialOverlayAlignment('center');
+            },
           },
-          onExit: () => {
-            hideTutorialPointer();
-            highlightTutorialElement(null);
-            if (locationModal) {
-              locationModal.classList.remove('is-top-aligned');
-            }
-            closeLocationModal();
-            setTutorialOverlayAlignment('center');
-          },
-        },
-        {
-          title: 'Sign in to track progress',
-          body: [
-            'The Log in button takes you to the personal dashboard where you can create an account or sign in.',
-            'Members can record ascents and personal grades once they\'re logged in.',
-          ],
-          onEnter: () => {
-            setTutorialOverlayAlignment('center');
-            if (loginButton) {
-              highlightTutorialElement(loginButton, { illuminate: true });
-              showTutorialPointerFor(loginButton);
-            } else {
+          {
+            title: 'Sign in to track progress',
+            body: [
+              'The Log in button takes you to the personal dashboard where you can create an account or sign in.',
+              "Members can record ascents and personal grades once they're logged in.",
+            ],
+            onEnter: () => {
+              setTutorialOverlayAlignment('center');
+              if (loginButton) {
+                highlightTutorialElement(loginButton, { illuminate: true });
+                showTutorialPointerFor(loginButton);
+              } else {
+                hideTutorialPointer();
+              }
+            },
+            onExit: () => {
               hideTutorialPointer();
-            }
+              highlightTutorialElement(null);
+            },
           },
-          onExit: () => {
-            hideTutorialPointer();
-            highlightTutorialElement(null);
-          },
-        },
-        {
-          title: 'Need more info later?',
-          body: [
-            'Tap the info button to activate quick explanations for the controls around the screen.',
-            'It\'s a handy refresher whenever you want to revisit what each tool does.',
-          ],
-          onEnter: () => {
-            setTutorialOverlayAlignment('center');
-            if (infoButton) {
-              highlightTutorialElement(infoButton, { illuminate: true });
-              showTutorialPointerFor(infoButton);
-            } else {
+          {
+            title: 'Need more info later?',
+            body: [
+              'Tap the info button to activate quick explanations for the controls around the screen.',
+              "It's a handy refresher whenever you want to revisit what each tool does.",
+            ],
+            onEnter: () => {
+              setTutorialOverlayAlignment('center');
+              if (infoButton) {
+                highlightTutorialElement(infoButton, { illuminate: true });
+                showTutorialPointerFor(infoButton);
+              } else {
+                hideTutorialPointer();
+              }
+            },
+            onExit: () => {
               hideTutorialPointer();
-            }
-          },
-          onExit: () => {
-            hideTutorialPointer();
-            highlightTutorialElement(null);
-          },
-        },
-      ];
+              highlightTutorialElement(null);
+            },
+          }
+        );
+
+        return steps;
+      }
+
+      const tutorialSteps = buildTutorialSteps();
+
+
 
       function renderTutorialStep() {
         if (!tutorialActive) {
