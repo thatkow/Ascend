@@ -830,7 +830,7 @@
       }
 
       try {
-        const adminQuery = query(collection(db, 'roles'), where('role', '==', 'admin'));
+        const adminQuery = query(collection(db, 'users'), where('role', '==', 'admin'));
         const snapshot = await getDocs(adminQuery);
 
         for (const docSnap of snapshot.docs) {
@@ -846,7 +846,7 @@
 
           try {
             await setDoc(
-              docSnap.ref,
+              doc(db, 'users', targetUid),
               {
                 role: 'setter',
                 updatedAt: serverTimestamp(),
@@ -887,35 +887,22 @@
       const adminUid = currentAdminUser?.uid || '';
       const normalizedAdminUsername = normalizeUsername(currentAdminUsername);
 
-      if (collectionKey === 'roles') {
-        return Boolean(adminUid && docId === adminUid);
-      }
-
-      if (collectionKey === 'usernames') {
-        const normalizedId = normalizeUsername(docId);
-        if (normalizedAdminUsername && normalizedId === normalizedAdminUsername) {
+      if (collectionKey === 'users') {
+        if (adminUid && docId === adminUid) {
           return true;
         }
 
         try {
           const candidate = normalizeDocDataCandidate(docData);
           const storedUsername = normalizeUsername(
-            typeof candidate.usernameLower === 'string'
-              ? candidate.usernameLower
-              : typeof candidate.username === 'string'
-              ? candidate.username
-              : '',
+            typeof candidate.username === 'string' ? candidate.username : '',
           );
 
           if (normalizedAdminUsername && storedUsername === normalizedAdminUsername) {
             return true;
           }
-
-          if (adminUid && typeof candidate.uid === 'string' && candidate.uid === adminUid) {
-            return true;
-          }
         } catch (error) {
-          console.warn('Unable to evaluate username document for preservation:', error);
+          console.warn('Unable to evaluate user document for preservation:', error);
         }
       }
 
@@ -928,16 +915,14 @@
       }
 
       try {
-        const snapshot = await getDocs(query(collection(db, 'usernames'), where('uid', '==', uid), limit(1)));
-        if (snapshot.empty) {
+        const userSnap = await getDoc(doc(db, 'users', uid));
+
+        if (!userSnap.exists()) {
           return '';
         }
 
-        const docSnap = snapshot.docs[0];
-        const data = docSnap.data() || {};
-        const fromField = normalizeUsername(data.username);
-        const fromId = normalizeUsername(docSnap.id);
-        return fromField || fromId;
+        const data = userSnap.data() || {};
+        return normalizeUsername(typeof data.username === 'string' ? data.username : '');
       } catch (error) {
         console.error('Failed to look up username by UID:', error);
         return '';
@@ -983,36 +968,47 @@
       }
 
       try {
-        const roleRef = doc(db, 'roles', user.uid);
-        const roleSnap = await getDoc(roleRef);
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
 
-        if (!roleSnap.exists()) {
+        if (!userSnap.exists()) {
           return 'default';
         }
 
-        const data = roleSnap.data() || {};
+        const data = userSnap.data() || {};
         const storedRole = typeof data.role === 'string' ? data.role.trim().toLowerCase() : 'default';
-        const storedLowerRaw =
-          typeof data.usernameLower === 'string'
-            ? data.usernameLower
-            : typeof data.username === 'string'
-            ? data.username
-            : '';
-        const storedLower = normalizeUsername(storedLowerRaw);
+        const storedUsername = normalizeUsername(
+          typeof data.username === 'string' ? data.username : '',
+        );
 
-        if (storedLower !== normalizedUsername) {
+        if (storedUsername !== normalizedUsername) {
+          try {
+            const conflictSnapshot = await getDocs(
+              query(collection(db, 'users'), where('username', '==', normalizedUsername), limit(1)),
+            );
+
+            if (conflictSnapshot.empty || conflictSnapshot.docs[0].id === user.uid) {
+              await setDoc(
+                userRef,
+                {
+                  username: normalizedUsername,
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: true },
+              );
+            }
+          } catch (metadataError) {
+            console.warn('Unable to update user metadata for role lookup:', metadataError);
+          }
+        } else if (!data.updatedAt) {
           try {
             await setDoc(
-              roleRef,
-              {
-                username: normalizedUsername,
-                usernameLower: normalizedUsername,
-                updatedAt: serverTimestamp(),
-              },
+              userRef,
+              { updatedAt: serverTimestamp() },
               { merge: true },
             );
-          } catch (error) {
-            console.warn('Unable to update role metadata:', error);
+          } catch (timestampError) {
+            console.warn('Unable to update user timestamp for role lookup:', timestampError);
           }
         }
 
@@ -1089,52 +1085,45 @@
           setRoleControlsEnabled(false);
           setRoleStatus(`Granting setter role to ${trimmedUsername}…`, 'info');
 
-          const usernameRef = doc(db, 'usernames', normalizedUsername);
-          const usernameSnap = await getDoc(usernameRef);
+          const snapshot = await getDocs(
+            query(collection(db, 'users'), where('username', '==', normalizedUsername), limit(1)),
+          );
 
-          if (!usernameSnap.exists()) {
+          if (snapshot.empty) {
             setRoleStatus('No user found with that username.', 'error');
             return;
           }
 
-          const usernameData = usernameSnap.data() || {};
-          const targetUid = typeof usernameData.uid === 'string' ? usernameData.uid.trim() : '';
+          const userDoc = snapshot.docs[0];
+          const userData = userDoc.data() || {};
+          const targetUid = userDoc.id;
 
           if (!targetUid) {
             setRoleStatus('Unable to resolve that username to a user account.', 'error');
             return;
           }
 
-          const roleRef = doc(db, 'roles', targetUid);
-          const roleSnap = await getDoc(roleRef);
-          const existingData = roleSnap.exists() ? roleSnap.data() || {} : {};
-          const existingRole = typeof existingData.role === 'string' ? existingData.role.trim() : '';
-          const existingLowerRaw =
-            typeof existingData.usernameLower === 'string'
-              ? existingData.usernameLower
-              : typeof existingData.username === 'string'
-              ? existingData.username
-              : '';
-          const existingLower = normalizeUsername(existingLowerRaw);
+          const existingRole =
+            typeof userData.role === 'string' ? userData.role.trim().toLowerCase() : 'default';
+          const existingUsername = normalizeUsername(
+            typeof userData.username === 'string' ? userData.username : '',
+          );
 
-          if (existingRole === 'setter' && existingLower === normalizedUsername) {
+          if (existingRole === 'setter' && existingUsername === normalizedUsername) {
             setRoleStatus(`${trimmedUsername} is already a setter.`, 'success');
             roleUsernameInput.value = '';
             return;
           }
 
-          const payload = {
-            role: 'setter',
-            username: normalizedUsername,
-            usernameLower: normalizedUsername,
-            updatedAt: serverTimestamp(),
-          };
-
-          if (!existingData.createdAt) {
-            payload.createdAt = serverTimestamp();
-          }
-
-          await setDoc(roleRef, payload, { merge: true });
+          await setDoc(
+            doc(db, 'users', targetUid),
+            {
+              role: 'setter',
+              username: normalizedUsername,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true },
+          );
 
           setRoleStatus(`Setter role granted to ${trimmedUsername}.`, 'success');
           roleUsernameInput.value = '';
@@ -1171,16 +1160,18 @@
           setRoleControlsEnabled(false);
           setRoleStatus(`Revoking setter role from ${trimmedUsername}…`, 'info');
 
-          const usernameRef = doc(db, 'usernames', normalizedUsername);
-          const usernameSnap = await getDoc(usernameRef);
+          const snapshot = await getDocs(
+            query(collection(db, 'users'), where('username', '==', normalizedUsername), limit(1)),
+          );
 
-          if (!usernameSnap.exists()) {
+          if (snapshot.empty) {
             setRoleStatus('No user found with that username.', 'error');
             return;
           }
 
-          const usernameData = usernameSnap.data() || {};
-          const targetUid = typeof usernameData.uid === 'string' ? usernameData.uid.trim() : '';
+          const userDoc = snapshot.docs[0];
+          const userData = userDoc.data() || {};
+          const targetUid = userDoc.id;
 
           if (!targetUid) {
             setRoleStatus('Unable to resolve that username to a user account.', 'error');
@@ -1192,17 +1183,8 @@
             return;
           }
 
-          const roleRef = doc(db, 'roles', targetUid);
-          const roleSnap = await getDoc(roleRef);
-
-          if (!roleSnap.exists()) {
-            setRoleStatus(`${trimmedUsername} does not have setter access.`, 'info');
-            return;
-          }
-
-          const roleData = roleSnap.data() || {};
           const existingRole =
-            typeof roleData.role === 'string' ? roleData.role.trim().toLowerCase() : 'default';
+            typeof userData.role === 'string' ? userData.role.trim().toLowerCase() : 'default';
 
           if (existingRole === 'admin') {
             setRoleStatus(
@@ -1217,7 +1199,14 @@
             return;
           }
 
-          await deleteDoc(roleRef);
+          await setDoc(
+            doc(db, 'users', targetUid),
+            {
+              role: 'default',
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true },
+          );
 
           setRoleStatus(`Setter role revoked for ${trimmedUsername}.`, 'success');
           roleUsernameInput.value = '';
@@ -1246,8 +1235,7 @@
           { key: 'walls', ref: collection(db, WALL_COLLECTION) },
           { key: 'routes', ref: collection(db, 'routes') },
           { key: 'ascents', ref: collection(db, 'ascents') },
-          { key: 'roles', ref: collection(db, 'roles') },
-          { key: 'usernames', ref: collection(db, 'usernames') },
+          { key: 'users', ref: collection(db, 'users') },
         ];
 
         const exportPayload = {
@@ -1380,7 +1368,7 @@
       }
 
       const confirmed = window.confirm(
-        'Clear the database? This will permanently delete walls, routes, ascents, roles, and usernames. This cannot be undone.',
+        'Clear the database? This will permanently delete walls, routes, ascents, and user accounts. This cannot be undone.',
       );
 
       if (!confirmed) {
@@ -1395,8 +1383,7 @@
           { key: WALL_COLLECTION, ref: collection(db, WALL_COLLECTION) },
           { key: 'routes', ref: collection(db, 'routes') },
           { key: 'ascents', ref: collection(db, 'ascents') },
-          { key: 'roles', ref: collection(db, 'roles') },
-          { key: 'usernames', ref: collection(db, 'usernames') },
+          { key: 'users', ref: collection(db, 'users') },
         ];
 
         let deletedCount = 0;

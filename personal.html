@@ -3788,11 +3788,9 @@
 
         try {
           await setDoc(
-            doc(db, 'usernames', user.uid),
+            doc(db, 'users', user.uid),
             {
-              uid: user.uid,
               username: normalizedUsername,
-              usernameLower: normalizedUsername,
               updatedAt: serverTimestamp(),
             },
             { merge: true },
@@ -4256,19 +4254,14 @@
         }
 
         try {
-          const snapshot = await getDocs(
-            query(collection(db, 'usernames'), where('uid', '==', uid), limit(1)),
-          );
+          const userSnap = await getDoc(doc(db, 'users', uid));
 
-          if (snapshot.empty) {
+          if (!userSnap.exists()) {
             return '';
           }
 
-          const docSnap = snapshot.docs[0];
-          const data = docSnap.data() || {};
-          const fromField = normalizeUsername(data.username);
-          const fromId = normalizeUsername(docSnap.id);
-          return fromField || fromId;
+          const data = userSnap.data() || {};
+          return normalizeUsername(typeof data.username === 'string' ? data.username : '');
         } catch (error) {
           console.error('Failed to look up username by UID:', error);
           return '';
@@ -4341,28 +4334,26 @@
           const { user } = credentials;
 
           try {
-            await setDoc(doc(db, 'usernames', normalizedUsername), {
-              uid: user.uid,
-              username: normalizedUsername,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            });
-          } catch (error) {
-            console.error('Failed to reserve username:', error);
-            try {
-              await deleteUser(user);
-            } catch (cleanupError) {
-              console.warn('Unable to clean up user after username failure:', cleanupError);
-            }
-            const usernameError = new Error('Username unavailable');
-            usernameError.code = 'auth/username-unavailable';
-            throw usernameError;
-          }
-
-          try {
             await updateProfile(user, { displayName: normalizedUsername });
           } catch (profileError) {
             console.warn('Failed to update display name:', profileError);
+          }
+
+          try {
+            await ensureUserRole(user, normalizedUsername);
+          } catch (error) {
+            console.error('Failed to initialize user record:', error);
+            try {
+              await deleteUser(user);
+            } catch (cleanupError) {
+              console.warn('Unable to clean up user after initialization failure:', cleanupError);
+            }
+            if (error && typeof error === 'object' && 'code' in error) {
+              throw error;
+            }
+            const initializationError = new Error('Username unavailable');
+            initializationError.code = 'auth/username-unavailable';
+            throw initializationError;
           }
         } catch (error) {
           let message = 'Unable to complete the request. Please try again.';
@@ -4411,96 +4402,93 @@
         }
 
         const normalizedUsername = normalizeUsername(username);
+
         if (!normalizedUsername) {
           return { role: 'default' };
         }
 
-        const roleRef = doc(db, 'roles', user.uid);
-        const existingSnap = await getDoc(roleRef);
-
-        if (existingSnap.exists()) {
-          const existingData = existingSnap.data() || {};
-          const storedLowerRaw =
-            typeof existingData.usernameLower === 'string'
-              ? existingData.usernameLower
-              : typeof existingData.username === 'string'
-              ? existingData.username
-              : '';
-          let effectiveLower = normalizeUsername(storedLowerRaw);
-          const trimmedRole =
-            typeof existingData.role === 'string'
-              ? existingData.role.trim().toLowerCase()
-              : 'default';
-          const mergedData = {
-            ...existingData,
-            role: trimmedRole,
-          };
-
-          const needsUsernameUpdate =
-            effectiveLower !== normalizedUsername || !existingData.username;
-
-          if (needsUsernameUpdate) {
-            mergedData.username = normalizedUsername;
-            mergedData.usernameLower = normalizedUsername;
-            effectiveLower = normalizedUsername;
-
-            if (trimmedRole !== 'default') {
-              try {
-                await setDoc(
-                  roleRef,
-                  {
-                    username: normalizedUsername,
-                    usernameLower: normalizedUsername,
-                    updatedAt: serverTimestamp(),
-                  },
-                  { merge: true },
-                );
-              } catch (error) {
-                console.warn('Failed to synchronise username on role document:', error);
-              }
-            }
-          }
-
-          if (effectiveLower !== normalizedUsername) {
-            mergedData.role = 'default';
-          }
-
-          return mergedData;
-        }
-
-        let role = 'default';
+        const userRef = doc(db, 'users', user.uid);
 
         try {
-          const snapshot = await getDocs(
-            query(collection(db, 'roles'), where('role', '==', 'setter'), limit(1)),
-          );
-          if (snapshot.empty) {
-            role = 'setter';
+          const existingSnap = await getDoc(userRef);
+
+          if (existingSnap.exists()) {
+            const data = existingSnap.data() || {};
+            const storedUsername = normalizeUsername(
+              typeof data.username === 'string' ? data.username : '',
+            );
+            const trimmedRole =
+              typeof data.role === 'string' ? data.role.trim().toLowerCase() : 'default';
+
+            const updates = {};
+
+            if (storedUsername !== normalizedUsername) {
+              const conflictSnapshot = await getDocs(
+                query(collection(db, 'users'), where('username', '==', normalizedUsername), limit(1)),
+              );
+
+              if (!conflictSnapshot.empty && conflictSnapshot.docs[0].id !== user.uid) {
+                const usernameError = new Error('Username unavailable');
+                usernameError.code = 'auth/username-unavailable';
+                throw usernameError;
+              }
+
+              updates.username = normalizedUsername;
+              updates.updatedAt = serverTimestamp();
+            } else if (!data.updatedAt) {
+              updates.updatedAt = serverTimestamp();
+            }
+
+            if (Object.keys(updates).length > 0) {
+              await setDoc(userRef, updates, { merge: true });
+            }
+
+            return {
+              ...data,
+              ...(updates.username ? { username: normalizedUsername } : {}),
+              ...(updates.updatedAt ? { updatedAt: updates.updatedAt } : {}),
+              role: trimmedRole || 'default',
+            };
           }
+
+          const conflictSnapshot = await getDocs(
+            query(collection(db, 'users'), where('username', '==', normalizedUsername), limit(1)),
+          );
+
+          if (!conflictSnapshot.empty) {
+            const usernameError = new Error('Username unavailable');
+            usernameError.code = 'auth/username-unavailable';
+            throw usernameError;
+          }
+
+          let role = 'default';
+
+          try {
+            const snapshot = await getDocs(
+              query(collection(db, 'users'), where('role', '==', 'setter'), limit(1)),
+            );
+            if (snapshot.empty) {
+              role = 'setter';
+            }
+          } catch (inspectionError) {
+            console.warn('Unable to inspect existing users for setter role:', inspectionError);
+          }
+
+          const timestamp = serverTimestamp();
+          const userData = {
+            username: normalizedUsername,
+            role,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          };
+
+          await setDoc(userRef, userData);
+
+          return userData;
         } catch (error) {
-          console.warn('Unable to inspect existing roles:', error);
+          console.error('Failed to ensure user record:', error);
+          throw error;
         }
-
-        const roleData = {
-          role,
-          username: normalizedUsername,
-          usernameLower: normalizedUsername,
-        };
-
-        if (role === 'default') {
-          return roleData;
-        }
-
-        await setDoc(
-          roleRef,
-          {
-            ...roleData,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true },
-        );
-        return roleData;
       }
 
       async function resolveUserRole(user, username) {
