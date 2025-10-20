@@ -5763,7 +5763,6 @@
           actionsContainer.appendChild(actionButton);
         }
 
-        fragment.appendChild(gradeCluster);
         if (gradeControls) {
           fragment.appendChild(gradeControls);
         }
@@ -5806,7 +5805,7 @@
         content.className = 'tooltip-content';
         content.appendChild(fragment);
 
-        tooltip.replaceChildren(content);
+        tooltip.replaceChildren(gradeCluster, content);
 
         if (ariaLines.length) {
           tooltip.setAttribute('aria-label', ariaLines.join('\n'));

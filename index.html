@@ -4064,7 +4064,39 @@
             highlightTutorialElement(null);
           },
         },
-        { 
+        {
+          title: 'Landscape shows everything',
+          body: [
+            'On mobile, rotate your phone to landscape when you want the full wall in view.',
+            'The wider layout gives you a complete snapshot of every climb at once.',
+          ],
+          onEnter: () => {
+            setTutorialOverlayAlignment('center');
+            highlightTutorialElement(null);
+            hideTooltip({ force: true });
+            hideTutorialPointer();
+          },
+          onExit: () => {
+            highlightTutorialElement(null);
+          },
+        },
+        {
+          title: 'Portrait lets you pan',
+          body: [
+            'On mobile, stay in portrait when you prefer to pan horizontally across the wall.',
+            'Swipe side to side to focus on specific sections while keeping controls close by.',
+          ],
+          onEnter: () => {
+            setTutorialOverlayAlignment('center');
+            highlightTutorialElement(null);
+            hideTooltip({ force: true });
+            hideTutorialPointer();
+          },
+          onExit: () => {
+            highlightTutorialElement(null);
+          },
+        },
+        {
           title: 'Route details',
           body: [
             'Click any climb to open its tooltip for more information.',
@@ -5727,7 +5759,6 @@
           actionsContainer.appendChild(actionButton);
         }
 
-        fragment.appendChild(gradeCluster);
         if (gradeControls) {
           fragment.appendChild(gradeControls);
         }
@@ -5770,7 +5801,7 @@
         content.className = 'tooltip-content';
         content.appendChild(fragment);
 
-        tooltip.replaceChildren(content);
+        tooltip.replaceChildren(gradeCluster, content);
 
         if (ariaLines.length) {
           tooltip.setAttribute('aria-label', ariaLines.join('\n'));
