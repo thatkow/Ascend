@@ -4565,7 +4565,7 @@
           appContent.classList.remove('hidden');
 
           await loadRoutes();
-          await loadAscents({ userId: user.uid });
+          await loadAscents({ username: currentUsername });
           if (!tutorialOptOut) {
             await startTutorial();
           }
@@ -4589,7 +4589,7 @@
           authenticatedUsernameClaim = '';
           ascendedRoutes.clear();
           routeGrades.clear();
-          routeAscentsCache.clear();
+          routeUsersCache.clear();
           routeBetatipsCache.clear();
           routeMedianGrades = new Map();
           hideTooltip({ force: true });
@@ -4628,7 +4628,7 @@
       let pinnedPosition = null;
       const ascendedRoutes = new Set();
       const routeGrades = new Map();
-      const routeAscentsCache = new Map();
+      const routeUsersCache = new Map();
       const routeBetatipsCache = new Map();
       let userAscentDetails = new Map();
       let routeMedianGrades = new Map();
@@ -4763,23 +4763,25 @@
         }
       }
 
-      async function loadAscents({ userId }) {
+      async function loadAscents({ username }) {
         ascendedRoutes.clear();
         routeGrades.clear();
         userAscentDetails = new Map();
 
-        const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
-        if (!normalizedUserId) {
+        const normalizedUsername = isValidUsername(username)
+          ? normalizeUsername(username)
+          : '';
+        if (!normalizedUsername) {
           synchroniseAscentsWithRoutes();
           return;
         }
 
-        routeAscentsCache.forEach((ascentsMap, routeId) => {
-          if (!(ascentsMap instanceof Map)) {
+        routeUsersCache.forEach((usersMap, routeId) => {
+          if (!(usersMap instanceof Map)) {
             return;
           }
 
-          const entry = ascentsMap.get(normalizedUserId);
+          const entry = usersMap.get(normalizedUsername);
           if (!entry) {
             return;
           }
@@ -4869,44 +4871,45 @@
         return numeric;
       }
 
-      function normalizeRouteAscentsMap(rawAscents) {
-        const normalized = new Map();
+      function sanitizeRouteUserEntry(details) {
+        const source = details && typeof details === 'object' ? details : {};
+        const gradeValue = normalizeGradeValue(source.grade);
+        const ascended = source.ascended === true;
+        const betatipValue =
+          typeof source.betatip === 'string'
+            ? source.betatip.replace(/\r\n/g, '\n').trim()
+            : '';
 
-        if (!rawAscents || typeof rawAscents !== 'object') {
-          return normalized;
-        }
-
-        Object.entries(rawAscents).forEach(([uid, details]) => {
-          if (typeof uid !== 'string' || !uid.trim()) {
-            return;
-          }
-
-          const normalizedUid = uid.trim();
-          if (!details || typeof details !== 'object') {
-            return;
-          }
-
-          const gradeValue = normalizeGradeValue(details.grade);
-          const ascended = details.ascended === true;
-
-          normalized.set(normalizedUid, {
-            grade: gradeValue,
-            ascended,
-          });
-        });
-
-        return normalized;
+        return {
+          grade: gradeValue,
+          ascended,
+          betatip: betatipValue || null,
+        };
       }
 
-      function normalizeRouteBetatipsMap(rawBetatips) {
+      function normalizeRouteUsersMap(rawUsers) {
         const normalized = new Map();
 
-        if (!rawBetatips || typeof rawBetatips !== 'object') {
+        if (!rawUsers || typeof rawUsers !== 'object') {
           return normalized;
         }
 
-        Object.entries(rawBetatips).forEach(([username, value]) => {
-          if (typeof username !== 'string') {
+        if (rawUsers instanceof Map) {
+          rawUsers.forEach((details, username) => {
+            if (!isValidUsername(username)) {
+              return;
+            }
+            const normalizedUsername = normalizeUsername(username);
+            if (!normalizedUsername) {
+              return;
+            }
+            normalized.set(normalizedUsername, sanitizeRouteUserEntry(details));
+          });
+          return normalized;
+        }
+
+        Object.entries(rawUsers).forEach(([username, details]) => {
+          if (!isValidUsername(username)) {
             return;
           }
 
@@ -4915,21 +4918,109 @@
             return;
           }
 
-          let text = '';
-          if (typeof value === 'string') {
-            text = value.replace(/\r\n/g, '\n').trim();
-          } else if (value !== null && value !== undefined) {
-            text = String(value).trim();
-          }
-
-          if (!text) {
-            return;
-          }
-
-          normalized.set(normalizedUsername, text);
+          normalized.set(normalizedUsername, sanitizeRouteUserEntry(details));
         });
 
         return normalized;
+      }
+
+      function buildBetatipsMapFromUsers(usersMap) {
+        const normalized = new Map();
+
+        if (!(usersMap instanceof Map)) {
+          return normalized;
+        }
+
+        usersMap.forEach((details, username) => {
+          if (!details) {
+            return;
+          }
+
+          const text =
+            typeof details.betatip === 'string'
+              ? details.betatip.replace(/\r\n/g, '\n').trim()
+              : '';
+
+          if (text) {
+            normalized.set(username, text);
+          }
+        });
+
+        return normalized;
+      }
+
+      function normalizeRouteBetatipsMap(rawUsers) {
+        const usersMap = normalizeRouteUsersMap(rawUsers);
+        return buildBetatipsMapFromUsers(usersMap);
+      }
+
+      function sanitizeNormalizedPoint(point) {
+        const x = Number(point?.x);
+        const y = Number(point?.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          return null;
+        }
+        return { x, y };
+      }
+
+      function selectNormalizedPointsForPath(rawPoints, pathType) {
+        const normalizedType = normalizePathType(pathType) || PATH_TYPE_BREZER;
+
+        const extractPoints = (value) => {
+          if (!Array.isArray(value)) {
+            return [];
+          }
+          return value.map(sanitizeNormalizedPoint).filter(Boolean);
+        };
+
+        if (rawPoints instanceof Map) {
+          const points = rawPoints.get(normalizedType);
+          if (points) {
+            return extractPoints(points);
+          }
+
+          for (const [, value] of rawPoints.entries()) {
+            if (Array.isArray(value)) {
+              const candidate = extractPoints(value);
+              if (candidate.length) {
+                return candidate;
+              }
+            }
+          }
+          return [];
+        }
+
+        if (rawPoints && typeof rawPoints === 'object' && !Array.isArray(rawPoints)) {
+          const activePoints = extractPoints(rawPoints[normalizedType]);
+          if (activePoints.length || Array.isArray(rawPoints[normalizedType])) {
+            return activePoints;
+          }
+
+          const fallbackTypes = [
+            PATH_TYPE_BREZER,
+            PATH_TYPE_HOLLOW_POINT,
+            PATH_TYPE_FILLED_POINT,
+            PATH_TYPE_RECTANGLE,
+          ];
+
+          for (const type of fallbackTypes) {
+            if (type === normalizedType) {
+              continue;
+            }
+            const candidate = extractPoints(rawPoints[type]);
+            if (candidate.length) {
+              return candidate;
+            }
+          }
+
+          return [];
+        }
+
+        if (Array.isArray(rawPoints)) {
+          return extractPoints(rawPoints);
+        }
+
+        return [];
       }
 
       function getRouteBetatipsMap(routeId) {
@@ -4947,14 +5038,14 @@
         return map;
       }
 
-      function computeMedianFromAscentsMap(ascentsMap) {
-        if (!(ascentsMap instanceof Map) || ascentsMap.size === 0) {
+      function computeMedianFromUsersMap(usersMap) {
+        if (!(usersMap instanceof Map) || usersMap.size === 0) {
           return null;
         }
 
         const grades = [];
 
-        ascentsMap.forEach((details) => {
+        usersMap.forEach((details) => {
           const gradeValue = normalizeGradeValue(details?.grade);
           if (typeof gradeValue === 'number' && Number.isFinite(gradeValue)) {
             grades.push(gradeValue);
@@ -4979,8 +5070,8 @@
           return;
         }
 
-        const ascentsMap = routeAscentsCache.get(routeId);
-        const median = computeMedianFromAscentsMap(ascentsMap);
+        const usersMap = routeUsersCache.get(routeId);
+        const median = computeMedianFromUsersMap(usersMap);
         const medianValue =
           typeof median === 'number' && Number.isFinite(median) ? median : null;
 
@@ -5608,9 +5699,17 @@
           return;
         }
 
-        const userId = typeof currentUser?.uid === 'string' ? currentUser.uid.trim() : '';
-        if (!userId) {
-          console.warn('Unable to save grade: user ID missing.');
+        let username = isValidUsername(currentUsername) ? normalizeUsername(currentUsername) : '';
+        if (!username) {
+          const resolved = await resolveAuthenticatedUsername();
+          if (isValidUsername(resolved)) {
+            username = normalizeUsername(resolved);
+            currentUsername = username;
+          }
+        }
+
+        if (!isValidUsername(username)) {
+          console.warn('Unable to save grade: username missing.');
           return;
         }
 
@@ -5622,14 +5721,25 @@
 
         const routeRef = doc(db, 'routes', route.id);
         const isAscended = ascendedRoutes.has(route.id);
+        const previousDetails =
+          routeUsersCache.get(route.id) instanceof Map
+            ? routeUsersCache.get(route.id).get(username)
+            : null;
+        const existingBetatip =
+          typeof previousDetails?.betatip === 'string' && previousDetails.betatip
+            ? previousDetails.betatip
+            : null;
 
-          try {
-            await updateDoc(routeRef, {
-              [`ascents.${userId}`]: {
-                grade: sanitizedGrade,
-                ascended: isAscended,
-              },
-            });
+        try {
+          const userPayload = {
+            grade: sanitizedGrade,
+            ascended: isAscended,
+            betatip: existingBetatip,
+          };
+
+          await updateDoc(routeRef, {
+            [`users.${username}`]: userPayload,
+          });
 
           const existingEntry = userAscentDetails.get(route.id);
 
@@ -5647,12 +5757,19 @@
             userAscentDetails.set(route.id, nextEntry);
           }
 
-          let ascentsMap = routeAscentsCache.get(route.id);
-          if (!(ascentsMap instanceof Map)) {
-            ascentsMap = new Map();
-            routeAscentsCache.set(route.id, ascentsMap);
+          let usersMap = routeUsersCache.get(route.id);
+          if (!(usersMap instanceof Map)) {
+            usersMap = new Map();
+            routeUsersCache.set(route.id, usersMap);
           }
-          ascentsMap.set(userId, { grade: sanitizedGrade, ascended: isAscended });
+          usersMap.set(username, userPayload);
+
+          const betatipsMap = getRouteBetatipsMap(route.id);
+          if (existingBetatip) {
+            betatipsMap.set(username, existingBetatip);
+          } else {
+            betatipsMap.delete(username);
+          }
 
           updateMedianForRoute(route.id);
 
@@ -5691,9 +5808,29 @@
         const limitedText = normalizedText ? normalizedText.slice(0, MAX_BETATIP_LENGTH) : '';
 
         const routeRef = doc(db, 'routes', routeId);
+        const existingDetails =
+          routeUsersCache.get(routeId) instanceof Map
+            ? routeUsersCache.get(routeId).get(username)
+            : null;
+        const gradeValue = normalizeGradeValue(existingDetails?.grade);
+        const ascendedValue = existingDetails?.ascended === true;
+
+        const userPayload = {
+          grade: gradeValue,
+          ascended: ascendedValue,
+          betatip: limitedText || null,
+        };
+
         await updateDoc(routeRef, {
-          [`betatips.${username}`]: limitedText || null,
+          [`users.${username}`]: userPayload,
         });
+
+        let usersMap = routeUsersCache.get(routeId);
+        if (!(usersMap instanceof Map)) {
+          usersMap = new Map();
+          routeUsersCache.set(routeId, usersMap);
+        }
+        usersMap.set(username, userPayload);
 
         const betatipsMap = getRouteBetatipsMap(routeId);
         if (limitedText) {
@@ -5720,26 +5857,26 @@
       async function refreshMedianGrades() {
         try {
           const snapshot = await getDocs(collection(db, 'routes'));
-          const nextAscentsCache = new Map();
+          const nextUsersCache = new Map();
           const nextMedianMap = new Map();
           const nextBetatipsCache = new Map();
 
           snapshot.forEach((docSnap) => {
             const data = docSnap.data() ?? {};
-            const ascentsMap = normalizeRouteAscentsMap(data.ascents);
-            nextAscentsCache.set(docSnap.id, ascentsMap);
-            const betatipsMap = normalizeRouteBetatipsMap(data.betatips);
+            const usersMap = normalizeRouteUsersMap(data.users);
+            nextUsersCache.set(docSnap.id, usersMap);
+            const betatipsMap = buildBetatipsMapFromUsers(usersMap);
             nextBetatipsCache.set(docSnap.id, betatipsMap);
 
-            const median = computeMedianFromAscentsMap(ascentsMap);
+            const median = computeMedianFromUsersMap(usersMap);
             if (typeof median === 'number' && Number.isFinite(median)) {
               nextMedianMap.set(docSnap.id, median);
             }
           });
 
-          routeAscentsCache.clear();
-          nextAscentsCache.forEach((value, key) => {
-            routeAscentsCache.set(key, value);
+          routeUsersCache.clear();
+          nextUsersCache.forEach((value, key) => {
+            routeUsersCache.set(key, value);
           });
           routeBetatipsCache.clear();
           nextBetatipsCache.forEach((value, key) => {
@@ -6275,7 +6412,7 @@
             getDocs(collection(db, WALL_COLLECTION)),
           ]);
 
-          routeAscentsCache.clear();
+          routeUsersCache.clear();
           routeBetatipsCache.clear();
           routeMedianGrades = new Map();
 
@@ -6334,15 +6471,15 @@
           allRoutes = routesSnapshot.docs
             .map((docSnap) => {
               const data = docSnap.data() ?? {};
-              const ascentsMap = normalizeRouteAscentsMap(data.ascents);
-              routeAscentsCache.set(docSnap.id, ascentsMap);
-              const betatipsMap = normalizeRouteBetatipsMap(data.betatips);
+              const usersMap = normalizeRouteUsersMap(data.users);
+              routeUsersCache.set(docSnap.id, usersMap);
+              const betatipsMap = buildBetatipsMapFromUsers(usersMap);
               routeBetatipsCache.set(docSnap.id, betatipsMap);
               if (data.hiddenFromClimbers === true) {
                 return null;
               }
 
-              const medianValue = computeMedianFromAscentsMap(ascentsMap);
+              const medianValue = computeMedianFromUsersMap(usersMap);
               const medianGrade =
                 typeof medianValue === 'number' && Number.isFinite(medianValue)
                   ? medianValue
@@ -6352,18 +6489,10 @@
                 routeMedianGrades.set(docSnap.id, medianGrade);
               }
 
-              const normalizedPoints = Array.isArray(data.points)
-                ? data.points
-                    .map((point) => {
-                      const x = Number(point?.x);
-                      const y = Number(point?.y);
-                      if (!Number.isFinite(x) || !Number.isFinite(y)) {
-                        return null;
-                      }
-                      return { x, y };
-                    })
-                    .filter(Boolean)
-                : [];
+              const normalizedPoints = selectNormalizedPointsForPath(
+                data.points,
+                data.pathType,
+              );
 
               const rawLocationValue = typeof data.location === 'string' ? data.location.trim() : '';
               const defaultLocation = getDefaultLocation();
@@ -6432,7 +6561,7 @@
           focusedRouteId = null;
           updateClearFocusButton();
           routeMedianGrades = new Map();
-          routeAscentsCache.clear();
+          routeUsersCache.clear();
           routeBetatipsCache.clear();
           renderProgressionList();
           redraw();
@@ -6444,9 +6573,17 @@
           return;
         }
 
-        const userId = typeof currentUser?.uid === 'string' ? currentUser.uid.trim() : '';
-        if (!userId) {
-          console.warn('Unable to mark ascent: user ID missing.');
+        let username = isValidUsername(currentUsername) ? normalizeUsername(currentUsername) : '';
+        if (!username) {
+          const resolved = await resolveAuthenticatedUsername();
+          if (isValidUsername(resolved)) {
+            username = normalizeUsername(resolved);
+            currentUsername = username;
+          }
+        }
+
+        if (!isValidUsername(username)) {
+          console.warn('Unable to mark ascent: username missing.');
           return;
         }
 
@@ -6455,38 +6592,56 @@
           console.warn('Unable to mark ascent: route ID missing.');
           return;
         }
+
         const routeRef = doc(db, 'routes', routeId);
         const isAscended = ascendedRoutes.has(routeId);
-        const previousEntry = userAscentDetails.get(routeId) || {};
+        const previousDetails =
+          routeUsersCache.get(routeId) instanceof Map
+            ? routeUsersCache.get(routeId).get(username)
+            : null;
         const persistedGrade =
-          typeof previousEntry.grade === 'number' && Number.isFinite(previousEntry.grade)
-            ? previousEntry.grade
+          typeof previousDetails?.grade === 'number' && Number.isFinite(previousDetails.grade)
+            ? previousDetails.grade
             : getUserGradeForRoute(routeId);
         const normalizedGrade =
           typeof persistedGrade === 'number' && Number.isFinite(persistedGrade)
             ? persistedGrade
             : null;
+        const existingBetatip =
+          typeof previousDetails?.betatip === 'string' && previousDetails.betatip
+            ? previousDetails.betatip
+            : null;
 
-          try {
-            const nextAscended = !isAscended;
-            await updateDoc(routeRef, {
-              [`ascents.${userId}`]: {
-                grade: normalizedGrade,
-                ascended: nextAscended,
-              },
-            });
+        try {
+          const nextAscended = !isAscended;
+          const userPayload = {
+            grade: normalizedGrade,
+            ascended: nextAscended,
+            betatip: existingBetatip,
+          };
 
-            userAscentDetails.set(routeId, {
-              ascended: nextAscended,
-              grade: normalizedGrade,
-            });
+          await updateDoc(routeRef, {
+            [`users.${username}`]: userPayload,
+          });
 
-          let ascentsMap = routeAscentsCache.get(routeId);
-          if (!(ascentsMap instanceof Map)) {
-            ascentsMap = new Map();
-            routeAscentsCache.set(routeId, ascentsMap);
+          userAscentDetails.set(routeId, {
+            ascended: nextAscended,
+            grade: normalizedGrade,
+          });
+
+          let usersMap = routeUsersCache.get(routeId);
+          if (!(usersMap instanceof Map)) {
+            usersMap = new Map();
+            routeUsersCache.set(routeId, usersMap);
           }
-          ascentsMap.set(userId, { grade: normalizedGrade, ascended: nextAscended });
+          usersMap.set(username, userPayload);
+
+          const betatipsMap = getRouteBetatipsMap(routeId);
+          if (existingBetatip) {
+            betatipsMap.set(username, existingBetatip);
+          } else {
+            betatipsMap.delete(username);
+          }
 
           updateMedianForRoute(routeId);
 

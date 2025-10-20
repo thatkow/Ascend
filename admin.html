@@ -500,7 +500,7 @@
 
     <section class="secondary-actions">
       <button id="removeOrphanedAscentsButton" class="secondary-button" type="button">
-        Remove ascents for deleted users
+        Remove user entries for deleted accounts
       </button>
       <button id="adminSetterToolsButton" class="secondary-button" type="button">Open setter tools</button>
       <button id="adminSignOutButton" class="secondary-button" type="button">Sign out</button>
@@ -1609,7 +1609,6 @@
         const collectionsToExport = [
           { key: 'walls', ref: collection(db, WALL_COLLECTION) },
           { key: 'routes', ref: collection(db, 'routes') },
-          { key: 'ascents', ref: collection(db, 'ascents') },
           { key: 'users', ref: collection(db, 'users') },
         ];
 
@@ -1742,7 +1741,7 @@
         return;
       }
 
-      setAdminStatus('Scanning routes for ascents linked to missing users…', 'info');
+      setAdminStatus('Scanning routes for user entries linked to missing accounts…', 'info');
       setControlsEnabled(false);
 
       try {
@@ -1751,28 +1750,41 @@
           getDocs(collection(db, 'routes')),
         ]);
 
-        const existingUserIds = new Set(usersSnapshot.docs.map((userDoc) => userDoc.id));
+        const existingUsernames = new Set();
+        usersSnapshot.forEach((userDoc) => {
+          const data = userDoc.data();
+          const username =
+            typeof data?.username === 'string' ? normalizeUsername(data.username) : '';
+          if (username) {
+            existingUsernames.add(username);
+          }
+        });
         let checkedRoutes = 0;
         let cleanedRoutes = 0;
-        let removedAscents = 0;
+        let removedEntries = 0;
 
         for (const routeDoc of routesSnapshot.docs) {
           checkedRoutes += 1;
           const routeData = routeDoc.data();
-          const ascents = routeData && typeof routeData === 'object' ? routeData.ascents : null;
+          const usersMap = routeData && typeof routeData === 'object' ? routeData.users : null;
 
-          if (!ascents || typeof ascents !== 'object') {
+          if (!usersMap || typeof usersMap !== 'object') {
             continue;
           }
 
           const updates = {};
           let hasChanges = false;
 
-          for (const [userId] of Object.entries(ascents)) {
-            if (!existingUserIds.has(userId)) {
-              updates[`ascents.${userId}`] = deleteField();
+          for (const [usernameKey] of Object.entries(usersMap)) {
+            if (typeof usernameKey !== 'string' || !usernameKey) {
+              continue;
+            }
+
+            const normalizedUsername = normalizeUsername(usernameKey);
+            if (!normalizedUsername || !existingUsernames.has(normalizedUsername)) {
+              updates[`users.${usernameKey}`] = deleteField();
               hasChanges = true;
-              removedAscents += 1;
+              removedEntries += 1;
             }
           }
 
@@ -1782,19 +1794,19 @@
           }
         }
 
-        if (removedAscents === 0) {
-          setAdminStatus(`Checked ${checkedRoutes} routes. No orphaned ascents found.`, 'info');
+        if (removedEntries === 0) {
+          setAdminStatus(`Checked ${checkedRoutes} routes. No orphaned user entries found.`, 'info');
         } else {
           const routeLabel = cleanedRoutes === 1 ? 'route' : 'routes';
-          const ascentLabel = removedAscents === 1 ? 'ascent' : 'ascents';
+          const entryLabel = removedEntries === 1 ? 'entry' : 'entries';
           setAdminStatus(
-            `Removed ${removedAscents} orphaned ${ascentLabel} across ${cleanedRoutes} ${routeLabel}.`,
+            `Removed ${removedEntries} orphaned user ${entryLabel} across ${cleanedRoutes} ${routeLabel}.`,
             'success',
           );
         }
       } catch (error) {
-        console.error('Failed to remove orphaned ascents:', error);
-        setAdminStatus('Failed to remove orphaned ascents. Check console for details.', 'error');
+        console.error('Failed to remove orphaned user entries:', error);
+        setAdminStatus('Failed to remove orphaned user entries. Check console for details.', 'error');
       } finally {
         setControlsEnabled(true);
       }
@@ -1806,7 +1818,7 @@
       }
 
       const confirmed = window.confirm(
-        'Clear the database? This will permanently delete walls, routes, ascents, and user accounts. This cannot be undone.',
+        'Clear the database? This will permanently delete walls, routes, and user accounts. This cannot be undone.',
       );
 
       if (!confirmed) {
@@ -1820,7 +1832,6 @@
         const collectionsToClear = [
           { key: WALL_COLLECTION, ref: collection(db, WALL_COLLECTION) },
           { key: 'routes', ref: collection(db, 'routes') },
-          { key: 'ascents', ref: collection(db, 'ascents') },
           { key: 'users', ref: collection(db, 'users') },
         ];
 

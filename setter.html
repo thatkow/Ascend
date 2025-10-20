@@ -4493,6 +4493,7 @@
     };
 
     const points = [];
+    const normalizedPointsByPathType = new Map();
     let strokeColor = sanitizeColor(colorPicker.value || '#ffde59');
     let pathType = DEFAULT_PATH_TYPE;
     let isDrawingEnabled = false;
@@ -5622,6 +5623,13 @@
         typeof rawMedianGrade === 'number' && Number.isFinite(rawMedianGrade)
           ? Math.min(Math.max(rawMedianGrade, MIN_GRADE_VALUE), MAX_GRADE_VALUE)
           : null;
+      const { pointsByType, activePoints } = normalizeRoutePoints(
+        rest.points,
+        normalizedPathType,
+      );
+
+      const usersMap = normalizeRouteUsers(rest.users);
+
       return {
         id: rawId,
         ...rest,
@@ -5640,7 +5648,9 @@
         gradeBarMaxHeight: wallSettings.gradeBarMaxHeight,
         gradeBarWidth: wallSettings.gradeBarWidth,
         gradeBarTransparency: wallSettings.gradeBarTransparency,
-        points: Array.isArray(rest.points) ? rest.points : [],
+        points: activePoints,
+        pointsByType,
+        users: usersMap,
         date_set: normalizeDateValue(rest.date_set),
         location: locationName,
         locationKey,
@@ -5669,30 +5679,180 @@
         return sorted[mid];
       }
 
-      function sanitizeAscentsForPersistence(rawAscents) {
+      function sanitizeNormalizedPoint(point) {
+        const x = Number(point?.x);
+        const y = Number(point?.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          return null;
+        }
+        return { x, y };
+      }
+
+      function sanitizeNormalizedPointsArray(rawPoints) {
+        if (Array.isArray(rawPoints)) {
+          return rawPoints.map(sanitizeNormalizedPoint).filter(Boolean);
+        }
+
+        if (rawPoints && typeof rawPoints === 'object' && rawPoints !== null) {
+          return Object.values(rawPoints).map(sanitizeNormalizedPoint).filter(Boolean);
+        }
+
+        return [];
+      }
+
+      function normalizeRoutePoints(rawPoints, activePathType) {
+        const normalizedActiveType = normalizePathType(activePathType);
+        const pointsByType = new Map();
+
+        if (rawPoints instanceof Map) {
+          rawPoints.forEach((value, key) => {
+            const normalizedKey = normalizePathType(key);
+            if (!normalizedKey) {
+              return;
+            }
+            pointsByType.set(normalizedKey, sanitizeNormalizedPointsArray(value));
+          });
+        } else if (rawPoints && typeof rawPoints === 'object' && !Array.isArray(rawPoints)) {
+          Object.entries(rawPoints).forEach(([key, value]) => {
+            const normalizedKey = normalizePathType(key);
+            if (!normalizedKey) {
+              return;
+            }
+            pointsByType.set(normalizedKey, sanitizeNormalizedPointsArray(value));
+          });
+        } else if (Array.isArray(rawPoints)) {
+          pointsByType.set(normalizedActiveType, sanitizeNormalizedPointsArray(rawPoints));
+        }
+
+        if (!pointsByType.has(normalizedActiveType)) {
+          pointsByType.set(normalizedActiveType, []);
+        }
+
+        return {
+          pointsByType,
+          activePoints: pointsByType.get(normalizedActiveType) || [],
+        };
+      }
+
+      function serialiseNormalizedPointsByType(pointsByType) {
+        const payload = {};
+        if (!(pointsByType instanceof Map)) {
+          return payload;
+        }
+
+        pointsByType.forEach((pointsArray, key) => {
+          if (!key || !Array.isArray(pointsArray)) {
+            return;
+          }
+          const sanitized = pointsArray
+            .map((point) => sanitizeNormalizedPoint(point))
+            .filter(Boolean)
+            .map(({ x, y }) => ({
+              x: Number(x),
+              y: Number(y),
+            }));
+
+          payload[key] = sanitized;
+        });
+
+        return payload;
+      }
+
+      function sanitizeUsersForPersistence(rawUsers) {
         const sanitized = {};
 
-        if (!rawAscents || typeof rawAscents !== 'object') {
+        if (!rawUsers || typeof rawUsers !== 'object') {
           return sanitized;
         }
 
-        Object.entries(rawAscents).forEach(([uid, details]) => {
-          if (typeof uid !== 'string' || !uid.trim()) {
+        if (rawUsers instanceof Map) {
+          rawUsers.forEach((details, username) => {
+            if (!isValidUsername(username)) {
+              return;
+            }
+            const normalizedUsername = normalizeUsername(username);
+            if (!normalizedUsername) {
+              return;
+            }
+            sanitized[normalizedUsername] = sanitizeUserEntry(details);
+          });
+          return sanitized;
+        }
+
+        Object.entries(rawUsers).forEach(([username, details]) => {
+          if (!isValidUsername(username)) {
             return;
           }
 
-          if (!details || typeof details !== 'object') {
+          const normalizedUsername = normalizeUsername(username);
+          if (!normalizedUsername) {
             return;
           }
 
-          const normalizedGrade = normalizeGradeValue(details.grade);
-          sanitized[uid.trim()] = {
-            grade: normalizedGrade,
-            ascended: details.ascended === true,
-          };
+          sanitized[normalizedUsername] = sanitizeUserEntry(details);
         });
 
         return sanitized;
+      }
+
+      function sanitizeUserEntry(details) {
+        const normalizedDetails =
+          details && typeof details === 'object' ? details : {};
+
+        const normalizedGrade = normalizeGradeValue(normalizedDetails.grade);
+        let ascendedValue = null;
+        if (normalizedDetails.ascended === true) {
+          ascendedValue = true;
+        } else if (normalizedDetails.ascended === false) {
+          ascendedValue = false;
+        }
+
+        const betatipValue =
+          typeof normalizedDetails.betatip === 'string'
+            ? normalizedDetails.betatip.replace(/\r\n/g, '\n').trim()
+            : null;
+
+        return {
+          grade: normalizedGrade,
+          ascended: ascendedValue,
+          betatip: betatipValue || null,
+        };
+      }
+
+      function normalizeRouteUsers(rawUsers) {
+        const map = new Map();
+        if (!rawUsers || typeof rawUsers !== 'object') {
+          return map;
+        }
+
+        if (rawUsers instanceof Map) {
+          rawUsers.forEach((details, username) => {
+            if (!isValidUsername(username)) {
+              return;
+            }
+            const normalizedUsername = normalizeUsername(username);
+            if (!normalizedUsername) {
+              return;
+            }
+            map.set(normalizedUsername, sanitizeUserEntry(details));
+          });
+          return map;
+        }
+
+        Object.entries(rawUsers).forEach(([username, details]) => {
+          if (!isValidUsername(username)) {
+            return;
+          }
+
+          const normalizedUsername = normalizeUsername(username);
+          if (!normalizedUsername) {
+            return;
+          }
+
+          map.set(normalizedUsername, sanitizeUserEntry(details));
+        });
+
+        return map;
       }
 
       async function fetchMedianGrades() {
@@ -5703,15 +5863,19 @@
 
           snapshot.forEach((docSnap) => {
             const data = docSnap.data() ?? {};
-            const rawAscents = data.ascents;
+            const userEntries = normalizeRouteUsers(data.users);
 
-            if (!rawAscents || typeof rawAscents !== 'object') {
+            if (!(userEntries instanceof Map) || userEntries.size === 0) {
               return;
             }
 
-            const grades = Object.values(rawAscents)
-              .map((entry) => normalizeGradeValue(entry?.grade))
-              .filter((grade) => grade !== null);
+            const grades = [];
+            userEntries.forEach((entry) => {
+              const grade = normalizeGradeValue(entry?.grade);
+              if (grade !== null) {
+                grades.push(grade);
+              }
+            });
 
             if (!grades.length) {
               return;
@@ -6640,32 +6804,79 @@
       });
     }
 
-    function applyNormalizedPoints(normalizedPoints = []) {
-      if (!Array.isArray(normalizedPoints)) {
-        loadedNormalizedPoints = null;
-        points.length = 0;
-        redraw();
-        return;
-      }
+    function setCanvasPointsFromNormalized(normalizedPoints = []) {
+      const target = Array.isArray(normalizedPoints)
+        ? normalizedPoints.map((point) => ({ x: Number(point?.x), y: Number(point?.y) }))
+        : [];
 
-      const filtered = normalizedPoints
-        .map((point) => {
-          const x = Number(point?.x);
-          const y = Number(point?.y);
-          if (Number.isFinite(x) && Number.isFinite(y)) {
-            return { x, y };
-          }
-          return null;
-        })
-        .filter(Boolean);
+      const filtered = target.filter(
+        ({ x, y }) => Number.isFinite(x) && Number.isFinite(y),
+      );
 
       loadedNormalizedPoints = filtered;
       points.length = 0;
       filtered.forEach(({ x, y }) => {
         points.push({ x: x * canvas.width, y: y * canvas.height });
       });
-
       redraw();
+    }
+
+    function loadPointsForActivePathType() {
+      const activeType = normalizePathType(pathType);
+      const normalized = normalizedPointsByPathType.get(activeType) || [];
+      const sanitized = sanitizeNormalizedPointsArray(normalized);
+      normalizedPointsByPathType.set(activeType, sanitized);
+      setCanvasPointsFromNormalized(sanitized);
+    }
+
+    function flushActivePointsToNormalized() {
+      const activeType = normalizePathType(pathType);
+      if (!activeType) {
+        return [];
+      }
+
+      const normalized = convertPointsToNormalized();
+      normalizedPointsByPathType.set(activeType, normalized);
+      loadedNormalizedPoints = normalized;
+      return normalized;
+    }
+
+    function synchroniseNormalizedPoints(pointsByType, activeType) {
+      const normalizedActiveType = normalizePathType(activeType) || DEFAULT_PATH_TYPE;
+      normalizedPointsByPathType.clear();
+
+      const register = (type, value) => {
+        const normalizedType = normalizePathType(type);
+        if (!normalizedType) {
+          return;
+        }
+        normalizedPointsByPathType.set(
+          normalizedType,
+          sanitizeNormalizedPointsArray(value),
+        );
+      };
+
+      if (pointsByType instanceof Map) {
+        pointsByType.forEach((value, key) => {
+          register(key, value);
+        });
+      } else if (
+        pointsByType &&
+        typeof pointsByType === 'object' &&
+        !Array.isArray(pointsByType)
+      ) {
+        Object.entries(pointsByType).forEach(([key, value]) => {
+          register(key, value);
+        });
+      } else if (Array.isArray(pointsByType)) {
+        register(normalizedActiveType, pointsByType);
+      }
+
+      if (!normalizedPointsByPathType.has(normalizedActiveType)) {
+        normalizedPointsByPathType.set(normalizedActiveType, []);
+      }
+
+      loadPointsForActivePathType();
     }
 
     function convertPointsToNormalized() {
@@ -6861,12 +7072,13 @@
     }
 
     function clearCanvas() {
-      if (!points.length) {
+      const activeType = normalizePathType(pathType);
+      if (!points.length && (!loadedNormalizedPoints || !loadedNormalizedPoints.length)) {
         return;
       }
-      points.length = 0;
-      loadedNormalizedPoints = null;
-      redraw();
+
+      normalizedPointsByPathType.set(activeType, []);
+      setCanvasPointsFromNormalized([]);
       markUnsavedChange();
     }
 
@@ -6898,7 +7110,7 @@
         },
       });
 
-      pathType = data.pathType || DEFAULT_PATH_TYPE;
+      pathType = normalizePathType(data.pathType) || DEFAULT_PATH_TYPE;
       updatePathControls();
 
       currentRouteKey = routeKey;
@@ -6916,7 +7128,7 @@
       }
       colorPicker.value = strokeColor;
       syncAdvancedColorPicker(strokeColor);
-      applyNormalizedPoints(data.points);
+      synchroniseNormalizedPoints(data.pointsByType ?? data.points, pathType);
       deleteButton.disabled = !routeKey;
       resetUnsavedState();
 
@@ -6957,9 +7169,9 @@
       currentRouteMedianGrade = null;
       updatePathControls();
       updateAppearanceControls();
-      loadedNormalizedPoints = null;
-      points.length = 0;
-      redraw();
+      normalizedPointsByPathType.clear();
+      normalizedPointsByPathType.set(pathType, []);
+      loadPointsForActivePathType();
       deleteButton.disabled = true;
       resetUnsavedState();
       if (statusMessage) {
@@ -7077,7 +7289,10 @@
         return;
       }
 
-      const normalizedPoints = convertPointsToNormalized();
+      flushActivePointsToNormalized();
+      const pointsPayload = serialiseNormalizedPointsByType(
+        normalizedPointsByPathType,
+      );
       const setter = normalizeSetterName(routeSetterInput.value);
       routeSetterInput.value = setter;
       if (!setter) {
@@ -7157,7 +7372,7 @@
         description: description || null,
         strokeColor,
         pathType: normalizedPathType,
-        points: normalizedPoints,
+        points: pointsPayload,
         date_set: dateSetIso,
         date_removed: deleteField(),
         location: currentLocation?.name || DEFAULT_LOCATION?.name || null,
@@ -7176,7 +7391,7 @@
 
           const existingSnap = await getDoc(routeRef);
           const existingData = existingSnap.data();
-          let ascentsPayload = null;
+          let usersPayload = null;
 
           if (!existingSnap.exists()) {
             payload.createdAt = serverTimestamp();
@@ -7184,59 +7399,59 @@
             if (isRenaming && previousRouteKey) {
               try {
                 const previousSnap = await getDoc(doc(db, 'routes', previousRouteKey));
-                const previousAscents = previousSnap.data()?.ascents;
-                if (previousAscents && typeof previousAscents === 'object') {
-                  ascentsPayload = sanitizeAscentsForPersistence(previousAscents);
+                const previousUsers = previousSnap.data()?.users;
+                if (previousUsers && typeof previousUsers === 'object') {
+                  usersPayload = sanitizeUsersForPersistence(previousUsers);
                 }
               } catch (error) {
-                console.warn('Failed to copy ascents from previous route:', error);
+                console.warn('Failed to copy user entries from previous route:', error);
               }
             }
 
-            if (ascentsPayload === null) {
-              ascentsPayload = {};
+            if (usersPayload === null) {
+              usersPayload = {};
             }
-          } else if (!existingData?.ascents || typeof existingData.ascents !== 'object') {
-            ascentsPayload = {};
+          } else if (!existingData?.users || typeof existingData.users !== 'object') {
+            usersPayload = {};
           }
 
-          if (ascentsPayload !== null) {
-            payload.ascents = ascentsPayload;
+          if (usersPayload !== null) {
+            payload.users = usersPayload;
           }
 
           await setDoc(routeRef, payload, { merge: true });
 
-        loadedNormalizedPoints = normalizedPoints;
-        currentRouteKey = routeKey;
-        routesCache.set(
-          routeKey,
-          normalizeRouteData({
-            id: routeKey,
-            ...payload,
-            pointDiameter: normalizedPointDiameter,
-            hollowPointDiameter: normalizedHollowPointDiameter,
-            filledPointDiameter: normalizedFilledPointDiameter,
-            brezerStrokeWidth: wallSettings.brezerStrokeWidth,
-            rectangleWidth: normalizedRectangleWidth,
-            rectangleHeight: normalizedRectangleHeight,
-          }),
-        );
+          currentRouteKey = routeKey;
+          routesCache.set(
+            routeKey,
+            normalizeRouteData({
+              id: routeKey,
+              ...payload,
+              users: usersPayload !== null ? usersPayload : existingData?.users,
+              pointDiameter: normalizedPointDiameter,
+              hollowPointDiameter: normalizedHollowPointDiameter,
+              filledPointDiameter: normalizedFilledPointDiameter,
+              brezerStrokeWidth: wallSettings.brezerStrokeWidth,
+              rectangleWidth: normalizedRectangleWidth,
+              rectangleHeight: normalizedRectangleHeight,
+            }),
+          );
 
-        if (isRenaming) {
-          try {
-            await deleteDoc(doc(db, 'routes', previousRouteKey));
-            routesCache.delete(previousRouteKey);
-          } catch (error) {
-            console.warn('Failed to delete previous route entry:', error);
+          if (isRenaming) {
+            try {
+              await deleteDoc(doc(db, 'routes', previousRouteKey));
+              routesCache.delete(previousRouteKey);
+            } catch (error) {
+              console.warn('Failed to delete previous route entry:', error);
+            }
           }
-        }
 
-        resetUnsavedState();
+          resetUnsavedState();
 
-        const label = title || routeKey;
-        await loadRoutesList(routeKey);
-        prepareNewRoute();
-        setStatus(`Route “${label}” saved successfully.`, 'success');
+          const label = title || routeKey;
+          await loadRoutesList(routeKey);
+          prepareNewRoute();
+          setStatus(`Route “${label}” saved successfully.`, 'success');
       } catch (error) {
         console.error('Failed to save route:', error);
         setStatus(error.message || 'Failed to save route.', 'error');
@@ -7411,15 +7626,24 @@
           return;
         }
 
+        flushActivePointsToNormalized();
         pathType = selectedType;
         updatePathControls();
 
-        if (currentRouteKey && routesCache.has(currentRouteKey)) {
-          const cached = routesCache.get(currentRouteKey);
-          routesCache.set(currentRouteKey, { ...cached, pathType: selectedType });
+        if (!normalizedPointsByPathType.has(pathType)) {
+          normalizedPointsByPathType.set(pathType, []);
         }
 
-        redraw();
+        loadPointsForActivePathType();
+
+        if (currentRouteKey && routesCache.has(currentRouteKey)) {
+          const cached = routesCache.get(currentRouteKey);
+          routesCache.set(currentRouteKey, {
+            ...cached,
+            pathType: selectedType,
+            pointsByType: new Map(normalizedPointsByPathType),
+          });
+        }
         markUnsavedChange();
       });
     }
