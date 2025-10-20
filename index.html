@@ -3899,7 +3899,7 @@
         const normalizedUsername = normalizeUsername(username);
 
         if (!normalizedUsername) {
-          return { role: '' };
+          return { role: null };
         }
 
         const userRef = doc(db, 'users', user.uid);
@@ -3942,7 +3942,7 @@
               ...data,
               ...(updates.username ? { username: normalizedUsername } : {}),
               ...(updates.updatedAt ? { updatedAt: updates.updatedAt } : {}),
-              role: trimmedRole,
+              role: trimmedRole || null,
             };
           }
 
@@ -3961,14 +3961,12 @@
             username: normalizedUsername,
             createdAt: timestamp,
             updatedAt: timestamp,
+            role: null,
           };
 
           await setDoc(userRef, userData);
 
-          return {
-            ...userData,
-            role: '',
-          };
+          return userData;
         } catch (error) {
           console.error('Failed to ensure user record:', error);
           throw error;
