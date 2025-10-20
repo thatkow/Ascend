@@ -783,6 +783,33 @@
         margin-top: 0.5rem;
       }
 
+      .info-popover-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+      }
+
+      .info-popover-button {
+        border: none;
+        border-radius: 999px;
+        padding: 0.5rem 1rem;
+        background: rgba(126, 217, 87, 0.85);
+        color: #041305;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      }
+
+      .info-popover-button:hover,
+      .info-popover-button:focus-visible {
+        background: rgba(126, 217, 87, 1);
+        box-shadow: 0 12px 28px rgba(126, 217, 87, 0.35);
+        transform: translateY(-1px);
+        outline: none;
+      }
+
       .info-highlights {
         position: fixed;
         inset: 0;
@@ -1438,6 +1465,11 @@
         >
           <p>Tap a header button to learn what it does.</p>
           <p>The next button you press will open its tooltip and close this message.</p>
+          <div class="info-popover-actions">
+            <button id="startPersonalTutorialButton" class="info-popover-button" type="button">
+              Take the personal tour
+            </button>
+          </div>
         </div>
       </div>
       <header class="app-header">
@@ -1704,6 +1736,7 @@
       const tooltip = document.getElementById('routeTooltip');
       const infoButton = document.getElementById('infoButton');
       const infoPopover = document.getElementById('infoPopover');
+      const startPersonalTutorialButton = document.getElementById('startPersonalTutorialButton');
       const locationButton = document.getElementById('locationButton');
       const viewToggleGroup = document.getElementById('viewToggleGroup');
       const viewToggleButtons = Array.from(
@@ -1775,6 +1808,7 @@
       let tutorialPreviousViewMode = null;
 
       let tutorialOptOut = false;
+      let tutorialAutoStartTimer = null;
 
       const PERSONAL_TUTORIAL_OPT_OUT_KEY = 'ascend.personalTutorial.optOut';
       const PERSONAL_TUTORIAL_VERSION_KEY = 'ascend.personalTutorial.version';
@@ -2446,9 +2480,25 @@
         }
       }
 
-      async function startTutorial() {
-        if (tutorialOptOut || tutorialActive || tutorialTransitionInProgress) {
+      async function startTutorial(options = {}) {
+        const { force = false } = options ?? {};
+
+        if (tutorialActive || tutorialTransitionInProgress) {
           return;
+        }
+
+        if (tutorialOptOut && !force) {
+          return;
+        }
+
+        if (force && tutorialOptOut) {
+          tutorialOptOut = false;
+          persistTutorialOptOut(false);
+        }
+
+        if (tutorialAutoStartTimer !== null) {
+          clearTimeout(tutorialAutoStartTimer);
+          tutorialAutoStartTimer = null;
         }
 
         tutorialSteps = buildPersonalTutorialSteps();
@@ -2504,7 +2554,37 @@
       async function skipTutorial() {
         tutorialOptOut = true;
         persistTutorialOptOut(true);
+        if (tutorialAutoStartTimer !== null) {
+          clearTimeout(tutorialAutoStartTimer);
+          tutorialAutoStartTimer = null;
+        }
         await finishTutorial();
+      }
+
+      function requestTutorialAutoStart({ delay = 300 } = {}) {
+        if (tutorialOptOut || tutorialActive || tutorialTransitionInProgress) {
+          return;
+        }
+
+        if (tutorialAutoStartTimer !== null) {
+          return;
+        }
+
+        const resolvedDelay = Number.isFinite(delay) && delay >= 0 ? delay : 0;
+
+        tutorialAutoStartTimer = window.setTimeout(async () => {
+          tutorialAutoStartTimer = null;
+
+          if (tutorialOptOut || tutorialActive || tutorialTransitionInProgress) {
+            return;
+          }
+
+          try {
+            await startTutorial();
+          } catch (error) {
+            console.warn('Failed to start tutorial automatically:', error);
+          }
+        }, resolvedDelay);
       }
 
       function handleTutorialKeydown(event) {
@@ -4054,6 +4134,25 @@
         });
       }
 
+      if (startPersonalTutorialButton) {
+        startPersonalTutorialButton.addEventListener('click', async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+
+          if (infoModeActive) {
+            deactivateInfoMode({ clearCallout: true });
+          } else {
+            hideInfoPopover();
+          }
+
+          try {
+            await startTutorial({ force: true });
+          } catch (error) {
+            console.warn('Unable to launch personal tutorial:', error);
+          }
+        });
+      }
+
       document.addEventListener(
         'pointerdown',
         (event) => {
@@ -4626,13 +4725,15 @@
 
           await loadRoutes();
           await loadAscents({ username: currentUsername });
-          if (!tutorialOptOut) {
-            await startTutorial();
-          }
+          requestTutorialAutoStart({ delay: 300 });
         } else {
           authOverlay.classList.remove('hidden');
           appContent.classList.add('hidden');
           setterLink.classList.add('hidden');
+          if (tutorialAutoStartTimer !== null) {
+            clearTimeout(tutorialAutoStartTimer);
+            tutorialAutoStartTimer = null;
+          }
           void finishTutorial();
           if (infoModeActive) {
             deactivateInfoMode({ clearCallout: true });
