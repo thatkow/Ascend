@@ -4373,6 +4373,12 @@
             ? ensuredRole.role.trim().toLowerCase()
             : 'default';
         } catch (error) {
+          if (error && typeof error === 'object' && 'code' in error) {
+            const code = String(error.code);
+            if (code === 'permission-denied') {
+              return 'default';
+            }
+          }
           console.error('Failed to fetch user role:', error);
           return 'default';
         }
