@@ -1705,7 +1705,8 @@
         doc,
         getDoc,
         setDoc,
-        updateDoc,
+        addDoc,
+        deleteDoc,
         serverTimestamp,
         collection,
         getDocs,
@@ -3332,6 +3333,7 @@
             },
             { merge: true },
           );
+          uidUsernameCache.set(user.uid, normalizedUsername);
         } catch (error) {
           console.warn('Failed to synchronise username mapping for betatips:', error);
         }
@@ -3744,21 +3746,32 @@
       });
 
       async function lookupUsernameByUid(uid) {
-        if (!uid) {
+        const normalizedUid = typeof uid === 'string' ? uid.trim() : '';
+        if (!normalizedUid) {
           return '';
         }
 
+        const cached = uidUsernameCache.get(normalizedUid);
+        if (typeof cached === 'string') {
+          return cached;
+        }
+
         try {
-          const userSnap = await getDoc(doc(db, 'users', uid));
+          const userSnap = await getDoc(doc(db, 'users', normalizedUid));
 
           if (!userSnap.exists()) {
+            uidUsernameCache.set(normalizedUid, '');
             return '';
           }
 
           const data = userSnap.data() || {};
-          return normalizeUsername(typeof data.username === 'string' ? data.username : '');
+          const resolved = normalizeUsername(typeof data.username === 'string' ? data.username : '');
+          const normalizedUsername = isValidUsername(resolved) ? resolved : '';
+          uidUsernameCache.set(normalizedUid, normalizedUsername);
+          return normalizedUsername;
         } catch (error) {
           console.error('Failed to look up username by UID:', error);
+          uidUsernameCache.set(normalizedUid, '');
           return '';
         }
       }
@@ -4048,8 +4061,9 @@
         authenticatedUsernameClaim = '';
         ascendedRoutes.clear();
         userAscentDetails = new Map();
-        routeUsersCache.clear();
+        routeScoresCache.clear();
         routeBetatipsCache.clear();
+        uidUsernameCache.clear();
         hideTooltip({ force: true });
 
         await loadRoutes();
@@ -4845,7 +4859,7 @@
           appContent.classList.remove('hidden');
 
           await loadRoutes();
-          await loadAscents({ username: currentUsername });
+          await loadAscents({ uid: currentUser?.uid || '' });
 
           return;
         }
@@ -4882,8 +4896,9 @@
       let pinnedRouteId = null;
       let pinnedPosition = null;
       const ascendedRoutes = new Set();
-      const routeUsersCache = new Map();
+      const routeScoresCache = new Map();
       const routeBetatipsCache = new Map();
+      const uidUsernameCache = new Map();
       let userAscentDetails = new Map();
       const normalizeRouteUidValue = (value) =>
         typeof value === 'string' && value.trim() ? value.trim() : '';
@@ -5016,24 +5031,22 @@
         }
       }
 
-      async function loadAscents({ username }) {
+      async function loadAscents({ uid }) {
         ascendedRoutes.clear();
         userAscentDetails = new Map();
 
-        const normalizedUsername = isValidUsername(username)
-          ? normalizeUsername(username)
-          : '';
-        if (!normalizedUsername) {
+        const normalizedUid = typeof uid === 'string' ? uid.trim() : '';
+        if (!normalizedUid) {
           synchroniseAscentsWithRoutes();
           return;
         }
 
-        routeUsersCache.forEach((usersMap, routeId) => {
-          if (!(usersMap instanceof Map)) {
+        routeScoresCache.forEach((scoresMap, routeId) => {
+          if (!(scoresMap instanceof Map)) {
             return;
           }
 
-          const entry = usersMap.get(normalizedUsername);
+          const entry = scoresMap.get(normalizedUid);
           if (!entry) {
             return;
           }
@@ -5130,89 +5143,6 @@
         }
 
         return null;
-      }
-
-      function sanitizeRouteUserEntry(details) {
-        const source = details && typeof details === 'object' ? details : {};
-        const gradeValue = normalizeGradeValue(source.grade);
-        const ascended = source.ascended === true;
-        const betatipValue =
-          typeof source.betatip === 'string'
-            ? source.betatip.replace(/\r\n/g, '\n').trim()
-            : '';
-
-        return {
-          grade: gradeValue,
-          ascended,
-          betatip: betatipValue || null,
-        };
-      }
-
-      function normalizeRouteUsersMap(rawUsers) {
-        const normalized = new Map();
-
-        if (!rawUsers || typeof rawUsers !== 'object') {
-          return normalized;
-        }
-
-        if (rawUsers instanceof Map) {
-          rawUsers.forEach((details, username) => {
-            if (!isValidUsername(username)) {
-              return;
-            }
-            const normalizedUsername = normalizeUsername(username);
-            if (!normalizedUsername) {
-              return;
-            }
-            normalized.set(normalizedUsername, sanitizeRouteUserEntry(details));
-          });
-          return normalized;
-        }
-
-        Object.entries(rawUsers).forEach(([username, details]) => {
-          if (!isValidUsername(username)) {
-            return;
-          }
-
-          const normalizedUsername = normalizeUsername(username);
-          if (!normalizedUsername) {
-            return;
-          }
-
-          normalized.set(normalizedUsername, sanitizeRouteUserEntry(details));
-        });
-
-        return normalized;
-      }
-
-      function buildBetatipsMapFromUsers(usersMap) {
-        const normalized = new Map();
-
-        if (!(usersMap instanceof Map)) {
-          return normalized;
-        }
-
-        usersMap.forEach((details, username) => {
-          if (!details) {
-            return;
-          }
-
-          const text =
-            typeof details.betatip === 'string'
-              ? details.betatip.replace(/\r\n/g, '\n').trim()
-              : '';
-
-          if (text) {
-            normalized.set(username, text);
-          }
-        });
-
-        return normalized;
-      }
-
-      function normalizeRouteBetatipsMap(rawUsers) {
-        const usersMap = normalizeRouteUsersMap(rawUsers);
-        return buildBetatipsMapFromUsers(usersMap);
       }
 
       function sanitizeNormalizedPoint(point) {
@@ -5373,6 +5303,21 @@
         return [];
       }
 
+      function getRouteScoresMap(routeId) {
+        if (typeof routeId !== 'string' || !routeId.trim()) {
+          return new Map();
+        }
+
+        const normalizedId = routeId.trim();
+        let map = routeScoresCache.get(normalizedId);
+        if (!(map instanceof Map)) {
+          map = new Map();
+          routeScoresCache.set(normalizedId, map);
+        }
+
+        return map;
+      }
+
       function getRouteBetatipsMap(routeId) {
         if (typeof routeId !== 'string' || !routeId.trim()) {
           return new Map();
@@ -5386,6 +5331,59 @@
         }
 
         return map;
+      }
+
+      function normalizeRouteScoreEntry(details) {
+        const grade = normalizeGradeValue(details?.grade);
+        const ascended = details?.ascended === true;
+
+        return {
+          grade,
+          ascended,
+        };
+      }
+
+      function normalizeRouteScoresMap(rawScores) {
+        const normalized = new Map();
+
+        if (!rawScores || typeof rawScores !== 'object') {
+          return normalized;
+        }
+
+        Object.entries(rawScores).forEach(([uid, value]) => {
+          if (typeof uid !== 'string' || !uid.trim()) {
+            return;
+          }
+
+          const entry = normalizeRouteScoreEntry(value || {});
+          normalized.set(uid.trim(), entry);
+        });
+
+        return normalized;
+      }
+
+      async function loadBetatipUpvotes(betatipId) {
+        if (typeof betatipId !== 'string' || !betatipId.trim()) {
+          return new Set();
+        }
+
+        try {
+          const snapshot = await getDocs(
+            collection(db, 'routes_users_betatips', betatipId.trim(), 'upvotes'),
+          );
+
+          const upvoters = new Set();
+          snapshot.forEach((docSnap) => {
+            if (typeof docSnap.id === 'string' && docSnap.id.trim()) {
+              upvoters.add(docSnap.id.trim());
+            }
+          });
+
+          return upvoters;
+        } catch (error) {
+          console.error('Failed to load betatip upvotes:', error);
+          return new Set();
+        }
       }
 
       function formatGradeDisplay(value) {
@@ -5802,37 +5800,36 @@
         }
 
         const betatipsMap = getRouteBetatipsMap(routeId);
-        const normalizedCurrentUsername = isValidUsername(currentUsername)
-          ? normalizeUsername(currentUsername)
-          : '';
+        const currentUid = typeof currentUser?.uid === 'string' ? currentUser.uid : '';
         const entries = [];
 
         if (betatipsMap instanceof Map) {
-          betatipsMap.forEach((text, username) => {
-            if (typeof username !== 'string') {
+          betatipsMap.forEach((details) => {
+            if (!details || typeof details !== 'object') {
               return;
             }
 
-            const normalizedUsername = normalizeUsername(username);
-            if (!normalizedUsername) {
+            const text = typeof details.betatip === 'string' ? details.betatip.trim() : '';
+            if (!text) {
               return;
             }
 
-            if (typeof text !== 'string') {
-              return;
-            }
-
-            const trimmed = text.trim();
-            if (!trimmed) {
-              return;
-            }
+            const normalizedUsername = isValidUsername(details.username)
+              ? normalizeUsername(details.username)
+              : '';
+            const displayName = normalizedUsername
+              ? normalizedUsername
+              : typeof details.userId === 'string' && details.userId
+              ? `User ${details.userId.slice(0, 6)}`
+              : 'Anonymous climber';
 
             entries.push({
-              username: normalizedUsername,
-              text: trimmed,
-              isCurrent: normalizedCurrentUsername
-                ? normalizedUsername === normalizedCurrentUsername
-                : false,
+              username: displayName,
+              text,
+              isCurrent:
+                currentUid && typeof details.userId === 'string'
+                  ? details.userId === currentUid
+                  : false,
             });
           });
         }
@@ -5907,17 +5904,9 @@
           return;
         }
 
-        let username = isValidUsername(currentUsername) ? normalizeUsername(currentUsername) : '';
-        if (!username) {
-          const resolved = await resolveAuthenticatedUsername();
-          if (isValidUsername(resolved)) {
-            username = normalizeUsername(resolved);
-            currentUsername = username;
-          }
-        }
-
-        if (!isValidUsername(username)) {
-          console.warn('Unable to save grade: username missing.');
+        const userId = typeof currentUser.uid === 'string' ? currentUser.uid.trim() : '';
+        if (!userId) {
+          console.warn('Unable to save grade: user ID missing.');
           return;
         }
 
@@ -5927,27 +5916,16 @@
           return;
         }
 
-        const routeRef = doc(db, 'routes', routeId);
+        const routeRef = doc(db, 'routes_users_scores', routeId);
         const isAscended = ascendedRoutes.has(routeId);
-        const previousDetails =
-          routeUsersCache.get(routeId) instanceof Map
-            ? routeUsersCache.get(routeId).get(username)
-            : null;
-        const existingBetatip =
-          typeof previousDetails?.betatip === 'string' && previousDetails.betatip
-            ? previousDetails.betatip
-            : null;
 
         try {
           const userPayload = {
             grade: sanitizedGrade,
             ascended: isAscended,
-            betatip: existingBetatip,
           };
 
-          await updateDoc(routeRef, {
-            [`users.${username}`]: userPayload,
-          });
+          await setDoc(routeRef, { [userId]: userPayload }, { merge: true });
 
           const existingEntry = userAscentDetails.get(routeId) || {};
 
@@ -5965,19 +5943,12 @@
             userAscentDetails.set(routeId, nextEntry);
           }
 
-          let usersMap = routeUsersCache.get(routeId);
-          if (!(usersMap instanceof Map)) {
-            usersMap = new Map();
-            routeUsersCache.set(routeId, usersMap);
+          let scoresMap = routeScoresCache.get(routeId);
+          if (!(scoresMap instanceof Map)) {
+            scoresMap = new Map();
+            routeScoresCache.set(routeId, scoresMap);
           }
-          usersMap.set(username, userPayload);
-
-          const betatipsMap = getRouteBetatipsMap(routeId);
-          if (existingBetatip) {
-            betatipsMap.set(username, existingBetatip);
-          } else {
-            betatipsMap.delete(username);
-          }
+          scoresMap.set(userId, userPayload);
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
@@ -5996,6 +5967,11 @@
           throw new Error('Unable to determine which route to update.');
         }
 
+        const userId = typeof currentUser.uid === 'string' ? currentUser.uid.trim() : '';
+        if (!userId) {
+          throw new Error('Unable to determine your account.');
+        }
+
         let username = isValidUsername(currentUsername) ? normalizeUsername(currentUsername) : '';
         if (!username) {
           const resolved = await resolveAuthenticatedUsername();
@@ -6009,40 +5985,92 @@
           throw new Error('Unable to resolve your username.');
         }
 
+        uidUsernameCache.set(userId, username);
+
         const normalizedText = typeof rawText === 'string' ? rawText.replace(/\r\n/g, '\n').trim() : '';
         const limitedText = normalizedText ? normalizedText.slice(0, MAX_BETATIP_LENGTH) : '';
 
-        const routeRef = doc(db, 'routes', routeId);
-        const existingDetails =
-          routeUsersCache.get(routeId) instanceof Map
-            ? routeUsersCache.get(routeId).get(username)
-            : null;
-        const gradeValue = normalizeGradeValue(existingDetails?.grade);
-        const ascendedValue = existingDetails?.ascended === true;
+        const betatipsMap = getRouteBetatipsMap(routeId);
+        const existingEntry = betatipsMap instanceof Map ? betatipsMap.get(userId) : null;
 
-        const userPayload = {
-          grade: gradeValue,
-          ascended: ascendedValue,
-          betatip: limitedText || null,
+        const existingUpvoters =
+          existingEntry?.upvoters instanceof Set ? new Set(existingEntry.upvoters) : new Set();
+
+        if (!limitedText) {
+          if (existingEntry) {
+            try {
+              const betatipRef = doc(db, 'routes_users_betatips', existingEntry.betatipId);
+              if (existingUpvoters.size) {
+                await Promise.all(
+                  Array.from(existingUpvoters).map((voter) =>
+                    deleteDoc(doc(betatipRef, 'upvotes', voter)),
+                  ),
+                );
+              }
+              await deleteDoc(betatipRef);
+            } catch (error) {
+              console.error('Failed to delete beta tip:', error);
+            }
+
+            betatipsMap.delete(userId);
+          }
+
+          [allRoutes, routes].forEach((collection) => {
+            if (!Array.isArray(collection)) {
+              return;
+            }
+
+            collection.forEach((entry) => {
+              if (entry && entry.id === routeId) {
+                entry.betatips = betatipsMap;
+              }
+            });
+          });
+
+          return '';
+        }
+
+        let betatipId = existingEntry?.betatipId || '';
+        const betatipData = {
+          routeId,
+          userId,
+          betatip: limitedText,
+          updatedAt: serverTimestamp(),
         };
 
-        await updateDoc(routeRef, {
-          [`users.${username}`]: userPayload,
-        });
-
-        let usersMap = routeUsersCache.get(routeId);
-        if (!(usersMap instanceof Map)) {
-          usersMap = new Map();
-          routeUsersCache.set(routeId, usersMap);
+        try {
+          if (betatipId) {
+            await setDoc(
+              doc(db, 'routes_users_betatips', betatipId),
+              {
+                ...betatipData,
+                upvoteCount: existingUpvoters.size,
+              },
+              { merge: true },
+            );
+          } else {
+            const betatipRef = await addDoc(collection(db, 'routes_users_betatips'), {
+              ...betatipData,
+              createdAt: serverTimestamp(),
+              upvoteCount: 0,
+            });
+            betatipId = betatipRef.id;
+          }
+        } catch (error) {
+          console.error('Failed to save beta tip:', error);
+          throw new Error('Unable to save your beta tip right now.');
         }
-        usersMap.set(username, userPayload);
 
-        const betatipsMap = getRouteBetatipsMap(routeId);
-        if (limitedText) {
-          betatipsMap.set(username, limitedText);
-        } else {
-          betatipsMap.delete(username);
-        }
+        const updatedEntry = {
+          betatipId,
+          userId,
+          username,
+          betatip: limitedText,
+          upvoters: existingUpvoters,
+          upvoteCount: existingUpvoters.size,
+        };
+
+        betatipsMap.set(userId, updatedEntry);
 
         [allRoutes, routes].forEach((collection) => {
           if (!Array.isArray(collection)) {
@@ -6541,13 +6569,78 @@
 
       async function loadRoutes() {
         try {
-          const [routesSnapshot, wallSnapshot] = await Promise.all([
-            getDocs(collection(db, 'routes')),
-            getDocs(collection(db, WALL_COLLECTION)),
-          ]);
+          const [routesSnapshot, wallSnapshot, scoresSnapshot, betatipsSnapshot] =
+            await Promise.all([
+              getDocs(collection(db, 'routes')),
+              getDocs(collection(db, WALL_COLLECTION)),
+              getDocs(collection(db, 'routes_users_scores')),
+              getDocs(collection(db, 'routes_users_betatips')),
+            ]);
 
-          routeUsersCache.clear();
+          routeScoresCache.clear();
           routeBetatipsCache.clear();
+
+          scoresSnapshot.forEach((docSnap) => {
+            const routeUid = normalizeRouteUidValue(docSnap.id);
+            if (!routeUid) {
+              return;
+            }
+
+            const normalizedScores = normalizeRouteScoresMap(docSnap.data() || {});
+            routeScoresCache.set(routeUid, normalizedScores);
+          });
+
+          const betatipEntries = [];
+          betatipsSnapshot.forEach((docSnap) => {
+            const data = docSnap.data() || {};
+            const routeId = normalizeRouteUidValue(data.routeId);
+            const userId = typeof data.userId === 'string' ? data.userId.trim() : '';
+
+            if (!routeId || !userId) {
+              return;
+            }
+
+            const text =
+              typeof data.betatip === 'string'
+                ? data.betatip.replace(/\r\n/g, '\n').trim()
+                : '';
+            const upvoteCount =
+              typeof data.upvoteCount === 'number' && Number.isFinite(data.upvoteCount)
+                ? data.upvoteCount
+                : 0;
+
+            if (!text) {
+              return;
+            }
+
+            betatipEntries.push({
+              id: docSnap.id,
+              routeId,
+              userId,
+              text,
+              upvoteCount,
+            });
+          });
+
+          await Promise.all(
+            betatipEntries.map(async (entry) => {
+              const resolvedUsername = await lookupUsernameByUid(entry.userId);
+              const normalizedUsername = isValidUsername(resolvedUsername)
+                ? resolvedUsername
+                : '';
+              const betatipsMap = getRouteBetatipsMap(entry.routeId);
+              const upvoters = await loadBetatipUpvotes(entry.id);
+              const calculatedCount = upvoters.size;
+              betatipsMap.set(entry.userId, {
+                betatipId: entry.id,
+                userId: entry.userId,
+                username: normalizedUsername,
+                betatip: entry.text,
+                upvoters,
+                upvoteCount: Math.max(entry.upvoteCount, calculatedCount),
+              });
+            }),
+          );
 
           wallSettingsCache.clear();
           const hiddenWallKeys = new Set();
@@ -6606,10 +6699,8 @@
               const data = docSnap.data() ?? {};
               const routeUid =
                 typeof data.uid === 'string' && data.uid.trim() ? data.uid.trim() : docSnap.id;
-              const usersMap = normalizeRouteUsersMap(data.users);
-              routeUsersCache.set(routeUid, usersMap);
-              const betatipsMap = buildBetatipsMapFromUsers(usersMap);
-              routeBetatipsCache.set(routeUid, betatipsMap);
+              const betatipsMap = getRouteBetatipsMap(routeUid);
+              getRouteScoresMap(routeUid);
               if (data.hiddenFromClimbers === true) {
                 return null;
               }
@@ -6693,7 +6784,7 @@
           routes = [];
           focusedRouteId = null;
           updateClearFocusButton();
-          routeUsersCache.clear();
+          routeScoresCache.clear();
           routeBetatipsCache.clear();
           renderProgressionList();
           redraw();
@@ -6705,17 +6796,9 @@
           return;
         }
 
-        let username = isValidUsername(currentUsername) ? normalizeUsername(currentUsername) : '';
-        if (!username) {
-          const resolved = await resolveAuthenticatedUsername();
-          if (isValidUsername(resolved)) {
-            username = normalizeUsername(resolved);
-            currentUsername = username;
-          }
-        }
-
-        if (!isValidUsername(username)) {
-          console.warn('Unable to mark ascent: username missing.');
+        const userId = typeof currentUser.uid === 'string' ? currentUser.uid.trim() : '';
+        if (!userId) {
+          console.warn('Unable to mark ascent: user ID missing.');
           return;
         }
 
@@ -6725,55 +6808,45 @@
           return;
         }
 
-        const routeRef = doc(db, 'routes', routeId);
+        const routeRef = doc(db, 'routes_users_scores', routeId);
         const isAscended = ascendedRoutes.has(routeId);
         const previousDetails =
-          routeUsersCache.get(routeId) instanceof Map
-            ? routeUsersCache.get(routeId).get(username)
+          routeScoresCache.get(routeId) instanceof Map
+            ? routeScoresCache.get(routeId).get(userId)
             : null;
-        const persistedGrade =
-          typeof previousDetails?.grade === 'number' && Number.isFinite(previousDetails.grade)
-            ? previousDetails.grade
-            : getUserGradeForRoute(routeId);
+        const persistedGrade = normalizeGradeValue(previousDetails?.grade);
+        const fallbackGrade = getUserGradeForRoute(routeId);
         const normalizedGrade =
           typeof persistedGrade === 'number' && Number.isFinite(persistedGrade)
             ? persistedGrade
-            : null;
-        const existingBetatip =
-          typeof previousDetails?.betatip === 'string' && previousDetails.betatip
-            ? previousDetails.betatip
+            : fallbackGrade;
+        const sanitizedGrade =
+          typeof normalizedGrade === 'number' && Number.isFinite(normalizedGrade)
+            ? normalizedGrade
             : null;
 
         try {
           const nextAscended = !isAscended;
           const userPayload = {
-            grade: normalizedGrade,
+            grade: sanitizedGrade,
             ascended: nextAscended,
-            betatip: existingBetatip,
           };
 
-          await updateDoc(routeRef, {
-            [`users.${username}`]: userPayload,
-          });
+          await setDoc(routeRef, {
+            [userId]: userPayload,
+          }, { merge: true });
 
           userAscentDetails.set(routeId, {
             ascended: nextAscended,
-            grade: normalizedGrade,
+            grade: sanitizedGrade,
           });
 
-          let usersMap = routeUsersCache.get(routeId);
-          if (!(usersMap instanceof Map)) {
-            usersMap = new Map();
-            routeUsersCache.set(routeId, usersMap);
+          let scoresMap = routeScoresCache.get(routeId);
+          if (!(scoresMap instanceof Map)) {
+            scoresMap = new Map();
+            routeScoresCache.set(routeId, scoresMap);
           }
-          usersMap.set(username, userPayload);
-
-          const betatipsMap = getRouteBetatipsMap(routeId);
-          if (existingBetatip) {
-            betatipsMap.set(username, existingBetatip);
-          } else {
-            betatipsMap.delete(username);
-          }
+          scoresMap.set(userId, userPayload);
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
