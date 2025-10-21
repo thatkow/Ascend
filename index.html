@@ -4306,7 +4306,7 @@
           return;
         }
 
-        const targetRoute = availableRoutes.find((route) => route && typeof route.id === 'string');
+        const targetRoute = availableRoutes.find((route) => getRouteId(route));
         if (!targetRoute) {
           return;
         }
@@ -4889,6 +4889,14 @@
       const routeBetatipsCache = new Map();
       let userAscentDetails = new Map();
       let routeMedianGrades = new Map();
+      const normalizeRouteUidValue = (value) =>
+        typeof value === 'string' && value.trim() ? value.trim() : '';
+      const getRouteId = (route) => {
+        if (!route) {
+          return '';
+        }
+        return normalizeRouteUidValue(route.uid) || normalizeRouteUidValue(route.id);
+      };
       const CLICK_DRAG_DISTANCE_THRESHOLD = 8;
       const CLICK_DRAG_DISTANCE_THRESHOLD_SQUARED =
         CLICK_DRAG_DISTANCE_THRESHOLD * CLICK_DRAG_DISTANCE_THRESHOLD;
@@ -4995,21 +5003,22 @@
         }
 
         routes.forEach((route) => {
-          if (!route?.id) {
+          const routeId = getRouteId(route);
+          if (!routeId) {
             return;
           }
 
-          const ascent = userAscentDetails.get(route.id);
+          const ascent = userAscentDetails.get(routeId);
           if (!ascent) {
             return;
           }
 
           if (typeof ascent.grade === 'number' && Number.isFinite(ascent.grade)) {
-            routeGrades.set(route.id, ascent.grade);
+            routeGrades.set(routeId, ascent.grade);
           }
 
           if (ascent.ascended) {
-            ascendedRoutes.add(route.id);
+            ascendedRoutes.add(routeId);
           }
         });
 
@@ -5456,7 +5465,8 @@
           return route.medianGrade;
         }
 
-        const stored = routeGrades.get(route.id);
+        const routeId = getRouteId(route);
+        const stored = routeGrades.get(routeId);
         if (typeof stored === 'number' && Number.isFinite(stored)) {
           return stored;
         }
@@ -5539,11 +5549,12 @@
           listItem.setAttribute('role', 'listitem');
           listItem.setAttribute('tabindex', '0');
 
-          if (route.id) {
-            listItem.dataset.routeId = route.id;
+          const routeId = getRouteId(route);
+          if (routeId) {
+            listItem.dataset.routeId = routeId;
           }
 
-          const isFocused = typeof route.id === 'string' && route.id === focusedRouteId;
+          const isFocused = routeId && routeId === focusedRouteId;
           if (isFocused) {
             listItem.classList.add('is-focused');
             listItem.setAttribute('aria-current', 'true');
@@ -5564,7 +5575,7 @@
           const details = document.createElement('div');
           const title = document.createElement('span');
           title.className = 'progression-entry-name';
-          title.textContent = route.title || route.id || 'Untitled route';
+          title.textContent = route.title || routeId || 'Untitled route';
 
           if (gradeColor) {
             title.style.color = gradeColor;
@@ -5575,7 +5586,7 @@
 
           const status = document.createElement('span');
           status.className = 'progression-entry-status';
-          const isAscended = Boolean(route.id && ascendedRoutes.has(route.id));
+          const isAscended = Boolean(routeId && ascendedRoutes.has(routeId));
 
           if (isAscended) {
             status.textContent = '✓';
@@ -5699,7 +5710,8 @@
       }
 
       function buildGradeControls(route) {
-        if (!route || !route.id) {
+        const routeId = getRouteId(route);
+        if (!routeId) {
           return null;
         }
 
@@ -5721,7 +5733,7 @@
         gradeInput.max = String(MAX_GRADE_VALUE);
         gradeInput.step = '1';
         gradeInput.inputMode = 'numeric';
-        const existingGrade = getUserGradeForRoute(route.id);
+        const existingGrade = getUserGradeForRoute(routeId);
         gradeInput.value = existingGrade !== null ? String(existingGrade) : '';
         gradeInput.placeholder = '—';
         gradeInput.dataset.infoTarget = 'route-grade';
@@ -5752,7 +5764,7 @@
           try {
             if (!rawValue) {
               gradeInput.setCustomValidity('');
-              await applyUserRouteGrade(route, null);
+            await applyUserRouteGrade(route, null);
               lastSubmittedValue = '';
               gradeInput.value = '';
               return;
@@ -5803,11 +5815,12 @@
       }
 
       function buildBetatipsSection(route, ariaLines = []) {
-        if (!route || !route.id) {
+        const routeId = getRouteId(route);
+        if (!routeId) {
           return null;
         }
 
-        const betatipsMap = getRouteBetatipsMap(route.id);
+        const betatipsMap = getRouteBetatipsMap(routeId);
         const normalizedCurrentUsername = isValidUsername(currentUsername)
           ? normalizeUsername(currentUsername)
           : '';
@@ -5903,7 +5916,8 @@
       }
 
       async function applyUserRouteGrade(route, gradeValue) {
-        if (!route || !route.id) {
+        const routeId = getRouteId(route);
+        if (!routeId) {
           return;
         }
 
@@ -5932,11 +5946,11 @@
           return;
         }
 
-        const routeRef = doc(db, 'routes', route.id);
-        const isAscended = ascendedRoutes.has(route.id);
+        const routeRef = doc(db, 'routes', routeId);
+        const isAscended = ascendedRoutes.has(routeId);
         const previousDetails =
-          routeUsersCache.get(route.id) instanceof Map
-            ? routeUsersCache.get(route.id).get(username)
+          routeUsersCache.get(routeId) instanceof Map
+            ? routeUsersCache.get(routeId).get(username)
             : null;
         const existingBetatip =
           typeof previousDetails?.betatip === 'string' && previousDetails.betatip
@@ -5954,37 +5968,37 @@
             [`users.${username}`]: userPayload,
           });
 
-          const existingEntry = userAscentDetails.get(route.id);
+          const existingEntry = userAscentDetails.get(routeId);
 
           if (sanitizedGrade === null) {
-            routeGrades.delete(route.id);
+            routeGrades.delete(routeId);
 
             if (existingEntry) {
-              userAscentDetails.set(route.id, { ...existingEntry, ascended: isAscended, grade: null });
+              userAscentDetails.set(routeId, { ...existingEntry, ascended: isAscended, grade: null });
             } else {
-              userAscentDetails.delete(route.id);
+              userAscentDetails.delete(routeId);
             }
           } else {
-            routeGrades.set(route.id, sanitizedGrade);
+            routeGrades.set(routeId, sanitizedGrade);
             const nextEntry = { ...(existingEntry || {}), ascended: isAscended, grade: sanitizedGrade };
-            userAscentDetails.set(route.id, nextEntry);
+            userAscentDetails.set(routeId, nextEntry);
           }
 
-          let usersMap = routeUsersCache.get(route.id);
+          let usersMap = routeUsersCache.get(routeId);
           if (!(usersMap instanceof Map)) {
             usersMap = new Map();
-            routeUsersCache.set(route.id, usersMap);
+            routeUsersCache.set(routeId, usersMap);
           }
           usersMap.set(username, userPayload);
 
-          const betatipsMap = getRouteBetatipsMap(route.id);
+          const betatipsMap = getRouteBetatipsMap(routeId);
           if (existingBetatip) {
             betatipsMap.set(username, existingBetatip);
           } else {
             betatipsMap.delete(username);
           }
 
-          updateMedianForRoute(route.id);
+          updateMedianForRoute(routeId);
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
@@ -5999,7 +6013,7 @@
           throw new Error('You must be signed in to share beta tips.');
         }
 
-        const routeId = typeof route?.id === 'string' ? route.id.trim() : '';
+        const routeId = getRouteId(route);
         if (!routeId) {
           throw new Error('Unable to determine which route to update.');
         }
@@ -6151,7 +6165,7 @@
         gradeValue.className = 'tooltip-grade-value';
         gradeValue.textContent = gradeDisplay;
         gradeBadge.appendChild(gradeValue);
-        const isAscended = Boolean(route && ascendedRoutes.has(route.id));
+        const isAscended = Boolean(routeId && ascendedRoutes.has(routeId));
         if (isAscended) {
           gradeBadge.classList.add('ascended');
         }
@@ -6662,10 +6676,12 @@
           allRoutes = routesSnapshot.docs
             .map((docSnap) => {
               const data = docSnap.data() ?? {};
+              const routeUid =
+                typeof data.uid === 'string' && data.uid.trim() ? data.uid.trim() : docSnap.id;
               const usersMap = normalizeRouteUsersMap(data.users);
-              routeUsersCache.set(docSnap.id, usersMap);
+              routeUsersCache.set(routeUid, usersMap);
               const betatipsMap = buildBetatipsMapFromUsers(usersMap);
-              routeBetatipsCache.set(docSnap.id, betatipsMap);
+              routeBetatipsCache.set(routeUid, betatipsMap);
               if (data.hiddenFromClimbers === true) {
                 return null;
               }
@@ -6677,7 +6693,7 @@
                   : null;
 
               if (medianGrade !== null) {
-                routeMedianGrades.set(docSnap.id, medianGrade);
+                routeMedianGrades.set(routeUid, medianGrade);
               }
 
               const pointsByType = normalizeRoutePointsByType(
@@ -6715,7 +6731,8 @@
               const wallSettings = resolveWallSettings(normalizedLocation, fallbackWallSettings);
 
               return {
-                id: docSnap.id,
+                id: routeUid,
+                uid: routeUid,
                 strokeColor: typeof data.strokeColor === 'string' ? data.strokeColor : '#ffde59',
                 points: normalizedPoints,
                 pointsByType,
@@ -6744,8 +6761,8 @@
             })
             .filter(Boolean)
             .sort((a, b) => {
-              const nameA = (a.title || a.id).toLowerCase();
-              const nameB = (b.title || b.id).toLowerCase();
+              const nameA = (a.title || a.uid || a.id).toLowerCase();
+              const nameB = (b.title || b.uid || b.id).toLowerCase();
               return nameA.localeCompare(nameB);
             });
 
@@ -6783,7 +6800,7 @@
           return;
         }
 
-        const routeId = route?.id;
+        const routeId = getRouteId(route);
         if (!routeId) {
           console.warn('Unable to mark ascent: route ID missing.');
           return;
