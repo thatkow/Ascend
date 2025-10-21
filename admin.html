@@ -311,6 +311,90 @@
       color: #dbeafe;
     }
 
+    .user-directory {
+      display: grid;
+      gap: 0.75rem;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 1.25rem;
+      padding: 1.25rem;
+    }
+
+    .user-directory-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .user-directory h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .user-directory .user-list-status {
+      margin-top: 0.25rem;
+    }
+
+    .user-list {
+      list-style: none;
+      display: grid;
+      gap: 0.6rem;
+      margin: 0;
+      padding: 0;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+
+    .user-list::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .user-list::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.35);
+      border-radius: 999px;
+    }
+
+    .user-list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 0.9rem;
+      background: rgba(30, 41, 59, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .user-list-name {
+      font-weight: 600;
+      color: #f8fafc;
+    }
+
+    .user-role-badge {
+      border-radius: 999px;
+      padding: 0.2rem 0.65rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: rgba(96, 165, 250, 0.2);
+      color: #bfdbfe;
+      border: 1px solid rgba(96, 165, 250, 0.4);
+      text-transform: capitalize;
+      white-space: nowrap;
+    }
+
+    .user-role-badge[data-role='admin'] {
+      background: rgba(248, 113, 113, 0.2);
+      color: #fecaca;
+      border-color: rgba(248, 113, 113, 0.5);
+    }
+
+    .user-role-badge[data-role='setter'] {
+      background: rgba(34, 197, 94, 0.25);
+      color: #bbf7d0;
+      border-color: rgba(34, 197, 94, 0.45);
+    }
+
     .unauthorized {
       width: min(420px, 100%);
       background: rgba(185, 28, 28, 0.12);
@@ -377,7 +461,7 @@
     </section>
 
     <section id="roleManager" class="role-manager">
-      <h2>Manage setter access</h2>
+      <h2>Manage user access</h2>
       <label for="roleUsernameInput">
         <span>Username</span>
         <input id="roleUsernameInput" type="text" placeholder="username" autocomplete="off" />
@@ -390,10 +474,34 @@
       >
         Revoke setter role
       </button>
+      <button
+        id="deleteUserButton"
+        class="role-action-button role-revoke-button"
+        type="button"
+      >
+        Delete user account
+      </button>
       <p id="roleStatusMessage" class="status-message hidden" role="status" aria-live="polite"></p>
     </section>
 
+    <section id="userDirectory" class="user-directory">
+      <div class="user-directory-header">
+        <h2>Current users</h2>
+        <button id="refreshUserListButton" class="secondary-button" type="button">Refresh list</button>
+      </div>
+      <p
+        id="userListStatus"
+        class="status-message hidden user-list-status"
+        role="status"
+        aria-live="polite"
+      ></p>
+      <ul id="userList" class="user-list hidden"></ul>
+    </section>
+
     <section class="secondary-actions">
+      <button id="removeOrphanedAscentsButton" class="secondary-button" type="button">
+        Remove user entries for deleted accounts
+      </button>
       <button id="adminSetterToolsButton" class="secondary-button" type="button">Open setter tools</button>
       <button id="adminSignOutButton" class="secondary-button" type="button">Sign out</button>
     </section>
@@ -425,9 +533,11 @@
       where,
       limit,
       setDoc,
+      updateDoc,
       deleteDoc,
       serverTimestamp,
       Timestamp,
+      deleteField,
     } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { firebaseConfig } from './config.js';
 
@@ -452,10 +562,15 @@
     const adminClearButton = document.getElementById('adminClearButton');
     const adminSignOutButton = document.getElementById('adminSignOutButton');
     const adminSetterToolsButton = document.getElementById('adminSetterToolsButton');
+    const removeOrphanedAscentsButton = document.getElementById('removeOrphanedAscentsButton');
     const roleUsernameInput = document.getElementById('roleUsernameInput');
     const grantSetterButton = document.getElementById('grantSetterButton');
     const revokeSetterButton = document.getElementById('revokeSetterButton');
+    const deleteUserButton = document.getElementById('deleteUserButton');
     const roleStatusMessage = document.getElementById('roleStatusMessage');
+    const refreshUserListButton = document.getElementById('refreshUserListButton');
+    const userListElement = document.getElementById('userList');
+    const userListStatus = document.getElementById('userListStatus');
 
     const SYNTHETIC_EMAIL_DOMAIN = 'users.anuascend.local';
     const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
@@ -535,6 +650,9 @@
       if (revokeSetterButton) {
         revokeSetterButton.disabled = !allow;
       }
+      if (deleteUserButton) {
+        deleteUserButton.disabled = !allow;
+      }
       if (roleUsernameInput) {
         roleUsernameInput.disabled = !allow;
       }
@@ -557,9 +675,175 @@
     resetRoleManagementUI();
     setRoleControlsEnabled(false);
 
+    function setUserListStatus(message, variant = 'info') {
+      if (!userListStatus) {
+        return;
+      }
+
+      if (!message) {
+        userListStatus.textContent = '';
+        userListStatus.classList.add('hidden');
+        delete userListStatus.dataset.variant;
+        return;
+      }
+
+      userListStatus.textContent = message;
+      userListStatus.classList.remove('hidden');
+      if (variant) {
+        userListStatus.dataset.variant = variant;
+      } else {
+        delete userListStatus.dataset.variant;
+      }
+    }
+
+    function clearUserListStatus() {
+      setUserListStatus('');
+    }
+
+    function setUserListControlsEnabled(enabled) {
+      if (refreshUserListButton) {
+        refreshUserListButton.disabled = !enabled;
+      }
+    }
+
+    function resetUserListUI(message = '', variant = 'info') {
+      if (userListElement) {
+        userListElement.innerHTML = '';
+        userListElement.classList.add('hidden');
+      }
+
+      if (message) {
+        setUserListStatus(message, variant);
+      } else {
+        clearUserListStatus();
+      }
+    }
+
+    function renderUserList(users) {
+      if (!userListElement) {
+        return;
+      }
+
+      userListElement.innerHTML = '';
+
+      if (!Array.isArray(users) || users.length === 0) {
+        userListElement.classList.add('hidden');
+        setUserListStatus('No user profiles found.', 'info');
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+
+      for (const user of users) {
+        const listItem = document.createElement('li');
+        listItem.className = 'user-list-item';
+        listItem.title = user.uid;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'user-list-name';
+        nameSpan.textContent = user.displayName;
+        listItem.appendChild(nameSpan);
+
+        if (user.roleLabel) {
+          const roleSpan = document.createElement('span');
+          roleSpan.className = 'user-role-badge';
+          roleSpan.dataset.role = user.roleValue;
+          roleSpan.textContent = user.roleLabel;
+          listItem.appendChild(roleSpan);
+        }
+
+        fragment.appendChild(listItem);
+      }
+
+      userListElement.appendChild(fragment);
+      userListElement.classList.remove('hidden');
+      const label = users.length === 1 ? 'user' : 'users';
+      setUserListStatus(`Showing ${users.length} ${label}.`, 'info');
+    }
+
+    async function refreshUserList() {
+      if (!currentAdminUser) {
+        resetUserListUI('Admin access required to view user profiles.', 'warning');
+        return;
+      }
+
+      if (userListElement) {
+        userListElement.innerHTML = '';
+        userListElement.classList.add('hidden');
+      }
+      setUserListStatus('Loading user profiles…', 'info');
+
+      const previousDisabled = refreshUserListButton ? refreshUserListButton.disabled : false;
+      if (refreshUserListButton) {
+        refreshUserListButton.disabled = true;
+      }
+
+      try {
+        const snapshot = await getDocs(collection(db, 'users'));
+        const users = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data() || {};
+          const storedUsername =
+            typeof data.username === 'string' ? data.username.trim() : '';
+          const normalizedUsername = normalizeUsername(storedUsername);
+          const roleValueRaw =
+            typeof data.role === 'string' ? data.role.trim().toLowerCase() : '';
+
+          let roleLabel = '';
+          if (roleValueRaw === 'admin') {
+            roleLabel = 'Admin';
+          } else if (roleValueRaw === 'setter') {
+            roleLabel = 'Setter';
+          } else if (roleValueRaw && roleValueRaw !== 'default') {
+            roleLabel = roleValueRaw.charAt(0).toUpperCase() + roleValueRaw.slice(1);
+          }
+
+          return {
+            uid: docSnap.id,
+            username: normalizedUsername,
+            displayName: normalizedUsername || '(no username)',
+            roleValue: roleValueRaw || 'default',
+            roleLabel,
+          };
+        });
+
+        users.sort((a, b) => {
+          const hasAName = Boolean(a.username);
+          const hasBName = Boolean(b.username);
+          if (hasAName && hasBName) {
+            return a.username.localeCompare(b.username);
+          }
+          if (hasAName) {
+            return -1;
+          }
+          if (hasBName) {
+            return 1;
+          }
+          return a.uid.localeCompare(b.uid);
+        });
+
+        renderUserList(users);
+      } catch (error) {
+        console.error('Failed to load user list:', error);
+        setUserListStatus('Failed to load user list. Please try again.', 'error');
+      } finally {
+        if (refreshUserListButton) {
+          refreshUserListButton.disabled = previousDisabled || !currentAdminUser;
+        }
+      }
+    }
+
+    resetUserListUI('Sign in to load user profiles.', 'info');
+    setUserListControlsEnabled(false);
+
     function setControlsEnabled(enabled) {
       const allow = Boolean(enabled);
-      [adminDumpButton, adminImportButton, adminClearButton].forEach((button) => {
+      [
+        adminDumpButton,
+        adminImportButton,
+        adminClearButton,
+        removeOrphanedAscentsButton,
+        refreshUserListButton,
+      ].forEach((button) => {
         if (button) {
           button.disabled = !allow;
         }
@@ -568,6 +852,7 @@
         adminImportInput.disabled = !allow;
       }
       setRoleControlsEnabled(allow && Boolean(currentAdminUser));
+      setUserListControlsEnabled(allow && Boolean(currentAdminUser));
     }
 
     function showAuthOverlay(message = '') {
@@ -581,7 +866,9 @@
       unauthorizedNotice.classList.add('hidden');
       clearAdminStatus();
       resetRoleManagementUI();
+      resetUserListUI('Sign in to load user profiles.', 'info');
       setControlsEnabled(false);
+      setUserListControlsEnabled(false);
     }
 
     function showAdminApp() {
@@ -592,6 +879,8 @@
       adminApp.removeAttribute('aria-hidden');
       resetRoleManagementUI('Enter the username of the user you want to manage.', 'info');
       setRoleControlsEnabled(Boolean(currentAdminUser));
+      resetUserListUI('Loading user profiles…', 'info');
+      setUserListControlsEnabled(Boolean(currentAdminUser));
     }
 
     function showUnauthorizedNotice() {
@@ -601,6 +890,8 @@
       setControlsEnabled(false);
       clearAdminStatus();
       resetRoleManagementUI('Admin access required to manage roles.', 'warning');
+      resetUserListUI('Admin access required to view user profiles.', 'warning');
+      setUserListControlsEnabled(false);
     }
 
     function resetImportInput() {
@@ -830,7 +1121,7 @@
       }
 
       try {
-        const adminQuery = query(collection(db, 'roles'), where('role', '==', 'admin'));
+        const adminQuery = query(collection(db, 'users'), where('role', '==', 'admin'));
         const snapshot = await getDocs(adminQuery);
 
         for (const docSnap of snapshot.docs) {
@@ -846,7 +1137,7 @@
 
           try {
             await setDoc(
-              docSnap.ref,
+              doc(db, 'users', targetUid),
               {
                 role: 'setter',
                 updatedAt: serverTimestamp(),
@@ -887,35 +1178,22 @@
       const adminUid = currentAdminUser?.uid || '';
       const normalizedAdminUsername = normalizeUsername(currentAdminUsername);
 
-      if (collectionKey === 'roles') {
-        return Boolean(adminUid && docId === adminUid);
-      }
-
-      if (collectionKey === 'usernames') {
-        const normalizedId = normalizeUsername(docId);
-        if (normalizedAdminUsername && normalizedId === normalizedAdminUsername) {
+      if (collectionKey === 'users') {
+        if (adminUid && docId === adminUid) {
           return true;
         }
 
         try {
           const candidate = normalizeDocDataCandidate(docData);
           const storedUsername = normalizeUsername(
-            typeof candidate.usernameLower === 'string'
-              ? candidate.usernameLower
-              : typeof candidate.username === 'string'
-              ? candidate.username
-              : '',
+            typeof candidate.username === 'string' ? candidate.username : '',
           );
 
           if (normalizedAdminUsername && storedUsername === normalizedAdminUsername) {
             return true;
           }
-
-          if (adminUid && typeof candidate.uid === 'string' && candidate.uid === adminUid) {
-            return true;
-          }
         } catch (error) {
-          console.warn('Unable to evaluate username document for preservation:', error);
+          console.warn('Unable to evaluate user document for preservation:', error);
         }
       }
 
@@ -928,16 +1206,14 @@
       }
 
       try {
-        const snapshot = await getDocs(query(collection(db, 'usernames'), where('uid', '==', uid), limit(1)));
-        if (snapshot.empty) {
+        const userSnap = await getDoc(doc(db, 'users', uid));
+
+        if (!userSnap.exists()) {
           return '';
         }
 
-        const docSnap = snapshot.docs[0];
-        const data = docSnap.data() || {};
-        const fromField = normalizeUsername(data.username);
-        const fromId = normalizeUsername(docSnap.id);
-        return fromField || fromId;
+        const data = userSnap.data() || {};
+        return normalizeUsername(typeof data.username === 'string' ? data.username : '');
       } catch (error) {
         console.error('Failed to look up username by UID:', error);
         return '';
@@ -983,40 +1259,51 @@
       }
 
       try {
-        const roleRef = doc(db, 'roles', user.uid);
-        const roleSnap = await getDoc(roleRef);
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
 
-        if (!roleSnap.exists()) {
+        if (!userSnap.exists()) {
           return 'default';
         }
 
-        const data = roleSnap.data() || {};
-        const storedRole = typeof data.role === 'string' ? data.role.trim().toLowerCase() : 'default';
-        const storedLowerRaw =
-          typeof data.usernameLower === 'string'
-            ? data.usernameLower
-            : typeof data.username === 'string'
-            ? data.username
-            : '';
-        const storedLower = normalizeUsername(storedLowerRaw);
+        const data = userSnap.data() || {};
+        const storedRole = typeof data.role === 'string' ? data.role.trim().toLowerCase() : '';
+        const storedUsername = normalizeUsername(
+          typeof data.username === 'string' ? data.username : '',
+        );
 
-        if (storedLower !== normalizedUsername) {
+        if (storedUsername !== normalizedUsername) {
+          try {
+            const conflictSnapshot = await getDocs(
+              query(collection(db, 'users'), where('username', '==', normalizedUsername), limit(1)),
+            );
+
+            if (conflictSnapshot.empty || conflictSnapshot.docs[0].id === user.uid) {
+              await setDoc(
+                userRef,
+                {
+                  username: normalizedUsername,
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: true },
+              );
+            }
+          } catch (metadataError) {
+            console.warn('Unable to update user metadata for role lookup:', metadataError);
+          }
+        } else if (!data.updatedAt) {
           try {
             await setDoc(
-              roleRef,
-              {
-                username: normalizedUsername,
-                usernameLower: normalizedUsername,
-                updatedAt: serverTimestamp(),
-              },
+              userRef,
+              { updatedAt: serverTimestamp() },
               { merge: true },
             );
-          } catch (error) {
-            console.warn('Unable to update role metadata:', error);
+          } catch (timestampError) {
+            console.warn('Unable to update user timestamp for role lookup:', timestampError);
           }
         }
 
-        return storedRole || 'default';
+        return storedRole ? storedRole : 'default';
       } catch (error) {
         console.error('Failed to resolve user role:', error);
         return 'default';
@@ -1044,6 +1331,10 @@
 
     adminSetterToolsButton?.addEventListener('click', () => {
       window.location.href = 'setter.html';
+    });
+
+    refreshUserListButton?.addEventListener('click', () => {
+      void refreshUserList();
     });
 
     function ensureImportIntentHandled() {
@@ -1089,55 +1380,49 @@
           setRoleControlsEnabled(false);
           setRoleStatus(`Granting setter role to ${trimmedUsername}…`, 'info');
 
-          const usernameRef = doc(db, 'usernames', normalizedUsername);
-          const usernameSnap = await getDoc(usernameRef);
+          const snapshot = await getDocs(
+            query(collection(db, 'users'), where('username', '==', normalizedUsername), limit(1)),
+          );
 
-          if (!usernameSnap.exists()) {
+          if (snapshot.empty) {
             setRoleStatus('No user found with that username.', 'error');
             return;
           }
 
-          const usernameData = usernameSnap.data() || {};
-          const targetUid = typeof usernameData.uid === 'string' ? usernameData.uid.trim() : '';
+          const userDoc = snapshot.docs[0];
+          const userData = userDoc.data() || {};
+          const targetUid = userDoc.id;
 
           if (!targetUid) {
             setRoleStatus('Unable to resolve that username to a user account.', 'error');
             return;
           }
 
-          const roleRef = doc(db, 'roles', targetUid);
-          const roleSnap = await getDoc(roleRef);
-          const existingData = roleSnap.exists() ? roleSnap.data() || {} : {};
-          const existingRole = typeof existingData.role === 'string' ? existingData.role.trim() : '';
-          const existingLowerRaw =
-            typeof existingData.usernameLower === 'string'
-              ? existingData.usernameLower
-              : typeof existingData.username === 'string'
-              ? existingData.username
-              : '';
-          const existingLower = normalizeUsername(existingLowerRaw);
+          const existingRole =
+            typeof userData.role === 'string' ? userData.role.trim().toLowerCase() : '';
+          const existingUsername = normalizeUsername(
+            typeof userData.username === 'string' ? userData.username : '',
+          );
 
-          if (existingRole === 'setter' && existingLower === normalizedUsername) {
+          if (existingRole === 'setter' && existingUsername === normalizedUsername) {
             setRoleStatus(`${trimmedUsername} is already a setter.`, 'success');
             roleUsernameInput.value = '';
             return;
           }
 
-          const payload = {
-            role: 'setter',
-            username: normalizedUsername,
-            usernameLower: normalizedUsername,
-            updatedAt: serverTimestamp(),
-          };
-
-          if (!existingData.createdAt) {
-            payload.createdAt = serverTimestamp();
-          }
-
-          await setDoc(roleRef, payload, { merge: true });
+          await setDoc(
+            doc(db, 'users', targetUid),
+            {
+              role: 'setter',
+              username: normalizedUsername,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true },
+          );
 
           setRoleStatus(`Setter role granted to ${trimmedUsername}.`, 'success');
           roleUsernameInput.value = '';
+          void refreshUserList();
         } catch (error) {
           console.error('Failed to grant setter role:', error);
           setRoleStatus('Unable to grant setter role. Please try again.', 'error');
@@ -1171,16 +1456,18 @@
           setRoleControlsEnabled(false);
           setRoleStatus(`Revoking setter role from ${trimmedUsername}…`, 'info');
 
-          const usernameRef = doc(db, 'usernames', normalizedUsername);
-          const usernameSnap = await getDoc(usernameRef);
+          const snapshot = await getDocs(
+            query(collection(db, 'users'), where('username', '==', normalizedUsername), limit(1)),
+          );
 
-          if (!usernameSnap.exists()) {
+          if (snapshot.empty) {
             setRoleStatus('No user found with that username.', 'error');
             return;
           }
 
-          const usernameData = usernameSnap.data() || {};
-          const targetUid = typeof usernameData.uid === 'string' ? usernameData.uid.trim() : '';
+          const userDoc = snapshot.docs[0];
+          const userData = userDoc.data() || {};
+          const targetUid = userDoc.id;
 
           if (!targetUid) {
             setRoleStatus('Unable to resolve that username to a user account.', 'error');
@@ -1192,17 +1479,8 @@
             return;
           }
 
-          const roleRef = doc(db, 'roles', targetUid);
-          const roleSnap = await getDoc(roleRef);
-
-          if (!roleSnap.exists()) {
-            setRoleStatus(`${trimmedUsername} does not have setter access.`, 'info');
-            return;
-          }
-
-          const roleData = roleSnap.data() || {};
           const existingRole =
-            typeof roleData.role === 'string' ? roleData.role.trim().toLowerCase() : 'default';
+            typeof userData.role === 'string' ? userData.role.trim().toLowerCase() : '';
 
           if (existingRole === 'admin') {
             setRoleStatus(
@@ -1217,13 +1495,99 @@
             return;
           }
 
-          await deleteDoc(roleRef);
+          await setDoc(
+            doc(db, 'users', targetUid),
+            {
+              role: deleteField(),
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true },
+          );
 
           setRoleStatus(`Setter role revoked for ${trimmedUsername}.`, 'success');
           roleUsernameInput.value = '';
+          void refreshUserList();
         } catch (error) {
           console.error('Failed to revoke setter role:', error);
           setRoleStatus('Unable to revoke setter role. Please try again.', 'error');
+        } finally {
+          setRoleControlsEnabled(Boolean(currentAdminUser));
+          if (roleUsernameInput && !roleUsernameInput.disabled) {
+            roleUsernameInput.focus();
+          }
+        }
+      });
+    }
+
+    if (deleteUserButton && roleUsernameInput) {
+      deleteUserButton.addEventListener('click', async () => {
+        const rawUsername = roleUsernameInput.value;
+        const trimmedUsername = typeof rawUsername === 'string' ? rawUsername.trim() : '';
+
+        if (!trimmedUsername) {
+          setRoleStatus("Enter the user's username.", 'info');
+          return;
+        }
+
+        if (!isLikelyUsername(trimmedUsername)) {
+          setRoleStatus('Enter a valid username (letters, numbers, underscores).', 'error');
+          return;
+        }
+
+        const normalizedUsername = normalizeUsername(trimmedUsername);
+
+        try {
+          setRoleControlsEnabled(false);
+          setRoleStatus(`Deleting account for ${trimmedUsername}…`, 'info');
+
+          const snapshot = await getDocs(
+            query(collection(db, 'users'), where('username', '==', normalizedUsername), limit(1)),
+          );
+
+          if (snapshot.empty) {
+            setRoleStatus('No user found with that username.', 'error');
+            return;
+          }
+
+          const userDoc = snapshot.docs[0];
+          const userData = userDoc.data() || {};
+          const targetUid = userDoc.id;
+
+          if (!targetUid) {
+            setRoleStatus('Unable to resolve that username to a user account.', 'error');
+            return;
+          }
+
+          if (currentAdminUser && targetUid === currentAdminUser.uid) {
+            setRoleStatus('You cannot delete your own admin account.', 'warning');
+            return;
+          }
+
+          const existingRole =
+            typeof userData.role === 'string' ? userData.role.trim().toLowerCase() : '';
+
+          if (existingRole === 'admin') {
+            setRoleStatus('Admin accounts cannot be deleted. Demote the user first.', 'warning');
+            return;
+          }
+
+          const confirmed = window.confirm(
+            `Delete the user profile for "${trimmedUsername}"? This action cannot be undone.`,
+          );
+
+          if (!confirmed) {
+            setRoleStatus('User deletion cancelled.', 'info');
+            return;
+          }
+
+          await deleteDoc(doc(db, 'users', targetUid));
+
+          setRoleStatus(`Deleted user profile for ${trimmedUsername}.`, 'success');
+          roleUsernameInput.value = '';
+          void refreshUserList();
+        } catch (error) {
+          console.error('Failed to delete user:', error);
+          setRoleStatus('Unable to delete user. Please try again.', 'error');
         } finally {
           setRoleControlsEnabled(Boolean(currentAdminUser));
           if (roleUsernameInput && !roleUsernameInput.disabled) {
@@ -1245,9 +1609,7 @@
         const collectionsToExport = [
           { key: 'walls', ref: collection(db, WALL_COLLECTION) },
           { key: 'routes', ref: collection(db, 'routes') },
-          { key: 'ascents', ref: collection(db, 'ascents') },
-          { key: 'roles', ref: collection(db, 'roles') },
-          { key: 'usernames', ref: collection(db, 'usernames') },
+          { key: 'users', ref: collection(db, 'users') },
         ];
 
         const exportPayload = {
@@ -1374,13 +1736,89 @@
       }
     });
 
+    removeOrphanedAscentsButton?.addEventListener('click', async () => {
+      if (removeOrphanedAscentsButton.disabled) {
+        return;
+      }
+
+      setAdminStatus('Scanning routes for user entries linked to missing accounts…', 'info');
+      setControlsEnabled(false);
+
+      try {
+        const [usersSnapshot, routesSnapshot] = await Promise.all([
+          getDocs(collection(db, 'users')),
+          getDocs(collection(db, 'routes')),
+        ]);
+
+        const existingUsernames = new Set();
+        usersSnapshot.forEach((userDoc) => {
+          const data = userDoc.data();
+          const username =
+            typeof data?.username === 'string' ? normalizeUsername(data.username) : '';
+          if (username) {
+            existingUsernames.add(username);
+          }
+        });
+        let checkedRoutes = 0;
+        let cleanedRoutes = 0;
+        let removedEntries = 0;
+
+        for (const routeDoc of routesSnapshot.docs) {
+          checkedRoutes += 1;
+          const routeData = routeDoc.data();
+          const usersMap = routeData && typeof routeData === 'object' ? routeData.users : null;
+
+          if (!usersMap || typeof usersMap !== 'object') {
+            continue;
+          }
+
+          const updates = {};
+          let hasChanges = false;
+
+          for (const [usernameKey] of Object.entries(usersMap)) {
+            if (typeof usernameKey !== 'string' || !usernameKey) {
+              continue;
+            }
+
+            const normalizedUsername = normalizeUsername(usernameKey);
+            if (!normalizedUsername || !existingUsernames.has(normalizedUsername)) {
+              updates[`users.${usernameKey}`] = deleteField();
+              hasChanges = true;
+              removedEntries += 1;
+            }
+          }
+
+          if (hasChanges) {
+            await updateDoc(routeDoc.ref, updates);
+            cleanedRoutes += 1;
+          }
+        }
+
+        if (removedEntries === 0) {
+          setAdminStatus(`Checked ${checkedRoutes} routes. No orphaned user entries found.`, 'info');
+        } else {
+          const routeLabel = cleanedRoutes === 1 ? 'route' : 'routes';
+          const entryLabel = removedEntries === 1 ? 'entry' : 'entries';
+          setAdminStatus(
+            `Removed ${removedEntries} orphaned user ${entryLabel} across ${cleanedRoutes} ${routeLabel}.`,
+            'success',
+          );
+        }
+      } catch (error) {
+        console.error('Failed to remove orphaned user entries:', error);
+        setAdminStatus('Failed to remove orphaned user entries. Check console for details.', 'error');
+      } finally {
+        setControlsEnabled(true);
+      }
+    });
+
     adminClearButton?.addEventListener('click', async () => {
       if (adminClearButton.disabled) {
         return;
       }
 
       const confirmed = window.confirm(
-        'Clear the database? This will permanently delete walls, routes, ascents, roles, and usernames. This cannot be undone.',
+        'Clear the database? This will permanently delete walls, routes, and user accounts. This cannot be undone.',
       );
 
       if (!confirmed) {
@@ -1394,9 +1832,7 @@
         const collectionsToClear = [
           { key: WALL_COLLECTION, ref: collection(db, WALL_COLLECTION) },
           { key: 'routes', ref: collection(db, 'routes') },
-          { key: 'ascents', ref: collection(db, 'ascents') },
-          { key: 'roles', ref: collection(db, 'roles') },
-          { key: 'usernames', ref: collection(db, 'usernames') },
+          { key: 'users', ref: collection(db, 'users') },
         ];
 
         let deletedCount = 0;
@@ -1508,6 +1944,7 @@
       currentAdminUsername = resolvedUsername;
       showAdminApp();
       setControlsEnabled(true);
+      void refreshUserList();
       clearAdminStatus();
       ensureImportIntentHandled();
     });
