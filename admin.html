@@ -533,7 +533,6 @@
       where,
       limit,
       setDoc,
-      updateDoc,
       deleteDoc,
       serverTimestamp,
       Timestamp,
@@ -546,6 +545,12 @@
     const db = getFirestore(firebaseApp);
 
     const WALL_COLLECTION = 'walls';
+    const ROUTE_COLLECTION = 'routes';
+    const USER_COLLECTION = 'users';
+    const ROUTE_SCORE_COLLECTION = 'routes_users_scores';
+    const ROUTE_BETATIPS_COLLECTION = 'routes_users_betatips';
+    const BETATIP_UPVOTES_SUBCOLLECTION = 'upvotes';
+    const SUBCOLLECTIONS_FIELD = '__subcollections';
 
     const authOverlay = document.getElementById('authOverlay');
     const authForm = document.getElementById('authForm');
@@ -1017,7 +1022,7 @@
         return {};
       }
 
-      const { id: _ignoredId, ...rest } = entry;
+      const { id: _ignoredId, [SUBCOLLECTIONS_FIELD]: _ignoredSubcollections, ...rest } = entry;
       const candidate = deserializeFirestoreValue(rest);
 
       if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
@@ -1025,6 +1030,62 @@
       }
 
       return candidate;
+    }
+
+    async function importSubcollections(parentRef, subcollections) {
+      if (!parentRef || !subcollections || typeof subcollections !== 'object') {
+        return { imported: 0, failed: 0 };
+      }
+
+      let imported = 0;
+      let failed = 0;
+
+      for (const [subKey, entries] of Object.entries(subcollections)) {
+        if (!subKey) {
+          continue;
+        }
+
+        const normalizedEntries = Array.isArray(entries)
+          ? entries
+          : typeof entries === 'object'
+          ? Object.values(entries)
+          : [];
+
+        for (const entry of normalizedEntries) {
+          if (!entry || typeof entry !== 'object') {
+            failed += 1;
+            continue;
+          }
+
+          const rawId = typeof entry.id === 'string' ? entry.id.trim() : '';
+          if (!rawId) {
+            failed += 1;
+            continue;
+          }
+
+          try {
+            const payload = buildFirestorePayloadFromDumpEntry(entry);
+            const targetRef = doc(collection(parentRef, subKey), rawId);
+            await setDoc(targetRef, payload);
+            imported += 1;
+
+            const nestedSubcollections = entry[SUBCOLLECTIONS_FIELD];
+            if (nestedSubcollections && typeof nestedSubcollections === 'object') {
+              const { imported: nestedImported, failed: nestedFailed } = await importSubcollections(
+                targetRef,
+                nestedSubcollections,
+              );
+              imported += nestedImported;
+              failed += nestedFailed;
+            }
+          } catch (error) {
+            console.error(`Failed to import document ${rawId} in ${parentRef.path}/${subKey}:`, error);
+            failed += 1;
+          }
+        }
+      }
+
+      return { imported, failed };
     }
 
     async function importCollectionEntries(collectionKey, entries) {
@@ -1063,8 +1124,19 @@
             continue;
           }
 
-          await setDoc(doc(db, collectionKey, rawId), payload);
+          const targetRef = doc(db, collectionKey, rawId);
+          await setDoc(targetRef, payload);
           imported += 1;
+
+          const subcollections = entry[SUBCOLLECTIONS_FIELD];
+          if (subcollections && typeof subcollections === 'object') {
+            const { imported: subImported, failed: subFailed } = await importSubcollections(
+              targetRef,
+              subcollections,
+            );
+            imported += subImported;
+            failed += subFailed;
+          }
         } catch (error) {
           console.error(`Failed to import document ${rawId} in ${collectionKey}:`, error);
           failed += 1;
@@ -1607,9 +1679,15 @@
 
       try {
         const collectionsToExport = [
-          { key: 'walls', ref: collection(db, WALL_COLLECTION) },
-          { key: 'routes', ref: collection(db, 'routes') },
-          { key: 'users', ref: collection(db, 'users') },
+          { key: WALL_COLLECTION, ref: collection(db, WALL_COLLECTION) },
+          { key: ROUTE_COLLECTION, ref: collection(db, ROUTE_COLLECTION) },
+          { key: USER_COLLECTION, ref: collection(db, USER_COLLECTION) },
+          { key: ROUTE_SCORE_COLLECTION, ref: collection(db, ROUTE_SCORE_COLLECTION) },
+          {
+            key: ROUTE_BETATIPS_COLLECTION,
+            ref: collection(db, ROUTE_BETATIPS_COLLECTION),
+            includeUpvotes: true,
+          },
         ];
 
         const exportPayload = {
@@ -1622,12 +1700,49 @@
 
         let hadCollectionError = false;
 
-        for (const { key, ref } of collectionsToExport) {
+        for (const { key, ref, includeUpvotes } of collectionsToExport) {
           try {
             const snapshot = await getDocs(ref);
-            exportPayload.data[key] = snapshot.docs
-              .map((docSnap) => serializeFirestoreDocument(docSnap))
-              .filter(Boolean);
+            if (includeUpvotes) {
+              const documents = [];
+              for (const docSnap of snapshot.docs) {
+                const serialized = serializeFirestoreDocument(docSnap);
+                if (!serialized) {
+                  continue;
+                }
+
+                try {
+                  const upvotesSnapshot = await getDocs(
+                    collection(docSnap.ref, BETATIP_UPVOTES_SUBCOLLECTION),
+                  );
+                  const upvoteEntries = upvotesSnapshot.docs
+                    .map((upvoteDoc) => serializeFirestoreDocument(upvoteDoc))
+                    .filter(Boolean);
+
+                  if (!serialized[SUBCOLLECTIONS_FIELD]) {
+                    serialized[SUBCOLLECTIONS_FIELD] = {};
+                  }
+                  serialized[SUBCOLLECTIONS_FIELD][BETATIP_UPVOTES_SUBCOLLECTION] = upvoteEntries;
+                } catch (subError) {
+                  hadCollectionError = true;
+                  console.error(
+                    `Failed to export ${BETATIP_UPVOTES_SUBCOLLECTION} for betatip ${docSnap.id}:`,
+                    subError,
+                  );
+                  if (!serialized[SUBCOLLECTIONS_FIELD]) {
+                    serialized[SUBCOLLECTIONS_FIELD] = {};
+                  }
+                  serialized[SUBCOLLECTIONS_FIELD][BETATIP_UPVOTES_SUBCOLLECTION] = [];
+                }
+
+                documents.push(serialized);
+              }
+              exportPayload.data[key] = documents;
+            } else {
+              exportPayload.data[key] = snapshot.docs
+                .map((docSnap) => serializeFirestoreDocument(docSnap))
+                .filter(Boolean);
+            }
           } catch (error) {
             hadCollectionError = true;
             console.error(`Failed to export ${key}:`, error);
@@ -1741,66 +1856,79 @@
         return;
       }
 
-      setAdminStatus('Scanning routes for user entries linked to missing accounts…', 'info');
+      setAdminStatus(
+        'Scanning route score records for user entries linked to missing accounts…',
+        'info',
+      );
       setControlsEnabled(false);
 
       try {
-        const [usersSnapshot, routesSnapshot] = await Promise.all([
-          getDocs(collection(db, 'users')),
-          getDocs(collection(db, 'routes')),
+        const [usersSnapshot, routeScoresSnapshot] = await Promise.all([
+          getDocs(collection(db, USER_COLLECTION)),
+          getDocs(collection(db, ROUTE_SCORE_COLLECTION)),
         ]);
 
-        const existingUsernames = new Set();
+        const existingUserIds = new Set();
         usersSnapshot.forEach((userDoc) => {
-          const data = userDoc.data();
-          const username =
-            typeof data?.username === 'string' ? normalizeUsername(data.username) : '';
-          if (username) {
-            existingUsernames.add(username);
+          if (userDoc?.id) {
+            existingUserIds.add(userDoc.id);
           }
         });
-        let checkedRoutes = 0;
-        let cleanedRoutes = 0;
+
+        let checkedScoreDocs = 0;
+        let cleanedScoreDocs = 0;
         let removedEntries = 0;
 
-        for (const routeDoc of routesSnapshot.docs) {
-          checkedRoutes += 1;
-          const routeData = routeDoc.data();
-          const usersMap = routeData && typeof routeData === 'object' ? routeData.users : null;
+        for (const scoreDoc of routeScoresSnapshot.docs) {
+          checkedScoreDocs += 1;
+          const scoresData = scoreDoc.data();
 
-          if (!usersMap || typeof usersMap !== 'object') {
+          if (!scoresData || typeof scoresData !== 'object' || Array.isArray(scoresData)) {
             continue;
           }
 
           const updates = {};
           let hasChanges = false;
 
-          for (const [usernameKey] of Object.entries(usersMap)) {
-            if (typeof usernameKey !== 'string' || !usernameKey) {
+          for (const [userId, userEntry] of Object.entries(scoresData)) {
+            if (typeof userId !== 'string' || !userId) {
               continue;
             }
 
-            const normalizedUsername = normalizeUsername(usernameKey);
-            if (!normalizedUsername || !existingUsernames.has(normalizedUsername)) {
-              updates[`users.${usernameKey}`] = deleteField();
+            const entryIsScore =
+              userEntry === null ||
+              (userEntry &&
+                typeof userEntry === 'object' &&
+                !Array.isArray(userEntry) &&
+                ('grade' in userEntry || 'ascended' in userEntry));
+
+            if (!entryIsScore) {
+              continue;
+            }
+
+            if (!existingUserIds.has(userId)) {
+              updates[userId] = deleteField();
               hasChanges = true;
               removedEntries += 1;
             }
           }
 
           if (hasChanges) {
-            await updateDoc(routeDoc.ref, updates);
-            cleanedRoutes += 1;
+            await setDoc(scoreDoc.ref, updates, { merge: true });
+            cleanedScoreDocs += 1;
           }
         }
 
         if (removedEntries === 0) {
-          setAdminStatus(`Checked ${checkedRoutes} routes. No orphaned user entries found.`, 'info');
+          setAdminStatus(
+            `Checked ${checkedScoreDocs} route score documents. No orphaned user entries found.`,
+            'info',
+          );
         } else {
-          const routeLabel = cleanedRoutes === 1 ? 'route' : 'routes';
+          const docLabel = cleanedScoreDocs === 1 ? 'route score document' : 'route score documents';
           const entryLabel = removedEntries === 1 ? 'entry' : 'entries';
           setAdminStatus(
-            `Removed ${removedEntries} orphaned user ${entryLabel} across ${cleanedRoutes} ${routeLabel}.`,
+            `Removed ${removedEntries} orphaned user ${entryLabel} across ${cleanedScoreDocs} ${docLabel}.`,
             'success',
           );
         }
@@ -1831,14 +1959,20 @@
       try {
         const collectionsToClear = [
           { key: WALL_COLLECTION, ref: collection(db, WALL_COLLECTION) },
-          { key: 'routes', ref: collection(db, 'routes') },
-          { key: 'users', ref: collection(db, 'users') },
+          { key: ROUTE_COLLECTION, ref: collection(db, ROUTE_COLLECTION) },
+          { key: USER_COLLECTION, ref: collection(db, USER_COLLECTION) },
+          { key: ROUTE_SCORE_COLLECTION, ref: collection(db, ROUTE_SCORE_COLLECTION) },
+          {
+            key: ROUTE_BETATIPS_COLLECTION,
+            ref: collection(db, ROUTE_BETATIPS_COLLECTION),
+            hasUpvotes: true,
+          },
         ];
 
         let deletedCount = 0;
         let failureCount = 0;
 
-        for (const { key, ref } of collectionsToClear) {
+        for (const { key, ref, hasUpvotes } of collectionsToClear) {
           try {
             const snapshot = await getDocs(ref);
             for (const docSnap of snapshot.docs) {
@@ -1846,6 +1980,32 @@
                 continue;
               }
               try {
+                if (hasUpvotes) {
+                  try {
+                    const upvotesSnapshot = await getDocs(
+                      collection(docSnap.ref, BETATIP_UPVOTES_SUBCOLLECTION),
+                    );
+                    for (const upvoteDoc of upvotesSnapshot.docs) {
+                      try {
+                        await deleteDoc(upvoteDoc.ref);
+                        deletedCount += 1;
+                      } catch (upvoteError) {
+                        console.error(
+                          `Failed to delete upvote ${upvoteDoc.id} for betatip ${docSnap.id}:`,
+                          upvoteError,
+                        );
+                        failureCount += 1;
+                      }
+                    }
+                  } catch (subcollectionError) {
+                    console.error(
+                      `Failed to fetch upvotes for betatip ${docSnap.id}:`,
+                      subcollectionError,
+                    );
+                    failureCount += 1;
+                  }
+                }
+
                 await deleteDoc(docSnap.ref);
                 deletedCount += 1;
               } catch (docError) {
