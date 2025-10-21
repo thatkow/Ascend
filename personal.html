@@ -1749,7 +1749,6 @@
         deleteDoc,
         serverTimestamp,
         collection,
-        collectionGroup,
         getDocs,
         query,
         limit,
@@ -5349,6 +5348,50 @@
         return computeMedianGrade(grades);
       }
 
+      async function hydrateRouteScores(routeDescriptors = []) {
+        if (!Array.isArray(routeDescriptors) || routeDescriptors.length === 0) {
+          return;
+        }
+
+        const fetchPromises = routeDescriptors.map(({ docSnap, routeUid }) => {
+          if (!docSnap || !routeUid) {
+            return Promise.resolve();
+          }
+
+          const scoresRef = collection(docSnap.ref, 'scores');
+          const scoresMap = getRouteScoresMap(routeUid);
+
+          if (scoresMap instanceof Map && typeof scoresMap.clear === 'function') {
+            scoresMap.clear();
+          }
+
+          return getDocs(scoresRef).then((scoresSnapshot) => {
+            scoresSnapshot.forEach((scoreDoc) => {
+              const userUid = typeof scoreDoc.id === 'string' ? scoreDoc.id.trim() : '';
+
+              if (!userUid) {
+                return;
+              }
+
+              const normalizedEntry = normalizeRouteScoreEntry(scoreDoc.data() || {});
+              scoresMap.set(userUid, normalizedEntry);
+            });
+          });
+        });
+
+        const results = await Promise.allSettled(fetchPromises);
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            const descriptor = routeDescriptors[index];
+            const identifier =
+              (typeof descriptor?.routeUid === 'string' && descriptor.routeUid.trim()) ||
+              (typeof descriptor?.docSnap?.id === 'string' && descriptor.docSnap.id.trim()) ||
+              '(unknown route)';
+            console.error(`Failed to load scores for route ${identifier}:`, result.reason);
+          }
+        });
+      }
+
       async function loadBetatipUpvotes(betatipId) {
         if (typeof betatipId !== 'string' || !betatipId.trim()) {
           return new Set();
@@ -7028,31 +7071,28 @@
 
       async function loadRoutes() {
         try {
-          const [routesSnapshot, wallSnapshot, scoresSnapshot, betatipsSnapshot] =
-            await Promise.all([
-              getDocs(collection(db, 'routes')),
-              getDocs(collection(db, WALL_COLLECTION)),
-              getDocs(collectionGroup(db, 'scores')),
-              getDocs(collection(db, 'routes_users_betatips')),
-            ]);
+          const [routesSnapshot, wallSnapshot, betatipsSnapshot] = await Promise.all([
+            getDocs(collection(db, 'routes')),
+            getDocs(collection(db, WALL_COLLECTION)),
+            getDocs(collection(db, 'routes_users_betatips')),
+          ]);
 
           routeScoresCache.clear();
           routeBetatipsCache.clear();
 
-          scoresSnapshot.forEach((docSnap) => {
-            const routeRef = docSnap.ref?.parent?.parent;
+          const routeDescriptors = routesSnapshot.docs.map((docSnap) => {
+            const data = docSnap.data() || {};
             const routeUid =
-              typeof routeRef?.id === 'string' && routeRef.id.trim() ? routeRef.id.trim() : '';
-            const userUid = typeof docSnap.id === 'string' ? docSnap.id.trim() : '';
+              normalizeRouteUidValue(data?.uid) || normalizeRouteUidValue(docSnap.id);
 
-            if (!routeUid || !userUid) {
-              return;
+            if (routeUid) {
+              getRouteScoresMap(routeUid);
             }
 
-            const normalizedEntry = normalizeRouteScoreEntry(docSnap.data() || {});
-            const scoresMap = getRouteScoresMap(routeUid);
-            scoresMap.set(userUid, normalizedEntry);
+            return { docSnap, data, routeUid };
           });
+
+          await hydrateRouteScores(routeDescriptors);
 
           const betatipEntries = [];
           betatipsSnapshot.forEach((docSnap) => {
@@ -7159,18 +7199,19 @@
             ensureCurrentLocationVisible();
           }
 
-          allRoutes = routesSnapshot.docs
-            .map((docSnap) => {
-              const data = docSnap.data() ?? {};
-              const routeUid =
-                typeof data.uid === 'string' && data.uid.trim() ? data.uid.trim() : docSnap.id;
+          allRoutes = routeDescriptors
+            .map(({ docSnap, data, routeUid }) => {
+              if (!docSnap) {
+                return null;
+              }
+
               const betatipsMap = getRouteBetatipsMap(routeUid);
               getRouteScoresMap(routeUid);
               if (data.hiddenFromClimbers === true) {
                 return null;
               }
 
-              const grade = normalizeRouteGradeField(data.grade);
+              const grade = computeMedianGradeForRoute(routeUid);
 
               const pointsByType = normalizeRoutePointsByType(
                 data.points,
