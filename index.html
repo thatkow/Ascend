@@ -4047,7 +4047,6 @@
         currentUsername = '';
         authenticatedUsernameClaim = '';
         ascendedRoutes.clear();
-        routeGrades.clear();
         userAscentDetails = new Map();
         routeUsersCache.clear();
         routeBetatipsCache.clear();
@@ -4883,7 +4882,6 @@
       let pinnedRouteId = null;
       let pinnedPosition = null;
       const ascendedRoutes = new Set();
-      const routeGrades = new Map();
       const routeUsersCache = new Map();
       const routeBetatipsCache = new Map();
       let userAscentDetails = new Map();
@@ -4990,7 +4988,6 @@
       function synchroniseAscentsWithRoutes(options = {}) {
         const { shouldRedraw = true } = options;
         ascendedRoutes.clear();
-        routeGrades.clear();
 
         if (!Array.isArray(routes) || routes.length === 0) {
           renderProgressionList();
@@ -5007,15 +5004,7 @@
           }
 
           const ascent = userAscentDetails.get(routeId);
-          if (!ascent) {
-            return;
-          }
-
-          if (typeof ascent.grade === 'number' && Number.isFinite(ascent.grade)) {
-            routeGrades.set(routeId, ascent.grade);
-          }
-
-          if (ascent.ascended) {
+          if (ascent?.ascended) {
             ascendedRoutes.add(routeId);
           }
         });
@@ -5029,7 +5018,6 @@
 
       async function loadAscents({ username }) {
         ascendedRoutes.clear();
-        routeGrades.clear();
         userAscentDetails = new Map();
 
         const normalizedUsername = isValidUsername(username)
@@ -5059,10 +5047,6 @@
           };
 
           userAscentDetails.set(routeId, ascentDetails);
-
-          if (typeof gradeValue === 'number' && Number.isFinite(gradeValue)) {
-            routeGrades.set(routeId, gradeValue);
-          }
 
           if (ascended) {
             ascendedRoutes.add(routeId);
@@ -5431,12 +5415,6 @@
           return gradeField;
         }
 
-        const routeId = getRouteId(route);
-        const stored = routeGrades.get(routeId);
-        if (typeof stored === 'number' && Number.isFinite(stored)) {
-          return stored;
-        }
-
         return null;
       }
 
@@ -5452,12 +5430,6 @@
 
         if (typeof gradeField === 'string' && gradeField) {
           return gradeField;
-        }
-
-        const routeId = getRouteId(route);
-        const stored = routeGrades.get(routeId);
-        if (typeof stored === 'number' && Number.isFinite(stored)) {
-          return stored;
         }
 
         return null;
@@ -5691,8 +5663,9 @@
           return null;
         }
 
-        const stored = routeGrades.get(routeId);
-        return typeof stored === 'number' && Number.isFinite(stored) ? stored : null;
+        const ascent = userAscentDetails.get(routeId);
+        const grade = ascent?.grade;
+        return typeof grade === 'number' && Number.isFinite(grade) ? grade : null;
       }
 
       function createTooltipCloseButton() {
@@ -5976,19 +5949,19 @@
             [`users.${username}`]: userPayload,
           });
 
-          const existingEntry = userAscentDetails.get(routeId);
+          const existingEntry = userAscentDetails.get(routeId) || {};
 
           if (sanitizedGrade === null) {
-            routeGrades.delete(routeId);
+            const hadRecordedGrade =
+              typeof existingEntry.grade === 'number' && Number.isFinite(existingEntry.grade);
 
-            if (existingEntry) {
+            if (existingEntry.ascended || hadRecordedGrade) {
               userAscentDetails.set(routeId, { ...existingEntry, ascended: isAscended, grade: null });
             } else {
               userAscentDetails.delete(routeId);
             }
           } else {
-            routeGrades.set(routeId, sanitizedGrade);
-            const nextEntry = { ...(existingEntry || {}), ascended: isAscended, grade: sanitizedGrade };
+            const nextEntry = { ...existingEntry, ascended: isAscended, grade: sanitizedGrade };
             userAscentDetails.set(routeId, nextEntry);
           }
 
@@ -7024,13 +6997,6 @@
           const numericGrade = normalizeGradeValue(gradeField);
           if (typeof numericGrade === 'number' && Number.isFinite(numericGrade)) {
             grade = numericGrade;
-          }
-        }
-
-        if (grade === null && typeof route.id === 'string') {
-          const userGrade = getUserGradeForRoute(route.id);
-          if (typeof userGrade === 'number' && Number.isFinite(userGrade)) {
-            grade = userGrade;
           }
         }
 

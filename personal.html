@@ -4749,7 +4749,6 @@
           currentUsername = '';
           authenticatedUsernameClaim = '';
           ascendedRoutes.clear();
-          routeGrades.clear();
           routeUsersCache.clear();
           routeBetatipsCache.clear();
           hideTooltip({ force: true });
@@ -4787,7 +4786,6 @@
       let pinnedRouteId = null;
       let pinnedPosition = null;
       const ascendedRoutes = new Set();
-      const routeGrades = new Map();
       const routeUsersCache = new Map();
       const routeBetatipsCache = new Map();
       let userAscentDetails = new Map();
@@ -4886,7 +4884,6 @@
       function synchroniseAscentsWithRoutes(options = {}) {
         const { shouldRedraw = true } = options;
         ascendedRoutes.clear();
-        routeGrades.clear();
 
         if (!Array.isArray(routes) || routes.length === 0) {
           renderProgressionList();
@@ -4906,10 +4903,6 @@
             return;
           }
 
-          if (typeof ascent.grade === 'number' && Number.isFinite(ascent.grade)) {
-            routeGrades.set(route.id, ascent.grade);
-          }
-
           if (ascent.ascended) {
             ascendedRoutes.add(route.id);
           }
@@ -4924,7 +4917,6 @@
 
       async function loadAscents({ username }) {
         ascendedRoutes.clear();
-        routeGrades.clear();
         userAscentDetails = new Map();
 
         const normalizedUsername = isValidUsername(username)
@@ -4954,10 +4946,6 @@
           };
 
           userAscentDetails.set(routeId, ascentDetails);
-
-          if (typeof gradeValue === 'number' && Number.isFinite(gradeValue)) {
-            routeGrades.set(routeId, gradeValue);
-          }
 
           if (ascended) {
             ascendedRoutes.add(routeId);
@@ -5466,11 +5454,6 @@
           return gradeField;
         }
 
-        const stored = routeGrades.get(route.id);
-        if (typeof stored === 'number' && Number.isFinite(stored)) {
-          return stored;
-        }
-
         return null;
       }
 
@@ -5486,11 +5469,6 @@
 
         if (typeof gradeField === 'string' && gradeField) {
           return gradeField;
-        }
-
-        const stored = routeGrades.get(route.id);
-        if (typeof stored === 'number' && Number.isFinite(stored)) {
-          return stored;
         }
 
         return null;
@@ -5723,8 +5701,9 @@
           return null;
         }
 
-        const stored = routeGrades.get(routeId);
-        return typeof stored === 'number' && Number.isFinite(stored) ? stored : null;
+        const ascent = userAscentDetails.get(routeId);
+        const grade = ascent?.grade;
+        return typeof grade === 'number' && Number.isFinite(grade) ? grade : null;
       }
 
       function createTooltipCloseButton() {
@@ -6242,19 +6221,19 @@
             [`users.${username}`]: userPayload,
           });
 
-          const existingEntry = userAscentDetails.get(route.id);
+          const existingEntry = userAscentDetails.get(route.id) || {};
 
           if (sanitizedGrade === null) {
-            routeGrades.delete(route.id);
+            const hadRecordedGrade =
+              typeof existingEntry.grade === 'number' && Number.isFinite(existingEntry.grade);
 
-            if (existingEntry) {
+            if (existingEntry.ascended || hadRecordedGrade) {
               userAscentDetails.set(route.id, { ...existingEntry, ascended: isAscended, grade: null });
             } else {
               userAscentDetails.delete(route.id);
             }
           } else {
-            routeGrades.set(route.id, sanitizedGrade);
-            const nextEntry = { ...(existingEntry || {}), ascended: isAscended, grade: sanitizedGrade };
+            const nextEntry = { ...existingEntry, ascended: isAscended, grade: sanitizedGrade };
             userAscentDetails.set(route.id, nextEntry);
           }
 
@@ -7376,13 +7355,6 @@
           const numericGrade = normalizeGradeValue(gradeField);
           if (typeof numericGrade === 'number' && Number.isFinite(numericGrade)) {
             grade = numericGrade;
-          }
-        }
-
-        if (grade === null && typeof route.id === 'string') {
-          const userGrade = getUserGradeForRoute(route.id);
-          if (typeof userGrade === 'number' && Number.isFinite(userGrade)) {
-            grade = userGrade;
           }
         }
 
