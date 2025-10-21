@@ -5329,6 +5329,32 @@
         return '';
       }
 
+      function findRouteById(routeId) {
+        if (typeof routeId !== 'string' || !routeId.trim()) {
+          return null;
+        }
+
+        const normalizedId = routeId.trim();
+        const collections = [];
+
+        if (Array.isArray(routes)) {
+          collections.push(routes);
+        }
+
+        if (Array.isArray(allRoutes)) {
+          collections.push(allRoutes);
+        }
+
+        for (const collection of collections) {
+          const match = collection.find((entry) => getRouteId(entry) === normalizedId);
+          if (match) {
+            return match;
+          }
+        }
+
+        return null;
+      }
+
       function getRouteBetatipsMap(routeId) {
         if (typeof routeId !== 'string' || !routeId.trim()) {
           return new Map();
@@ -5357,16 +5383,34 @@
       function extractNumericGradesFromScoresMap(scoresMap) {
         const grades = [];
 
-        if (!(scoresMap instanceof Map)) {
-          return grades;
-        }
-
-        scoresMap.forEach((value) => {
-          const gradeValue = normalizeGradeValue(value?.grade);
+        const appendGrade = (candidate) => {
+          const sourceValue =
+            candidate && typeof candidate === 'object' ? candidate.grade : candidate;
+          const gradeValue = normalizeGradeValue(sourceValue);
           if (typeof gradeValue === 'number' && Number.isFinite(gradeValue)) {
             grades.push(gradeValue);
           }
-        });
+        };
+
+        if (scoresMap instanceof Map) {
+          scoresMap.forEach((value) => {
+            appendGrade(value);
+          });
+          return grades;
+        }
+
+        if (Array.isArray(scoresMap)) {
+          scoresMap.forEach((value) => {
+            appendGrade(value);
+          });
+          return grades;
+        }
+
+        if (scoresMap && typeof scoresMap === 'object') {
+          Object.values(scoresMap).forEach((value) => {
+            appendGrade(value);
+          });
+        }
 
         return grades;
       }
@@ -5392,7 +5436,15 @@
         }
 
         const scoresMap = routeScoresCache.get(routeId);
-        const grades = extractNumericGradesFromScoresMap(scoresMap);
+        let grades = extractNumericGradesFromScoresMap(scoresMap);
+
+        if (!grades.length) {
+          const directRoute = findRouteById(routeId);
+          if (directRoute && directRoute.scores) {
+            grades = extractNumericGradesFromScoresMap(directRoute.scores);
+          }
+        }
+
         return computeMedianGrade(grades);
       }
 
@@ -7212,7 +7264,7 @@
               const routeUid =
                 typeof data.uid === 'string' && data.uid.trim() ? data.uid.trim() : docSnap.id;
               const betatipsMap = getRouteBetatipsMap(routeUid);
-              getRouteScoresMap(routeUid);
+              const scoresMap = getRouteScoresMap(routeUid);
               if (data.hiddenFromClimbers === true) {
                 return null;
               }
@@ -7280,6 +7332,7 @@
                 gradeBarTransparency: wallSettings.gradeBarTransparency,
                 unfocusedTransparency: wallSettings.unfocusedTransparency,
                 betatips: betatipsMap,
+                scores: scoresMap,
               };
             })
             .filter(Boolean)
