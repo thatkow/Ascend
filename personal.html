@@ -6323,15 +6323,6 @@
             await setDoc(upvoteRef, { createdAt: serverTimestamp() });
             upvoters.add(voterId);
           }
-
-          await setDoc(
-            betatipRef,
-            {
-              upvoteCount: upvoters.size,
-              updatedAt: serverTimestamp(),
-            },
-            { merge: true },
-          );
         } catch (error) {
           console.error('Failed to update beta tip upvote:', error);
           throw new Error('Unable to update the beta tip upvote right now.');
