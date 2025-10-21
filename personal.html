@@ -5032,6 +5032,19 @@
         return numeric;
       }
 
+      function normalizeRouteGradeField(value) {
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          return trimmed || null;
+        }
+
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          return value;
+        }
+
+        return null;
+      }
+
       function normalizeUpvoteList(value) {
         const normalized = new Set();
 
@@ -5484,11 +5497,37 @@
       }
 
       function formatGradeDisplay(value) {
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          return trimmed || '—';
+        }
+
         if (typeof value !== 'number' || !Number.isFinite(value)) {
           return '—';
         }
 
         return Number.isInteger(value) ? String(value) : value.toFixed(1);
+      }
+
+      function resolveTooltipGradeValue(route) {
+        if (!route) {
+          return null;
+        }
+
+        const gradeField = normalizeRouteGradeField(route.grade);
+        if (typeof gradeField === 'string' && gradeField) {
+          return gradeField;
+        }
+
+        if (typeof gradeField === 'number' && Number.isFinite(gradeField)) {
+          return gradeField;
+        }
+
+        if (typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)) {
+          return route.medianGrade;
+        }
+
+        return null;
       }
 
       function resolveProgressionGradeValue(route) {
@@ -6427,17 +6466,22 @@
           const nextUsersCache = new Map();
           const nextMedianMap = new Map();
           const nextBetatipsCache = new Map();
+          const nextGradeMap = new Map();
 
           snapshot.forEach((docSnap) => {
             const data = docSnap.data() ?? {};
+            const routeUid =
+              typeof data.uid === 'string' && data.uid.trim() ? data.uid.trim() : docSnap.id;
             const usersMap = normalizeRouteUsersMap(data.users);
-            nextUsersCache.set(docSnap.id, usersMap);
+            nextUsersCache.set(routeUid, usersMap);
             const betatipsMap = buildBetatipsMapFromUsers(usersMap);
-            nextBetatipsCache.set(docSnap.id, betatipsMap);
+            nextBetatipsCache.set(routeUid, betatipsMap);
+
+            nextGradeMap.set(routeUid, normalizeRouteGradeField(data.grade));
 
             const median = computeMedianFromUsersMap(usersMap);
             if (typeof median === 'number' && Number.isFinite(median)) {
-              nextMedianMap.set(docSnap.id, median);
+              nextMedianMap.set(routeUid, median);
             }
           });
 
@@ -6457,6 +6501,9 @@
               const median = routeMedianGrades.get(route.id);
               route.medianGrade =
                 typeof median === 'number' && Number.isFinite(median) ? median : null;
+              if (nextGradeMap.has(route.id)) {
+                route.grade = nextGradeMap.get(route.id);
+              }
               const betatipsMap = routeBetatipsCache.get(route.id);
               route.betatips = betatipsMap instanceof Map ? betatipsMap : new Map();
             });
@@ -6492,11 +6539,8 @@
           ariaLines.push(titleLine.textContent);
         }
 
-        const medianGrade =
-          route && typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)
-            ? route.medianGrade
-            : null;
-        const gradeDisplay = formatGradeDisplay(medianGrade);
+        const tooltipGrade = resolveTooltipGradeValue(route);
+        const gradeDisplay = formatGradeDisplay(tooltipGrade);
         const gradeBadge = document.createElement('div');
         gradeBadge.className = 'tooltip-grade-badge';
         gradeBadge.setAttribute('aria-hidden', 'true');
@@ -7038,10 +7082,12 @@
           allRoutes = routesSnapshot.docs
             .map((docSnap) => {
               const data = docSnap.data() ?? {};
+              const routeUid =
+                typeof data.uid === 'string' && data.uid.trim() ? data.uid.trim() : docSnap.id;
               const usersMap = normalizeRouteUsersMap(data.users);
-              routeUsersCache.set(docSnap.id, usersMap);
+              routeUsersCache.set(routeUid, usersMap);
               const betatipsMap = buildBetatipsMapFromUsers(usersMap);
-              routeBetatipsCache.set(docSnap.id, betatipsMap);
+              routeBetatipsCache.set(routeUid, betatipsMap);
               if (data.hiddenFromClimbers === true) {
                 return null;
               }
@@ -7052,8 +7098,10 @@
                   ? medianValue
                   : null;
 
+              const grade = normalizeRouteGradeField(data.grade);
+
               if (medianGrade !== null) {
-                routeMedianGrades.set(docSnap.id, medianGrade);
+                routeMedianGrades.set(routeUid, medianGrade);
               }
 
               const pointsByType = normalizeRoutePointsByType(
@@ -7091,7 +7139,8 @@
               const wallSettings = resolveWallSettings(normalizedLocation, fallbackWallSettings);
 
               return {
-                id: docSnap.id,
+                id: routeUid,
+                uid: routeUid,
                 strokeColor: typeof data.strokeColor === 'string' ? data.strokeColor : '#ffde59',
                 points: normalizedPoints,
                 pointsByType,
@@ -7102,6 +7151,7 @@
                 date_removed: normalizeDate(data.date_removed),
                 location: displayLocation,
                 locationKey: normalizedLocation,
+                grade,
                 medianGrade,
                 pathType: normalizePathType(data.pathType),
                 pointDiameter: wallSettings.pointDiameter,
@@ -7120,8 +7170,8 @@
             })
             .filter(Boolean)
             .sort((a, b) => {
-              const nameA = (a.title || a.id).toLowerCase();
-              const nameB = (b.title || b.id).toLowerCase();
+              const nameA = (a.title || a.uid || a.id).toLowerCase();
+              const nameB = (b.title || b.uid || b.id).toLowerCase();
               return nameA.localeCompare(nameB);
             });
 

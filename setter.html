@@ -5667,7 +5667,11 @@
     }
 
     function normalizeRouteData(raw = {}) {
-      const rawId = typeof raw?.id === 'string' ? raw.id : '';
+      const normalizeRouteUid = (value) =>
+        typeof value === 'string' && value.trim() ? value.trim() : '';
+      const rawUid = normalizeRouteUid(raw?.uid);
+      const rawId = normalizeRouteUid(raw?.id);
+      const resolvedId = rawUid || rawId;
       const { date_removed: _unusedDateRemoved, ...rest } = raw || {};
       const rawLocation = typeof rest.location === 'string' ? rest.location.trim() : '';
       const locationName = rawLocation || DEFAULT_LOCATION?.name || '';
@@ -5715,7 +5719,7 @@
         gradeBarWidth,
         gradeBarTransparency,
       });
-      const medianFromCache = rawId ? routeMedianGrades.get(rawId) : undefined;
+      const medianFromCache = resolvedId ? routeMedianGrades.get(resolvedId) : undefined;
       const rawMedianGrade =
         typeof rest.medianGrade === 'number' && Number.isFinite(rest.medianGrade)
           ? rest.medianGrade
@@ -5740,7 +5744,8 @@
       const usersMap = normalizeRouteUsers(rest.users);
 
       return {
-        id: rawId,
+        id: resolvedId,
+        uid: resolvedId,
         ...rest,
         setter: normalizeSetterName(rest.setter),
         title: typeof rest.title === 'string' ? rest.title.trim() : '',
@@ -6008,8 +6013,10 @@
           const snapshot = await getDocs(collection(db, 'routes'));
 
           snapshot.forEach((docSnap) => {
-            const data = docSnap.data() ?? {};
-            const userEntries = normalizeRouteUsers(data.users);
+          const data = docSnap.data() ?? {};
+          const routeUid =
+            typeof data.uid === 'string' && data.uid.trim() ? data.uid.trim() : docSnap.id;
+          const userEntries = normalizeRouteUsers(data.users);
 
             if (!(userEntries instanceof Map) || userEntries.size === 0) {
               return;
@@ -6029,7 +6036,7 @@
 
             const median = calculateMedian(grades);
             if (median !== null) {
-              medianMap.set(docSnap.id, median);
+              medianMap.set(routeUid, median);
             }
           });
         } catch (error) {
@@ -6039,17 +6046,24 @@
         return medianMap;
       }
 
-    function createRouteKeyFromTitle(title) {
-      if (typeof title !== 'string') {
-        return '';
+    function generateRouteUid() {
+      if (typeof crypto !== 'undefined') {
+        if (typeof crypto.randomUUID === 'function') {
+          return crypto.randomUUID();
+        }
+
+        if (typeof crypto.getRandomValues === 'function') {
+          const buffer = new Uint32Array(4);
+          crypto.getRandomValues(buffer);
+          return Array.from(buffer)
+            .map((value) => value.toString(16).padStart(8, '0'))
+            .join('');
+        }
       }
 
-      const trimmed = title.trim();
-      if (!trimmed) {
-        return '';
-      }
-
-      return trimmed.replace(/\//g, '-');
+      const timestamp = Date.now().toString(36);
+      const random = Math.random().toString(36).slice(2, 10);
+      return `route-${timestamp}-${random}`;
     }
 
     function findConflictingRouteKey(title, excludeKey = '') {
@@ -7455,7 +7469,10 @@
         routeMedianGrades = medianMap instanceof Map ? medianMap : new Map();
         routesCache.clear();
         routesSnapshot.forEach((docSnap) => {
-          routesCache.set(docSnap.id, normalizeRouteData({ id: docSnap.id, ...docSnap.data() }));
+          const data = docSnap.data() ?? {};
+          const rawUid = typeof data.uid === 'string' ? data.uid.trim() : '';
+          const routeUid = rawUid || docSnap.id;
+          routesCache.set(routeUid, normalizeRouteData({ id: routeUid, uid: routeUid, ...data }));
         });
 
         updateRoutesForAllWalls();
@@ -7545,27 +7562,14 @@
         return;
       }
 
-      const routeKey = createRouteKeyFromTitle(title);
-      if (!routeKey) {
-        setStatus('Route title must include valid characters.', 'error');
-        routeTitleInput.focus();
-        return;
-      }
-
       const conflictingKey = findConflictingRouteKey(title, previousRouteKey);
       if (conflictingKey && conflictingKey !== previousRouteKey) {
         setStatus('Another route already uses this title. Choose a different title.', 'error');
         routeTitleInput.focus();
         return;
       }
-
-      if (routesCache.has(routeKey) && routeKey !== previousRouteKey) {
-        setStatus('Another route already uses this title. Choose a different title.', 'error');
-        routeTitleInput.focus();
-        return;
-      }
-
-      const isRenaming = Boolean(previousRouteKey && previousRouteKey !== routeKey);
+      const isExistingRoute = Boolean(previousRouteKey);
+      const routeKey = isExistingRoute ? previousRouteKey : generateRouteUid();
 
       const description = routeDescriptionInput.value.trim();
       routeDescriptionInput.value = description;
@@ -7597,6 +7601,7 @@
       updatePathControls();
 
       const payload = {
+        uid: routeKey,
         setter,
         title,
         description: description || null,
@@ -7625,22 +7630,7 @@
 
           if (!existingSnap.exists()) {
             payload.createdAt = serverTimestamp();
-
-            if (isRenaming && previousRouteKey) {
-              try {
-                const previousSnap = await getDoc(doc(db, 'routes', previousRouteKey));
-                const previousUsers = previousSnap.data()?.users;
-                if (previousUsers && typeof previousUsers === 'object') {
-                  usersPayload = sanitizeUsersForPersistence(previousUsers);
-                }
-              } catch (error) {
-                console.warn('Failed to copy user entries from previous route:', error);
-              }
-            }
-
-            if (usersPayload === null) {
-              usersPayload = {};
-            }
+            usersPayload = {};
           } else if (!existingData?.users || typeof existingData.users !== 'object') {
             usersPayload = {};
           }
@@ -7656,6 +7646,7 @@
             routeKey,
             normalizeRouteData({
               id: routeKey,
+              uid: routeKey,
               ...payload,
               users: usersPayload !== null ? usersPayload : existingData?.users,
               pointDiameter: normalizedPointDiameter,
@@ -7666,15 +7657,6 @@
               rectangleHeight: normalizedRectangleHeight,
             }),
           );
-
-          if (isRenaming) {
-            try {
-              await deleteDoc(doc(db, 'routes', previousRouteKey));
-              routesCache.delete(previousRouteKey);
-            } catch (error) {
-              console.warn('Failed to delete previous route entry:', error);
-            }
-          }
 
           resetUnsavedState();
 
