@@ -5282,6 +5282,53 @@
         return map;
       }
 
+      function getRouteId(route) {
+        if (!route) {
+          return '';
+        }
+
+        if (typeof route === 'string') {
+          return route.trim();
+        }
+
+        if (typeof route === 'number' && Number.isFinite(route)) {
+          return String(route);
+        }
+
+        if (typeof route !== 'object') {
+          return '';
+        }
+
+        const candidateValues = [
+          route.id,
+          route.uid,
+          route.routeId,
+          route.routeID,
+          route.route_id,
+          route.slug,
+          route.key,
+        ];
+
+        for (const candidate of candidateValues) {
+          if (typeof candidate === 'string' && candidate.trim()) {
+            return candidate.trim();
+          }
+
+          if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+            return String(candidate);
+          }
+        }
+
+        if (typeof route.toString === 'function') {
+          const serialized = String(route).trim();
+          if (serialized && serialized !== '[object Object]') {
+            return serialized;
+          }
+        }
+
+        return '';
+      }
+
       function getRouteBetatipsMap(routeId) {
         if (typeof routeId !== 'string' || !routeId.trim()) {
           return new Map();
