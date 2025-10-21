@@ -1085,7 +1085,7 @@
       .route-tooltip .betatip-upvote-button {
         border: none;
         background: none;
-        color: var(--tooltip-accent, #7ed957);
+        color: rgba(148, 163, 184, 0.8);
         width: 2.15rem;
         height: 2.15rem;
         min-width: 2.15rem;
@@ -1126,7 +1126,7 @@
       .route-tooltip .betatip-upvote-button:focus-visible {
         outline: none;
         transform: translateY(-1px);
-        color: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.85);
+        color: rgba(226, 232, 240, 0.95);
       }
 
       .route-tooltip .betatip-upvote-button.is-upvoted {
@@ -1134,6 +1134,7 @@
         border: 1px solid var(--tooltip-accent, #7ed957);
         background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.32);
         box-shadow: inset 0 0 0 1px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.45);
+        color: var(--tooltip-accent, #7ed957);
       }
 
       .route-tooltip .betatip-upvote-button.is-upvoted:hover,
@@ -1141,6 +1142,7 @@
         box-shadow: 0 10px 22px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.3);
         background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.38);
         border-color: var(--tooltip-accent, #7ed957);
+        color: var(--tooltip-accent, #7ed957);
       }
 
       .route-tooltip .betatip-upvote-button:disabled {
@@ -1148,6 +1150,7 @@
         opacity: 0.6;
         transform: none;
         box-shadow: none;
+        color: rgba(148, 163, 184, 0.6);
       }
 
       .route-tooltip .betatip-upvote-icon {
