@@ -3884,6 +3884,40 @@
       return numeric;
     }
 
+    function normalizeRouteGradeField(value) {
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return trimmed || null;
+      }
+
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+      }
+
+      return null;
+    }
+
+    function resolveRouteNumericGrade(value) {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        const clamped = Math.min(Math.max(value, MIN_GRADE_VALUE), MAX_GRADE_VALUE);
+        return clamped;
+      }
+
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) {
+          return null;
+        }
+        const numeric = Number(trimmed);
+        if (Number.isFinite(numeric)) {
+          const clamped = Math.min(Math.max(numeric, MIN_GRADE_VALUE), MAX_GRADE_VALUE);
+          return clamped;
+        }
+      }
+
+      return null;
+    }
+
     function normalizeUnfocusedTransparency(value) {
       const numeric = Number(value);
       if (!Number.isFinite(numeric)) {
@@ -4595,7 +4629,8 @@
     let gradeBarMaxHeight = DEFAULT_GRADE_BAR_MAX_HEIGHT;
     let gradeBarWidth = DEFAULT_GRADE_BAR_WIDTH;
     let gradeBarTransparency = DEFAULT_GRADE_BAR_TRANSPARENCY;
-    let currentRouteMedianGrade = null;
+    let currentRouteGradeValue = null;
+    let currentRouteNumericGrade = null;
     let wheelHue = 48;
     let wheelSaturation = 1;
     let wheelLightness = 0.5;
@@ -4723,7 +4758,6 @@
     }
 
     const routesCache = new Map();
-    let routeMedianGrades = new Map();
     let queuedGradeBarOverlays = [];
     let focusedRouteKey = '';
     let overlayInteractionEntries = [];
@@ -5707,6 +5741,8 @@
       const gradeBarTransparency = normalizeGradeBarTransparency(
         rest.gradeBarTransparency ?? rest.transparency,
       );
+      const normalizedGradeField = normalizeRouteGradeField(rest.grade);
+      const numericGrade = resolveRouteNumericGrade(normalizedGradeField);
       const wallSettings = getWallSettingsWithFallback(locationKey, {
         pointDiameter: fallbackPointDiameter,
         hollowPointDiameter: fallbackHollowPointDiameter,
@@ -5719,15 +5755,6 @@
         gradeBarWidth,
         gradeBarTransparency,
       });
-      const medianFromCache = resolvedId ? routeMedianGrades.get(resolvedId) : undefined;
-      const rawMedianGrade =
-        typeof rest.medianGrade === 'number' && Number.isFinite(rest.medianGrade)
-          ? rest.medianGrade
-          : medianFromCache;
-      const medianGrade =
-        typeof rawMedianGrade === 'number' && Number.isFinite(rawMedianGrade)
-          ? Math.min(Math.max(rawMedianGrade, MIN_GRADE_VALUE), MAX_GRADE_VALUE)
-          : null;
       let pointsSource = rest.points;
       if (
         rest.pointsByType instanceof Map ||
@@ -5768,30 +5795,11 @@
         date_set: normalizeDateValue(rest.date_set),
         location: locationName,
         locationKey,
-        medianGrade,
+        grade: normalizedGradeField,
+        numericGrade,
         hiddenFromClimbers: rest.hiddenFromClimbers === true,
       };
     }
-
-      function calculateMedian(values = []) {
-        if (!Array.isArray(values) || !values.length) {
-          return null;
-        }
-
-        const sorted = values
-          .filter((value) => typeof value === 'number' && Number.isFinite(value))
-          .sort((a, b) => a - b);
-
-        if (!sorted.length) {
-          return null;
-        }
-
-        const mid = Math.floor(sorted.length / 2);
-        if (sorted.length % 2 === 0) {
-          return (sorted[mid - 1] + sorted[mid]) / 2;
-        }
-        return sorted[mid];
-      }
 
       function sanitizeNormalizedPoint(point) {
         const x = Number(point?.x);
@@ -6004,46 +6012,6 @@
         });
 
         return map;
-      }
-
-      async function fetchMedianGrades() {
-        const medianMap = new Map();
-
-        try {
-          const snapshot = await getDocs(collection(db, 'routes'));
-
-          snapshot.forEach((docSnap) => {
-          const data = docSnap.data() ?? {};
-          const routeUid =
-            typeof data.uid === 'string' && data.uid.trim() ? data.uid.trim() : docSnap.id;
-          const userEntries = normalizeRouteUsers(data.users);
-
-            if (!(userEntries instanceof Map) || userEntries.size === 0) {
-              return;
-            }
-
-            const grades = [];
-            userEntries.forEach((entry) => {
-              const grade = normalizeGradeValue(entry?.grade);
-              if (grade !== null) {
-                grades.push(grade);
-              }
-            });
-
-            if (!grades.length) {
-              return;
-            }
-
-            const median = calculateMedian(grades);
-            if (median !== null) {
-              medianMap.set(routeUid, median);
-            }
-          });
-        } catch (error) {
-          console.warn('Failed to load median grades:', error);
-        }
-
-        return medianMap;
       }
 
     function generateRouteUid() {
@@ -6330,7 +6298,7 @@
           routePoints: points,
           color: strokeColor,
           alpha: 1,
-          medianGrade: currentRouteMedianGrade,
+          numericGrade: currentRouteNumericGrade,
           baseHeight: gradeBarBaseHeight,
           maxHeight: gradeBarMaxHeight,
           width: gradeBarWidth,
@@ -6840,6 +6808,11 @@
           }
 
           const entryPointDiameter = getRoutePointDiameterForPathType(data, entryPathType);
+          const numericGrade =
+            typeof data.numericGrade === 'number' && Number.isFinite(data.numericGrade)
+              ? data.numericGrade
+              : resolveRouteNumericGrade(data.grade);
+
           overlayEntries.push({
             id: key,
             color,
@@ -6851,7 +6824,7 @@
             rectangleWidth: normalizedRectangleWidth,
             rectangleHeight: normalizedRectangleHeight,
             alpha: overlayAlpha,
-            medianGrade: data.medianGrade,
+            numericGrade,
             gradeBarBaseHeight: data.gradeBarBaseHeight,
             gradeBarMaxHeight: data.gradeBarMaxHeight,
             gradeBarWidth: data.gradeBarWidth,
@@ -6868,21 +6841,21 @@
       const handledOverlapKeys = new Set();
 
       overlayEntries.forEach((entry) => {
-        const {
-          color,
-          pathType: routePathType,
-          canvasPoints,
-          normalizedPoints,
-          pointDiameter: entryPointDiameter,
-          rectangleWidth: entryRectangleWidth,
-          rectangleHeight: entryRectangleHeight,
-          alpha,
-          medianGrade,
-          gradeBarBaseHeight,
-          gradeBarMaxHeight,
-          gradeBarWidth,
-          gradeBarTransparency,
-        } = entry;
+          const {
+            color,
+            pathType: routePathType,
+            canvasPoints,
+            normalizedPoints,
+            pointDiameter: entryPointDiameter,
+            rectangleWidth: entryRectangleWidth,
+            rectangleHeight: entryRectangleHeight,
+            alpha,
+            numericGrade,
+            gradeBarBaseHeight,
+            gradeBarMaxHeight,
+            gradeBarWidth,
+            gradeBarTransparency,
+          } = entry;
 
         const supportsPattern =
           isNormalizedPointPathType(routePathType) || routePathType === PATH_TYPE_RECTANGLE;
@@ -7019,7 +6992,7 @@
           routePoints: canvasPoints,
           color,
           alpha: routeAlpha,
-          medianGrade,
+          numericGrade,
           baseHeight: gradeBarBaseHeight,
           maxHeight: gradeBarMaxHeight,
           width: gradeBarWidth,
@@ -7351,7 +7324,10 @@
       routeDescriptionInput.value = data.description;
       routeDateSetInput.value = isoStringToInputValue(data.date_set) || '';
       strokeColor = data.strokeColor;
-      currentRouteMedianGrade = data.medianGrade ?? null;
+      currentRouteGradeValue = normalizeRouteGradeField(data.grade);
+      currentRouteNumericGrade = resolveRouteNumericGrade(
+        currentRouteGradeValue !== null ? currentRouteGradeValue : data.numericGrade,
+      );
       if (routeHiddenCheckbox) {
         const isHidden = data.hiddenFromClimbers === true;
         routeHiddenCheckbox.checked = isHidden;
@@ -7410,7 +7386,8 @@
       gradeBarMaxHeight = wallSettings.gradeBarMaxHeight;
       gradeBarWidth = wallSettings.gradeBarWidth;
       gradeBarTransparency = wallSettings.gradeBarTransparency;
-      currentRouteMedianGrade = null;
+      currentRouteGradeValue = null;
+      currentRouteNumericGrade = null;
       updatePathControls();
       updateAppearanceControls();
       normalizedPointsByPathType.clear();
@@ -7462,11 +7439,7 @@
           updateAppearanceControls();
         }
 
-        const [routesSnapshot, medianMap] = await Promise.all([
-          getDocs(collection(db, 'routes')),
-          fetchMedianGrades(),
-        ]);
-        routeMedianGrades = medianMap instanceof Map ? medianMap : new Map();
+        const routesSnapshot = await getDocs(collection(db, 'routes'));
         routesCache.clear();
         routesSnapshot.forEach((docSnap) => {
           const data = docSnap.data() ?? {};
@@ -7600,6 +7573,8 @@
       unfocusedTransparency = normalizedUnfocusedTransparency;
       updatePathControls();
 
+      const normalizedGradeField = normalizeRouteGradeField(currentRouteGradeValue);
+
       const payload = {
         uid: routeKey,
         setter,
@@ -7614,6 +7589,10 @@
         updatedAt: serverTimestamp(),
         hiddenFromClimbers: hiddenFromClimbers ? true : deleteField(),
       };
+
+      if (normalizedGradeField !== null) {
+        payload.grade = normalizedGradeField;
+      }
 
       const routeRef = doc(db, 'routes', routeKey);
 
@@ -7655,6 +7634,10 @@
               brezerStrokeWidth: wallSettings.brezerStrokeWidth,
               rectangleWidth: normalizedRectangleWidth,
               rectangleHeight: normalizedRectangleHeight,
+              grade:
+                normalizedGradeField !== null
+                  ? normalizedGradeField
+                  : normalizeRouteGradeField(existingData?.grade),
             }),
           );
 

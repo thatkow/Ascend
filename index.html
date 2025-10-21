@@ -4049,7 +4049,6 @@
         ascendedRoutes.clear();
         routeGrades.clear();
         userAscentDetails = new Map();
-        routeMedianGrades = new Map();
         routeUsersCache.clear();
         routeBetatipsCache.clear();
         hideTooltip({ force: true });
@@ -4888,7 +4887,6 @@
       const routeUsersCache = new Map();
       const routeBetatipsCache = new Map();
       let userAscentDetails = new Map();
-      let routeMedianGrades = new Map();
       const normalizeRouteUidValue = (value) =>
         typeof value === 'string' && value.trim() ? value.trim() : '';
       const getRouteId = (route) => {
@@ -5406,61 +5404,6 @@
         return map;
       }
 
-      function computeMedianFromUsersMap(usersMap) {
-        if (!(usersMap instanceof Map) || usersMap.size === 0) {
-          return null;
-        }
-
-        const grades = [];
-
-        usersMap.forEach((details) => {
-          const gradeValue = normalizeGradeValue(details?.grade);
-          if (typeof gradeValue === 'number' && Number.isFinite(gradeValue)) {
-            grades.push(gradeValue);
-          }
-        });
-
-        if (!grades.length) {
-          return null;
-        }
-
-        grades.sort((a, b) => a - b);
-        const mid = Math.floor(grades.length / 2);
-        if (grades.length % 2 === 0) {
-          return (grades[mid - 1] + grades[mid]) / 2;
-        }
-
-        return grades[mid];
-      }
-
-      function updateMedianForRoute(routeId) {
-        if (!routeId) {
-          return;
-        }
-
-        const usersMap = routeUsersCache.get(routeId);
-        const median = computeMedianFromUsersMap(usersMap);
-        const medianValue =
-          typeof median === 'number' && Number.isFinite(median) ? median : null;
-
-        if (medianValue === null) {
-          routeMedianGrades.delete(routeId);
-        } else {
-          routeMedianGrades.set(routeId, medianValue);
-        }
-
-        [allRoutes, routes].forEach((routeCollection) => {
-          if (!Array.isArray(routeCollection)) {
-            return;
-          }
-
-          const match = routeCollection.find((entry) => entry && entry.id === routeId);
-          if (match) {
-            match.medianGrade = medianValue;
-          }
-        });
-      }
-
       function formatGradeDisplay(value) {
         if (typeof value === 'string') {
           const trimmed = value.trim();
@@ -5488,8 +5431,10 @@
           return gradeField;
         }
 
-        if (typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)) {
-          return route.medianGrade;
+        const routeId = getRouteId(route);
+        const stored = routeGrades.get(routeId);
+        if (typeof stored === 'number' && Number.isFinite(stored)) {
+          return stored;
         }
 
         return null;
@@ -5500,8 +5445,13 @@
           return null;
         }
 
-        if (typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)) {
-          return route.medianGrade;
+        const gradeField = normalizeRouteGradeField(route.grade);
+        if (typeof gradeField === 'number' && Number.isFinite(gradeField)) {
+          return gradeField;
+        }
+
+        if (typeof gradeField === 'string' && gradeField) {
+          return gradeField;
         }
 
         const routeId = getRouteId(route);
@@ -5555,22 +5505,41 @@
           const gradeA = resolveProgressionGradeValue(routeA);
           const gradeB = resolveProgressionGradeValue(routeB);
 
-          if (gradeA === null && gradeB === null) {
-            const nameA = (routeA.title || routeA.id || '').toLowerCase();
-            const nameB = (routeB.title || routeB.id || '').toLowerCase();
-            return nameA.localeCompare(nameB);
+          const numberA =
+            typeof gradeA === 'number' && Number.isFinite(gradeA) ? gradeA : null;
+          const numberB =
+            typeof gradeB === 'number' && Number.isFinite(gradeB) ? gradeB : null;
+
+          if (numberA !== null || numberB !== null) {
+            if (numberA === null) {
+              return 1;
+            }
+
+            if (numberB === null) {
+              return -1;
+            }
+
+            if (numberA !== numberB) {
+              return numberA - numberB;
+            }
           }
 
-          if (gradeA === null) {
-            return 1;
-          }
+          const stringA = typeof gradeA === 'string' && gradeA ? gradeA : null;
+          const stringB = typeof gradeB === 'string' && gradeB ? gradeB : null;
 
-          if (gradeB === null) {
-            return -1;
-          }
+          if (stringA || stringB) {
+            if (!stringA) {
+              return 1;
+            }
 
-          if (gradeA !== gradeB) {
-            return gradeA - gradeB;
+            if (!stringB) {
+              return -1;
+            }
+
+            const compare = stringA.localeCompare(stringB, undefined, { sensitivity: 'base' });
+            if (compare !== 0) {
+              return compare;
+            }
           }
 
           const nameA = (routeA.title || routeA.id || '').toLowerCase();
@@ -6037,11 +6006,8 @@
             betatipsMap.delete(username);
           }
 
-          updateMedianForRoute(routeId);
-
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
-          await refreshMedianGrades();
         } catch (error) {
           console.error('Failed to update route grade:', error);
         }
@@ -6118,59 +6084,6 @@
         });
 
         return limitedText;
-      }
-
-      async function refreshMedianGrades() {
-        try {
-          const snapshot = await getDocs(collection(db, 'routes'));
-          const nextUsersCache = new Map();
-          const nextMedianMap = new Map();
-          const nextBetatipsCache = new Map();
-          const nextGradeMap = new Map();
-
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data() ?? {};
-            const usersMap = normalizeRouteUsersMap(data.users);
-            nextUsersCache.set(docSnap.id, usersMap);
-            const betatipsMap = buildBetatipsMapFromUsers(usersMap);
-            nextBetatipsCache.set(docSnap.id, betatipsMap);
-
-            nextGradeMap.set(docSnap.id, normalizeRouteGradeField(data.grade));
-
-            const median = computeMedianFromUsersMap(usersMap);
-            if (typeof median === 'number' && Number.isFinite(median)) {
-              nextMedianMap.set(docSnap.id, median);
-            }
-          });
-
-          routeUsersCache.clear();
-          nextUsersCache.forEach((value, key) => {
-            routeUsersCache.set(key, value);
-          });
-          routeBetatipsCache.clear();
-          nextBetatipsCache.forEach((value, key) => {
-            routeBetatipsCache.set(key, value);
-          });
-
-          routeMedianGrades = nextMedianMap;
-
-          if (Array.isArray(allRoutes)) {
-            allRoutes.forEach((route) => {
-              const median = routeMedianGrades.get(route.id);
-              route.medianGrade =
-                typeof median === 'number' && Number.isFinite(median) ? median : null;
-              if (nextGradeMap.has(route.id)) {
-                route.grade = nextGradeMap.get(route.id);
-              }
-              const betatipsMap = routeBetatipsCache.get(route.id);
-              route.betatips = betatipsMap instanceof Map ? betatipsMap : new Map();
-            });
-          }
-
-          redraw();
-        } catch (error) {
-          console.error('Failed to load route grades:', error);
-        }
       }
 
       function updateTooltipContent(route) {
@@ -6662,7 +6575,6 @@
 
           routeUsersCache.clear();
           routeBetatipsCache.clear();
-          routeMedianGrades = new Map();
 
           wallSettingsCache.clear();
           const hiddenWallKeys = new Set();
@@ -6729,17 +6641,7 @@
                 return null;
               }
 
-              const medianValue = computeMedianFromUsersMap(usersMap);
-              const medianGrade =
-                typeof medianValue === 'number' && Number.isFinite(medianValue)
-                  ? medianValue
-                  : null;
-
               const grade = normalizeRouteGradeField(data.grade);
-
-              if (medianGrade !== null) {
-                routeMedianGrades.set(routeUid, medianGrade);
-              }
 
               const pointsByType = normalizeRoutePointsByType(
                 data.points,
@@ -6789,7 +6691,6 @@
                 location: displayLocation,
                 locationKey: normalizedLocation,
                 grade,
-                medianGrade,
                 pathType: normalizePathType(data.pathType),
                 pointDiameter: wallSettings.pointDiameter,
                 hollowPointDiameter: wallSettings.hollowPointDiameter,
@@ -6819,7 +6720,6 @@
           routes = [];
           focusedRouteId = null;
           updateClearFocusButton();
-          routeMedianGrades = new Map();
           routeUsersCache.clear();
           routeBetatipsCache.clear();
           renderProgressionList();
@@ -6901,8 +6801,6 @@
           } else {
             betatipsMap.delete(username);
           }
-
-          updateMedianForRoute(routeId);
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
@@ -7118,10 +7016,16 @@
           return null;
         }
 
+        const gradeField = normalizeRouteGradeField(route.grade);
         let grade =
-          typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)
-            ? route.medianGrade
-            : null;
+          typeof gradeField === 'number' && Number.isFinite(gradeField) ? gradeField : null;
+
+        if (grade === null && typeof gradeField === 'string' && gradeField) {
+          const numericGrade = normalizeGradeValue(gradeField);
+          if (typeof numericGrade === 'number' && Number.isFinite(numericGrade)) {
+            grade = numericGrade;
+          }
+        }
 
         if (grade === null && typeof route.id === 'string') {
           const userGrade = getUserGradeForRoute(route.id);
