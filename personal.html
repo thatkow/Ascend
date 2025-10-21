@@ -6273,26 +6273,40 @@
           throw new Error('Unable to determine which route to update.');
         }
 
-        let username = isValidUsername(currentUsername) ? normalizeUsername(currentUsername) : '';
-        if (!username) {
+        let username = '';
+        try {
+          username = await lookupUsernameByUid(currentUser.uid);
+        } catch (error) {
+          console.error('Failed to fetch username for betatip save:', error);
+        }
+
+        if (!isValidUsername(username)) {
           const resolved = await resolveAuthenticatedUsername();
           if (isValidUsername(resolved)) {
             username = normalizeUsername(resolved);
-            currentUsername = username;
           }
+        } else {
+          username = normalizeUsername(username);
         }
 
         if (!isValidUsername(username)) {
           throw new Error('Unable to resolve your username.');
         }
 
+        currentUsername = username;
+
         const normalizedText = typeof rawText === 'string' ? rawText.replace(/\r\n/g, '\n').trim() : '';
         const limitedText = normalizedText ? normalizedText.slice(0, MAX_BETATIP_LENGTH) : '';
+        const betatipValue = limitedText || null;
 
         const routeRef = doc(db, 'routes', routeId);
+        await updateDoc(routeRef, {
+          [`users.${currentUsername}.betatip`]: betatipValue,
+        });
+
         const existingDetails =
           routeUsersCache.get(routeId) instanceof Map
-            ? routeUsersCache.get(routeId).get(username)
+            ? routeUsersCache.get(routeId).get(currentUsername)
             : null;
         const gradeValue = normalizeGradeValue(existingDetails?.grade);
         const ascendedValue = existingDetails?.ascended === true;
@@ -6300,18 +6314,14 @@
           existingDetails?.betatipUpvotes ?? existingDetails?.betatipupvotes,
         );
 
-        const userPayload = {
+        const cachePayload = {
           grade: gradeValue,
           ascended: ascendedValue,
-          betatip: limitedText || null,
-          betatipupvotes: limitedText ? serializeUpvoteSet(existingUpvotes) : null,
+          betatip: betatipValue,
+          betatipUpvotes: existingUpvotes,
         };
 
-        await updateDoc(routeRef, {
-          [`users.${username}`]: userPayload,
-        });
-
-        updateCachesForUser(routeId, username, userPayload);
+        updateCachesForUser(routeId, currentUsername, cachePayload);
 
         return limitedText;
       }
