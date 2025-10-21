@@ -1032,6 +1032,64 @@
       return candidate;
     }
 
+    function ensureEntryHasId(entry, fallbackId = '') {
+      const normalizedFallback = typeof fallbackId === 'string' ? fallbackId.trim() : '';
+
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+        if (!normalizedFallback) {
+          return { value: entry ?? null };
+        }
+
+        return { id: normalizedFallback, value: entry ?? null };
+      }
+
+      const copy = { ...entry };
+      const existingId = typeof copy.id === 'string' ? copy.id.trim() : '';
+
+      if (existingId) {
+        copy.id = existingId;
+        return copy;
+      }
+
+      if (!normalizedFallback) {
+        return copy;
+      }
+
+      copy.id = normalizedFallback;
+      return copy;
+    }
+
+    function normalizeDumpEntries(entries) {
+      if (!entries) {
+        return [];
+      }
+
+      const normalized = [];
+
+      const pushNormalizedEntry = (entry, fallbackId) => {
+        const prepared = ensureEntryHasId(entry, fallbackId);
+        if (prepared) {
+          normalized.push(prepared);
+        }
+      };
+
+      if (Array.isArray(entries)) {
+        for (const entry of entries) {
+          pushNormalizedEntry(entry);
+        }
+        return normalized;
+      }
+
+      if (typeof entries === 'object') {
+        for (const [key, entry] of Object.entries(entries)) {
+          pushNormalizedEntry(entry, key);
+        }
+        return normalized;
+      }
+
+      return normalized;
+    }
+
     async function importSubcollections(parentRef, subcollections) {
       if (!parentRef || !subcollections || typeof subcollections !== 'object') {
         return { imported: 0, failed: 0 };
@@ -1045,11 +1103,7 @@
           continue;
         }
 
-        const normalizedEntries = Array.isArray(entries)
-          ? entries
-          : typeof entries === 'object'
-          ? Object.values(entries)
-          : [];
+        const normalizedEntries = normalizeDumpEntries(entries);
 
         for (const entry of normalizedEntries) {
           if (!entry || typeof entry !== 'object') {
@@ -1089,15 +1143,7 @@
     }
 
     async function importCollectionEntries(collectionKey, entries) {
-      if (!entries) {
-        return { imported: 0, failed: 0 };
-      }
-
-      const normalizedEntries = Array.isArray(entries)
-        ? entries
-        : typeof entries === 'object'
-        ? Object.values(entries)
-        : [];
+      const normalizedEntries = normalizeDumpEntries(entries);
 
       let imported = 0;
       let failed = 0;
