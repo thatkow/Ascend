@@ -1756,6 +1756,7 @@
         deleteDoc,
         serverTimestamp,
         collection,
+        collectionGroup,
         getDocs,
         query,
         limit,
@@ -5491,23 +5492,46 @@
         };
       }
 
-      function normalizeRouteScoresMap(rawScores) {
-        const normalized = new Map();
+      function extractNumericGradesFromScoresMap(scoresMap) {
+        const grades = [];
 
-        if (!rawScores || typeof rawScores !== 'object') {
-          return normalized;
+        if (!(scoresMap instanceof Map)) {
+          return grades;
         }
 
-        Object.entries(rawScores).forEach(([uid, value]) => {
-          if (typeof uid !== 'string' || !uid.trim()) {
-            return;
+        scoresMap.forEach((value) => {
+          const gradeValue = normalizeGradeValue(value?.grade);
+          if (typeof gradeValue === 'number' && Number.isFinite(gradeValue)) {
+            grades.push(gradeValue);
           }
-
-          const entry = normalizeRouteScoreEntry(value || {});
-          normalized.set(uid.trim(), entry);
         });
 
-        return normalized;
+        return grades;
+      }
+
+      function computeMedianGrade(grades) {
+        if (!Array.isArray(grades) || grades.length === 0) {
+          return null;
+        }
+
+        const sorted = grades.slice().sort((a, b) => a - b);
+        const midpoint = Math.floor(sorted.length / 2);
+
+        if (sorted.length % 2 === 1) {
+          return sorted[midpoint];
+        }
+
+        return (sorted[midpoint - 1] + sorted[midpoint]) / 2;
+      }
+
+      function computeMedianGradeForRoute(routeId) {
+        if (!routeId) {
+          return null;
+        }
+
+        const scoresMap = routeScoresCache.get(routeId);
+        const grades = extractNumericGradesFromScoresMap(scoresMap);
+        return computeMedianGrade(grades);
       }
 
       async function loadBetatipUpvotes(betatipId) {
@@ -5552,16 +5576,11 @@
           return null;
         }
 
-        const gradeField = normalizeRouteGradeField(route.grade);
-        if (typeof gradeField === 'string' && gradeField) {
-          return gradeField;
-        }
-
-        if (typeof gradeField === 'number' && Number.isFinite(gradeField)) {
-          return gradeField;
-        }
-
-        return null;
+        const routeId = getRouteId(route);
+        const medianGrade = computeMedianGradeForRoute(routeId);
+        return typeof medianGrade === 'number' && Number.isFinite(medianGrade)
+          ? medianGrade
+          : null;
       }
 
       function resolveProgressionGradeValue(route) {
@@ -5569,16 +5588,11 @@
           return null;
         }
 
-        const gradeField = normalizeRouteGradeField(route.grade);
-        if (typeof gradeField === 'number' && Number.isFinite(gradeField)) {
-          return gradeField;
-        }
-
-        if (typeof gradeField === 'string' && gradeField) {
-          return gradeField;
-        }
-
-        return null;
+        const routeId = getRouteId(route);
+        const medianGrade = computeMedianGradeForRoute(routeId);
+        return typeof medianGrade === 'number' && Number.isFinite(medianGrade)
+          ? medianGrade
+          : null;
       }
 
       function renderProgressionList() {
@@ -6273,7 +6287,7 @@
           return;
         }
 
-        const routeRef = doc(db, 'routes_users_scores', routeId);
+        const routeRef = doc(db, 'routes', routeId, 'scores', userId);
         const isAscended = ascendedRoutes.has(routeId);
 
         try {
@@ -6282,7 +6296,7 @@
             ascended: isAscended,
           };
 
-          await setDoc(routeRef, { [userId]: userPayload }, { merge: true });
+          await setDoc(routeRef, userPayload, { merge: true });
 
           const existingEntry = userAscentDetails.get(routeId) || {};
 
@@ -6305,7 +6319,7 @@
             scoresMap = new Map();
             routeScoresCache.set(routeId, scoresMap);
           }
-          scoresMap.set(userId, userPayload);
+          scoresMap.set(userId, normalizeRouteScoreEntry(userPayload));
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
@@ -6947,7 +6961,7 @@
             await Promise.all([
               getDocs(collection(db, 'routes')),
               getDocs(collection(db, WALL_COLLECTION)),
-              getDocs(collection(db, 'routes_users_scores')),
+              getDocs(collectionGroup(db, 'scores')),
               getDocs(collection(db, 'routes_users_betatips')),
             ]);
 
@@ -6955,13 +6969,17 @@
           routeBetatipsCache.clear();
 
           scoresSnapshot.forEach((docSnap) => {
-            const routeUid = normalizeRouteUidValue(docSnap.id);
-            if (!routeUid) {
+            const routeRef = docSnap.ref?.parent?.parent;
+            const routeUid = normalizeRouteUidValue(routeRef?.id);
+            const userUid = normalizeRouteUidValue(docSnap.id);
+
+            if (!routeUid || !userUid) {
               return;
             }
 
-            const normalizedScores = normalizeRouteScoresMap(docSnap.data() || {});
-            routeScoresCache.set(routeUid, normalizedScores);
+            const normalizedEntry = normalizeRouteScoreEntry(docSnap.data() || {});
+            const scoresMap = getRouteScoresMap(routeUid);
+            scoresMap.set(userUid, normalizedEntry);
           });
 
           const betatipEntries = [];
@@ -7183,7 +7201,7 @@
           return;
         }
 
-        const routeRef = doc(db, 'routes_users_scores', routeId);
+        const routeRef = doc(db, 'routes', routeId, 'scores', userId);
         const isAscended = ascendedRoutes.has(routeId);
         const previousDetails =
           routeScoresCache.get(routeId) instanceof Map
@@ -7207,9 +7225,7 @@
             ascended: nextAscended,
           };
 
-          await setDoc(routeRef, {
-            [userId]: userPayload,
-          }, { merge: true });
+          await setDoc(routeRef, userPayload, { merge: true });
 
           userAscentDetails.set(routeId, {
             ascended: nextAscended,
@@ -7221,7 +7237,7 @@
             scoresMap = new Map();
             routeScoresCache.set(routeId, scoresMap);
           }
-          scoresMap.set(userId, userPayload);
+          scoresMap.set(userId, normalizeRouteScoreEntry(userPayload));
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
@@ -7437,17 +7453,8 @@
           return null;
         }
 
-        const gradeField = normalizeRouteGradeField(route.grade);
-        let grade =
-          typeof gradeField === 'number' && Number.isFinite(gradeField) ? gradeField : null;
-
-        if (grade === null && typeof gradeField === 'string' && gradeField) {
-          const numericGrade = normalizeGradeValue(gradeField);
-          if (typeof numericGrade === 'number' && Number.isFinite(numericGrade)) {
-            grade = numericGrade;
-          }
-        }
-
+        const routeId = getRouteId(route);
+        const grade = computeMedianGradeForRoute(routeId);
         return getGradeColorForValue(grade);
       }
 
