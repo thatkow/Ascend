@@ -1194,6 +1194,28 @@
         background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.18);
       }
 
+      .route-tooltip .betatip-body {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.55rem;
+      }
+
+      .route-tooltip .betatip-upvote-count {
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        min-width: 1.5rem;
+        text-align: right;
+        color: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.8);
+        position: relative;
+      }
+
+      .route-tooltip .betatip-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        align-items: center;
+      }
+
       .route-tooltip .betatip-username {
         font-weight: 600;
         letter-spacing: 0.01em;
@@ -1209,6 +1231,31 @@
         line-height: 1.5;
         color: var(--tooltip-muted-foreground, #d1d5db);
         white-space: pre-line;
+        flex: 1;
+      }
+
+      .route-tooltip .betatip-delete-button {
+        border: none;
+        background: none;
+        color: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.75);
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-decoration: underline;
+        cursor: pointer;
+        padding: 0.1rem 0.25rem;
+        transition: color 0.2s ease, opacity 0.2s ease;
+      }
+
+      .route-tooltip .betatip-delete-button:hover,
+      .route-tooltip .betatip-delete-button:focus-visible {
+        color: var(--tooltip-accent, #7ed957);
+        outline: none;
+      }
+
+      .route-tooltip .betatip-delete-button:disabled {
+        color: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.35);
+        cursor: not-allowed;
+        text-decoration: none;
       }
 
       .route-tooltip .tooltip-betatips-empty {
@@ -5145,6 +5192,107 @@
         return null;
       }
 
+      function normalizeUpvoteList(value) {
+        const normalized = new Set();
+
+        const addCandidate = (candidate) => {
+          if (typeof candidate !== 'string') {
+            return;
+          }
+          const normalizedName = normalizeUsername(candidate);
+          if (normalizedName) {
+            normalized.add(normalizedName);
+          }
+        };
+
+        if (value instanceof Set) {
+          value.forEach(addCandidate);
+        } else if (Array.isArray(value)) {
+          value.forEach(addCandidate);
+        } else if (value && typeof value === 'object') {
+          Object.values(value).forEach(addCandidate);
+        } else {
+          addCandidate(value);
+        }
+
+        return normalized;
+      }
+
+      function normalizeBetatipCacheValue(value, fallbackKey = '') {
+        const fallback = typeof fallbackKey === 'string' ? fallbackKey.trim() : '';
+
+        if (!value) {
+          return {
+            betatipId: fallback,
+            userId: fallback,
+            username: '',
+            text: '',
+            upvoters: new Set(),
+            upvoteCount: 0,
+          };
+        }
+
+        if (typeof value === 'string') {
+          const text = value.replace(/\r\n/g, '\n').trim();
+          return {
+            betatipId: fallback,
+            userId: fallback,
+            username: '',
+            text,
+            upvoters: new Set(),
+            upvoteCount: 0,
+          };
+        }
+
+        if (typeof value === 'object') {
+          const rawText =
+            typeof value.betatip === 'string'
+              ? value.betatip
+              : typeof value.text === 'string'
+              ? value.text
+              : '';
+          const text = rawText.replace(/\r\n/g, '\n').trim();
+          const upvoteSource =
+            value.upvoters instanceof Set || Array.isArray(value.upvoters)
+              ? value.upvoters
+              : value.betatipUpvotes ?? value.betatipupvotes;
+          const upvoters = normalizeUpvoteList(upvoteSource);
+          const normalizedUsername = isValidUsername(value.username)
+            ? normalizeUsername(value.username)
+            : '';
+          const userId =
+            typeof value.userId === 'string' && value.userId.trim()
+              ? value.userId.trim()
+              : fallback;
+          const betatipId =
+            typeof value.betatipId === 'string' && value.betatipId.trim()
+              ? value.betatipId.trim()
+              : fallback;
+          const recordedCount =
+            typeof value.upvoteCount === 'number' && Number.isFinite(value.upvoteCount)
+              ? value.upvoteCount
+              : upvoters.size;
+
+          return {
+            betatipId,
+            userId,
+            username: normalizedUsername,
+            text,
+            upvoters,
+            upvoteCount: recordedCount,
+          };
+        }
+
+        return {
+          betatipId: fallback,
+          userId: fallback,
+          username: '',
+          text: '',
+          upvoters: new Set(),
+          upvoteCount: 0,
+        };
+      }
+
       function sanitizeNormalizedPoint(point) {
         const x = Number(point?.x);
         const y = Number(point?.y);
@@ -5800,41 +5948,94 @@
         }
 
         const betatipsMap = getRouteBetatipsMap(routeId);
-        const currentUid = typeof currentUser?.uid === 'string' ? currentUser.uid : '';
+        const currentUid = typeof currentUser?.uid === 'string' ? currentUser.uid.trim() : '';
         const entries = [];
+        const rewrittenEntries = [];
+        let needsRewrite = false;
 
         if (betatipsMap instanceof Map) {
-          betatipsMap.forEach((details) => {
-            if (!details || typeof details !== 'object') {
-              return;
-            }
-
-            const text = typeof details.betatip === 'string' ? details.betatip.trim() : '';
+          betatipsMap.forEach((value, key) => {
+            const normalized = normalizeBetatipCacheValue(value, key);
+            const text = normalized.text;
             if (!text) {
+              needsRewrite = true;
               return;
             }
 
-            const normalizedUsername = isValidUsername(details.username)
-              ? normalizeUsername(details.username)
+            const betatipId = normalized.betatipId || (typeof key === 'string' ? key.trim() : '');
+            const userId = normalized.userId || (typeof key === 'string' ? key.trim() : '');
+            const upvoteSet = normalized.upvoters instanceof Set ? normalized.upvoters : new Set();
+            const upvoteCount =
+              typeof normalized.upvoteCount === 'number' && Number.isFinite(normalized.upvoteCount)
+                ? normalized.upvoteCount
+                : upvoteSet.size;
+            const isCurrent = currentUid ? userId === currentUid : false;
+            const normalizedUsername = isValidUsername(normalized.username)
+              ? normalizeUsername(normalized.username)
               : '';
             const displayName = normalizedUsername
               ? normalizedUsername
-              : typeof details.userId === 'string' && details.userId
-              ? `User ${details.userId.slice(0, 6)}`
+              : userId
+              ? `User ${userId.slice(0, 6)}`
               : 'Anonymous climber';
 
             entries.push({
+              betatipId: betatipId || userId || '',
+              userId,
               username: displayName,
               text,
-              isCurrent:
-                currentUid && typeof details.userId === 'string'
-                  ? details.userId === currentUid
-                  : false,
+              isCurrent,
+              upvoteCount,
             });
+
+            const nextKey = betatipId || userId || (typeof key === 'string' ? key.trim() : '');
+            rewrittenEntries.push({
+              key: nextKey,
+              value: {
+                betatipId: nextKey,
+                userId,
+                username: normalizedUsername,
+                betatip: text,
+                upvoters: upvoteSet,
+                upvoteCount,
+              },
+            });
+
+            if (
+              typeof key !== 'string' ||
+              !key.trim() ||
+              nextKey !== key.trim() ||
+              typeof value !== 'object' ||
+              value.betatip !== text ||
+              value.userId !== userId ||
+              !(value.upvoters instanceof Set)
+            ) {
+              needsRewrite = true;
+            }
           });
         }
 
-        entries.sort((a, b) => a.username.localeCompare(b.username));
+        if (needsRewrite && betatipsMap instanceof Map) {
+          betatipsMap.clear();
+          rewrittenEntries.forEach(({ key, value }) => {
+            if (typeof key === 'string' && key.trim()) {
+              betatipsMap.set(key.trim(), value);
+            }
+          });
+        }
+
+        entries.sort((a, b) => {
+          if (b.upvoteCount !== a.upvoteCount) {
+            return b.upvoteCount - a.upvoteCount;
+          }
+
+          const nameComparison = a.username.localeCompare(b.username);
+          if (nameComparison !== 0) {
+            return nameComparison;
+          }
+
+          return a.text.localeCompare(b.text);
+        });
 
         const section = document.createElement('section');
         section.className = 'tooltip-betatips';
@@ -5852,11 +6053,15 @@
         list.className = 'tooltip-betatips-list';
 
         if (entries.length) {
-          entries.forEach(({ username, text, isCurrent }) => {
+          entries.forEach(({ betatipId, userId, username, text, isCurrent, upvoteCount }) => {
             const entry = document.createElement('article');
             entry.className = 'betatip-entry';
             if (isCurrent) {
               entry.classList.add('is-current-user');
+            }
+
+            if (typeof betatipId === 'string' && betatipId) {
+              entry.dataset.betatipId = betatipId;
             }
 
             const nameEl = document.createElement('span');
@@ -5864,17 +6069,90 @@
             nameEl.textContent = isCurrent ? `${username} (you)` : username;
             entry.appendChild(nameEl);
 
+            const body = document.createElement('div');
+            body.className = 'betatip-body';
+
+            const countWrapper = document.createElement('span');
+            countWrapper.className = 'betatip-upvote-count';
+            const displayCount = upvoteCount > 0 ? String(upvoteCount) : '—';
+            countWrapper.textContent = displayCount;
+            countWrapper.setAttribute('aria-hidden', 'true');
+            body.appendChild(countWrapper);
+
+            const countSr = document.createElement('span');
+            countSr.className = 'sr-only';
+            if (upvoteCount === 0) {
+              countSr.textContent = 'No upvotes yet';
+            } else if (upvoteCount === 1) {
+              countSr.textContent = '1 upvote';
+            } else {
+              countSr.textContent = `${upvoteCount} upvotes`;
+            }
+            body.appendChild(countSr);
+
             const textEl = document.createElement('p');
             textEl.className = 'betatip-text';
             textEl.textContent = text;
-            entry.appendChild(textEl);
+            body.appendChild(textEl);
 
+            const actions = document.createElement('div');
+            actions.className = 'betatip-actions';
+
+            if (currentUser && isCurrent && typeof betatipId === 'string' && betatipId) {
+              const deleteButton = document.createElement('button');
+              deleteButton.type = 'button';
+              deleteButton.className = 'betatip-delete-button';
+              deleteButton.textContent = 'Delete tip';
+              deleteButton.setAttribute('aria-label', 'Delete your beta tip');
+
+              let isDeleting = false;
+              deleteButton.addEventListener('click', async (event) => {
+                event.preventDefault();
+                if (isDeleting) {
+                  return;
+                }
+
+                isDeleting = true;
+                deleteButton.disabled = true;
+
+                try {
+                  const scrollContainer = tooltip?.querySelector('.tooltip-content');
+                  const previousScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+                  await deleteBetatipForRoute(route, betatipId);
+                  if (tooltip) {
+                    updateTooltipContent(route);
+                    const nextScrollContainer = tooltip.querySelector('.tooltip-content');
+                    if (nextScrollContainer) {
+                      nextScrollContainer.scrollTop = previousScrollTop;
+                    }
+                  }
+                } catch (error) {
+                  console.error('Failed to delete beta tip:', error);
+                  deleteButton.disabled = false;
+                  isDeleting = false;
+                }
+              });
+
+              actions.appendChild(deleteButton);
+            }
+
+            if (actions.childElementCount > 0) {
+              body.appendChild(actions);
+            }
+
+            entry.appendChild(body);
             list.appendChild(entry);
 
             if (Array.isArray(ariaLines)) {
+              const upvoteSummary =
+                upvoteCount === 0
+                  ? 'no upvotes'
+                  : upvoteCount === 1
+                  ? '1 upvote'
+                  : `${upvoteCount} upvotes`;
               const ariaText = text.replace(/\s+/g, ' ').trim();
               ariaLines.push(
-                `Beta from ${username}${isCurrent ? ' (you)' : ''}: ${ariaText}`,
+                `Beta from ${username}${isCurrent ? ' (you)' : ''}: ${ariaText} (${upvoteSummary})`,
               );
             }
           });
@@ -5889,6 +6167,87 @@
         }
 
         section.appendChild(list);
+
+        if (currentUser) {
+          const form = document.createElement('form');
+          form.className = 'tooltip-betatips-form';
+          form.noValidate = true;
+
+          const textareaId = `betatip-${routeId.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+          const label = document.createElement('label');
+          label.className = 'tooltip-betatips-label';
+          label.setAttribute('for', textareaId);
+
+          const labelText = document.createElement('span');
+          labelText.textContent = 'Share your beta';
+          label.appendChild(labelText);
+
+          const textarea = document.createElement('textarea');
+          textarea.id = textareaId;
+          textarea.className = 'tooltip-betatips-textarea';
+          textarea.maxLength = MAX_BETATIP_LENGTH;
+          textarea.placeholder = 'Add your tip for this climb';
+          textarea.value = '';
+
+          label.appendChild(textarea);
+          form.appendChild(label);
+
+          const actions = document.createElement('div');
+          actions.className = 'tooltip-betatips-actions';
+
+          const saveButton = document.createElement('button');
+          saveButton.type = 'submit';
+          saveButton.textContent = 'Save tip';
+          actions.appendChild(saveButton);
+
+          form.appendChild(actions);
+
+          const status = document.createElement('p');
+          status.className = 'tooltip-betatips-status';
+          status.setAttribute('role', 'status');
+          status.textContent = '';
+          form.appendChild(status);
+
+          const setSavingState = (saving) => {
+            textarea.disabled = saving;
+            saveButton.disabled = saving;
+          };
+
+          textarea.addEventListener('input', () => {
+            status.textContent = '';
+          });
+
+          let isSaving = false;
+
+          form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (isSaving) {
+              return;
+            }
+
+            const trimmedValue = textarea.value.replace(/\r\n/g, '\n').trim();
+            if (!trimmedValue) {
+              status.textContent = 'Add some beta before saving.';
+              return;
+            }
+
+            status.textContent = '';
+            isSaving = true;
+            setSavingState(true);
+
+            try {
+              await saveBetatipForRoute(route, trimmedValue);
+              updateTooltipContent(route);
+            } catch (error) {
+              console.error('Failed to save beta tip:', error);
+              status.textContent = 'We couldn’t save your beta. Please try again.';
+              setSavingState(false);
+              isSaving = false;
+            }
+          });
+
+          section.appendChild(form);
+        }
 
         return section;
       }
@@ -5988,89 +6347,41 @@
         uidUsernameCache.set(userId, username);
 
         const normalizedText = typeof rawText === 'string' ? rawText.replace(/\r\n/g, '\n').trim() : '';
-        const limitedText = normalizedText ? normalizedText.slice(0, MAX_BETATIP_LENGTH) : '';
-
-        const betatipsMap = getRouteBetatipsMap(routeId);
-        const existingEntry = betatipsMap instanceof Map ? betatipsMap.get(userId) : null;
-
-        const existingUpvoters =
-          existingEntry?.upvoters instanceof Set ? new Set(existingEntry.upvoters) : new Set();
-
-        if (!limitedText) {
-          if (existingEntry) {
-            try {
-              const betatipRef = doc(db, 'routes_users_betatips', existingEntry.betatipId);
-              if (existingUpvoters.size) {
-                await Promise.all(
-                  Array.from(existingUpvoters).map((voter) =>
-                    deleteDoc(doc(betatipRef, 'upvotes', voter)),
-                  ),
-                );
-              }
-              await deleteDoc(betatipRef);
-            } catch (error) {
-              console.error('Failed to delete beta tip:', error);
-            }
-
-            betatipsMap.delete(userId);
-          }
-
-          [allRoutes, routes].forEach((collection) => {
-            if (!Array.isArray(collection)) {
-              return;
-            }
-
-            collection.forEach((entry) => {
-              if (entry && entry.id === routeId) {
-                entry.betatips = betatipsMap;
-              }
-            });
-          });
-
-          return '';
+        if (!normalizedText) {
+          throw new Error('Beta tip text is required.');
         }
 
-        let betatipId = existingEntry?.betatipId || '';
+        const limitedText = normalizedText.slice(0, MAX_BETATIP_LENGTH);
+
+        const betatipsMap = getRouteBetatipsMap(routeId);
         const betatipData = {
           routeId,
           userId,
           betatip: limitedText,
+          createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
+          upvoteCount: 0,
         };
 
+        let betatipId = '';
         try {
-          if (betatipId) {
-            await setDoc(
-              doc(db, 'routes_users_betatips', betatipId),
-              {
-                ...betatipData,
-                upvoteCount: existingUpvoters.size,
-              },
-              { merge: true },
-            );
-          } else {
-            const betatipRef = await addDoc(collection(db, 'routes_users_betatips'), {
-              ...betatipData,
-              createdAt: serverTimestamp(),
-              upvoteCount: 0,
-            });
-            betatipId = betatipRef.id;
-          }
+          const betatipRef = await addDoc(collection(db, 'routes_users_betatips'), betatipData);
+          betatipId = betatipRef.id;
         } catch (error) {
           console.error('Failed to save beta tip:', error);
           throw new Error('Unable to save your beta tip right now.');
         }
 
-        const updatedEntry = {
+        const newEntry = {
           betatipId,
           userId,
           username,
           betatip: limitedText,
-          upvoters: existingUpvoters,
-          upvoteCount: existingUpvoters.size,
+          upvoters: new Set(),
+          upvoteCount: 0,
         };
 
-        betatipsMap.set(userId, updatedEntry);
+        betatipsMap.set(betatipId, newEntry);
 
         [allRoutes, routes].forEach((collection) => {
           if (!Array.isArray(collection)) {
@@ -6085,6 +6396,71 @@
         });
 
         return limitedText;
+      }
+
+      async function deleteBetatipForRoute(route, betatipId) {
+        if (!currentUser) {
+          throw new Error('You must be signed in to delete beta tips.');
+        }
+
+        const routeId = getRouteId(route);
+        if (!routeId) {
+          throw new Error('Unable to determine which route to update.');
+        }
+
+        const userId = typeof currentUser.uid === 'string' ? currentUser.uid.trim() : '';
+        if (!userId) {
+          throw new Error('Unable to determine your account.');
+        }
+
+        const normalizedBetatipId = typeof betatipId === 'string' ? betatipId.trim() : '';
+        if (!normalizedBetatipId) {
+          throw new Error('We could not determine which beta tip to delete.');
+        }
+
+        const betatipsMap = getRouteBetatipsMap(routeId);
+        const existingEntry =
+          betatipsMap instanceof Map ? betatipsMap.get(normalizedBetatipId) : null;
+
+        if (!existingEntry) {
+          throw new Error('This beta tip is no longer available.');
+        }
+
+        if (existingEntry.userId !== userId) {
+          throw new Error('You can only delete your own beta tips.');
+        }
+
+        try {
+          const betatipRef = doc(db, 'routes_users_betatips', normalizedBetatipId);
+          if (existingEntry.upvoters instanceof Set && existingEntry.upvoters.size) {
+            await Promise.all(
+              Array.from(existingEntry.upvoters).map((voter) =>
+                deleteDoc(doc(betatipRef, 'upvotes', voter)),
+              ),
+            );
+          }
+
+          await deleteDoc(betatipRef);
+        } catch (error) {
+          console.error('Failed to delete beta tip:', error);
+          throw new Error('Unable to delete this beta tip right now.');
+        }
+
+        betatipsMap.delete(normalizedBetatipId);
+
+        [allRoutes, routes].forEach((collection) => {
+          if (!Array.isArray(collection)) {
+            return;
+          }
+
+          collection.forEach((entry) => {
+            if (entry && entry.id === routeId) {
+              entry.betatips = betatipsMap;
+            }
+          });
+        });
+
+        return true;
       }
 
       function updateTooltipContent(route) {
@@ -6631,13 +7007,14 @@
               const betatipsMap = getRouteBetatipsMap(entry.routeId);
               const upvoters = await loadBetatipUpvotes(entry.id);
               const calculatedCount = upvoters.size;
-              betatipsMap.set(entry.userId, {
+              const normalizedCount = Math.max(entry.upvoteCount, calculatedCount);
+              betatipsMap.set(entry.id, {
                 betatipId: entry.id,
                 userId: entry.userId,
                 username: normalizedUsername,
                 betatip: entry.text,
                 upvoters,
-                upvoteCount: Math.max(entry.upvoteCount, calculatedCount),
+                upvoteCount: normalizedCount,
               });
             }),
           );
