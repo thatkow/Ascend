@@ -1154,8 +1154,26 @@
       }
 
       .route-tooltip .betatip-upvote-icon {
-        font-size: 1.15rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.6rem;
+        height: 1.6rem;
+        min-width: 1.6rem;
+        border-radius: 999px;
+        border: 2px solid transparent;
+        font-size: 1.05rem;
         line-height: 1;
+        transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease,
+          box-shadow 0.2s ease;
+        pointer-events: none;
+      }
+
+      .route-tooltip .betatip-upvote-icon.is-upvoted {
+        border-color: rgba(59, 130, 246, 0.9);
+        background: rgba(59, 130, 246, 0.2);
+        color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
       }
 
       .route-tooltip .betatip-username {
@@ -6169,13 +6187,18 @@
 
             const countSr = document.createElement('span');
             countSr.className = 'sr-only';
+            let countMessage = '';
             if (upvoteCount === 0) {
-              countSr.textContent = 'No upvotes yet';
+              countMessage = 'No upvotes yet';
             } else if (upvoteCount === 1) {
-              countSr.textContent = '1 upvote';
+              countMessage = '1 upvote';
             } else {
-              countSr.textContent = `${upvoteCount} upvotes`;
+              countMessage = `${upvoteCount} upvotes`;
             }
+            if (hasUpvoted) {
+              countMessage = `${countMessage}. You upvoted this beta tip.`;
+            }
+            countSr.textContent = countMessage;
             body.appendChild(countSr);
 
             const textEl = document.createElement('p');
@@ -6198,6 +6221,9 @@
             icon.className = 'betatip-upvote-icon';
             icon.setAttribute('aria-hidden', 'true');
             icon.textContent = '👍';
+            if (hasUpvoted) {
+              icon.classList.add('is-upvoted');
+            }
             upvoteButton.appendChild(icon);
 
             const srLabel = document.createElement('span');
