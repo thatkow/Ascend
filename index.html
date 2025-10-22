@@ -5567,22 +5567,27 @@
         return (sorted[midpoint - 1] + sorted[midpoint]) / 2;
       }
 
+      function computeMedianGradeFromRouteScores(scores) {
+        return computeMedianGrade(extractNumericGradesFromScoresMap(scores));
+      }
+
       function computeMedianGradeForRoute(routeId) {
         if (!routeId) {
           return null;
         }
 
-        const scoresMap = routeScoresCache.get(routeId);
-        let grades = extractNumericGradesFromScoresMap(scoresMap);
-
-        if (!grades.length) {
-          const directRoute = findRouteById(routeId);
-          if (directRoute && directRoute.scores) {
-            grades = extractNumericGradesFromScoresMap(directRoute.scores);
-          }
+        const cachedScores = routeScoresCache.get(routeId);
+        const cachedMedian = computeMedianGradeFromRouteScores(cachedScores);
+        if (typeof cachedMedian === 'number' && Number.isFinite(cachedMedian)) {
+          return cachedMedian;
         }
 
-        return computeMedianGrade(grades);
+        const directRoute = findRouteById(routeId);
+        if (directRoute && directRoute.scores) {
+          return computeMedianGradeFromRouteScores(directRoute.scores);
+        }
+
+        return null;
       }
 
       async function loadBetatipUpvotes(betatipId) {
@@ -5627,6 +5632,11 @@
           return null;
         }
 
+        const directMedian = computeMedianGradeFromRouteScores(route?.scores);
+        if (typeof directMedian === 'number' && Number.isFinite(directMedian)) {
+          return directMedian;
+        }
+
         const routeId = getRouteId(route);
         const medianGrade = computeMedianGradeForRoute(routeId);
         return typeof medianGrade === 'number' && Number.isFinite(medianGrade)
@@ -5637,6 +5647,11 @@
       function resolveProgressionGradeValue(route) {
         if (!route) {
           return null;
+        }
+
+        const directMedian = computeMedianGradeFromRouteScores(route?.scores);
+        if (typeof directMedian === 'number' && Number.isFinite(directMedian)) {
+          return directMedian;
         }
 
         const routeId = getRouteId(route);
