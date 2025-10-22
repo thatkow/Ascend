@@ -391,6 +391,33 @@
       color: rgba(255, 255, 255, 0.85);
     }
 
+    .info-popover-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .info-popover-button {
+      border: none;
+      border-radius: 999px;
+      padding: 0.5rem 1rem;
+      background: rgba(126, 217, 87, 0.85);
+      color: #041305;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .info-popover-button:hover,
+    .info-popover-button:focus-visible {
+      background: rgba(126, 217, 87, 1);
+      box-shadow: 0 12px 28px rgba(126, 217, 87, 0.35);
+      transform: translateY(-1px);
+      outline: none;
+    }
+
     .welcome-callout {
       position: fixed;
       z-index: 60;
@@ -467,7 +494,8 @@
     .control-panel {
       position: fixed;
       top: 0;
-      right: 0;
+      left: 0;
+      right: auto;
       height: 100vh;
       display: flex;
       align-items: stretch;
@@ -485,10 +513,10 @@
       justify-content: center;
       gap: 0.85rem;
       align-self: center;
-      order: 1;
+      order: 2;
       padding: 1rem 0.5rem;
       background: rgba(0, 0, 0, 0.6);
-      border-radius: 0.85rem 0 0 0.85rem;
+      border-radius: 0 0.85rem 0.85rem 0;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     }
 
@@ -536,15 +564,15 @@
       padding: 2rem 1.25rem 4rem;
       background: rgba(0, 0, 0, 0.55);
       backdrop-filter: blur(8px);
-      border-radius: 1rem 0 0 1rem;
+      border-radius: 0 1rem 1rem 0;
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
       overflow-y: auto;
       transition: box-shadow 0.25s ease, background 0.25s ease;
-      order: 2;
+      order: 1;
     }
 
     .control-panel[data-expanded='false'] {
-      transform: translateX(calc(100% - var(--toggle-visible-width)));
+      transform: translateX(calc(-100% + var(--toggle-visible-width)));
     }
 
     .sr-only {
@@ -1243,6 +1271,42 @@
     .status-message[data-variant='warning'] {
       color: #facc15;
     }
+
+    .personal-dashboard-link {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 40;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(126, 217, 87, 0.95), rgba(126, 217, 87, 0.7));
+      color: #0c1905;
+      text-decoration: none;
+      box-shadow: 0 14px 30px rgba(126, 217, 87, 0.35);
+      border: 1px solid rgba(126, 217, 87, 0.75);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+        border-color 0.2s ease;
+    }
+
+    .personal-dashboard-link svg {
+      width: 22px;
+      height: 22px;
+      display: block;
+    }
+
+    .personal-dashboard-link:hover,
+    .personal-dashboard-link:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 36px rgba(126, 217, 87, 0.4);
+      outline: none;
+      border-color: rgba(126, 217, 87, 0.9);
+      background: linear-gradient(135deg, rgba(126, 217, 87, 1), rgba(126, 217, 87, 0.82));
+    }
   </style>
 </head>
 <body>
@@ -1267,6 +1331,19 @@
   </div>
 
   <div id="appContent" class="hidden">
+    <a
+      class="personal-dashboard-link"
+      href="personal.html"
+      aria-label="Open personal dashboard"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path
+          d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.41 0-8 2.24-8 5v1h16v-1c0-2.76-3.59-5-8-5Z"
+          fill="currentColor"
+        />
+      </svg>
+      <span class="sr-only">Open personal dashboard</span>
+    </a>
     <div class="canvas-container">
       <canvas id="drawingCanvas"></canvas>
       <div class="focus-footer">
@@ -1340,6 +1417,11 @@
             >
               <p>Select any setter control to learn what it does.</p>
               <p>The next control you activate will show its tooltip and close this message.</p>
+              <div class="info-popover-actions">
+                <button id="startTutorialButton" class="info-popover-button" type="button">
+                  Take the setter tour
+                </button>
+              </div>
             </div>
           </div>
           <button
@@ -1458,17 +1540,25 @@
                 <span>Date set</span>
                 <input id="routeDateSetInput" type="datetime-local" />
               </label>
+              <label
+                class="control-toggle"
+                data-help-text="Temporarily hide this route from the climber and personal pages without deleting it."
+              >
+                <span>Hide route from climbers</span>
+                <input id="routeHiddenCheckbox" type="checkbox" role="switch" aria-checked="false" />
+              </label>
             </div>
             <div class="control-section">
               <label class="control-field" data-help-text="Choose the colour used to draw this route on the wall preview.">
                 <span>Stroke colour</span>
                 <input type="color" id="colorPicker" value="#ffde59" />
               </label>
-              <label class="control-field" data-help-text="Switch between freeform lines, single points, or rectangles while drawing.">
+              <label class="control-field" data-help-text="Switch between freeform lines, hollow points, filled points, or rectangles while drawing.">
                 <span>Path</span>
                 <select id="pathTypeSelect">
                   <option value="brezer">Brezer</option>
-                  <option value="point">Point</option>
+                  <option value="hollow-point">Hollow point</option>
+                  <option value="filled-point">Filled point</option>
                   <option value="rectangle">Rectangle</option>
                 </select>
               </label>
@@ -1527,16 +1617,34 @@
             <div class="control-section">
               <h3 class="control-section-title">Appearance</h3>
               <label
-                id="pointDiameterField"
+                id="hollowPointDiameterField"
                 class="control-field"
-                data-help-text="Set the diameter for point holds drawn on this wall."
+                data-help-text="Set the diameter for hollow point holds drawn on this wall."
               >
                 <span>
-                  Point diameter
-                  <span id="pointDiameterValue"></span>
+                  Hollow point diameter
+                  <span id="hollowPointDiameterValue"></span>
                 </span>
                 <input
-                  id="pointDiameterSlider"
+                  id="hollowPointDiameterSlider"
+                  type="range"
+                  min="12"
+                  max="160"
+                  step="1"
+                  value="48"
+                />
+              </label>
+              <label
+                id="filledPointDiameterField"
+                class="control-field"
+                data-help-text="Set the diameter for filled point holds drawn on this wall."
+              >
+                <span>
+                  Filled point diameter
+                  <span id="filledPointDiameterValue"></span>
+                </span>
+                <input
+                  id="filledPointDiameterSlider"
                   type="range"
                   min="12"
                   max="160"
@@ -1864,12 +1972,14 @@
     const routeDateSetInput = document.getElementById('routeDateSetInput');
     const deleteButton = document.getElementById('deleteButton');
     const routeStatus = document.getElementById('routeStatus');
+    const routeHiddenCheckbox = document.getElementById('routeHiddenCheckbox');
     const controlPanel = document.querySelector('.control-panel');
     const drawingToggle = document.getElementById('drawingToggle');
     const panelSidebar = document.getElementById('panelSidebar');
     const panelToggleButton = document.getElementById('panelToggle');
     const infoButton = document.getElementById('infoButton');
     const infoPopover = document.getElementById('infoPopover');
+    const startTutorialButton = document.getElementById('startTutorialButton');
     const climberViewButton = document.getElementById('climberViewButton');
     const personalDashboardButton = document.getElementById('personalDashboardButton');
     const adminConsoleButton = document.getElementById('adminConsoleButton');
@@ -1931,6 +2041,8 @@
     let tutorialSteps = [];
     let tutorialPreviousTabId = null;
     let tutorialSecondaryActionMode = 'back';
+    let tutorialAutostartTimeoutId = null;
+    let tutorialAutostartAttempts = 0;
 
     const LOCATIONS = [
       { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
@@ -1941,13 +2053,17 @@
     const WALL_QUERY_PARAM = 'wall';
 
     const PATH_TYPE_BREZER = 'brezer';
-    const PATH_TYPE_POINT = 'point';
+    const PATH_TYPE_HOLLOW_POINT = 'hollow-point';
+    const PATH_TYPE_FILLED_POINT = 'filled-point';
     const PATH_TYPE_RECTANGLE = 'rectangle';
+    const LEGACY_PATH_TYPE_POINT = 'point';
     const DEFAULT_PATH_TYPE = PATH_TYPE_BREZER;
     const BREZER_REMOVAL_RADIUS = 20;
     const MIN_POINT_DIAMETER = 12;
     const MAX_POINT_DIAMETER = 160;
-    const DEFAULT_POINT_DIAMETER = 48;
+    const DEFAULT_HOLLOW_POINT_DIAMETER = 48;
+    const DEFAULT_FILLED_POINT_DIAMETER = 48;
+    const DEFAULT_POINT_DIAMETER = DEFAULT_HOLLOW_POINT_DIAMETER;
     const MIN_RECTANGLE_SIZE = 12;
     const MAX_RECTANGLE_SIZE = 200;
     const DEFAULT_RECTANGLE_WIDTH = 80;
@@ -2469,7 +2585,8 @@
             }
             const wallSettings = getWallSettingsForLocation(nextKey);
             updateRoutesForWall(nextKey, wallSettings);
-            pointDiameter = wallSettings.pointDiameter;
+            pointDiameter = wallSettings.hollowPointDiameter ?? wallSettings.pointDiameter;
+            filledPointDiameter = wallSettings.filledPointDiameter ?? wallSettings.pointDiameter;
             brezerStrokeWidth = wallSettings.brezerStrokeWidth;
             unfocusedTransparency = wallSettings.unfocusedTransparency;
             gradeBarBaseHeight = wallSettings.gradeBarBaseHeight;
@@ -3094,15 +3211,37 @@
       }
     }
 
-    async function startTutorial() {
-      if (tutorialActive) {
-        return;
+    async function startTutorial(options = {}) {
+      const { force = false } = options;
+
+      if (
+        !tutorialOverlay ||
+        !tutorialDialogCard ||
+        !tutorialTitle ||
+        !tutorialDescription ||
+        !tutorialPrimaryAction
+      ) {
+        return false;
+      }
+
+      if (tutorialTransitionInProgress) {
+        if (!force) {
+          return false;
+        }
+        await finishTutorial();
+      } else if (tutorialActive) {
+        if (!force) {
+          return false;
+        }
+        await finishTutorial();
       }
 
       tutorialSteps = buildSetterTutorialSteps();
       if (!Array.isArray(tutorialSteps) || tutorialSteps.length === 0) {
-        return;
+        return false;
       }
+
+      cancelTutorialAutostart();
 
       const activeTabButton = tabButtons.find((button) => button?.getAttribute('aria-selected') === 'true');
       tutorialPreviousTabId = activeTabButton?.dataset?.target || null;
@@ -3121,9 +3260,40 @@
       attachTutorialKeydown();
 
       await goToTutorialStep(0);
+      tutorialAutostartAttempts = 0;
+
+      return true;
+    }
+
+    function cancelTutorialAutostart() {
+      if (tutorialAutostartTimeoutId !== null) {
+        clearTimeout(tutorialAutostartTimeoutId);
+        tutorialAutostartTimeoutId = null;
+      }
+    }
+
+    function scheduleTutorialAutostart() {
+      cancelTutorialAutostart();
+      tutorialAutostartAttempts = 0;
+
+      const attemptStart = async () => {
+        tutorialAutostartTimeoutId = null;
+        const started = await startTutorial();
+        if (!started) {
+          if (tutorialAutostartAttempts < 2) {
+            tutorialAutostartAttempts += 1;
+            tutorialAutostartTimeoutId = window.setTimeout(attemptStart, 450);
+          }
+        } else {
+          tutorialAutostartAttempts = 0;
+        }
+      };
+
+      tutorialAutostartTimeoutId = window.setTimeout(attemptStart, 0);
     }
 
     async function finishTutorial() {
+      cancelTutorialAutostart();
       if (!tutorialActive && !tutorialTransitionInProgress) {
         tutorialPreviousTabId = null;
         tutorialSecondaryActionMode = 'back';
@@ -3506,9 +3676,12 @@
     const ctx = canvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
     const pathTypeSelect = document.getElementById('pathTypeSelect');
-    const pointDiameterField = document.getElementById('pointDiameterField');
-    const pointDiameterSlider = document.getElementById('pointDiameterSlider');
-    const pointDiameterValue = document.getElementById('pointDiameterValue');
+    const hollowPointDiameterField = document.getElementById('hollowPointDiameterField');
+    const hollowPointDiameterSlider = document.getElementById('hollowPointDiameterSlider');
+    const hollowPointDiameterValue = document.getElementById('hollowPointDiameterValue');
+    const filledPointDiameterField = document.getElementById('filledPointDiameterField');
+    const filledPointDiameterSlider = document.getElementById('filledPointDiameterSlider');
+    const filledPointDiameterValue = document.getElementById('filledPointDiameterValue');
     const rectangleWidthField = document.getElementById('rectangleWidthField');
     const rectangleWidthSlider = document.getElementById('rectangleWidthSlider');
     const rectangleWidthValue = document.getElementById('rectangleWidthValue');
@@ -3520,7 +3693,6 @@
     const brezerStrokeWidthValue = document.getElementById('brezerStrokeWidthValue');
     const unfocusedTransparencyField = document.getElementById('unfocusedTransparencyField');
     const unfocusedTransparencySlider = document.getElementById('unfocusedTransparencySlider');
-    const appearancePointDiameterInput = document.getElementById('appearancePointDiameterInput');
     const gradeBarBaseHeightInput = document.getElementById('gradeBarBaseHeightInput');
     const gradeBarMaxHeightInput = document.getElementById('gradeBarMaxHeightInput');
     const gradeBarWidthInput = document.getElementById('gradeBarWidthInput');
@@ -3560,23 +3732,77 @@
 
     function normalizePathType(value) {
       if (typeof value === 'string') {
-        const normalized = value.trim().toLowerCase();
-        if (normalized === PATH_TYPE_POINT) {
-          return PATH_TYPE_POINT;
+        const trimmed = value.trim().toLowerCase();
+        const normalized = trimmed.replace(/\s+/g, '-');
+        if (normalized === PATH_TYPE_BREZER) {
+          return PATH_TYPE_BREZER;
         }
         if (normalized === PATH_TYPE_RECTANGLE) {
           return PATH_TYPE_RECTANGLE;
+        }
+        if (normalized === PATH_TYPE_FILLED_POINT) {
+          return PATH_TYPE_FILLED_POINT;
+        }
+        if (normalized === PATH_TYPE_HOLLOW_POINT || normalized === LEGACY_PATH_TYPE_POINT) {
+          return PATH_TYPE_HOLLOW_POINT;
         }
       }
       return DEFAULT_PATH_TYPE;
     }
 
-    function normalizePointDiameter(value) {
-      const numeric = Number(value);
-      if (!Number.isFinite(numeric)) {
-        return DEFAULT_POINT_DIAMETER;
+    function isNormalizedPointPathType(value) {
+      return value === PATH_TYPE_HOLLOW_POINT || value === PATH_TYPE_FILLED_POINT;
+    }
+
+    function getDefaultPointDiameterForPathType(pathTypeValue) {
+      const normalized = normalizePathType(pathTypeValue);
+      if (normalized === PATH_TYPE_FILLED_POINT) {
+        return DEFAULT_FILLED_POINT_DIAMETER;
       }
-      const clamped = Math.min(Math.max(Math.round(numeric), MIN_POINT_DIAMETER), MAX_POINT_DIAMETER);
+      if (normalized === PATH_TYPE_HOLLOW_POINT) {
+        return DEFAULT_HOLLOW_POINT_DIAMETER;
+      }
+      return DEFAULT_POINT_DIAMETER;
+    }
+
+    function getStatePointDiameterForPathType(pathTypeValue) {
+      const normalized = normalizePathType(pathTypeValue);
+      if (normalized === PATH_TYPE_FILLED_POINT) {
+        return filledPointDiameter;
+      }
+      return pointDiameter;
+    }
+
+    function getRoutePointDiameterForPathType(routeData, pathTypeValue) {
+      const normalized = normalizePathType(pathTypeValue ?? routeData?.pathType);
+      if (normalized === PATH_TYPE_FILLED_POINT) {
+        const sourceValue =
+          routeData?.filledPointDiameter ??
+          routeData?.pointDiameter ??
+          filledPointDiameter;
+        return normalizePointDiameter(sourceValue, DEFAULT_FILLED_POINT_DIAMETER);
+      }
+      if (normalized === PATH_TYPE_HOLLOW_POINT) {
+        const sourceValue =
+          routeData?.hollowPointDiameter ??
+          routeData?.pointDiameter ??
+          pointDiameter;
+        return normalizePointDiameter(sourceValue, DEFAULT_HOLLOW_POINT_DIAMETER);
+      }
+      return normalizePointDiameter(routeData?.pointDiameter, DEFAULT_POINT_DIAMETER);
+    }
+
+    function normalizePointDiameter(value, fallback = DEFAULT_POINT_DIAMETER) {
+      const numeric = Number(value);
+      let candidate = numeric;
+      if (!Number.isFinite(candidate)) {
+        const fallbackNumeric = Number(fallback);
+        candidate = Number.isFinite(fallbackNumeric) ? fallbackNumeric : DEFAULT_POINT_DIAMETER;
+      }
+      const clamped = Math.min(
+        Math.max(Math.round(candidate), MIN_POINT_DIAMETER),
+        MAX_POINT_DIAMETER,
+      );
       return clamped;
     }
 
@@ -3658,6 +3884,40 @@
       return numeric;
     }
 
+    function normalizeRouteGradeField(value) {
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return trimmed || null;
+      }
+
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+      }
+
+      return null;
+    }
+
+    function resolveRouteNumericGrade(value) {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        const clamped = Math.min(Math.max(value, MIN_GRADE_VALUE), MAX_GRADE_VALUE);
+        return clamped;
+      }
+
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) {
+          return null;
+        }
+        const numeric = Number(trimmed);
+        if (Number.isFinite(numeric)) {
+          const clamped = Math.min(Math.max(numeric, MIN_GRADE_VALUE), MAX_GRADE_VALUE);
+          return clamped;
+        }
+      }
+
+      return null;
+    }
+
     function normalizeUnfocusedTransparency(value) {
       const numeric = Number(value);
       if (!Number.isFinite(numeric)) {
@@ -3684,7 +3944,9 @@
 
     function createDefaultWallSettings() {
       return {
-        pointDiameter: DEFAULT_POINT_DIAMETER,
+        pointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
+        hollowPointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
+        filledPointDiameter: DEFAULT_FILLED_POINT_DIAMETER,
         rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
         rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
         brezerStrokeWidth: DEFAULT_BREZER_STROKE_WIDTH,
@@ -3701,7 +3963,14 @@
         return createDefaultWallSettings();
       }
 
-      const pointDiameter = normalizePointDiameter(raw.pointDiameter);
+      const hollowPointDiameter = normalizePointDiameter(
+        raw.hollowPointDiameter ?? raw.pointDiameter,
+        DEFAULT_HOLLOW_POINT_DIAMETER,
+      );
+      const filledPointDiameter = normalizePointDiameter(
+        raw.filledPointDiameter ?? raw.pointDiameter,
+        DEFAULT_FILLED_POINT_DIAMETER,
+      );
       const rectangleWidth = normalizeRectangleSize(
         raw.rectangleWidth,
         DEFAULT_RECTANGLE_WIDTH,
@@ -3724,7 +3993,9 @@
         raw.gradeBarTransparency ?? raw.transparency,
       );
       return {
-        pointDiameter,
+        pointDiameter: hollowPointDiameter,
+        hollowPointDiameter,
+        filledPointDiameter,
         rectangleWidth,
         rectangleHeight,
         brezerStrokeWidth,
@@ -3762,7 +4033,8 @@
 
     function applyWallSettingsToStateForLocationKey(locationKey, fallback = null) {
       const settings = getWallSettingsWithFallback(locationKey, fallback);
-      pointDiameter = settings.pointDiameter;
+      pointDiameter = settings.hollowPointDiameter ?? settings.pointDiameter;
+      filledPointDiameter = settings.filledPointDiameter ?? settings.pointDiameter;
       rectangleWidth = settings.rectangleWidth;
       rectangleHeight = settings.rectangleHeight;
       brezerStrokeWidth = settings.brezerStrokeWidth;
@@ -3922,7 +4194,9 @@
         if (routeLocationKey === normalizedKey) {
           routesCache.set(routeKey, {
             ...data,
-            pointDiameter: settings.pointDiameter,
+            pointDiameter: settings.hollowPointDiameter ?? settings.pointDiameter,
+            hollowPointDiameter: settings.hollowPointDiameter ?? settings.pointDiameter,
+            filledPointDiameter: settings.filledPointDiameter ?? settings.pointDiameter,
             brezerStrokeWidth: settings.brezerStrokeWidth,
             rectangleWidth: settings.rectangleWidth,
             rectangleHeight: settings.rectangleHeight,
@@ -3945,7 +4219,9 @@
         const settings = getWallSettingsForLocation(routeLocationKey);
         routesCache.set(key, {
           ...data,
-          pointDiameter: settings.pointDiameter,
+          pointDiameter: settings.hollowPointDiameter ?? settings.pointDiameter,
+          hollowPointDiameter: settings.hollowPointDiameter ?? settings.pointDiameter,
+          filledPointDiameter: settings.filledPointDiameter ?? settings.pointDiameter,
           brezerStrokeWidth: settings.brezerStrokeWidth,
           rectangleWidth: settings.rectangleWidth,
           rectangleHeight: settings.rectangleHeight,
@@ -3972,7 +4248,8 @@
       updateRoutesForWall(normalizedKey, merged);
 
       if (getCurrentLocationKey() === normalizedKey) {
-        pointDiameter = merged.pointDiameter;
+        pointDiameter = merged.hollowPointDiameter ?? merged.pointDiameter;
+        filledPointDiameter = merged.filledPointDiameter ?? merged.pointDiameter;
         brezerStrokeWidth = merged.brezerStrokeWidth;
         unfocusedTransparency = merged.unfocusedTransparency;
         gradeBarBaseHeight = merged.gradeBarBaseHeight;
@@ -3995,7 +4272,9 @@
           null;
 
         const wallPayload = {
-          pointDiameter: merged.pointDiameter,
+          pointDiameter: merged.hollowPointDiameter ?? merged.pointDiameter,
+          hollowPointDiameter: merged.hollowPointDiameter ?? merged.pointDiameter,
+          filledPointDiameter: merged.filledPointDiameter ?? merged.pointDiameter,
           rectangleWidth: merged.rectangleWidth,
           rectangleHeight: merged.rectangleHeight,
           brezerStrokeWidth: merged.brezerStrokeWidth,
@@ -4101,7 +4380,9 @@
         const payload = {
           name: trimmedName,
           background_url: trimmedImage,
-          pointDiameter: wallSettings.pointDiameter,
+          pointDiameter: wallSettings.hollowPointDiameter,
+          hollowPointDiameter: wallSettings.hollowPointDiameter,
+          filledPointDiameter: wallSettings.filledPointDiameter,
           rectangleWidth: wallSettings.rectangleWidth,
           rectangleHeight: wallSettings.rectangleHeight,
           unfocusedTransparency: wallSettings.unfocusedTransparency,
@@ -4334,10 +4615,12 @@
     };
 
     const points = [];
+    const normalizedPointsByPathType = new Map();
     let strokeColor = sanitizeColor(colorPicker.value || '#ffde59');
     let pathType = DEFAULT_PATH_TYPE;
     let isDrawingEnabled = false;
-    let pointDiameter = DEFAULT_POINT_DIAMETER;
+    let pointDiameter = DEFAULT_HOLLOW_POINT_DIAMETER;
+    let filledPointDiameter = DEFAULT_FILLED_POINT_DIAMETER;
     let rectangleWidth = DEFAULT_RECTANGLE_WIDTH;
     let rectangleHeight = DEFAULT_RECTANGLE_HEIGHT;
     let brezerStrokeWidth = DEFAULT_BREZER_STROKE_WIDTH;
@@ -4346,7 +4629,8 @@
     let gradeBarMaxHeight = DEFAULT_GRADE_BAR_MAX_HEIGHT;
     let gradeBarWidth = DEFAULT_GRADE_BAR_WIDTH;
     let gradeBarTransparency = DEFAULT_GRADE_BAR_TRANSPARENCY;
-    let currentRouteMedianGrade = null;
+    let currentRouteGradeValue = null;
+    let currentRouteNumericGrade = null;
     let wheelHue = 48;
     let wheelSaturation = 1;
     let wheelLightness = 0.5;
@@ -4474,7 +4758,6 @@
     }
 
     const routesCache = new Map();
-    let routeMedianGrades = new Map();
     let queuedGradeBarOverlays = [];
     let focusedRouteKey = '';
     let overlayInteractionEntries = [];
@@ -4781,6 +5064,19 @@
       infoPopover.addEventListener('click', (event) => {
         event.stopPropagation();
       });
+
+      if (startTutorialButton) {
+        startTutorialButton.addEventListener('click', async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          cancelTutorialAutostart();
+          deactivateInfoMode({ clearTooltip: true });
+          const started = await startTutorial({ force: true });
+          if (!started) {
+            scheduleTutorialAutostart();
+          }
+        });
+      }
     }
 
     document.addEventListener(
@@ -5405,13 +5701,25 @@
     }
 
     function normalizeRouteData(raw = {}) {
-      const rawId = typeof raw?.id === 'string' ? raw.id : '';
+      const normalizeRouteUid = (value) =>
+        typeof value === 'string' && value.trim() ? value.trim() : '';
+      const rawUid = normalizeRouteUid(raw?.uid);
+      const rawId = normalizeRouteUid(raw?.id);
+      const resolvedId = rawUid || rawId;
       const { date_removed: _unusedDateRemoved, ...rest } = raw || {};
       const rawLocation = typeof rest.location === 'string' ? rest.location.trim() : '';
       const locationName = rawLocation || DEFAULT_LOCATION?.name || '';
       const locationKey = normalizeLocationName(locationName);
       const normalizedPathType = normalizePathType(rest.pathType);
-      const fallbackPointDiameter = normalizePointDiameter(rest.pointDiameter);
+      const fallbackHollowPointDiameter = normalizePointDiameter(
+        rest.hollowPointDiameter ?? rest.pointDiameter,
+        DEFAULT_HOLLOW_POINT_DIAMETER,
+      );
+      const fallbackFilledPointDiameter = normalizePointDiameter(
+        rest.filledPointDiameter ?? rest.pointDiameter,
+        DEFAULT_FILLED_POINT_DIAMETER,
+      );
+      const fallbackPointDiameter = fallbackHollowPointDiameter;
       const fallbackRectangleWidth = normalizeRectangleSize(
         rest.rectangleWidth,
         DEFAULT_RECTANGLE_WIDTH,
@@ -5433,8 +5741,12 @@
       const gradeBarTransparency = normalizeGradeBarTransparency(
         rest.gradeBarTransparency ?? rest.transparency,
       );
+      const normalizedGradeField = normalizeRouteGradeField(rest.grade);
+      const numericGrade = resolveRouteNumericGrade(normalizedGradeField);
       const wallSettings = getWallSettingsWithFallback(locationKey, {
         pointDiameter: fallbackPointDiameter,
+        hollowPointDiameter: fallbackHollowPointDiameter,
+        filledPointDiameter: fallbackFilledPointDiameter,
         rectangleWidth: fallbackRectangleWidth,
         rectangleHeight: fallbackRectangleHeight,
         brezerStrokeWidth: fallbackBrezerStrokeWidth,
@@ -5443,24 +5755,33 @@
         gradeBarWidth,
         gradeBarTransparency,
       });
-      const medianFromCache = rawId ? routeMedianGrades.get(rawId) : undefined;
-      const rawMedianGrade =
-        typeof rest.medianGrade === 'number' && Number.isFinite(rest.medianGrade)
-          ? rest.medianGrade
-          : medianFromCache;
-      const medianGrade =
-        typeof rawMedianGrade === 'number' && Number.isFinite(rawMedianGrade)
-          ? Math.min(Math.max(rawMedianGrade, MIN_GRADE_VALUE), MAX_GRADE_VALUE)
-          : null;
+      let pointsSource = rest.points;
+      if (
+        rest.pointsByType instanceof Map ||
+        (rest.pointsByType && typeof rest.pointsByType === 'object' && !Array.isArray(rest.pointsByType))
+      ) {
+        pointsSource = rest.pointsByType;
+      }
+
+      const { pointsByType, activePoints } = normalizeRoutePoints(
+        pointsSource,
+        normalizedPathType,
+      );
+
+      const usersMap = normalizeRouteUsers(rest.users);
+
       return {
-        id: rawId,
+        id: resolvedId,
+        uid: resolvedId,
         ...rest,
         setter: normalizeSetterName(rest.setter),
         title: typeof rest.title === 'string' ? rest.title.trim() : '',
         description: typeof rest.description === 'string' ? rest.description.trim() : '',
         strokeColor: sanitizeColor(rest.strokeColor),
         pathType: normalizedPathType,
-        pointDiameter: wallSettings.pointDiameter,
+        pointDiameter: wallSettings.hollowPointDiameter ?? wallSettings.pointDiameter,
+        hollowPointDiameter: wallSettings.hollowPointDiameter ?? wallSettings.pointDiameter,
+        filledPointDiameter: wallSettings.filledPointDiameter ?? wallSettings.pointDiameter,
         rectangleWidth: wallSettings.rectangleWidth,
         rectangleHeight: wallSettings.rectangleHeight,
         brezerStrokeWidth: wallSettings.brezerStrokeWidth,
@@ -5468,105 +5789,249 @@
         gradeBarMaxHeight: wallSettings.gradeBarMaxHeight,
         gradeBarWidth: wallSettings.gradeBarWidth,
         gradeBarTransparency: wallSettings.gradeBarTransparency,
-        points: Array.isArray(rest.points) ? rest.points : [],
+        points: activePoints,
+        pointsByType,
+        users: usersMap,
         date_set: normalizeDateValue(rest.date_set),
         location: locationName,
         locationKey,
-        medianGrade,
+        grade: normalizedGradeField,
+        numericGrade,
+        hiddenFromClimbers: rest.hiddenFromClimbers === true,
       };
     }
 
-      function calculateMedian(values = []) {
-        if (!Array.isArray(values) || !values.length) {
+      function sanitizeNormalizedPoint(point) {
+        const x = Number(point?.x);
+        const y = Number(point?.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
           return null;
         }
-
-        const sorted = values
-          .filter((value) => typeof value === 'number' && Number.isFinite(value))
-          .sort((a, b) => a - b);
-
-        if (!sorted.length) {
-          return null;
-        }
-
-        const mid = Math.floor(sorted.length / 2);
-        if (sorted.length % 2 === 0) {
-          return (sorted[mid - 1] + sorted[mid]) / 2;
-        }
-        return sorted[mid];
+        return { x, y };
       }
 
-      function sanitizeAscentsForPersistence(rawAscents) {
+      function sanitizeNormalizedPointsArray(rawPoints) {
+        if (Array.isArray(rawPoints)) {
+          return rawPoints.map(sanitizeNormalizedPoint).filter(Boolean);
+        }
+
+        if (rawPoints && typeof rawPoints === 'object' && rawPoints !== null) {
+          return Object.values(rawPoints).map(sanitizeNormalizedPoint).filter(Boolean);
+        }
+
+        return [];
+      }
+
+      function normalizeRoutePoints(rawPoints, activePathType) {
+        const normalizedActiveType = normalizePathType(activePathType);
+        const pointsByType = new Map();
+
+        if (rawPoints instanceof Map) {
+          rawPoints.forEach((value, key) => {
+            const normalizedKey = normalizePathType(key);
+            if (!normalizedKey) {
+              return;
+            }
+            pointsByType.set(normalizedKey, sanitizeNormalizedPointsArray(value));
+          });
+        } else if (rawPoints && typeof rawPoints === 'object' && !Array.isArray(rawPoints)) {
+          Object.entries(rawPoints).forEach(([key, value]) => {
+            const normalizedKey = normalizePathType(key);
+            if (!normalizedKey) {
+              return;
+            }
+            pointsByType.set(normalizedKey, sanitizeNormalizedPointsArray(value));
+          });
+        } else if (Array.isArray(rawPoints)) {
+          pointsByType.set(normalizedActiveType, sanitizeNormalizedPointsArray(rawPoints));
+        }
+
+        if (!pointsByType.has(normalizedActiveType)) {
+          pointsByType.set(normalizedActiveType, []);
+        }
+
+        return {
+          pointsByType,
+          activePoints: pointsByType.get(normalizedActiveType) || [],
+        };
+      }
+
+      function collectRoutePointEntries(routeData) {
+        const entries = [];
+        if (!routeData) {
+          return entries;
+        }
+
+        const appendEntry = (pathTypeKey, pointsValue) => {
+          const normalizedType = normalizePathType(pathTypeKey);
+          if (!normalizedType) {
+            return;
+          }
+
+          const normalizedPoints = sanitizeNormalizedPointsArray(pointsValue);
+          if (!Array.isArray(normalizedPoints) || !normalizedPoints.length) {
+            return;
+          }
+
+          entries.push({
+            pathType: normalizedType,
+            normalizedPoints,
+          });
+        };
+
+        const { pointsByType } = routeData;
+        if (pointsByType instanceof Map) {
+          pointsByType.forEach((value, key) => appendEntry(key, value));
+        } else if (pointsByType && typeof pointsByType === 'object' && !Array.isArray(pointsByType)) {
+          Object.entries(pointsByType).forEach(([key, value]) => appendEntry(key, value));
+        }
+
+        if (!entries.length) {
+          appendEntry(routeData.pathType, routeData.points);
+        }
+
+        return entries;
+      }
+
+      function serialiseNormalizedPointsByType(pointsByType) {
+        const payload = {};
+        if (!(pointsByType instanceof Map)) {
+          return payload;
+        }
+
+        pointsByType.forEach((pointsArray, key) => {
+          if (!key || !Array.isArray(pointsArray)) {
+            return;
+          }
+          const sanitized = pointsArray
+            .map((point) => sanitizeNormalizedPoint(point))
+            .filter(Boolean)
+            .map(({ x, y }) => ({
+              x: Number(x),
+              y: Number(y),
+            }));
+
+          payload[key] = sanitized;
+        });
+
+        return payload;
+      }
+
+      function sanitizeUsersForPersistence(rawUsers) {
         const sanitized = {};
 
-        if (!rawAscents || typeof rawAscents !== 'object') {
+        if (!rawUsers || typeof rawUsers !== 'object') {
           return sanitized;
         }
 
-        Object.entries(rawAscents).forEach(([uid, details]) => {
-          if (typeof uid !== 'string' || !uid.trim()) {
+        if (rawUsers instanceof Map) {
+          rawUsers.forEach((details, username) => {
+            if (!isValidUsername(username)) {
+              return;
+            }
+            const normalizedUsername = normalizeUsername(username);
+            if (!normalizedUsername) {
+              return;
+            }
+            sanitized[normalizedUsername] = sanitizeUserEntry(details);
+          });
+          return sanitized;
+        }
+
+        Object.entries(rawUsers).forEach(([username, details]) => {
+          if (!isValidUsername(username)) {
             return;
           }
 
-          if (!details || typeof details !== 'object') {
+          const normalizedUsername = normalizeUsername(username);
+          if (!normalizedUsername) {
             return;
           }
 
-          const normalizedGrade = normalizeGradeValue(details.grade);
-          sanitized[uid.trim()] = {
-            grade: normalizedGrade,
-            ascended: details.ascended === true,
-          };
+          sanitized[normalizedUsername] = sanitizeUserEntry(details);
         });
 
         return sanitized;
       }
 
-      async function fetchMedianGrades() {
-        const medianMap = new Map();
+      function sanitizeUserEntry(details) {
+        const normalizedDetails =
+          details && typeof details === 'object' ? details : {};
 
-        try {
-          const snapshot = await getDocs(collection(db, 'routes'));
-
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data() ?? {};
-            const rawAscents = data.ascents;
-
-            if (!rawAscents || typeof rawAscents !== 'object') {
-              return;
-            }
-
-            const grades = Object.values(rawAscents)
-              .map((entry) => normalizeGradeValue(entry?.grade))
-              .filter((grade) => grade !== null);
-
-            if (!grades.length) {
-              return;
-            }
-
-            const median = calculateMedian(grades);
-            if (median !== null) {
-              medianMap.set(docSnap.id, median);
-            }
-          });
-        } catch (error) {
-          console.warn('Failed to load median grades:', error);
+        const normalizedGrade = normalizeGradeValue(normalizedDetails.grade);
+        let ascendedValue = null;
+        if (normalizedDetails.ascended === true) {
+          ascendedValue = true;
+        } else if (normalizedDetails.ascended === false) {
+          ascendedValue = false;
         }
 
-        return medianMap;
+        const betatipValue =
+          typeof normalizedDetails.betatip === 'string'
+            ? normalizedDetails.betatip.replace(/\r\n/g, '\n').trim()
+            : null;
+
+        return {
+          grade: normalizedGrade,
+          ascended: ascendedValue,
+          betatip: betatipValue || null,
+        };
       }
 
-    function createRouteKeyFromTitle(title) {
-      if (typeof title !== 'string') {
-        return '';
+      function normalizeRouteUsers(rawUsers) {
+        const map = new Map();
+        if (!rawUsers || typeof rawUsers !== 'object') {
+          return map;
+        }
+
+        if (rawUsers instanceof Map) {
+          rawUsers.forEach((details, username) => {
+            if (!isValidUsername(username)) {
+              return;
+            }
+            const normalizedUsername = normalizeUsername(username);
+            if (!normalizedUsername) {
+              return;
+            }
+            map.set(normalizedUsername, sanitizeUserEntry(details));
+          });
+          return map;
+        }
+
+        Object.entries(rawUsers).forEach(([username, details]) => {
+          if (!isValidUsername(username)) {
+            return;
+          }
+
+          const normalizedUsername = normalizeUsername(username);
+          if (!normalizedUsername) {
+            return;
+          }
+
+          map.set(normalizedUsername, sanitizeUserEntry(details));
+        });
+
+        return map;
       }
 
-      const trimmed = title.trim();
-      if (!trimmed) {
-        return '';
+    function generateRouteUid() {
+      if (typeof crypto !== 'undefined') {
+        if (typeof crypto.randomUUID === 'function') {
+          return crypto.randomUUID();
+        }
+
+        if (typeof crypto.getRandomValues === 'function') {
+          const buffer = new Uint32Array(4);
+          crypto.getRandomValues(buffer);
+          return Array.from(buffer)
+            .map((value) => value.toString(16).padStart(8, '0'))
+            .join('');
+        }
       }
 
-      return trimmed.replace(/\//g, '-');
+      const timestamp = Date.now().toString(36);
+      const random = Math.random().toString(36).slice(2, 10);
+      return `route-${timestamp}-${random}`;
     }
 
     function findConflictingRouteKey(title, excludeKey = '') {
@@ -5676,11 +6141,17 @@
       if (pathTypeSelect) {
         pathTypeSelect.value = pathType;
       }
-      if (pointDiameterSlider) {
-        pointDiameterSlider.value = String(pointDiameter);
+      if (hollowPointDiameterSlider) {
+        hollowPointDiameterSlider.value = String(pointDiameter);
       }
-      if (pointDiameterValue) {
-        pointDiameterValue.textContent = `${pointDiameter}px`;
+      if (hollowPointDiameterValue) {
+        hollowPointDiameterValue.textContent = `${pointDiameter}px`;
+      }
+      if (filledPointDiameterSlider) {
+        filledPointDiameterSlider.value = String(filledPointDiameter);
+      }
+      if (filledPointDiameterValue) {
+        filledPointDiameterValue.textContent = `${filledPointDiameter}px`;
       }
       if (rectangleWidthSlider) {
         rectangleWidthSlider.value = String(rectangleWidth);
@@ -5708,9 +6179,6 @@
     }
 
     function updateAppearanceControls() {
-      if (appearancePointDiameterInput) {
-        appearancePointDiameterInput.value = String(pointDiameter);
-      }
       if (gradeBarBaseHeightInput) {
         gradeBarBaseHeightInput.value = String(gradeBarBaseHeight);
       }
@@ -5813,12 +6281,14 @@
 
       queuedGradeBarOverlays = [];
       drawExistingRoutesOverlay();
+      drawStoredPathPreviews();
+      const activePointDiameter = getStatePointDiameterForPathType(pathType);
       drawRouteFromCanvasPoints(
         points,
         strokeColor,
         1,
         pathType,
-        pointDiameter,
+        activePointDiameter,
         rectangleWidth,
         rectangleHeight,
         brezerStrokeWidth,
@@ -5828,7 +6298,7 @@
           routePoints: points,
           color: strokeColor,
           alpha: 1,
-          medianGrade: currentRouteMedianGrade,
+          numericGrade: currentRouteNumericGrade,
           baseHeight: gradeBarBaseHeight,
           maxHeight: gradeBarMaxHeight,
           width: gradeBarWidth,
@@ -5837,6 +6307,44 @@
         });
       }
       renderQueuedGradeBarOverlays();
+    }
+
+    function drawStoredPathPreviews() {
+      if (!(normalizedPointsByPathType instanceof Map) || !normalizedPointsByPathType.size) {
+        return;
+      }
+
+      const activeType = normalizePathType(pathType);
+      normalizedPointsByPathType.forEach((value, type) => {
+        const normalizedType = normalizePathType(type);
+        if (!normalizedType || normalizedType === activeType) {
+          return;
+        }
+
+        const normalizedPoints = sanitizeNormalizedPointsArray(value);
+        if (!Array.isArray(normalizedPoints) || !normalizedPoints.length) {
+          return;
+        }
+
+        normalizedPointsByPathType.set(normalizedType, normalizedPoints);
+
+        const canvasPoints = convertNormalizedToCanvasPoints(normalizedPoints);
+        if (!Array.isArray(canvasPoints) || !canvasPoints.length) {
+          return;
+        }
+
+        const previewPointDiameter = getStatePointDiameterForPathType(normalizedType);
+        drawRouteFromCanvasPoints(
+          canvasPoints,
+          strokeColor,
+          0.7,
+          normalizedType,
+          previewPointDiameter,
+          rectangleWidth,
+          rectangleHeight,
+          brezerStrokeWidth,
+        );
+      });
     }
 
     function clamp(value, min, max) {
@@ -5895,7 +6403,10 @@
       ctx.globalAlpha = alpha;
 
       const effectivePathType = normalizePathType(routePathType);
-      const effectivePointDiameter = normalizePointDiameter(routePointDiameter);
+      const effectivePointDiameter = normalizePointDiameter(
+        routePointDiameter,
+        getDefaultPointDiameterForPathType(effectivePathType),
+      );
       const effectiveRectangleWidth = normalizeRectangleSize(
         routeRectangleWidth,
         DEFAULT_RECTANGLE_WIDTH,
@@ -5905,33 +6416,49 @@
         DEFAULT_RECTANGLE_HEIGHT,
       );
 
-      if (effectivePathType === PATH_TYPE_BREZER && routePoints.length >= 2) {
+      if (effectivePathType === PATH_TYPE_BREZER) {
         const strokeWidth = normalizeBrezerStrokeWidth(routeBrezerStrokeWidth);
-        ctx.lineWidth = strokeWidth;
-        ctx.strokeStyle = color;
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(routePoints[0].x, routePoints[0].y);
+        if (routePoints.length >= 2) {
+          ctx.lineWidth = strokeWidth;
+          ctx.strokeStyle = color;
+          ctx.lineJoin = 'round';
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(routePoints[0].x, routePoints[0].y);
 
-        for (let i = 0; i < routePoints.length - 1; i++) {
-          const p0 = i === 0 ? routePoints[0] : routePoints[i - 1];
-          const p1 = routePoints[i];
-          const p2 = routePoints[i + 1];
-          const p3 = i + 2 < routePoints.length ? routePoints[i + 2] : routePoints[i + 1];
+          for (let i = 0; i < routePoints.length - 1; i++) {
+            const p0 = i === 0 ? routePoints[0] : routePoints[i - 1];
+            const p1 = routePoints[i];
+            const p2 = routePoints[i + 1];
+            const p3 = i + 2 < routePoints.length ? routePoints[i + 2] : routePoints[i + 1];
 
-          const cp1x = p1.x + (p2.x - p0.x) / 6;
-          const cp1y = p1.y + (p2.y - p0.y) / 6;
-          const cp2x = p2.x - (p3.x - p1.x) / 6;
-          const cp2y = p2.y - (p3.y - p1.y) / 6;
+            const cp1x = p1.x + (p2.x - p0.x) / 6;
+            const cp1y = p1.y + (p2.y - p0.y) / 6;
+            const cp2x = p2.x - (p3.x - p1.x) / 6;
+            const cp2y = p2.y - (p3.y - p1.y) / 6;
 
-          ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+          }
+
+          ctx.stroke();
         }
 
-        ctx.stroke();
+        const anchorRadius = Math.max(2, Math.round(Math.max(strokeWidth, 2) / 3));
+        ctx.fillStyle = color;
+        routePoints.forEach((point) => {
+          if (!point) {
+            return;
+          }
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, anchorRadius, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        ctx.restore();
+        return;
       }
 
-      if (effectivePathType === PATH_TYPE_POINT) {
+      if (effectivePathType === PATH_TYPE_HOLLOW_POINT) {
         const radius = Math.max(1, effectivePointDiameter / 2);
         const strokeWidth = Math.max(2, Math.round(effectivePointDiameter / 10));
         ctx.lineWidth = strokeWidth;
@@ -5940,6 +6467,14 @@
           ctx.beginPath();
           ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
           ctx.stroke();
+        });
+      } else if (effectivePathType === PATH_TYPE_FILLED_POINT) {
+        const radius = Math.max(1, effectivePointDiameter / 2);
+        ctx.fillStyle = color;
+        routePoints.forEach((point) => {
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+          ctx.fill();
         });
       } else if (effectivePathType === PATH_TYPE_RECTANGLE) {
         const halfWidth = Math.max(1, effectiveRectangleWidth / 2);
@@ -5962,7 +6497,7 @@
         ctx.fillStyle = color;
         routePoints.forEach((point) => {
           ctx.beginPath();
-          ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+          ctx.arc(point.x, point.y, Math.max(1, effectivePointDiameter / 2), 0, Math.PI * 2);
           ctx.fill();
         });
       }
@@ -6041,7 +6576,7 @@
 
         const { pathType: pathTypeValue, normalizedPoints } = entry;
         if (
-          (pathTypeValue !== PATH_TYPE_POINT && pathTypeValue !== PATH_TYPE_RECTANGLE) ||
+          (!isNormalizedPointPathType(pathTypeValue) && pathTypeValue !== PATH_TYPE_RECTANGLE) ||
           !Array.isArray(normalizedPoints) ||
           !normalizedPoints.length
         ) {
@@ -6250,29 +6785,51 @@
           return;
         }
 
-        const normalizedPoints = Array.isArray(data.points) ? data.points : [];
-        const canvasPoints = convertNormalizedToCanvasPoints(normalizedPoints);
-        if (!canvasPoints.length) {
-          return;
-        }
-
         const color = sanitizeColor(data.strokeColor);
-        overlayEntries.push({
-          id: key,
-          color,
-          pathType: normalizePathType(data.pathType),
-          canvasPoints,
-          normalizedPoints,
-          pointDiameter: normalizePointDiameter(data.pointDiameter),
-          brezerStrokeWidth: normalizeBrezerStrokeWidth(data.brezerStrokeWidth),
-          rectangleWidth: normalizeRectangleSize(data.rectangleWidth, DEFAULT_RECTANGLE_WIDTH),
-          rectangleHeight: normalizeRectangleSize(data.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT),
-          alpha: overlayAlpha,
-          medianGrade: data.medianGrade,
-          gradeBarBaseHeight: data.gradeBarBaseHeight,
-          gradeBarMaxHeight: data.gradeBarMaxHeight,
-          gradeBarWidth: data.gradeBarWidth,
-          gradeBarTransparency: data.gradeBarTransparency,
+        const normalizedRectangleWidth = normalizeRectangleSize(
+          data.rectangleWidth,
+          DEFAULT_RECTANGLE_WIDTH,
+        );
+        const normalizedRectangleHeight = normalizeRectangleSize(
+          data.rectangleHeight,
+          DEFAULT_RECTANGLE_HEIGHT,
+        );
+        const normalizedBrezerWidth = normalizeBrezerStrokeWidth(data.brezerStrokeWidth);
+
+        const pointEntries = collectRoutePointEntries(data);
+        pointEntries.forEach(({ pathType: entryPathType, normalizedPoints }) => {
+          if (!Array.isArray(normalizedPoints) || !normalizedPoints.length) {
+            return;
+          }
+
+          const canvasPoints = convertNormalizedToCanvasPoints(normalizedPoints);
+          if (!canvasPoints.length) {
+            return;
+          }
+
+          const entryPointDiameter = getRoutePointDiameterForPathType(data, entryPathType);
+          const numericGrade =
+            typeof data.numericGrade === 'number' && Number.isFinite(data.numericGrade)
+              ? data.numericGrade
+              : resolveRouteNumericGrade(data.grade);
+
+          overlayEntries.push({
+            id: key,
+            color,
+            pathType: entryPathType,
+            canvasPoints,
+            normalizedPoints,
+            pointDiameter: entryPointDiameter,
+            brezerStrokeWidth: normalizedBrezerWidth,
+            rectangleWidth: normalizedRectangleWidth,
+            rectangleHeight: normalizedRectangleHeight,
+            alpha: overlayAlpha,
+            numericGrade,
+            gradeBarBaseHeight: data.gradeBarBaseHeight,
+            gradeBarMaxHeight: data.gradeBarMaxHeight,
+            gradeBarWidth: data.gradeBarWidth,
+            gradeBarTransparency: data.gradeBarTransparency,
+          });
         });
       });
 
@@ -6284,30 +6841,30 @@
       const handledOverlapKeys = new Set();
 
       overlayEntries.forEach((entry) => {
-        const {
-          color,
-          pathType: routePathType,
-          canvasPoints,
-          normalizedPoints,
-          pointDiameter: entryPointDiameter,
-          rectangleWidth: entryRectangleWidth,
-          rectangleHeight: entryRectangleHeight,
-          alpha,
-          medianGrade,
-          gradeBarBaseHeight,
-          gradeBarMaxHeight,
-          gradeBarWidth,
-          gradeBarTransparency,
-        } = entry;
+          const {
+            color,
+            pathType: routePathType,
+            canvasPoints,
+            normalizedPoints,
+            pointDiameter: entryPointDiameter,
+            rectangleWidth: entryRectangleWidth,
+            rectangleHeight: entryRectangleHeight,
+            alpha,
+            numericGrade,
+            gradeBarBaseHeight,
+            gradeBarMaxHeight,
+            gradeBarWidth,
+            gradeBarTransparency,
+          } = entry;
 
         const supportsPattern =
-          routePathType === PATH_TYPE_POINT || routePathType === PATH_TYPE_RECTANGLE;
+          isNormalizedPointPathType(routePathType) || routePathType === PATH_TYPE_RECTANGLE;
         const visiblePoints = [];
         const isFocused = !focusedRouteKey || entry.id === focusedRouteKey;
         const routeAlpha = isFocused ? 1 : alpha;
 
         if (Array.isArray(canvasPoints) && canvasPoints.length) {
-          if (routePathType === PATH_TYPE_POINT) {
+          if (isNormalizedPointPathType(routePathType)) {
             const radius = Math.max(6, entryPointDiameter / 2);
             canvasPoints.forEach((point) => {
               if (!point) {
@@ -6407,7 +6964,7 @@
 
             handledOverlapKeys.add(overlapKey);
 
-            if (routePathType === PATH_TYPE_POINT) {
+            if (isNormalizedPointPathType(routePathType)) {
               drawOverlayPointGroup(point, overlapGroup.entries);
             } else if (routePathType === PATH_TYPE_RECTANGLE) {
               drawOverlayRectangleGroup(point, entryRectangleWidth, entryRectangleHeight, overlapGroup.entries);
@@ -6435,7 +6992,7 @@
           routePoints: canvasPoints,
           color,
           alpha: routeAlpha,
-          medianGrade,
+          numericGrade,
           baseHeight: gradeBarBaseHeight,
           maxHeight: gradeBarMaxHeight,
           width: gradeBarWidth,
@@ -6445,32 +7002,79 @@
       });
     }
 
-    function applyNormalizedPoints(normalizedPoints = []) {
-      if (!Array.isArray(normalizedPoints)) {
-        loadedNormalizedPoints = null;
-        points.length = 0;
-        redraw();
-        return;
-      }
+    function setCanvasPointsFromNormalized(normalizedPoints = []) {
+      const target = Array.isArray(normalizedPoints)
+        ? normalizedPoints.map((point) => ({ x: Number(point?.x), y: Number(point?.y) }))
+        : [];
 
-      const filtered = normalizedPoints
-        .map((point) => {
-          const x = Number(point?.x);
-          const y = Number(point?.y);
-          if (Number.isFinite(x) && Number.isFinite(y)) {
-            return { x, y };
-          }
-          return null;
-        })
-        .filter(Boolean);
+      const filtered = target.filter(
+        ({ x, y }) => Number.isFinite(x) && Number.isFinite(y),
+      );
 
       loadedNormalizedPoints = filtered;
       points.length = 0;
       filtered.forEach(({ x, y }) => {
         points.push({ x: x * canvas.width, y: y * canvas.height });
       });
-
       redraw();
+    }
+
+    function loadPointsForActivePathType() {
+      const activeType = normalizePathType(pathType);
+      const normalized = normalizedPointsByPathType.get(activeType) || [];
+      const sanitized = sanitizeNormalizedPointsArray(normalized);
+      normalizedPointsByPathType.set(activeType, sanitized);
+      setCanvasPointsFromNormalized(sanitized);
+    }
+
+    function flushActivePointsToNormalized() {
+      const activeType = normalizePathType(pathType);
+      if (!activeType) {
+        return [];
+      }
+
+      const normalized = convertPointsToNormalized();
+      normalizedPointsByPathType.set(activeType, normalized);
+      loadedNormalizedPoints = normalized;
+      return normalized;
+    }
+
+    function synchroniseNormalizedPoints(pointsByType, activeType) {
+      const normalizedActiveType = normalizePathType(activeType) || DEFAULT_PATH_TYPE;
+      normalizedPointsByPathType.clear();
+
+      const register = (type, value) => {
+        const normalizedType = normalizePathType(type);
+        if (!normalizedType) {
+          return;
+        }
+        normalizedPointsByPathType.set(
+          normalizedType,
+          sanitizeNormalizedPointsArray(value),
+        );
+      };
+
+      if (pointsByType instanceof Map) {
+        pointsByType.forEach((value, key) => {
+          register(key, value);
+        });
+      } else if (
+        pointsByType &&
+        typeof pointsByType === 'object' &&
+        !Array.isArray(pointsByType)
+      ) {
+        Object.entries(pointsByType).forEach(([key, value]) => {
+          register(key, value);
+        });
+      } else if (Array.isArray(pointsByType)) {
+        register(normalizedActiveType, pointsByType);
+      }
+
+      if (!normalizedPointsByPathType.has(normalizedActiveType)) {
+        normalizedPointsByPathType.set(normalizedActiveType, []);
+      }
+
+      loadPointsForActivePathType();
     }
 
     function convertPointsToNormalized() {
@@ -6526,7 +7130,7 @@
       }
 
       const activePathType = normalizePathType(pathType);
-      if (activePathType !== PATH_TYPE_POINT && activePathType !== PATH_TYPE_RECTANGLE) {
+      if (!isNormalizedPointPathType(activePathType) && activePathType !== PATH_TYPE_RECTANGLE) {
         return null;
       }
 
@@ -6536,7 +7140,7 @@
       const activeDetectionRadius =
         activePathType === PATH_TYPE_RECTANGLE
           ? getRectangleDetectionRadius(rectangleWidth, rectangleHeight)
-          : getPointDetectionRadius(pointDiameter);
+          : getPointDetectionRadius(getStatePointDiameterForPathType(activePathType));
 
       routesCache.forEach((data, routeKey) => {
         if (!data || routeKey === currentRouteKey) {
@@ -6559,11 +7163,12 @@
 
         let detectionRadius = activeDetectionRadius;
 
-        if (activePathType === PATH_TYPE_POINT) {
-          const routeDiameter = normalizePointDiameter(
-            typeof data?.pointDiameter === 'number' ? data.pointDiameter : pointDiameter,
+        if (isNormalizedPointPathType(activePathType)) {
+          const routeDiameter = getRoutePointDiameterForPathType(data, activePathType);
+          detectionRadius = Math.max(
+            activeDetectionRadius,
+            getPointDetectionRadius(routeDiameter),
           );
-          detectionRadius = Math.max(activeDetectionRadius, getPointDetectionRadius(routeDiameter));
         } else {
           const routeWidth = normalizeRectangleSize(
             typeof data?.rectangleWidth === 'number' ? data.rectangleWidth : rectangleWidth,
@@ -6634,11 +7239,11 @@
           return;
         }
       }
-      if (currentPathType === PATH_TYPE_POINT || currentPathType === PATH_TYPE_RECTANGLE) {
+      if (isNormalizedPointPathType(currentPathType) || currentPathType === PATH_TYPE_RECTANGLE) {
         const detectionRadius =
           currentPathType === PATH_TYPE_RECTANGLE
             ? getRectangleDetectionRadius(rectangleWidth, rectangleHeight)
-            : getPointDetectionRadius(pointDiameter);
+            : getPointDetectionRadius(getStatePointDiameterForPathType(currentPathType));
         const existingIndex = findPointIndexNear(x, y, points, detectionRadius);
         if (existingIndex >= 0) {
           points.splice(existingIndex, 1);
@@ -6665,12 +7270,13 @@
     }
 
     function clearCanvas() {
-      if (!points.length) {
+      const activeType = normalizePathType(pathType);
+      if (!points.length && (!loadedNormalizedPoints || !loadedNormalizedPoints.length)) {
         return;
       }
-      points.length = 0;
-      loadedNormalizedPoints = null;
-      redraw();
+
+      normalizedPointsByPathType.set(activeType, []);
+      setCanvasPointsFromNormalized([]);
       markUnsavedChange();
     }
 
@@ -6690,6 +7296,8 @@
         refreshRoutes: false,
         wallFallback: {
           pointDiameter: data.pointDiameter,
+          hollowPointDiameter: data.hollowPointDiameter ?? data.pointDiameter,
+          filledPointDiameter: data.filledPointDiameter ?? data.pointDiameter,
           rectangleWidth: data.rectangleWidth,
           rectangleHeight: data.rectangleHeight,
           brezerStrokeWidth: data.brezerStrokeWidth,
@@ -6700,7 +7308,13 @@
         },
       });
 
-      pathType = data.pathType || DEFAULT_PATH_TYPE;
+      const savedPathType = normalizePathType(data.pathType) || DEFAULT_PATH_TYPE;
+      const nonEmptyPointEntries = collectRoutePointEntries(data);
+      const hasSavedPathPoints = nonEmptyPointEntries.some(
+        (entry) => entry.pathType === savedPathType,
+      );
+      const fallbackEntry = hasSavedPathPoints ? null : nonEmptyPointEntries[0] || null;
+      pathType = fallbackEntry?.pathType || savedPathType;
       updatePathControls();
 
       currentRouteKey = routeKey;
@@ -6710,16 +7324,37 @@
       routeDescriptionInput.value = data.description;
       routeDateSetInput.value = isoStringToInputValue(data.date_set) || '';
       strokeColor = data.strokeColor;
-      currentRouteMedianGrade = data.medianGrade ?? null;
+      currentRouteGradeValue = normalizeRouteGradeField(data.grade);
+      currentRouteNumericGrade = resolveRouteNumericGrade(
+        currentRouteGradeValue !== null ? currentRouteGradeValue : data.numericGrade,
+      );
+      if (routeHiddenCheckbox) {
+        const isHidden = data.hiddenFromClimbers === true;
+        routeHiddenCheckbox.checked = isHidden;
+        routeHiddenCheckbox.setAttribute('aria-checked', isHidden ? 'true' : 'false');
+      }
       colorPicker.value = strokeColor;
       syncAdvancedColorPicker(strokeColor);
-      applyNormalizedPoints(data.points);
+      synchroniseNormalizedPoints(data.pointsByType ?? data.points, pathType);
+      const activeNormalizedPoints = sanitizeNormalizedPointsArray(
+        normalizedPointsByPathType.get(pathType),
+      );
+      const cachedPointsByType = new Map();
+      normalizedPointsByPathType.forEach((value, key) => {
+        cachedPointsByType.set(key, sanitizeNormalizedPointsArray(value));
+      });
       deleteButton.disabled = !routeKey;
       resetUnsavedState();
 
       if (routeKey) {
-        routesCache.set(routeKey, data);
-        const label = data.title || routeKey;
+        const cachedRouteData = {
+          ...data,
+          pathType,
+          points: activeNormalizedPoints,
+          pointsByType: cachedPointsByType,
+        };
+        routesCache.set(routeKey, cachedRouteData);
+        const label = cachedRouteData.title || routeKey;
         setStatus(`Loaded route “${label}”.`, 'success');
       }
     }
@@ -6731,13 +7366,18 @@
       routeTitleInput.value = '';
       routeDescriptionInput.value = '';
       routeDateSetInput.value = getNowInputValue();
+      if (routeHiddenCheckbox) {
+        routeHiddenCheckbox.checked = false;
+        routeHiddenCheckbox.setAttribute('aria-checked', 'false');
+      }
       strokeColor = '#ffde59';
       colorPicker.value = strokeColor;
       syncAdvancedColorPicker(strokeColor);
       setDrawingEnabled(false);
       const wallSettings = getWallSettingsForLocation(getCurrentLocationKey());
       pathType = DEFAULT_PATH_TYPE;
-      pointDiameter = wallSettings.pointDiameter;
+      pointDiameter = wallSettings.hollowPointDiameter ?? wallSettings.pointDiameter;
+      filledPointDiameter = wallSettings.filledPointDiameter ?? wallSettings.pointDiameter;
       rectangleWidth = wallSettings.rectangleWidth;
       rectangleHeight = wallSettings.rectangleHeight;
       brezerStrokeWidth = wallSettings.brezerStrokeWidth;
@@ -6746,12 +7386,13 @@
       gradeBarMaxHeight = wallSettings.gradeBarMaxHeight;
       gradeBarWidth = wallSettings.gradeBarWidth;
       gradeBarTransparency = wallSettings.gradeBarTransparency;
-      currentRouteMedianGrade = null;
+      currentRouteGradeValue = null;
+      currentRouteNumericGrade = null;
       updatePathControls();
       updateAppearanceControls();
-      loadedNormalizedPoints = null;
-      points.length = 0;
-      redraw();
+      normalizedPointsByPathType.clear();
+      normalizedPointsByPathType.set(pathType, []);
+      loadPointsForActivePathType();
       deleteButton.disabled = true;
       resetUnsavedState();
       if (statusMessage) {
@@ -6769,13 +7410,15 @@
         await refreshWallSettingsCache();
         const resolvedSettings = getWallSettingsForLocation(currentLocationKey);
         const pathSettingsChanged =
-          resolvedSettings.pointDiameter !== previousSettings.pointDiameter ||
+          resolvedSettings.hollowPointDiameter !== previousSettings.hollowPointDiameter ||
+          resolvedSettings.filledPointDiameter !== previousSettings.filledPointDiameter ||
           resolvedSettings.rectangleWidth !== previousSettings.rectangleWidth ||
           resolvedSettings.rectangleHeight !== previousSettings.rectangleHeight ||
           resolvedSettings.unfocusedTransparency !== previousSettings.unfocusedTransparency;
 
         if (pathSettingsChanged) {
-          pointDiameter = resolvedSettings.pointDiameter;
+          pointDiameter = resolvedSettings.hollowPointDiameter ?? resolvedSettings.pointDiameter;
+          filledPointDiameter = resolvedSettings.filledPointDiameter ?? resolvedSettings.pointDiameter;
           rectangleWidth = resolvedSettings.rectangleWidth;
           rectangleHeight = resolvedSettings.rectangleHeight;
           unfocusedTransparency = resolvedSettings.unfocusedTransparency;
@@ -6796,14 +7439,13 @@
           updateAppearanceControls();
         }
 
-        const [routesSnapshot, medianMap] = await Promise.all([
-          getDocs(collection(db, 'routes')),
-          fetchMedianGrades(),
-        ]);
-        routeMedianGrades = medianMap instanceof Map ? medianMap : new Map();
+        const routesSnapshot = await getDocs(collection(db, 'routes'));
         routesCache.clear();
         routesSnapshot.forEach((docSnap) => {
-          routesCache.set(docSnap.id, normalizeRouteData({ id: docSnap.id, ...docSnap.data() }));
+          const data = docSnap.data() ?? {};
+          const rawUid = typeof data.uid === 'string' ? data.uid.trim() : '';
+          const routeUid = rawUid || docSnap.id;
+          routesCache.set(routeUid, normalizeRouteData({ id: routeUid, uid: routeUid, ...data }));
         });
 
         updateRoutesForAllWalls();
@@ -6867,7 +7509,10 @@
         return;
       }
 
-      const normalizedPoints = convertPointsToNormalized();
+      flushActivePointsToNormalized();
+      const pointsPayload = serialiseNormalizedPointsByType(
+        normalizedPointsByPathType,
+      );
       const setter = normalizeSetterName(routeSetterInput.value);
       routeSetterInput.value = setter;
       if (!setter) {
@@ -6890,27 +7535,14 @@
         return;
       }
 
-      const routeKey = createRouteKeyFromTitle(title);
-      if (!routeKey) {
-        setStatus('Route title must include valid characters.', 'error');
-        routeTitleInput.focus();
-        return;
-      }
-
       const conflictingKey = findConflictingRouteKey(title, previousRouteKey);
       if (conflictingKey && conflictingKey !== previousRouteKey) {
         setStatus('Another route already uses this title. Choose a different title.', 'error');
         routeTitleInput.focus();
         return;
       }
-
-      if (routesCache.has(routeKey) && routeKey !== previousRouteKey) {
-        setStatus('Another route already uses this title. Choose a different title.', 'error');
-        routeTitleInput.focus();
-        return;
-      }
-
-      const isRenaming = Boolean(previousRouteKey && previousRouteKey !== routeKey);
+      const isExistingRoute = Boolean(previousRouteKey);
+      const routeKey = isExistingRoute ? previousRouteKey : generateRouteUid();
 
       const description = routeDescriptionInput.value.trim();
       routeDescriptionInput.value = description;
@@ -6924,29 +7556,43 @@
       const currentLocationKey = getCurrentLocationKey();
       const wallSettings = getWallSettingsForLocation(currentLocationKey);
       const normalizedPathType = normalizePathType(pathType);
-      const normalizedPointDiameter = wallSettings.pointDiameter;
+      const normalizedHollowPointDiameter =
+        wallSettings.hollowPointDiameter ?? wallSettings.pointDiameter;
+      const normalizedFilledPointDiameter =
+        wallSettings.filledPointDiameter ?? wallSettings.pointDiameter;
+      const normalizedPointDiameter = normalizedHollowPointDiameter;
       const normalizedRectangleWidth = wallSettings.rectangleWidth;
       const normalizedRectangleHeight = wallSettings.rectangleHeight;
       const normalizedUnfocusedTransparency = wallSettings.unfocusedTransparency;
+      const hiddenFromClimbers = routeHiddenCheckbox?.checked === true;
       pathType = normalizedPathType;
-      pointDiameter = normalizedPointDiameter;
+      pointDiameter = normalizedHollowPointDiameter;
+      filledPointDiameter = normalizedFilledPointDiameter;
       rectangleWidth = normalizedRectangleWidth;
       rectangleHeight = normalizedRectangleHeight;
       unfocusedTransparency = normalizedUnfocusedTransparency;
       updatePathControls();
 
+      const normalizedGradeField = normalizeRouteGradeField(currentRouteGradeValue);
+
       const payload = {
+        uid: routeKey,
         setter,
         title,
         description: description || null,
         strokeColor,
         pathType: normalizedPathType,
-        points: normalizedPoints,
+        points: pointsPayload,
         date_set: dateSetIso,
         date_removed: deleteField(),
         location: currentLocation?.name || DEFAULT_LOCATION?.name || null,
         updatedAt: serverTimestamp(),
+        hiddenFromClimbers: hiddenFromClimbers ? true : deleteField(),
       };
+
+      if (normalizedGradeField !== null) {
+        payload.grade = normalizedGradeField;
+      }
 
       const routeRef = doc(db, 'routes', routeKey);
 
@@ -6959,65 +7605,48 @@
 
           const existingSnap = await getDoc(routeRef);
           const existingData = existingSnap.data();
-          let ascentsPayload = null;
+          let usersPayload = null;
 
           if (!existingSnap.exists()) {
             payload.createdAt = serverTimestamp();
-
-            if (isRenaming && previousRouteKey) {
-              try {
-                const previousSnap = await getDoc(doc(db, 'routes', previousRouteKey));
-                const previousAscents = previousSnap.data()?.ascents;
-                if (previousAscents && typeof previousAscents === 'object') {
-                  ascentsPayload = sanitizeAscentsForPersistence(previousAscents);
-                }
-              } catch (error) {
-                console.warn('Failed to copy ascents from previous route:', error);
-              }
-            }
-
-            if (ascentsPayload === null) {
-              ascentsPayload = {};
-            }
-          } else if (!existingData?.ascents || typeof existingData.ascents !== 'object') {
-            ascentsPayload = {};
+            usersPayload = {};
+          } else if (!existingData?.users || typeof existingData.users !== 'object') {
+            usersPayload = {};
           }
 
-          if (ascentsPayload !== null) {
-            payload.ascents = ascentsPayload;
+          if (usersPayload !== null) {
+            payload.users = usersPayload;
           }
 
           await setDoc(routeRef, payload, { merge: true });
 
-        loadedNormalizedPoints = normalizedPoints;
-        currentRouteKey = routeKey;
-        routesCache.set(
-          routeKey,
-          normalizeRouteData({
-            id: routeKey,
-            ...payload,
-            pointDiameter: normalizedPointDiameter,
-            brezerStrokeWidth: wallSettings.brezerStrokeWidth,
-            rectangleWidth: normalizedRectangleWidth,
-            rectangleHeight: normalizedRectangleHeight,
-          }),
-        );
+          currentRouteKey = routeKey;
+          routesCache.set(
+            routeKey,
+            normalizeRouteData({
+              id: routeKey,
+              uid: routeKey,
+              ...payload,
+              users: usersPayload !== null ? usersPayload : existingData?.users,
+              pointDiameter: normalizedPointDiameter,
+              hollowPointDiameter: normalizedHollowPointDiameter,
+              filledPointDiameter: normalizedFilledPointDiameter,
+              brezerStrokeWidth: wallSettings.brezerStrokeWidth,
+              rectangleWidth: normalizedRectangleWidth,
+              rectangleHeight: normalizedRectangleHeight,
+              grade:
+                normalizedGradeField !== null
+                  ? normalizedGradeField
+                  : normalizeRouteGradeField(existingData?.grade),
+            }),
+          );
 
-        if (isRenaming) {
-          try {
-            await deleteDoc(doc(db, 'routes', previousRouteKey));
-            routesCache.delete(previousRouteKey);
-          } catch (error) {
-            console.warn('Failed to delete previous route entry:', error);
-          }
-        }
+          resetUnsavedState();
 
-        resetUnsavedState();
-
-        const label = title || routeKey;
-        await loadRoutesList(routeKey);
-        prepareNewRoute();
-        setStatus(`Route “${label}” saved successfully.`, 'success');
+          const label = title || routeKey;
+          await loadRoutesList(routeKey);
+          prepareNewRoute();
+          setStatus(`Route “${label}” saved successfully.`, 'success');
       } catch (error) {
         console.error('Failed to save route:', error);
         setStatus(error.message || 'Failed to save route.', 'error');
@@ -7076,6 +7705,14 @@
       routeDateSetInput.addEventListener('input', markUnsavedChange);
     }
 
+    if (routeHiddenCheckbox) {
+      routeHiddenCheckbox.addEventListener('change', (event) => {
+        const isHidden = event.target.checked === true;
+        event.target.setAttribute('aria-checked', isHidden ? 'true' : 'false');
+        markUnsavedChange();
+      });
+    }
+
     if (saveAppearanceButton) {
       saveAppearanceButton.addEventListener('click', async () => {
         const locationKey = getCurrentLocationKey();
@@ -7084,8 +7721,13 @@
           return;
         }
 
-        const nextPointDiameter = normalizePointDiameter(
-          appearancePointDiameterInput?.value ?? pointDiameter,
+        const nextHollowPointDiameter = normalizePointDiameter(
+          hollowPointDiameterSlider?.value ?? pointDiameter,
+          DEFAULT_HOLLOW_POINT_DIAMETER,
+        );
+        const nextFilledPointDiameter = normalizePointDiameter(
+          filledPointDiameterSlider?.value ?? filledPointDiameter,
+          DEFAULT_FILLED_POINT_DIAMETER,
         );
         const nextGradeBarBaseHeight = normalizeGradeBarHeight(
           gradeBarBaseHeightInput?.value,
@@ -7104,13 +7746,17 @@
 
         try {
           await persistWallSettings(locationKey, {
-            pointDiameter: nextPointDiameter,
+            pointDiameter: nextHollowPointDiameter,
+            hollowPointDiameter: nextHollowPointDiameter,
+            filledPointDiameter: nextFilledPointDiameter,
             brezerStrokeWidth,
             gradeBarBaseHeight: nextGradeBarBaseHeight,
             gradeBarMaxHeight: nextGradeBarMaxHeight,
             gradeBarWidth: nextGradeBarWidth,
             transparency: nextGradeBarTransparency,
           });
+          pointDiameter = nextHollowPointDiameter;
+          filledPointDiameter = nextFilledPointDiameter;
           setStatus('Appearance saved.', 'success');
         } catch (error) {
           console.error('Failed to save appearance settings:', error);
@@ -7175,22 +7821,34 @@
           return;
         }
 
+        flushActivePointsToNormalized();
         pathType = selectedType;
         updatePathControls();
 
-        if (currentRouteKey && routesCache.has(currentRouteKey)) {
-          const cached = routesCache.get(currentRouteKey);
-          routesCache.set(currentRouteKey, { ...cached, pathType: selectedType });
+        if (!normalizedPointsByPathType.has(pathType)) {
+          normalizedPointsByPathType.set(pathType, []);
         }
 
-        redraw();
+        loadPointsForActivePathType();
+
+        if (currentRouteKey && routesCache.has(currentRouteKey)) {
+          const cached = routesCache.get(currentRouteKey);
+          routesCache.set(currentRouteKey, {
+            ...cached,
+            pathType: selectedType,
+            pointsByType: new Map(normalizedPointsByPathType),
+          });
+        }
         markUnsavedChange();
       });
     }
 
-    if (pointDiameterSlider) {
-      pointDiameterSlider.addEventListener('input', (event) => {
-        const nextValue = normalizePointDiameter(event.target.value);
+    if (hollowPointDiameterSlider) {
+      hollowPointDiameterSlider.addEventListener('input', (event) => {
+        const nextValue = normalizePointDiameter(
+          event.target.value,
+          DEFAULT_HOLLOW_POINT_DIAMETER,
+        );
         if (pointDiameter === nextValue) {
           updatePathControls();
           updateAppearanceControls();
@@ -7206,6 +7864,8 @@
         if (normalizedKey) {
           const previewSettings = normalizeWallSettings({
             pointDiameter: nextValue,
+            hollowPointDiameter: nextValue,
+            filledPointDiameter,
             rectangleWidth,
             rectangleHeight,
             brezerStrokeWidth,
@@ -7222,8 +7882,11 @@
         redraw();
       });
 
-      pointDiameterSlider.addEventListener('change', async (event) => {
-        const nextValue = normalizePointDiameter(event.target.value);
+      hollowPointDiameterSlider.addEventListener('change', async (event) => {
+        const nextValue = normalizePointDiameter(
+          event.target.value,
+          DEFAULT_HOLLOW_POINT_DIAMETER,
+        );
         if (pointDiameter !== nextValue) {
           pointDiameter = nextValue;
           updatePathControls();
@@ -7233,9 +7896,73 @@
         const locationKey = getCurrentLocationKey();
         if (locationKey) {
           try {
-            await persistWallSettings(locationKey, { pointDiameter: nextValue });
+            await persistWallSettings(locationKey, {
+              pointDiameter: nextValue,
+              hollowPointDiameter: nextValue,
+            });
           } catch (error) {
-            console.error('Failed to persist wall point diameter:', error);
+            console.error('Failed to persist hollow point diameter:', error);
+          }
+        }
+      });
+    }
+
+    if (filledPointDiameterSlider) {
+      filledPointDiameterSlider.addEventListener('input', (event) => {
+        const nextValue = normalizePointDiameter(
+          event.target.value,
+          DEFAULT_FILLED_POINT_DIAMETER,
+        );
+        if (filledPointDiameter === nextValue) {
+          updatePathControls();
+          updateAppearanceControls();
+          return;
+        }
+
+        filledPointDiameter = nextValue;
+        updatePathControls();
+        updateAppearanceControls();
+
+        const locationKey = getCurrentLocationKey();
+        const normalizedKey = normalizeWallKey(locationKey);
+        if (normalizedKey) {
+          const previewSettings = normalizeWallSettings({
+            pointDiameter,
+            hollowPointDiameter: pointDiameter,
+            filledPointDiameter: nextValue,
+            rectangleWidth,
+            rectangleHeight,
+            brezerStrokeWidth,
+            unfocusedTransparency,
+            gradeBarBaseHeight,
+            gradeBarMaxHeight,
+            gradeBarWidth,
+            gradeBarTransparency,
+          });
+          wallSettingsCache.set(normalizedKey, previewSettings);
+          updateRoutesForWall(normalizedKey, previewSettings);
+        }
+
+        redraw();
+      });
+
+      filledPointDiameterSlider.addEventListener('change', async (event) => {
+        const nextValue = normalizePointDiameter(
+          event.target.value,
+          DEFAULT_FILLED_POINT_DIAMETER,
+        );
+        if (filledPointDiameter !== nextValue) {
+          filledPointDiameter = nextValue;
+          updatePathControls();
+          updateAppearanceControls();
+        }
+
+        const locationKey = getCurrentLocationKey();
+        if (locationKey) {
+          try {
+            await persistWallSettings(locationKey, { filledPointDiameter: nextValue });
+          } catch (error) {
+            console.error('Failed to persist filled point diameter:', error);
           }
         }
       });
@@ -7501,17 +8228,15 @@
       }
 
       try {
-        const snapshot = await getDocs(query(collection(db, 'usernames'), where('uid', '==', uid), limit(1)));
+        const userRef = doc(db, 'users', uid);
+        const userSnap = await getDoc(userRef);
 
-        if (snapshot.empty) {
+        if (!userSnap.exists()) {
           return '';
         }
 
-        const docSnap = snapshot.docs[0];
-        const data = docSnap.data() || {};
-        const fromField = normalizeUsername(data.username);
-        const fromId = normalizeUsername(docSnap.id);
-        return fromField || fromId;
+        const data = userSnap.data() || {};
+        return normalizeUsername(typeof data.username === 'string' ? data.username : '');
       } catch (error) {
         console.error('Failed to look up username by UID:', error);
         return '';
@@ -7583,28 +8308,26 @@
         const { user } = credentials;
 
         try {
-          await setDoc(doc(db, 'usernames', normalizedUsername), {
-            uid: user.uid,
-            username: normalizedUsername,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          });
-        } catch (error) {
-          console.error('Failed to reserve username:', error);
-          try {
-            await deleteUser(user);
-          } catch (cleanupError) {
-            console.warn('Unable to clean up user after username failure:', cleanupError);
-          }
-          const usernameError = new Error('Username unavailable');
-          usernameError.code = 'auth/username-unavailable';
-          throw usernameError;
-        }
-
-        try {
           await updateProfile(user, { displayName: normalizedUsername });
         } catch (profileError) {
           console.warn('Failed to update display name:', profileError);
+        }
+
+        try {
+          await ensureUserRole(user, normalizedUsername);
+        } catch (error) {
+          console.error('Failed to initialize user record:', error);
+          try {
+            await deleteUser(user);
+          } catch (cleanupError) {
+            console.warn('Unable to clean up user after initialization failure:', cleanupError);
+          }
+          if (error && typeof error === 'object' && 'code' in error) {
+            throw error;
+          }
+          const initializationError = new Error('Username unavailable');
+          initializationError.code = 'auth/username-unavailable';
+          throw initializationError;
         }
       } catch (error) {
         let message = 'Unable to complete the request. Please try again.';
@@ -7651,97 +8374,77 @@
       const normalizedUsername = normalizeUsername(username);
 
       if (!normalizedUsername) {
-        return { role: 'default' };
+        return { role: null };
       }
 
+      const userRef = doc(db, 'users', user.uid);
+
       try {
-        const roleRef = doc(db, 'roles', user.uid);
-        const roleSnap = await getDoc(roleRef);
+        const existingSnap = await getDoc(userRef);
 
-        if (roleSnap.exists()) {
-          const data = roleSnap.data() || {};
-          const storedLowerRaw =
-            typeof data.usernameLower === 'string'
-              ? data.usernameLower
-              : typeof data.username === 'string'
-              ? data.username
-              : '';
-          let effectiveLower = normalizeUsername(storedLowerRaw);
-          const trimmedRole =
-            typeof data.role === 'string' ? data.role.trim().toLowerCase() : 'default';
-          const mergedData = {
-            ...data,
-            role: trimmedRole,
-          };
-
-          const needsUsernameUpdate =
-            effectiveLower !== normalizedUsername || !data.username;
-
-          if (needsUsernameUpdate) {
-            mergedData.username = normalizedUsername;
-            mergedData.usernameLower = normalizedUsername;
-            effectiveLower = normalizedUsername;
-
-            if (trimmedRole !== 'default') {
-              try {
-                await setDoc(
-                  roleRef,
-                  {
-                    username: normalizedUsername,
-                    usernameLower: normalizedUsername,
-                    updatedAt: serverTimestamp(),
-                  },
-                  { merge: true },
-                );
-              } catch (error) {
-                console.warn('Failed to synchronise username on role document:', error);
-              }
-            }
-          }
-
-          if (effectiveLower !== normalizedUsername) {
-            mergedData.role = 'default';
-          }
-
-          return mergedData;
-        }
-
-        let role = 'default';
-
-        try {
-          const snapshot = await getDocs(
-            query(collection(db, 'roles'), where('role', '==', 'setter'), limit(1)),
+        if (existingSnap.exists()) {
+          const data = existingSnap.data() || {};
+          const storedUsername = normalizeUsername(
+            typeof data.username === 'string' ? data.username : '',
           );
-          if (snapshot.empty) {
-            role = 'setter';
+          const trimmedRole =
+            typeof data.role === 'string' ? data.role.trim().toLowerCase() : '';
+
+          const updates = {};
+
+          if (storedUsername !== normalizedUsername) {
+            const conflictSnapshot = await getDocs(
+              query(collection(db, 'users'), where('username', '==', normalizedUsername), limit(1)),
+            );
+
+            if (!conflictSnapshot.empty && conflictSnapshot.docs[0].id !== user.uid) {
+              const usernameError = new Error('Username unavailable');
+              usernameError.code = 'auth/username-unavailable';
+              throw usernameError;
+            }
+
+            updates.username = normalizedUsername;
+            updates.updatedAt = serverTimestamp();
+          } else if (!data.updatedAt) {
+            updates.updatedAt = serverTimestamp();
           }
-        } catch (error) {
-          console.warn('Unable to inspect existing roles:', error);
+
+          if (Object.keys(updates).length > 0) {
+            await setDoc(userRef, updates, { merge: true });
+          }
+
+          return {
+            ...data,
+            ...(updates.username ? { username: normalizedUsername } : {}),
+            ...(updates.updatedAt ? { updatedAt: updates.updatedAt } : {}),
+            role: trimmedRole || null,
+          };
         }
 
-        const roleData = {
-          role,
+        const conflictSnapshot = await getDocs(
+          query(collection(db, 'users'), where('username', '==', normalizedUsername), limit(1)),
+        );
+
+        if (!conflictSnapshot.empty) {
+          const usernameError = new Error('Username unavailable');
+          usernameError.code = 'auth/username-unavailable';
+          throw usernameError;
+        }
+
+        const timestamp = serverTimestamp();
+        const userData = {
           username: normalizedUsername,
-          usernameLower: normalizedUsername,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          role: null,
         };
 
-        if (role === 'default') {
-          return roleData;
-        }
+        await setDoc(userRef, userData);
 
-        await setDoc(
-          roleRef,
-          {
-            ...roleData,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true },
-        );
-        return roleData;
+        return userData;
       } catch (error) {
-        console.error('Failed to ensure user role:', error);
-        return { role: 'default' };
+        console.error('Failed to ensure user record:', error);
+        throw error;
       }
     }
 
@@ -7757,7 +8460,7 @@
 
       try {
         const ensuredRole = await ensureUserRole(user, normalizedUsername);
-        return typeof ensuredRole?.role === 'string'
+        return typeof ensuredRole?.role === 'string' && ensuredRole.role.trim()
           ? ensuredRole.role.trim().toLowerCase()
           : 'default';
       } catch (error) {
@@ -7779,6 +8482,7 @@
       deleteButton.disabled = true;
       clearStatus();
       updateAdminConsoleAccess('');
+      cancelTutorialAutostart();
       void finishTutorial();
     }
 
@@ -7831,7 +8535,7 @@
           console.error('Unable to initialise routes:', error);
         }
 
-        await startTutorial();
+        scheduleTutorialAutostart();
       } else {
         currentUsername = '';
         currentUserId = null;
@@ -7845,6 +8549,7 @@
         clearStatus();
         setAuthMode('login');
         updateAdminConsoleAccess('');
+        cancelTutorialAutostart();
         void finishTutorial();
       }
     });
@@ -7853,7 +8558,8 @@
       .then(() => {
         const locationKey = getCurrentLocationKey();
         const wallSettings = getWallSettingsForLocation(locationKey);
-        pointDiameter = wallSettings.pointDiameter;
+        pointDiameter = wallSettings.hollowPointDiameter ?? wallSettings.pointDiameter;
+        filledPointDiameter = wallSettings.filledPointDiameter ?? wallSettings.pointDiameter;
         unfocusedTransparency = wallSettings.unfocusedTransparency;
         updatePathControls();
         updateRoutesForAllWalls();

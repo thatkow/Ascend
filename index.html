@@ -1194,6 +1194,52 @@
         background: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.18);
       }
 
+      .route-tooltip .betatip-body {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.55rem;
+      }
+
+      .route-tooltip .betatip-upvote-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.65rem;
+        height: 1.65rem;
+        min-width: 1.65rem;
+        border-radius: 999px;
+        border: 2px solid transparent;
+        font-size: 1.05rem;
+        line-height: 1;
+        transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease,
+          box-shadow 0.2s ease;
+        color: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.7);
+        pointer-events: none;
+      }
+
+      .route-tooltip .betatip-upvote-icon.is-upvoted {
+        border-color: rgba(59, 130, 246, 0.9);
+        background: rgba(59, 130, 246, 0.18);
+        color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+      }
+
+      .route-tooltip .betatip-upvote-count {
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        min-width: 1.5rem;
+        text-align: right;
+        color: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.8);
+        position: relative;
+      }
+
+      .route-tooltip .betatip-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        align-items: center;
+      }
+
       .route-tooltip .betatip-username {
         font-weight: 600;
         letter-spacing: 0.01em;
@@ -1209,6 +1255,31 @@
         line-height: 1.5;
         color: var(--tooltip-muted-foreground, #d1d5db);
         white-space: pre-line;
+        flex: 1;
+      }
+
+      .route-tooltip .betatip-delete-button {
+        border: none;
+        background: none;
+        color: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.75);
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-decoration: underline;
+        cursor: pointer;
+        padding: 0.1rem 0.25rem;
+        transition: color 0.2s ease, opacity 0.2s ease;
+      }
+
+      .route-tooltip .betatip-delete-button:hover,
+      .route-tooltip .betatip-delete-button:focus-visible {
+        color: var(--tooltip-accent, #7ed957);
+        outline: none;
+      }
+
+      .route-tooltip .betatip-delete-button:disabled {
+        color: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.35);
+        cursor: not-allowed;
+        text-decoration: none;
       }
 
       .route-tooltip .tooltip-betatips-empty {
@@ -1705,9 +1776,11 @@
         doc,
         getDoc,
         setDoc,
-        updateDoc,
+        addDoc,
+        deleteDoc,
         serverTimestamp,
         collection,
+        collectionGroup,
         getDocs,
         query,
         limit,
@@ -2417,12 +2490,15 @@
       }
 
       const PATH_TYPE_BREZER = 'brezer';
-      const PATH_TYPE_POINT = 'point';
+      const PATH_TYPE_HOLLOW_POINT = 'hollow-point';
+      const PATH_TYPE_FILLED_POINT = 'filled-point';
       const PATH_TYPE_RECTANGLE = 'rectangle';
       const DEFAULT_PATH_TYPE = PATH_TYPE_BREZER;
       const MIN_POINT_DIAMETER = 12;
       const MAX_POINT_DIAMETER = 160;
-      const DEFAULT_POINT_DIAMETER = 48;
+      const DEFAULT_HOLLOW_POINT_DIAMETER = 48;
+      const DEFAULT_FILLED_POINT_DIAMETER = 48;
+      const DEFAULT_POINT_DIAMETER = DEFAULT_HOLLOW_POINT_DIAMETER;
       const MIN_RECTANGLE_SIZE = 12;
       const MAX_RECTANGLE_SIZE = 200;
       const DEFAULT_RECTANGLE_WIDTH = 80;
@@ -2495,24 +2571,47 @@
 
       function normalizePathType(value) {
         if (typeof value === 'string') {
-          const normalized = value.trim().toLowerCase();
-          if (normalized === PATH_TYPE_POINT) {
-            return PATH_TYPE_POINT;
+          const normalized = value.trim().toLowerCase().replace(/\s+/g, '-');
+          if (normalized === PATH_TYPE_BREZER) {
+            return PATH_TYPE_BREZER;
           }
           if (normalized === PATH_TYPE_RECTANGLE) {
             return PATH_TYPE_RECTANGLE;
+          }
+          if (normalized === PATH_TYPE_FILLED_POINT) {
+            return PATH_TYPE_FILLED_POINT;
+          }
+          if (normalized === PATH_TYPE_HOLLOW_POINT || normalized === 'point') {
+            return PATH_TYPE_HOLLOW_POINT;
           }
         }
         return DEFAULT_PATH_TYPE;
       }
 
-      function normalizePointDiameter(value) {
+      function isNormalizedPointPathType(value) {
+        return value === PATH_TYPE_HOLLOW_POINT || value === PATH_TYPE_FILLED_POINT;
+      }
+
+      function getDefaultPointDiameterForPathType(pathTypeValue) {
+        const normalized = normalizePathType(pathTypeValue);
+        if (normalized === PATH_TYPE_FILLED_POINT) {
+          return DEFAULT_FILLED_POINT_DIAMETER;
+        }
+        if (normalized === PATH_TYPE_HOLLOW_POINT) {
+          return DEFAULT_HOLLOW_POINT_DIAMETER;
+        }
+        return DEFAULT_POINT_DIAMETER;
+      }
+
+      function normalizePointDiameter(value, fallback = DEFAULT_POINT_DIAMETER) {
         const numeric = Number(value);
-        if (!Number.isFinite(numeric)) {
-          return DEFAULT_POINT_DIAMETER;
+        let candidate = numeric;
+        if (!Number.isFinite(candidate)) {
+          const fallbackNumeric = Number(fallback);
+          candidate = Number.isFinite(fallbackNumeric) ? fallbackNumeric : DEFAULT_POINT_DIAMETER;
         }
         const clamped = Math.min(
-          Math.max(Math.round(numeric), MIN_POINT_DIAMETER),
+          Math.max(Math.round(candidate), MIN_POINT_DIAMETER),
           MAX_POINT_DIAMETER,
         );
         return clamped;
@@ -2590,7 +2689,9 @@
       function normalizeWallSettings(raw = {}) {
         if (!raw || typeof raw !== 'object') {
           return {
-            pointDiameter: DEFAULT_POINT_DIAMETER,
+            pointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
+            hollowPointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
+            filledPointDiameter: DEFAULT_FILLED_POINT_DIAMETER,
             rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
             rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
             gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
@@ -2601,7 +2702,15 @@
           };
         }
 
-        const pointDiameter = normalizePointDiameter(raw.pointDiameter);
+        const hollowPointDiameter = normalizePointDiameter(
+          raw.hollowPointDiameter ?? raw.pointDiameter,
+          DEFAULT_HOLLOW_POINT_DIAMETER,
+        );
+        const filledPointDiameter = normalizePointDiameter(
+          raw.filledPointDiameter ?? raw.pointDiameter,
+          DEFAULT_FILLED_POINT_DIAMETER,
+        );
+        const pointDiameter = hollowPointDiameter;
         const rectangleWidth = normalizeRectangleSize(
           raw.rectangleWidth,
           DEFAULT_RECTANGLE_WIDTH,
@@ -2629,6 +2738,8 @@
 
         return {
           pointDiameter,
+          hollowPointDiameter,
+          filledPointDiameter,
           rectangleWidth,
           rectangleHeight,
           brezerStrokeWidth,
@@ -2638,6 +2749,46 @@
           gradeBarTransparency,
           unfocusedTransparency,
         };
+      }
+
+      function getWallPointDiameterForPathType(settings, pathTypeValue) {
+        const normalized = normalizePathType(pathTypeValue);
+        if (!settings || typeof settings !== 'object') {
+          return getDefaultPointDiameterForPathType(normalized);
+        }
+        if (normalized === PATH_TYPE_FILLED_POINT) {
+          return normalizePointDiameter(
+            settings.filledPointDiameter ?? settings.pointDiameter,
+            DEFAULT_FILLED_POINT_DIAMETER,
+          );
+        }
+        if (normalized === PATH_TYPE_HOLLOW_POINT) {
+          return normalizePointDiameter(
+            settings.hollowPointDiameter ?? settings.pointDiameter,
+            DEFAULT_HOLLOW_POINT_DIAMETER,
+          );
+        }
+        return getDefaultPointDiameterForPathType(normalized);
+      }
+
+      function getRoutePointDiameterForPathType(route, pathTypeValue) {
+        const normalized = normalizePathType(pathTypeValue ?? route?.pathType);
+        if (!route || typeof route !== 'object') {
+          return getDefaultPointDiameterForPathType(normalized);
+        }
+        if (normalized === PATH_TYPE_FILLED_POINT) {
+          return normalizePointDiameter(
+            route.filledPointDiameter ?? route.pointDiameter,
+            DEFAULT_FILLED_POINT_DIAMETER,
+          );
+        }
+        if (normalized === PATH_TYPE_HOLLOW_POINT) {
+          return normalizePointDiameter(
+            route.hollowPointDiameter ?? route.pointDiameter,
+            DEFAULT_HOLLOW_POINT_DIAMETER,
+          );
+        }
+        return getDefaultPointDiameterForPathType(normalized);
       }
 
       const wallSettingsCache = new Map();
@@ -2670,6 +2821,8 @@
 
         return {
           pointDiameter: DEFAULT_POINT_DIAMETER,
+          hollowPointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
+          filledPointDiameter: DEFAULT_FILLED_POINT_DIAMETER,
           rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
           rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
           brezerStrokeWidth: DEFAULT_BREZER_STROKE_WIDTH,
@@ -3229,16 +3382,30 @@
         }
 
         try {
+          const userRef = doc(db, 'users', user.uid);
+          const snapshot = await getDoc(userRef);
+
+          if (!snapshot.exists()) {
+            try {
+              await ensureUserRole(user, normalizedUsername);
+            } catch (creationError) {
+              console.warn(
+                'Failed to create user record while synchronising username mapping:',
+                creationError,
+              );
+              return;
+            }
+          }
+
           await setDoc(
-            doc(db, 'usernames', user.uid),
+            userRef,
             {
-              uid: user.uid,
               username: normalizedUsername,
-              usernameLower: normalizedUsername,
               updatedAt: serverTimestamp(),
             },
             { merge: true },
           );
+          uidUsernameCache.set(user.uid, normalizedUsername);
         } catch (error) {
           console.warn('Failed to synchronise username mapping for betatips:', error);
         }
@@ -3651,26 +3818,32 @@
       });
 
       async function lookupUsernameByUid(uid) {
-        if (!uid) {
+        const normalizedUid = typeof uid === 'string' ? uid.trim() : '';
+        if (!normalizedUid) {
           return '';
         }
 
-        try {
-          const snapshot = await getDocs(
-            query(collection(db, 'usernames'), where('uid', '==', uid), limit(1)),
-          );
+        const cached = uidUsernameCache.get(normalizedUid);
+        if (typeof cached === 'string') {
+          return cached;
+        }
 
-          if (snapshot.empty) {
+        try {
+          const userSnap = await getDoc(doc(db, 'users', normalizedUid));
+
+          if (!userSnap.exists()) {
+            uidUsernameCache.set(normalizedUid, '');
             return '';
           }
 
-          const docSnap = snapshot.docs[0];
-          const data = docSnap.data() || {};
-          const fromField = normalizeUsername(data.username);
-          const fromId = normalizeUsername(docSnap.id);
-          return fromField || fromId;
+          const data = userSnap.data() || {};
+          const resolved = normalizeUsername(typeof data.username === 'string' ? data.username : '');
+          const normalizedUsername = isValidUsername(resolved) ? resolved : '';
+          uidUsernameCache.set(normalizedUid, normalizedUsername);
+          return normalizedUsername;
         } catch (error) {
           console.error('Failed to look up username by UID:', error);
+          uidUsernameCache.set(normalizedUid, '');
           return '';
         }
       }
@@ -3741,28 +3914,26 @@
           const { user } = credentials;
 
           try {
-            await setDoc(doc(db, 'usernames', normalizedUsername), {
-              uid: user.uid,
-              username: normalizedUsername,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            });
-          } catch (error) {
-            console.error('Failed to reserve username:', error);
-            try {
-              await deleteUser(user);
-            } catch (cleanupError) {
-              console.warn('Unable to clean up user after username failure:', cleanupError);
-            }
-            const usernameError = new Error('Username unavailable');
-            usernameError.code = 'auth/username-unavailable';
-            throw usernameError;
-          }
-
-          try {
             await updateProfile(user, { displayName: normalizedUsername });
           } catch (profileError) {
             console.warn('Failed to update display name:', profileError);
+          }
+
+          try {
+            await ensureUserRole(user, normalizedUsername);
+          } catch (error) {
+            console.error('Failed to initialize user record:', error);
+            try {
+              await deleteUser(user);
+            } catch (cleanupError) {
+              console.warn('Unable to clean up user after initialization failure:', cleanupError);
+            }
+            if (error && typeof error === 'object' && 'code' in error) {
+              throw error;
+            }
+            const initializationError = new Error('Username unavailable');
+            initializationError.code = 'auth/username-unavailable';
+            throw initializationError;
           }
         } catch (error) {
           let message = 'Unable to complete the request. Please try again.';
@@ -3811,96 +3982,80 @@
         }
 
         const normalizedUsername = normalizeUsername(username);
+
         if (!normalizedUsername) {
-          return { role: 'default' };
+          return { role: null };
         }
 
-        const roleRef = doc(db, 'roles', user.uid);
-        const existingSnap = await getDoc(roleRef);
-
-        if (existingSnap.exists()) {
-          const existingData = existingSnap.data() || {};
-          const storedLowerRaw =
-            typeof existingData.usernameLower === 'string'
-              ? existingData.usernameLower
-              : typeof existingData.username === 'string'
-              ? existingData.username
-              : '';
-          let effectiveLower = normalizeUsername(storedLowerRaw);
-          const trimmedRole =
-            typeof existingData.role === 'string'
-              ? existingData.role.trim().toLowerCase()
-              : 'default';
-          const mergedData = {
-            ...existingData,
-            role: trimmedRole,
-          };
-
-          const needsUsernameUpdate =
-            effectiveLower !== normalizedUsername || !existingData.username;
-
-          if (needsUsernameUpdate) {
-            mergedData.username = normalizedUsername;
-            mergedData.usernameLower = normalizedUsername;
-            effectiveLower = normalizedUsername;
-
-            if (trimmedRole !== 'default') {
-              try {
-                await setDoc(
-                  roleRef,
-                  {
-                    username: normalizedUsername,
-                    usernameLower: normalizedUsername,
-                    updatedAt: serverTimestamp(),
-                  },
-                  { merge: true },
-                );
-              } catch (error) {
-                console.warn('Failed to synchronise username on role document:', error);
-              }
-            }
-          }
-
-          if (effectiveLower !== normalizedUsername) {
-            mergedData.role = 'default';
-          }
-
-          return mergedData;
-        }
-
-        let role = 'default';
+        const userRef = doc(db, 'users', user.uid);
 
         try {
-          const snapshot = await getDocs(
-            query(collection(db, 'roles'), where('role', '==', 'setter'), limit(1)),
-          );
-          if (snapshot.empty) {
-            role = 'setter';
+          const existingSnap = await getDoc(userRef);
+
+          if (existingSnap.exists()) {
+            const data = existingSnap.data() || {};
+            const storedUsername = normalizeUsername(
+              typeof data.username === 'string' ? data.username : '',
+            );
+            const trimmedRole =
+              typeof data.role === 'string' ? data.role.trim().toLowerCase() : '';
+
+            const updates = {};
+
+            if (storedUsername !== normalizedUsername) {
+              const conflictSnapshot = await getDocs(
+                query(collection(db, 'users'), where('username', '==', normalizedUsername), limit(1)),
+              );
+
+              if (!conflictSnapshot.empty && conflictSnapshot.docs[0].id !== user.uid) {
+                const usernameError = new Error('Username unavailable');
+                usernameError.code = 'auth/username-unavailable';
+                throw usernameError;
+              }
+
+              updates.username = normalizedUsername;
+              updates.updatedAt = serverTimestamp();
+            } else if (!data.updatedAt) {
+              updates.updatedAt = serverTimestamp();
+            }
+
+            if (Object.keys(updates).length > 0) {
+              await setDoc(userRef, updates, { merge: true });
+            }
+
+            return {
+              ...data,
+              ...(updates.username ? { username: normalizedUsername } : {}),
+              ...(updates.updatedAt ? { updatedAt: updates.updatedAt } : {}),
+              role: trimmedRole || null,
+            };
           }
+
+          const conflictSnapshot = await getDocs(
+            query(collection(db, 'users'), where('username', '==', normalizedUsername), limit(1)),
+          );
+
+          if (!conflictSnapshot.empty) {
+            const usernameError = new Error('Username unavailable');
+            usernameError.code = 'auth/username-unavailable';
+            throw usernameError;
+          }
+
+          const timestamp = serverTimestamp();
+          const userData = {
+            username: normalizedUsername,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+            role: null,
+          };
+
+          await setDoc(userRef, userData);
+
+          return userData;
         } catch (error) {
-          console.warn('Unable to inspect existing roles:', error);
+          console.error('Failed to ensure user record:', error);
+          throw error;
         }
-
-        const roleData = {
-          role,
-          username: normalizedUsername,
-          usernameLower: normalizedUsername,
-        };
-
-        if (role === 'default') {
-          return roleData;
-        }
-
-        await setDoc(
-          roleRef,
-          {
-            ...roleData,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true },
-        );
-        return roleData;
       }
 
       async function resolveUserRole(user, username) {
@@ -3915,7 +4070,7 @@
 
         try {
           const ensuredRole = await ensureUserRole(user, normalizedUsername);
-          return typeof ensuredRole?.role === 'string'
+          return typeof ensuredRole?.role === 'string' && ensuredRole.role.trim()
             ? ensuredRole.role.trim().toLowerCase()
             : 'default';
         } catch (error) {
@@ -3977,11 +4132,9 @@
         currentUsername = '';
         authenticatedUsernameClaim = '';
         ascendedRoutes.clear();
-        routeGrades.clear();
         userAscentDetails = new Map();
-        routeMedianGrades = new Map();
-        routeAscentsCache.clear();
         routeBetatipsCache.clear();
+        uidUsernameCache.clear();
         hideTooltip({ force: true });
 
         await loadRoutes();
@@ -4236,7 +4389,7 @@
           return;
         }
 
-        const targetRoute = availableRoutes.find((route) => route && typeof route.id === 'string');
+        const targetRoute = availableRoutes.find((route) => getRouteId(route));
         if (!targetRoute) {
           return;
         }
@@ -4777,7 +4930,7 @@
           appContent.classList.remove('hidden');
 
           await loadRoutes();
-          await loadAscents({ userId: user.uid });
+          await loadAscents({ uid: currentUser?.uid || '' });
 
           return;
         }
@@ -4814,11 +4967,42 @@
       let pinnedRouteId = null;
       let pinnedPosition = null;
       const ascendedRoutes = new Set();
-      const routeGrades = new Map();
-      const routeAscentsCache = new Map();
       const routeBetatipsCache = new Map();
+      const uidUsernameCache = new Map();
       let userAscentDetails = new Map();
-      let routeMedianGrades = new Map();
+      const normalizeRouteUidValue = (value) =>
+        typeof value === 'string' && value.trim() ? value.trim() : '';
+      const getRouteId = (route) => {
+        if (!route) {
+          return '';
+        }
+        return normalizeRouteUidValue(route.uid) || normalizeRouteUidValue(route.id);
+      };
+      const findRouteById = (routeId) => {
+        const normalizedId = normalizeRouteUidValue(routeId);
+        if (!normalizedId) {
+          return null;
+        }
+
+        const collections = [];
+
+        if (Array.isArray(routes)) {
+          collections.push(routes);
+        }
+
+        if (Array.isArray(allRoutes)) {
+          collections.push(allRoutes);
+        }
+
+        for (const collection of collections) {
+          const match = collection.find((entry) => getRouteId(entry) === normalizedId);
+          if (match) {
+            return match;
+          }
+        }
+
+        return null;
+      };
       const CLICK_DRAG_DISTANCE_THRESHOLD = 8;
       const CLICK_DRAG_DISTANCE_THRESHOLD_SQUARED =
         CLICK_DRAG_DISTANCE_THRESHOLD * CLICK_DRAG_DISTANCE_THRESHOLD;
@@ -4914,7 +5098,6 @@
       function synchroniseAscentsWithRoutes(options = {}) {
         const { shouldRedraw = true } = options;
         ascendedRoutes.clear();
-        routeGrades.clear();
 
         if (!Array.isArray(routes) || routes.length === 0) {
           renderProgressionList();
@@ -4925,21 +5108,14 @@
         }
 
         routes.forEach((route) => {
-          if (!route?.id) {
+          const routeId = getRouteId(route);
+          if (!routeId) {
             return;
           }
 
-          const ascent = userAscentDetails.get(route.id);
-          if (!ascent) {
-            return;
-          }
-
-          if (typeof ascent.grade === 'number' && Number.isFinite(ascent.grade)) {
-            routeGrades.set(route.id, ascent.grade);
-          }
-
-          if (ascent.ascended) {
-            ascendedRoutes.add(route.id);
+          const ascent = userAscentDetails.get(routeId);
+          if (ascent?.ascended) {
+            ascendedRoutes.add(routeId);
           }
         });
 
@@ -4950,45 +5126,52 @@
         }
       }
 
-      async function loadAscents({ userId }) {
+      async function loadAscents({ uid }) {
         ascendedRoutes.clear();
-        routeGrades.clear();
         userAscentDetails = new Map();
 
-        const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
-        if (!normalizedUserId) {
+        const normalizedUid = typeof uid === 'string' ? uid.trim() : '';
+        if (!normalizedUid) {
           synchroniseAscentsWithRoutes();
           return;
         }
 
-        routeAscentsCache.forEach((ascentsMap, routeId) => {
-          if (!(ascentsMap instanceof Map)) {
+        const processCollection = (collection) => {
+          if (!Array.isArray(collection)) {
             return;
           }
 
-          const entry = ascentsMap.get(normalizedUserId);
-          if (!entry) {
-            return;
-          }
+          collection.forEach((route) => {
+            const routeId = getRouteId(route);
+            if (!routeId || userAscentDetails.has(routeId)) {
+              return;
+            }
 
-          const gradeValue = normalizeGradeValue(entry.grade);
-          const ascended = entry.ascended === true;
+            const entry = getRouteScoreEntry(route, normalizedUid);
+            if (!entry) {
+              return;
+            }
 
-          const ascentDetails = {
-            ascended,
-            grade: gradeValue,
-          };
+            const gradeValue = normalizeGradeValue(entry.grade);
+            const ascended = entry.ascended === true;
 
-          userAscentDetails.set(routeId, ascentDetails);
+            const ascentDetails = {
+              ascended,
+              grade: gradeValue,
+            };
 
-          if (typeof gradeValue === 'number' && Number.isFinite(gradeValue)) {
-            routeGrades.set(routeId, gradeValue);
-          }
+            userAscentDetails.set(routeId, ascentDetails);
 
-          if (ascended) {
-            ascendedRoutes.add(routeId);
-          }
-        });
+            if (ascended) {
+              ascendedRoutes.add(routeId);
+            }
+          });
+        };
+
+        processCollection(allRoutes);
+        if (routes !== allRoutes) {
+          processCollection(routes);
+        }
 
         synchroniseAscentsWithRoutes();
       }
@@ -5056,67 +5239,276 @@
         return numeric;
       }
 
-      function normalizeRouteAscentsMap(rawAscents) {
-        const normalized = new Map();
-
-        if (!rawAscents || typeof rawAscents !== 'object') {
-          return normalized;
+      function normalizeRouteGradeField(value) {
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          return trimmed || null;
         }
 
-        Object.entries(rawAscents).forEach(([uid, details]) => {
-          if (typeof uid !== 'string' || !uid.trim()) {
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          return value;
+        }
+
+        return null;
+      }
+
+      function normalizeUpvoteList(value) {
+        const normalized = new Set();
+
+        const addCandidate = (candidate) => {
+          if (typeof candidate !== 'string') {
             return;
           }
-
-          const normalizedUid = uid.trim();
-          if (!details || typeof details !== 'object') {
-            return;
+          const normalizedName = normalizeUsername(candidate);
+          if (normalizedName) {
+            normalized.add(normalizedName);
           }
+        };
 
-          const gradeValue = normalizeGradeValue(details.grade);
-          const ascended = details.ascended === true;
-
-          normalized.set(normalizedUid, {
-            grade: gradeValue,
-            ascended,
-          });
-        });
+        if (value instanceof Set) {
+          value.forEach(addCandidate);
+        } else if (Array.isArray(value)) {
+          value.forEach(addCandidate);
+        } else if (value && typeof value === 'object') {
+          Object.values(value).forEach(addCandidate);
+        } else {
+          addCandidate(value);
+        }
 
         return normalized;
       }
 
-      function normalizeRouteBetatipsMap(rawBetatips) {
-        const normalized = new Map();
+      function normalizeBetatipCacheValue(value, fallbackKey = '') {
+        const fallback = typeof fallbackKey === 'string' ? fallbackKey.trim() : '';
 
-        if (!rawBetatips || typeof rawBetatips !== 'object') {
-          return normalized;
+        if (!value) {
+          return {
+            betatipId: fallback,
+            userId: fallback,
+            username: '',
+            text: '',
+            upvoters: new Set(),
+            upvoteCount: 0,
+          };
         }
 
-        Object.entries(rawBetatips).forEach(([username, value]) => {
-          if (typeof username !== 'string') {
+        if (typeof value === 'string') {
+          const text = value.replace(/\r\n/g, '\n').trim();
+          return {
+            betatipId: fallback,
+            userId: fallback,
+            username: '',
+            text,
+            upvoters: new Set(),
+            upvoteCount: 0,
+          };
+        }
+
+        if (typeof value === 'object') {
+          const rawText =
+            typeof value.betatip === 'string'
+              ? value.betatip
+              : typeof value.text === 'string'
+              ? value.text
+              : '';
+          const text = rawText.replace(/\r\n/g, '\n').trim();
+          const upvoteSource =
+            value.upvoters instanceof Set || Array.isArray(value.upvoters)
+              ? value.upvoters
+              : value.betatipUpvotes ?? value.betatipupvotes;
+          const upvoters = normalizeUpvoteList(upvoteSource);
+          const normalizedUsername = isValidUsername(value.username)
+            ? normalizeUsername(value.username)
+            : '';
+          const userId =
+            typeof value.userId === 'string' && value.userId.trim()
+              ? value.userId.trim()
+              : fallback;
+          const betatipId =
+            typeof value.betatipId === 'string' && value.betatipId.trim()
+              ? value.betatipId.trim()
+              : fallback;
+          const recordedCount =
+            typeof value.upvoteCount === 'number' && Number.isFinite(value.upvoteCount)
+              ? value.upvoteCount
+              : upvoters.size;
+
+          return {
+            betatipId,
+            userId,
+            username: normalizedUsername,
+            text,
+            upvoters,
+            upvoteCount: recordedCount,
+          };
+        }
+
+        return {
+          betatipId: fallback,
+          userId: fallback,
+          username: '',
+          text: '',
+          upvoters: new Set(),
+          upvoteCount: 0,
+        };
+      }
+
+      function sanitizeNormalizedPoint(point) {
+        const x = Number(point?.x);
+        const y = Number(point?.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          return null;
+        }
+        return { x, y };
+      }
+
+      function sanitizeNormalizedPointsArray(rawPoints) {
+        if (!Array.isArray(rawPoints)) {
+          return [];
+        }
+
+        return rawPoints.map(sanitizeNormalizedPoint).filter(Boolean);
+      }
+
+      function collectCandidatePoints(value) {
+        if (Array.isArray(value)) {
+          return value;
+        }
+
+        if (value instanceof Map) {
+          return Array.from(value.values());
+        }
+
+        if (value && typeof value === 'object') {
+          return Object.values(value);
+        }
+
+        return [];
+      }
+
+      function normalizeRoutePointsByType(rawPoints, fallbackPathType) {
+        const normalized = {};
+        const fallbackType = normalizePathType(fallbackPathType) || DEFAULT_PATH_TYPE;
+
+        const assignPoints = (pathTypeKey, value) => {
+          const normalizedType = normalizePathType(pathTypeKey);
+          if (!normalizedType || normalized[normalizedType]) {
             return;
           }
 
-          const normalizedUsername = normalizeUsername(username);
-          if (!normalizedUsername) {
-            return;
-          }
+          normalized[normalizedType] = sanitizeNormalizedPointsArray(collectCandidatePoints(value));
+        };
 
-          let text = '';
-          if (typeof value === 'string') {
-            text = value.replace(/\r\n/g, '\n').trim();
-          } else if (value !== null && value !== undefined) {
-            text = String(value).trim();
-          }
+        if (rawPoints instanceof Map) {
+          rawPoints.forEach((value, key) => assignPoints(key, value));
+        } else if (rawPoints && typeof rawPoints === 'object' && !Array.isArray(rawPoints)) {
+          Object.entries(rawPoints).forEach(([key, value]) => assignPoints(key, value));
+        } else if (Array.isArray(rawPoints)) {
+          assignPoints(fallbackType, rawPoints);
+        }
 
-          if (!text) {
-            return;
-          }
-
-          normalized.set(normalizedUsername, text);
-        });
+        if (!Object.prototype.hasOwnProperty.call(normalized, fallbackType)) {
+          normalized[fallbackType] = [];
+        }
 
         return normalized;
+      }
+
+      function getRoutePointEntries(route) {
+        const entries = [];
+        if (!route) {
+          return entries;
+        }
+
+        const seenTypes = new Set();
+        const appendEntry = (pathTypeKey, pointsValue) => {
+          const normalizedType = normalizePathType(pathTypeKey);
+          if (!normalizedType || seenTypes.has(normalizedType)) {
+            return;
+          }
+
+          const pointsArray = sanitizeNormalizedPointsArray(collectCandidatePoints(pointsValue));
+
+          seenTypes.add(normalizedType);
+          entries.push({
+            pathType: normalizedType,
+            points: pointsArray,
+          });
+        };
+
+        const { pointsByType } = route;
+        if (pointsByType instanceof Map) {
+          pointsByType.forEach((value, key) => appendEntry(key, value));
+        } else if (pointsByType && typeof pointsByType === 'object' && !Array.isArray(pointsByType)) {
+          Object.entries(pointsByType).forEach(([key, value]) => appendEntry(key, value));
+        }
+
+        if (!entries.length) {
+          const fallbackPoints = Array.isArray(route.points) ? route.points : [];
+          appendEntry(route.pathType, fallbackPoints);
+        }
+
+        return entries.filter((entry) => Array.isArray(entry.points) && entry.points.length);
+      }
+
+      function selectNormalizedPointsForPath(rawPoints, pathType) {
+        const normalizedType = normalizePathType(pathType) || PATH_TYPE_BREZER;
+
+        const extractPoints = (value) => {
+          if (!Array.isArray(value)) {
+            return [];
+          }
+          return value.map(sanitizeNormalizedPoint).filter(Boolean);
+        };
+
+        if (rawPoints instanceof Map) {
+          const points = rawPoints.get(normalizedType);
+          if (points) {
+            return extractPoints(points);
+          }
+
+          for (const [key, value] of rawPoints.entries()) {
+            if (Array.isArray(value)) {
+              const candidate = extractPoints(value);
+              if (candidate.length) {
+                return candidate;
+              }
+            }
+          }
+          return [];
+        }
+
+        if (rawPoints && typeof rawPoints === 'object' && !Array.isArray(rawPoints)) {
+          const activePoints = extractPoints(rawPoints[normalizedType]);
+          if (activePoints.length || Array.isArray(rawPoints[normalizedType])) {
+            return activePoints;
+          }
+
+          const fallbackTypes = [
+            PATH_TYPE_BREZER,
+            PATH_TYPE_HOLLOW_POINT,
+            PATH_TYPE_FILLED_POINT,
+            PATH_TYPE_RECTANGLE,
+          ];
+
+          for (const type of fallbackTypes) {
+            if (type === normalizedType) {
+              continue;
+            }
+            const candidate = extractPoints(rawPoints[type]);
+            if (candidate.length) {
+              return candidate;
+            }
+          }
+
+          return [];
+        }
+
+        if (Array.isArray(rawPoints)) {
+          return extractPoints(rawPoints);
+        }
+
+        return [];
       }
 
       function getRouteBetatipsMap(routeId) {
@@ -5134,62 +5526,197 @@
         return map;
       }
 
-      function computeMedianFromAscentsMap(ascentsMap) {
-        if (!(ascentsMap instanceof Map) || ascentsMap.size === 0) {
-          return null;
-        }
+      function normalizeRouteScoreEntry(details) {
+        const grade = normalizeGradeValue(details?.grade);
+        const ascended = details?.ascended === true;
 
-        const grades = [];
-
-        ascentsMap.forEach((details) => {
-          const gradeValue = normalizeGradeValue(details?.grade);
-          if (typeof gradeValue === 'number' && Number.isFinite(gradeValue)) {
-            grades.push(gradeValue);
-          }
-        });
-
-        if (!grades.length) {
-          return null;
-        }
-
-        grades.sort((a, b) => a - b);
-        const mid = Math.floor(grades.length / 2);
-        if (grades.length % 2 === 0) {
-          return (grades[mid - 1] + grades[mid]) / 2;
-        }
-
-        return grades[mid];
+        return {
+          grade,
+          ascended,
+        };
       }
 
-      function updateMedianForRoute(routeId) {
-        if (!routeId) {
+      function ensureRouteScoresMap(route) {
+        if (!route) {
+          return null;
+        }
+
+        if (route.scores instanceof Map) {
+          return route.scores;
+        }
+
+        const map = new Map();
+
+        if (Array.isArray(route.scores)) {
+          route.scores.forEach((value) => {
+            const userId = typeof value?.userId === 'string' ? value.userId.trim() : '';
+            if (!userId) {
+              return;
+            }
+            map.set(userId, normalizeRouteScoreEntry(value));
+          });
+        } else if (route.scores && typeof route.scores === 'object') {
+          Object.entries(route.scores).forEach(([key, value]) => {
+            if (typeof key === 'string' && key.trim()) {
+              map.set(key.trim(), normalizeRouteScoreEntry(value));
+            }
+          });
+        }
+
+        route.scores = map;
+        return map;
+      }
+
+      function getRouteScoreEntry(route, userId) {
+        const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
+        if (!route || !normalizedUserId) {
+          return null;
+        }
+
+        const scoresMap = ensureRouteScoresMap(route);
+        if (scoresMap instanceof Map) {
+          return scoresMap.get(normalizedUserId) ?? null;
+        }
+
+        return null;
+      }
+
+      function updateRouteScoreEntry(routeId, userId, details) {
+        const normalizedRouteId = normalizeRouteUidValue(routeId);
+        const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
+
+        if (!normalizedRouteId || !normalizedUserId) {
           return;
         }
 
-        const ascentsMap = routeAscentsCache.get(routeId);
-        const median = computeMedianFromAscentsMap(ascentsMap);
-        const medianValue =
-          typeof median === 'number' && Number.isFinite(median) ? median : null;
+        const normalizedEntry = details ? normalizeRouteScoreEntry(details) : null;
 
-        if (medianValue === null) {
-          routeMedianGrades.delete(routeId);
-        } else {
-          routeMedianGrades.set(routeId, medianValue);
-        }
-
-        [allRoutes, routes].forEach((routeCollection) => {
-          if (!Array.isArray(routeCollection)) {
+        const applyUpdate = (collection) => {
+          if (!Array.isArray(collection)) {
             return;
           }
 
-          const match = routeCollection.find((entry) => entry && entry.id === routeId);
-          if (match) {
-            match.medianGrade = medianValue;
+          collection.forEach((route) => {
+            if (getRouteId(route) !== normalizedRouteId) {
+              return;
+            }
+
+            const scoresMap = ensureRouteScoresMap(route);
+            if (!(scoresMap instanceof Map)) {
+              return;
+            }
+
+            if (normalizedEntry) {
+              scoresMap.set(normalizedUserId, normalizedEntry);
+            } else {
+              scoresMap.delete(normalizedUserId);
+            }
+          });
+        };
+
+        applyUpdate(routes);
+        if (allRoutes !== routes) {
+          applyUpdate(allRoutes);
+        }
+      }
+
+      function extractNumericGradesFromScoresMap(scoresMap) {
+        const grades = [];
+
+        const appendGrade = (candidate) => {
+          const sourceValue =
+            candidate && typeof candidate === 'object' ? candidate.grade : candidate;
+          const gradeValue = normalizeGradeValue(sourceValue);
+          if (typeof gradeValue === 'number' && Number.isFinite(gradeValue)) {
+            grades.push(gradeValue);
           }
-        });
+        };
+
+        if (scoresMap instanceof Map) {
+          scoresMap.forEach((value) => {
+            appendGrade(value);
+          });
+          return grades;
+        }
+
+        if (Array.isArray(scoresMap)) {
+          scoresMap.forEach((value) => {
+            appendGrade(value);
+          });
+          return grades;
+        }
+
+        if (scoresMap && typeof scoresMap === 'object') {
+          Object.values(scoresMap).forEach((value) => {
+            appendGrade(value);
+          });
+        }
+
+        return grades;
+      }
+
+      function computeMedianGrade(grades) {
+        if (!Array.isArray(grades) || grades.length === 0) {
+          return null;
+        }
+
+        const sorted = grades.slice().sort((a, b) => a - b);
+        const midpoint = Math.floor(sorted.length / 2);
+
+        if (sorted.length % 2 === 1) {
+          return sorted[midpoint];
+        }
+
+        return (sorted[midpoint - 1] + sorted[midpoint]) / 2;
+      }
+
+      function computeMedianGradeFromRouteScores(scores) {
+        return computeMedianGrade(extractNumericGradesFromScoresMap(scores));
+      }
+
+      function computeMedianGradeForRoute(routeId) {
+        if (!routeId) {
+          return null;
+        }
+
+        const directRoute = findRouteById(routeId);
+        if (directRoute) {
+          return computeMedianGradeFromRouteScores(directRoute.scores);
+        }
+
+        return null;
+      }
+
+      async function loadBetatipUpvotes(betatipId) {
+        if (typeof betatipId !== 'string' || !betatipId.trim()) {
+          return new Set();
+        }
+
+        try {
+          const snapshot = await getDocs(
+            collection(db, 'routes_users_betatips', betatipId.trim(), 'upvotes'),
+          );
+
+          const upvoters = new Set();
+          snapshot.forEach((docSnap) => {
+            if (typeof docSnap.id === 'string' && docSnap.id.trim()) {
+              upvoters.add(docSnap.id.trim());
+            }
+          });
+
+          return upvoters;
+        } catch (error) {
+          console.error('Failed to load betatip upvotes:', error);
+          return new Set();
+        }
       }
 
       function formatGradeDisplay(value) {
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          return trimmed || '—';
+        }
+
         if (typeof value !== 'number' || !Number.isFinite(value)) {
           return '—';
         }
@@ -5197,21 +5724,38 @@
         return Number.isInteger(value) ? String(value) : value.toFixed(1);
       }
 
+      function resolveTooltipGradeValue(route) {
+        if (!route) {
+          return null;
+        }
+
+        const directMedian = computeMedianGradeFromRouteScores(route?.scores);
+        if (typeof directMedian === 'number' && Number.isFinite(directMedian)) {
+          return directMedian;
+        }
+
+        const routeId = getRouteId(route);
+        const medianGrade = computeMedianGradeForRoute(routeId);
+        return typeof medianGrade === 'number' && Number.isFinite(medianGrade)
+          ? medianGrade
+          : null;
+      }
+
       function resolveProgressionGradeValue(route) {
         if (!route) {
           return null;
         }
 
-        if (typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)) {
-          return route.medianGrade;
+        const directMedian = computeMedianGradeFromRouteScores(route?.scores);
+        if (typeof directMedian === 'number' && Number.isFinite(directMedian)) {
+          return directMedian;
         }
 
-        const stored = routeGrades.get(route.id);
-        if (typeof stored === 'number' && Number.isFinite(stored)) {
-          return stored;
-        }
-
-        return null;
+        const routeId = getRouteId(route);
+        const medianGrade = computeMedianGradeForRoute(routeId);
+        return typeof medianGrade === 'number' && Number.isFinite(medianGrade)
+          ? medianGrade
+          : null;
       }
 
       function renderProgressionList() {
@@ -5256,22 +5800,41 @@
           const gradeA = resolveProgressionGradeValue(routeA);
           const gradeB = resolveProgressionGradeValue(routeB);
 
-          if (gradeA === null && gradeB === null) {
-            const nameA = (routeA.title || routeA.id || '').toLowerCase();
-            const nameB = (routeB.title || routeB.id || '').toLowerCase();
-            return nameA.localeCompare(nameB);
+          const numberA =
+            typeof gradeA === 'number' && Number.isFinite(gradeA) ? gradeA : null;
+          const numberB =
+            typeof gradeB === 'number' && Number.isFinite(gradeB) ? gradeB : null;
+
+          if (numberA !== null || numberB !== null) {
+            if (numberA === null) {
+              return 1;
+            }
+
+            if (numberB === null) {
+              return -1;
+            }
+
+            if (numberA !== numberB) {
+              return numberA - numberB;
+            }
           }
 
-          if (gradeA === null) {
-            return 1;
-          }
+          const stringA = typeof gradeA === 'string' && gradeA ? gradeA : null;
+          const stringB = typeof gradeB === 'string' && gradeB ? gradeB : null;
 
-          if (gradeB === null) {
-            return -1;
-          }
+          if (stringA || stringB) {
+            if (!stringA) {
+              return 1;
+            }
 
-          if (gradeA !== gradeB) {
-            return gradeA - gradeB;
+            if (!stringB) {
+              return -1;
+            }
+
+            const compare = stringA.localeCompare(stringB, undefined, { sensitivity: 'base' });
+            if (compare !== 0) {
+              return compare;
+            }
           }
 
           const nameA = (routeA.title || routeA.id || '').toLowerCase();
@@ -5289,11 +5852,12 @@
           listItem.setAttribute('role', 'listitem');
           listItem.setAttribute('tabindex', '0');
 
-          if (route.id) {
-            listItem.dataset.routeId = route.id;
+          const routeId = getRouteId(route);
+          if (routeId) {
+            listItem.dataset.routeId = routeId;
           }
 
-          const isFocused = typeof route.id === 'string' && route.id === focusedRouteId;
+          const isFocused = routeId && routeId === focusedRouteId;
           if (isFocused) {
             listItem.classList.add('is-focused');
             listItem.setAttribute('aria-current', 'true');
@@ -5314,7 +5878,7 @@
           const details = document.createElement('div');
           const title = document.createElement('span');
           title.className = 'progression-entry-name';
-          title.textContent = route.title || route.id || 'Untitled route';
+          title.textContent = route.title || routeId || 'Untitled route';
 
           if (gradeColor) {
             title.style.color = gradeColor;
@@ -5325,7 +5889,7 @@
 
           const status = document.createElement('span');
           status.className = 'progression-entry-status';
-          const isAscended = Boolean(route.id && ascendedRoutes.has(route.id));
+          const isAscended = Boolean(routeId && ascendedRoutes.has(routeId));
 
           if (isAscended) {
             status.textContent = '✓';
@@ -5422,8 +5986,9 @@
           return null;
         }
 
-        const stored = routeGrades.get(routeId);
-        return typeof stored === 'number' && Number.isFinite(stored) ? stored : null;
+        const ascent = userAscentDetails.get(routeId);
+        const grade = ascent?.grade;
+        return typeof grade === 'number' && Number.isFinite(grade) ? grade : null;
       }
 
       function createTooltipCloseButton() {
@@ -5449,7 +6014,8 @@
       }
 
       function buildGradeControls(route) {
-        if (!route || !route.id) {
+        const routeId = getRouteId(route);
+        if (!routeId) {
           return null;
         }
 
@@ -5471,7 +6037,7 @@
         gradeInput.max = String(MAX_GRADE_VALUE);
         gradeInput.step = '1';
         gradeInput.inputMode = 'numeric';
-        const existingGrade = getUserGradeForRoute(route.id);
+        const existingGrade = getUserGradeForRoute(routeId);
         gradeInput.value = existingGrade !== null ? String(existingGrade) : '';
         gradeInput.placeholder = '—';
         gradeInput.dataset.infoTarget = 'route-grade';
@@ -5502,7 +6068,7 @@
           try {
             if (!rawValue) {
               gradeInput.setCustomValidity('');
-              await applyUserRouteGrade(route, null);
+            await applyUserRouteGrade(route, null);
               lastSubmittedValue = '';
               gradeInput.value = '';
               return;
@@ -5553,47 +6119,100 @@
       }
 
       function buildBetatipsSection(route, ariaLines = []) {
-        if (!route || !route.id) {
+        const routeId = getRouteId(route);
+        if (!routeId) {
           return null;
         }
 
-        const betatipsMap = getRouteBetatipsMap(route.id);
-        const normalizedCurrentUsername = isValidUsername(currentUsername)
-          ? normalizeUsername(currentUsername)
-          : '';
+        const betatipsMap = getRouteBetatipsMap(routeId);
+        const currentUid = typeof currentUser?.uid === 'string' ? currentUser.uid.trim() : '';
         const entries = [];
+        const rewrittenEntries = [];
+        let needsRewrite = false;
 
         if (betatipsMap instanceof Map) {
-          betatipsMap.forEach((text, username) => {
-            if (typeof username !== 'string') {
+          betatipsMap.forEach((value, key) => {
+            const normalized = normalizeBetatipCacheValue(value, key);
+            const text = normalized.text;
+            if (!text) {
+              needsRewrite = true;
               return;
             }
 
-            const normalizedUsername = normalizeUsername(username);
-            if (!normalizedUsername) {
-              return;
-            }
-
-            if (typeof text !== 'string') {
-              return;
-            }
-
-            const trimmed = text.trim();
-            if (!trimmed) {
-              return;
-            }
+            const betatipId = normalized.betatipId || (typeof key === 'string' ? key.trim() : '');
+            const userId = normalized.userId || (typeof key === 'string' ? key.trim() : '');
+            const upvoteSet = normalized.upvoters instanceof Set ? normalized.upvoters : new Set();
+            const upvoteCount =
+              typeof normalized.upvoteCount === 'number' && Number.isFinite(normalized.upvoteCount)
+                ? normalized.upvoteCount
+                : upvoteSet.size;
+            const isCurrent = currentUid ? userId === currentUid : false;
+            const hasUpvoted = currentUid ? upvoteSet.has(currentUid) : false;
+            const normalizedUsername = isValidUsername(normalized.username)
+              ? normalizeUsername(normalized.username)
+              : '';
+            const displayName = normalizedUsername
+              ? `User ${normalizedUsername}`
+              : 'Anonymous climber';
 
             entries.push({
-              username: normalizedUsername,
-              text: trimmed,
-              isCurrent: normalizedCurrentUsername
-                ? normalizedUsername === normalizedCurrentUsername
-                : false,
+              betatipId: betatipId || userId || '',
+              userId,
+              username: displayName,
+              text,
+              isCurrent,
+              hasUpvoted,
+              upvoteCount,
             });
+
+            const nextKey = betatipId || userId || (typeof key === 'string' ? key.trim() : '');
+            rewrittenEntries.push({
+              key: nextKey,
+              value: {
+                betatipId: nextKey,
+                userId,
+                username: normalizedUsername,
+                betatip: text,
+                upvoters: upvoteSet,
+                upvoteCount,
+              },
+            });
+
+            if (
+              typeof key !== 'string' ||
+              !key.trim() ||
+              nextKey !== key.trim() ||
+              typeof value !== 'object' ||
+              value.betatip !== text ||
+              value.userId !== userId ||
+              !(value.upvoters instanceof Set)
+            ) {
+              needsRewrite = true;
+            }
           });
         }
 
-        entries.sort((a, b) => a.username.localeCompare(b.username));
+        if (needsRewrite && betatipsMap instanceof Map) {
+          betatipsMap.clear();
+          rewrittenEntries.forEach(({ key, value }) => {
+            if (typeof key === 'string' && key.trim()) {
+              betatipsMap.set(key.trim(), value);
+            }
+          });
+        }
+
+        entries.sort((a, b) => {
+          if (b.upvoteCount !== a.upvoteCount) {
+            return b.upvoteCount - a.upvoteCount;
+          }
+
+          const nameComparison = a.username.localeCompare(b.username);
+          if (nameComparison !== 0) {
+            return nameComparison;
+          }
+
+          return a.text.localeCompare(b.text);
+        });
 
         const section = document.createElement('section');
         section.className = 'tooltip-betatips';
@@ -5611,11 +6230,15 @@
         list.className = 'tooltip-betatips-list';
 
         if (entries.length) {
-          entries.forEach(({ username, text, isCurrent }) => {
+          entries.forEach(({ betatipId, userId, username, text, isCurrent, upvoteCount, hasUpvoted }) => {
             const entry = document.createElement('article');
             entry.className = 'betatip-entry';
             if (isCurrent) {
               entry.classList.add('is-current-user');
+            }
+
+            if (typeof betatipId === 'string' && betatipId) {
+              entry.dataset.betatipId = betatipId;
             }
 
             const nameEl = document.createElement('span');
@@ -5623,17 +6246,106 @@
             nameEl.textContent = isCurrent ? `${username} (you)` : username;
             entry.appendChild(nameEl);
 
+            const body = document.createElement('div');
+            body.className = 'betatip-body';
+
+            const icon = document.createElement('span');
+            icon.className = 'betatip-upvote-icon';
+            icon.setAttribute('aria-hidden', 'true');
+            icon.textContent = '👍';
+            if (hasUpvoted) {
+              icon.classList.add('is-upvoted');
+              icon.title = 'You upvoted this beta tip';
+            }
+            body.appendChild(icon);
+
+            const countWrapper = document.createElement('span');
+            countWrapper.className = 'betatip-upvote-count';
+            const displayCount = upvoteCount > 0 ? String(upvoteCount) : '—';
+            countWrapper.textContent = displayCount;
+            countWrapper.setAttribute('aria-hidden', 'true');
+            body.appendChild(countWrapper);
+
+            const countSr = document.createElement('span');
+            countSr.className = 'sr-only';
+            let countMessage = '';
+            if (upvoteCount === 0) {
+              countMessage = 'No upvotes yet';
+            } else if (upvoteCount === 1) {
+              countMessage = '1 upvote';
+            } else {
+              countMessage = `${upvoteCount} upvotes`;
+            }
+            if (hasUpvoted) {
+              countMessage = `${countMessage}. You upvoted this beta tip.`;
+            }
+            countSr.textContent = countMessage;
+            body.appendChild(countSr);
+
             const textEl = document.createElement('p');
             textEl.className = 'betatip-text';
             textEl.textContent = text;
-            entry.appendChild(textEl);
+            body.appendChild(textEl);
 
+            const actions = document.createElement('div');
+            actions.className = 'betatip-actions';
+
+            if (currentUser && isCurrent && typeof betatipId === 'string' && betatipId) {
+              const deleteButton = document.createElement('button');
+              deleteButton.type = 'button';
+              deleteButton.className = 'betatip-delete-button';
+              deleteButton.textContent = 'Delete tip';
+              deleteButton.setAttribute('aria-label', 'Delete your beta tip');
+
+              let isDeleting = false;
+              deleteButton.addEventListener('click', async (event) => {
+                event.preventDefault();
+                if (isDeleting) {
+                  return;
+                }
+
+                isDeleting = true;
+                deleteButton.disabled = true;
+
+                try {
+                  const scrollContainer = tooltip?.querySelector('.tooltip-content');
+                  const previousScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+                  await deleteBetatipForRoute(route, betatipId);
+                  if (tooltip) {
+                    updateTooltipContent(route);
+                    const nextScrollContainer = tooltip.querySelector('.tooltip-content');
+                    if (nextScrollContainer) {
+                      nextScrollContainer.scrollTop = previousScrollTop;
+                    }
+                  }
+                } catch (error) {
+                  console.error('Failed to delete beta tip:', error);
+                  deleteButton.disabled = false;
+                  isDeleting = false;
+                }
+              });
+
+              actions.appendChild(deleteButton);
+            }
+
+            if (actions.childElementCount > 0) {
+              body.appendChild(actions);
+            }
+
+            entry.appendChild(body);
             list.appendChild(entry);
 
             if (Array.isArray(ariaLines)) {
+              const upvoteSummary =
+                upvoteCount === 0
+                  ? 'no upvotes'
+                  : upvoteCount === 1
+                  ? '1 upvote'
+                  : `${upvoteCount} upvotes`;
               const ariaText = text.replace(/\s+/g, ' ').trim();
+              const youUpvoted = hasUpvoted ? ' You upvoted this beta tip.' : '';
               ariaLines.push(
-                `Beta from ${username}${isCurrent ? ' (you)' : ''}: ${ariaText}`,
+                `Beta from ${username}${isCurrent ? ' (you)' : ''}: ${ariaText} (${upvoteSummary}).${youUpvoted}`,
               );
             }
           });
@@ -5649,11 +6361,93 @@
 
         section.appendChild(list);
 
+        if (currentUser) {
+          const form = document.createElement('form');
+          form.className = 'tooltip-betatips-form';
+          form.noValidate = true;
+
+          const textareaId = `betatip-${routeId.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+          const label = document.createElement('label');
+          label.className = 'tooltip-betatips-label';
+          label.setAttribute('for', textareaId);
+
+          const labelText = document.createElement('span');
+          labelText.textContent = 'Share your beta';
+          label.appendChild(labelText);
+
+          const textarea = document.createElement('textarea');
+          textarea.id = textareaId;
+          textarea.className = 'tooltip-betatips-textarea';
+          textarea.maxLength = MAX_BETATIP_LENGTH;
+          textarea.placeholder = 'The trick is...to go up!';
+          textarea.value = '';
+
+          label.appendChild(textarea);
+          form.appendChild(label);
+
+          const actions = document.createElement('div');
+          actions.className = 'tooltip-betatips-actions';
+
+          const saveButton = document.createElement('button');
+          saveButton.type = 'submit';
+          saveButton.textContent = 'Save tip';
+          actions.appendChild(saveButton);
+
+          form.appendChild(actions);
+
+          const status = document.createElement('p');
+          status.className = 'tooltip-betatips-status';
+          status.setAttribute('role', 'status');
+          status.textContent = '';
+          form.appendChild(status);
+
+          const setSavingState = (saving) => {
+            textarea.disabled = saving;
+            saveButton.disabled = saving;
+          };
+
+          textarea.addEventListener('input', () => {
+            status.textContent = '';
+          });
+
+          let isSaving = false;
+
+          form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (isSaving) {
+              return;
+            }
+
+            const trimmedValue = textarea.value.replace(/\r\n/g, '\n').trim();
+            if (!trimmedValue) {
+              status.textContent = 'Add some beta before saving.';
+              return;
+            }
+
+            status.textContent = '';
+            isSaving = true;
+            setSavingState(true);
+
+            try {
+              await saveBetatipForRoute(route, trimmedValue);
+              updateTooltipContent(route);
+            } catch (error) {
+              console.error('Failed to save beta tip:', error);
+              status.textContent = 'We couldn’t save your beta. Please try again.';
+              setSavingState(false);
+              isSaving = false;
+            }
+          });
+
+          section.appendChild(form);
+        }
+
         return section;
       }
 
       async function applyUserRouteGrade(route, gradeValue) {
-        if (!route || !route.id) {
+        const routeId = getRouteId(route);
+        if (!routeId) {
           return;
         }
 
@@ -5662,7 +6456,7 @@
           return;
         }
 
-        const userId = typeof currentUser?.uid === 'string' ? currentUser.uid.trim() : '';
+        const userId = typeof currentUser.uid === 'string' ? currentUser.uid.trim() : '';
         if (!userId) {
           console.warn('Unable to save grade: user ID missing.');
           return;
@@ -5674,45 +6468,37 @@
           return;
         }
 
-        const routeRef = doc(db, 'routes', route.id);
-        const isAscended = ascendedRoutes.has(route.id);
+        const routeRef = doc(db, 'routes', routeId, 'scores', userId);
+        const isAscended = ascendedRoutes.has(routeId);
 
-          try {
-            await updateDoc(routeRef, {
-              [`ascents.${userId}`]: {
-                grade: sanitizedGrade,
-                ascended: isAscended,
-              },
-            });
+        try {
+          const userPayload = {
+            grade: sanitizedGrade,
+            ascended: isAscended,
+          };
 
-          const existingEntry = userAscentDetails.get(route.id);
+          await setDoc(routeRef, userPayload, { merge: true });
+
+          const existingEntry = userAscentDetails.get(routeId) || {};
 
           if (sanitizedGrade === null) {
-            routeGrades.delete(route.id);
+            const hadRecordedGrade =
+              typeof existingEntry.grade === 'number' && Number.isFinite(existingEntry.grade);
 
-            if (existingEntry) {
-              userAscentDetails.set(route.id, { ...existingEntry, ascended: isAscended, grade: null });
+            if (existingEntry.ascended || hadRecordedGrade) {
+              userAscentDetails.set(routeId, { ...existingEntry, ascended: isAscended, grade: null });
             } else {
-              userAscentDetails.delete(route.id);
+              userAscentDetails.delete(routeId);
             }
           } else {
-            routeGrades.set(route.id, sanitizedGrade);
-            const nextEntry = { ...(existingEntry || {}), ascended: isAscended, grade: sanitizedGrade };
-            userAscentDetails.set(route.id, nextEntry);
+            const nextEntry = { ...existingEntry, ascended: isAscended, grade: sanitizedGrade };
+            userAscentDetails.set(routeId, nextEntry);
           }
 
-          let ascentsMap = routeAscentsCache.get(route.id);
-          if (!(ascentsMap instanceof Map)) {
-            ascentsMap = new Map();
-            routeAscentsCache.set(route.id, ascentsMap);
-          }
-          ascentsMap.set(userId, { grade: sanitizedGrade, ascended: isAscended });
-
-          updateMedianForRoute(route.id);
+          updateRouteScoreEntry(routeId, userId, userPayload);
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
-          await refreshMedianGrades();
         } catch (error) {
           console.error('Failed to update route grade:', error);
         }
@@ -5723,9 +6509,14 @@
           throw new Error('You must be signed in to share beta tips.');
         }
 
-        const routeId = typeof route?.id === 'string' ? route.id.trim() : '';
+        const routeId = getRouteId(route);
         if (!routeId) {
           throw new Error('Unable to determine which route to update.');
+        }
+
+        const userId = typeof currentUser.uid === 'string' ? currentUser.uid.trim() : '';
+        if (!userId) {
+          throw new Error('Unable to determine your account.');
         }
 
         let username = isValidUsername(currentUsername) ? normalizeUsername(currentUsername) : '';
@@ -5741,20 +6532,44 @@
           throw new Error('Unable to resolve your username.');
         }
 
-        const normalizedText = typeof rawText === 'string' ? rawText.replace(/\r\n/g, '\n').trim() : '';
-        const limitedText = normalizedText ? normalizedText.slice(0, MAX_BETATIP_LENGTH) : '';
+        uidUsernameCache.set(userId, username);
 
-        const routeRef = doc(db, 'routes', routeId);
-        await updateDoc(routeRef, {
-          [`betatips.${username}`]: limitedText || null,
-        });
+        const normalizedText = typeof rawText === 'string' ? rawText.replace(/\r\n/g, '\n').trim() : '';
+        if (!normalizedText) {
+          throw new Error('Beta tip text is required.');
+        }
+
+        const limitedText = normalizedText.slice(0, MAX_BETATIP_LENGTH);
 
         const betatipsMap = getRouteBetatipsMap(routeId);
-        if (limitedText) {
-          betatipsMap.set(username, limitedText);
-        } else {
-          betatipsMap.delete(username);
+        const betatipData = {
+          routeId,
+          userId,
+          betatip: limitedText,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          upvoteCount: 0,
+        };
+
+        let betatipId = '';
+        try {
+          const betatipRef = await addDoc(collection(db, 'routes_users_betatips'), betatipData);
+          betatipId = betatipRef.id;
+        } catch (error) {
+          console.error('Failed to save beta tip:', error);
+          throw new Error('Unable to save your beta tip right now.');
         }
+
+        const newEntry = {
+          betatipId,
+          userId,
+          username,
+          betatip: limitedText,
+          upvoters: new Set(),
+          upvoteCount: 0,
+        };
+
+        betatipsMap.set(betatipId, newEntry);
 
         [allRoutes, routes].forEach((collection) => {
           if (!Array.isArray(collection)) {
@@ -5771,51 +6586,69 @@
         return limitedText;
       }
 
-      async function refreshMedianGrades() {
+      async function deleteBetatipForRoute(route, betatipId) {
+        if (!currentUser) {
+          throw new Error('You must be signed in to delete beta tips.');
+        }
+
+        const routeId = getRouteId(route);
+        if (!routeId) {
+          throw new Error('Unable to determine which route to update.');
+        }
+
+        const userId = typeof currentUser.uid === 'string' ? currentUser.uid.trim() : '';
+        if (!userId) {
+          throw new Error('Unable to determine your account.');
+        }
+
+        const normalizedBetatipId = typeof betatipId === 'string' ? betatipId.trim() : '';
+        if (!normalizedBetatipId) {
+          throw new Error('We could not determine which beta tip to delete.');
+        }
+
+        const betatipsMap = getRouteBetatipsMap(routeId);
+        const existingEntry =
+          betatipsMap instanceof Map ? betatipsMap.get(normalizedBetatipId) : null;
+
+        if (!existingEntry) {
+          throw new Error('This beta tip is no longer available.');
+        }
+
+        if (existingEntry.userId !== userId) {
+          throw new Error('You can only delete your own beta tips.');
+        }
+
         try {
-          const snapshot = await getDocs(collection(db, 'routes'));
-          const nextAscentsCache = new Map();
-          const nextMedianMap = new Map();
-          const nextBetatipsCache = new Map();
-
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data() ?? {};
-            const ascentsMap = normalizeRouteAscentsMap(data.ascents);
-            nextAscentsCache.set(docSnap.id, ascentsMap);
-            const betatipsMap = normalizeRouteBetatipsMap(data.betatips);
-            nextBetatipsCache.set(docSnap.id, betatipsMap);
-
-            const median = computeMedianFromAscentsMap(ascentsMap);
-            if (typeof median === 'number' && Number.isFinite(median)) {
-              nextMedianMap.set(docSnap.id, median);
-            }
-          });
-
-          routeAscentsCache.clear();
-          nextAscentsCache.forEach((value, key) => {
-            routeAscentsCache.set(key, value);
-          });
-          routeBetatipsCache.clear();
-          nextBetatipsCache.forEach((value, key) => {
-            routeBetatipsCache.set(key, value);
-          });
-
-          routeMedianGrades = nextMedianMap;
-
-          if (Array.isArray(allRoutes)) {
-            allRoutes.forEach((route) => {
-              const median = routeMedianGrades.get(route.id);
-              route.medianGrade =
-                typeof median === 'number' && Number.isFinite(median) ? median : null;
-              const betatipsMap = routeBetatipsCache.get(route.id);
-              route.betatips = betatipsMap instanceof Map ? betatipsMap : new Map();
-            });
+          const betatipRef = doc(db, 'routes_users_betatips', normalizedBetatipId);
+          if (existingEntry.upvoters instanceof Set && existingEntry.upvoters.size) {
+            await Promise.all(
+              Array.from(existingEntry.upvoters).map((voter) =>
+                deleteDoc(doc(betatipRef, 'upvotes', voter)),
+              ),
+            );
           }
 
-          redraw();
+          await deleteDoc(betatipRef);
         } catch (error) {
-          console.error('Failed to load route grades:', error);
+          console.error('Failed to delete beta tip:', error);
+          throw new Error('Unable to delete this beta tip right now.');
         }
+
+        betatipsMap.delete(normalizedBetatipId);
+
+        [allRoutes, routes].forEach((collection) => {
+          if (!Array.isArray(collection)) {
+            return;
+          }
+
+          collection.forEach((entry) => {
+            if (entry && entry.id === routeId) {
+              entry.betatips = betatipsMap;
+            }
+          });
+        });
+
+        return true;
       }
 
       function updateTooltipContent(route) {
@@ -5842,11 +6675,9 @@
           ariaLines.push(titleLine.textContent);
         }
 
-        const medianGrade =
-          route && typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)
-            ? route.medianGrade
-            : null;
-        const gradeDisplay = formatGradeDisplay(medianGrade);
+        const routeId = getRouteId(route);
+        const tooltipGrade = resolveTooltipGradeValue(route);
+        const gradeDisplay = formatGradeDisplay(tooltipGrade);
         const gradeBadge = document.createElement('div');
         gradeBadge.className = 'tooltip-grade-badge';
         gradeBadge.setAttribute('aria-hidden', 'true');
@@ -5855,7 +6686,7 @@
         gradeValue.className = 'tooltip-grade-value';
         gradeValue.textContent = gradeDisplay;
         gradeBadge.appendChild(gradeValue);
-        const isAscended = Boolean(route && ascendedRoutes.has(route.id));
+        const isAscended = Boolean(routeId && ascendedRoutes.has(routeId));
         if (isAscended) {
           gradeBadge.classList.add('ascended');
         }
@@ -6302,14 +7133,87 @@
 
       async function loadRoutes() {
         try {
-          const [routesSnapshot, wallSnapshot] = await Promise.all([
-            getDocs(collection(db, 'routes')),
-            getDocs(collection(db, WALL_COLLECTION)),
-          ]);
+          const [routesSnapshot, wallSnapshot, scoresSnapshot, betatipsSnapshot] =
+            await Promise.all([
+              getDocs(collection(db, 'routes')),
+              getDocs(collection(db, WALL_COLLECTION)),
+              getDocs(collectionGroup(db, 'scores')),
+              getDocs(collection(db, 'routes_users_betatips')),
+            ]);
 
-          routeAscentsCache.clear();
+          const routeScoresByRoute = new Map();
           routeBetatipsCache.clear();
-          routeMedianGrades = new Map();
+
+          scoresSnapshot.forEach((docSnap) => {
+            const routeRef = docSnap.ref?.parent?.parent;
+            const routeUid = normalizeRouteUidValue(routeRef?.id);
+            const userUid = normalizeRouteUidValue(docSnap.id);
+
+            if (!routeUid || !userUid) {
+              return;
+            }
+
+            const normalizedEntry = normalizeRouteScoreEntry(docSnap.data() || {});
+            let scoresMap = routeScoresByRoute.get(routeUid);
+            if (!(scoresMap instanceof Map)) {
+              scoresMap = new Map();
+              routeScoresByRoute.set(routeUid, scoresMap);
+            }
+            scoresMap.set(userUid, normalizedEntry);
+          });
+
+          const betatipEntries = [];
+          betatipsSnapshot.forEach((docSnap) => {
+            const data = docSnap.data() || {};
+            const routeId = normalizeRouteUidValue(data.routeId);
+            const userId = typeof data.userId === 'string' ? data.userId.trim() : '';
+
+            if (!routeId || !userId) {
+              return;
+            }
+
+            const text =
+              typeof data.betatip === 'string'
+                ? data.betatip.replace(/\r\n/g, '\n').trim()
+                : '';
+            const upvoteCount =
+              typeof data.upvoteCount === 'number' && Number.isFinite(data.upvoteCount)
+                ? data.upvoteCount
+                : 0;
+
+            if (!text) {
+              return;
+            }
+
+            betatipEntries.push({
+              id: docSnap.id,
+              routeId,
+              userId,
+              text,
+              upvoteCount,
+            });
+          });
+
+          await Promise.all(
+            betatipEntries.map(async (entry) => {
+              const resolvedUsername = await lookupUsernameByUid(entry.userId);
+              const normalizedUsername = isValidUsername(resolvedUsername)
+                ? resolvedUsername
+                : '';
+              const betatipsMap = getRouteBetatipsMap(entry.routeId);
+              const upvoters = await loadBetatipUpvotes(entry.id);
+              const calculatedCount = upvoters.size;
+              const normalizedCount = Math.max(entry.upvoteCount, calculatedCount);
+              betatipsMap.set(entry.id, {
+                betatipId: entry.id,
+                userId: entry.userId,
+                username: normalizedUsername,
+                betatip: entry.text,
+                upvoters,
+                upvoteCount: normalizedCount,
+              });
+            }),
+          );
 
           wallSettingsCache.clear();
           const hiddenWallKeys = new Set();
@@ -6366,33 +7270,27 @@
           allRoutes = routesSnapshot.docs
             .map((docSnap) => {
               const data = docSnap.data() ?? {};
-              const ascentsMap = normalizeRouteAscentsMap(data.ascents);
-              routeAscentsCache.set(docSnap.id, ascentsMap);
-              const betatipsMap = normalizeRouteBetatipsMap(data.betatips);
-              routeBetatipsCache.set(docSnap.id, betatipsMap);
-
-              const medianValue = computeMedianFromAscentsMap(ascentsMap);
-              const medianGrade =
-                typeof medianValue === 'number' && Number.isFinite(medianValue)
-                  ? medianValue
-                  : null;
-
-              if (medianGrade !== null) {
-                routeMedianGrades.set(docSnap.id, medianGrade);
+              const routeUid =
+                typeof data.uid === 'string' && data.uid.trim() ? data.uid.trim() : docSnap.id;
+              const betatipsMap = getRouteBetatipsMap(routeUid);
+              const scoresMap =
+                routeScoresByRoute.get(routeUid) instanceof Map
+                  ? new Map(routeScoresByRoute.get(routeUid))
+                  : new Map();
+              if (data.hiddenFromClimbers === true) {
+                return null;
               }
 
-              const normalizedPoints = Array.isArray(data.points)
-                ? data.points
-                    .map((point) => {
-                      const x = Number(point?.x);
-                      const y = Number(point?.y);
-                      if (!Number.isFinite(x) || !Number.isFinite(y)) {
-                        return null;
-                      }
-                      return { x, y };
-                    })
-                    .filter(Boolean)
-                : [];
+              const grade = normalizeRouteGradeField(data.grade);
+
+              const pointsByType = normalizeRoutePointsByType(
+                data.points,
+                data.pathType,
+              );
+              const normalizedPoints = selectNormalizedPointsForPath(
+                pointsByType,
+                data.pathType,
+              );
 
               const rawLocationValue = typeof data.location === 'string' ? data.location.trim() : '';
               const defaultLocation = getDefaultLocation();
@@ -6406,6 +7304,8 @@
 
               const fallbackWallSettings = {
                 pointDiameter: data.pointDiameter,
+                hollowPointDiameter: data.hollowPointDiameter ?? data.pointDiameter,
+                filledPointDiameter: data.filledPointDiameter ?? data.pointDiameter,
                 rectangleWidth: data.rectangleWidth,
                 rectangleHeight: data.rectangleHeight,
                 brezerStrokeWidth: data.brezerStrokeWidth,
@@ -6418,9 +7318,11 @@
               const wallSettings = resolveWallSettings(normalizedLocation, fallbackWallSettings);
 
               return {
-                id: docSnap.id,
+                id: routeUid,
+                uid: routeUid,
                 strokeColor: typeof data.strokeColor === 'string' ? data.strokeColor : '#ffde59',
                 points: normalizedPoints,
+                pointsByType,
                 title: typeof data.title === 'string' ? data.title : '',
                 setter: typeof data.setter === 'string' ? data.setter : '',
                 description: typeof data.description === 'string' ? data.description : '',
@@ -6428,9 +7330,11 @@
                 date_removed: normalizeDate(data.date_removed),
                 location: displayLocation,
                 locationKey: normalizedLocation,
-                medianGrade,
+                grade,
                 pathType: normalizePathType(data.pathType),
                 pointDiameter: wallSettings.pointDiameter,
+                hollowPointDiameter: wallSettings.hollowPointDiameter,
+                filledPointDiameter: wallSettings.filledPointDiameter,
                 rectangleWidth: wallSettings.rectangleWidth,
                 rectangleHeight: wallSettings.rectangleHeight,
                 brezerStrokeWidth: wallSettings.brezerStrokeWidth,
@@ -6440,12 +7344,16 @@
                 gradeBarTransparency: wallSettings.gradeBarTransparency,
                 unfocusedTransparency: wallSettings.unfocusedTransparency,
                 betatips: betatipsMap,
+                scores:
+                  routeScoresByRoute.get(routeUid) instanceof Map
+                    ? new Map(routeScoresByRoute.get(routeUid))
+                    : new Map(),
               };
             })
             .filter(Boolean)
             .sort((a, b) => {
-              const nameA = (a.title || a.id).toLowerCase();
-              const nameB = (b.title || b.id).toLowerCase();
+              const nameA = (a.title || a.uid || a.id).toLowerCase();
+              const nameB = (b.title || b.uid || b.id).toLowerCase();
               return nameA.localeCompare(nameB);
             });
 
@@ -6456,8 +7364,6 @@
           routes = [];
           focusedRouteId = null;
           updateClearFocusButton();
-          routeMedianGrades = new Map();
-          routeAscentsCache.clear();
           routeBetatipsCache.clear();
           renderProgressionList();
           redraw();
@@ -6469,51 +7375,48 @@
           return;
         }
 
-        const userId = typeof currentUser?.uid === 'string' ? currentUser.uid.trim() : '';
+        const userId = typeof currentUser.uid === 'string' ? currentUser.uid.trim() : '';
         if (!userId) {
           console.warn('Unable to mark ascent: user ID missing.');
           return;
         }
 
-        const routeId = route?.id;
+        const routeId = getRouteId(route);
         if (!routeId) {
           console.warn('Unable to mark ascent: route ID missing.');
           return;
         }
-        const routeRef = doc(db, 'routes', routeId);
+
+        const routeRef = doc(db, 'routes', routeId, 'scores', userId);
         const isAscended = ascendedRoutes.has(routeId);
-        const previousEntry = userAscentDetails.get(routeId) || {};
-        const persistedGrade =
-          typeof previousEntry.grade === 'number' && Number.isFinite(previousEntry.grade)
-            ? previousEntry.grade
-            : getUserGradeForRoute(routeId);
+        const targetRoute = findRouteById(routeId) || route;
+        const previousDetails = getRouteScoreEntry(targetRoute, userId);
+        const persistedGrade = normalizeGradeValue(previousDetails?.grade);
+        const fallbackGrade = getUserGradeForRoute(routeId);
         const normalizedGrade =
           typeof persistedGrade === 'number' && Number.isFinite(persistedGrade)
             ? persistedGrade
+            : fallbackGrade;
+        const sanitizedGrade =
+          typeof normalizedGrade === 'number' && Number.isFinite(normalizedGrade)
+            ? normalizedGrade
             : null;
 
-          try {
-            const nextAscended = !isAscended;
-            await updateDoc(routeRef, {
-              [`ascents.${userId}`]: {
-                grade: normalizedGrade,
-                ascended: nextAscended,
-              },
-            });
+        try {
+          const nextAscended = !isAscended;
+          const userPayload = {
+            grade: sanitizedGrade,
+            ascended: nextAscended,
+          };
 
-            userAscentDetails.set(routeId, {
-              ascended: nextAscended,
-              grade: normalizedGrade,
-            });
+          await setDoc(routeRef, userPayload, { merge: true });
 
-          let ascentsMap = routeAscentsCache.get(routeId);
-          if (!(ascentsMap instanceof Map)) {
-            ascentsMap = new Map();
-            routeAscentsCache.set(routeId, ascentsMap);
-          }
-          ascentsMap.set(userId, { grade: normalizedGrade, ascended: nextAscended });
+          userAscentDetails.set(routeId, {
+            ascended: nextAscended,
+            grade: sanitizedGrade,
+          });
 
-          updateMedianForRoute(routeId);
+          updateRouteScoreEntry(routeId, userId, userPayload);
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
@@ -6729,18 +7632,8 @@
           return null;
         }
 
-        let grade =
-          typeof route.medianGrade === 'number' && Number.isFinite(route.medianGrade)
-            ? route.medianGrade
-            : null;
-
-        if (grade === null && typeof route.id === 'string') {
-          const userGrade = getUserGradeForRoute(route.id);
-          if (typeof userGrade === 'number' && Number.isFinite(userGrade)) {
-            grade = userGrade;
-          }
-        }
-
+        const routeId = getRouteId(route);
+        const grade = computeMedianGradeForRoute(routeId);
         return getGradeColorForValue(grade);
       }
 
@@ -6771,18 +7664,12 @@
             return;
           }
 
-          const pathType = normalizePathType(route.pathType);
-          if (pathType !== PATH_TYPE_POINT && pathType !== PATH_TYPE_RECTANGLE) {
-            return;
-          }
-
-          const points = Array.isArray(route.points) ? route.points : [];
-          if (!points.length) {
+          const pointEntries = getRoutePointEntries(route);
+          if (!pointEntries.length) {
             return;
           }
 
           const strokeColor = getRouteStrokeColor(route);
-          const normalizedPointDiameter = normalizePointDiameter(route.pointDiameter);
           const normalizedRectangleWidth = normalizeRectangleSize(
             route.rectangleWidth,
             DEFAULT_RECTANGLE_WIDTH,
@@ -6792,33 +7679,45 @@
             DEFAULT_RECTANGLE_HEIGHT,
           );
 
-          points.forEach((point) => {
-            const normalizedX = Number(point?.x);
-            const normalizedY = Number(point?.y);
-            const pointKey = createNormalizedPointKey(normalizedX, normalizedY);
-            if (!pointKey) {
+          pointEntries.forEach(({ pathType, points }) => {
+            if (
+              !Array.isArray(points) ||
+              !points.length ||
+              (!isNormalizedPointPathType(pathType) && pathType !== PATH_TYPE_RECTANGLE)
+            ) {
               return;
             }
 
-            const groupKey = createOverlapGroupKey(pathType, pointKey);
-            if (!groupKey) {
-              return;
-            }
+            const normalizedPointDiameter = getRoutePointDiameterForPathType(route, pathType);
 
-            if (!groups.has(groupKey)) {
-              groups.set(groupKey, {
-                pathType,
-                entries: [],
+            points.forEach((point) => {
+              const normalizedX = Number(point?.x);
+              const normalizedY = Number(point?.y);
+              const pointKey = createNormalizedPointKey(normalizedX, normalizedY);
+              if (!pointKey) {
+                return;
+              }
+
+              const groupKey = createOverlapGroupKey(pathType, pointKey);
+              if (!groupKey) {
+                return;
+              }
+
+              if (!groups.has(groupKey)) {
+                groups.set(groupKey, {
+                  pathType,
+                  entries: [],
+                });
+              }
+
+              const group = groups.get(groupKey);
+              group.entries.push({
+                routeId: route.id,
+                color: strokeColor,
+                pointDiameter: normalizedPointDiameter,
+                rectangleWidth: normalizedRectangleWidth,
+                rectangleHeight: normalizedRectangleHeight,
               });
-            }
-
-            const group = groups.get(groupKey);
-            group.entries.push({
-              routeId: route.id,
-              color: strokeColor,
-              pointDiameter: normalizedPointDiameter,
-              rectangleWidth: normalizedRectangleWidth,
-              rectangleHeight: normalizedRectangleHeight,
             });
           });
         });
@@ -6948,13 +7847,17 @@
         });
       }
 
-      function calculateRouteStrokeWidth(route) {
-        const pathType = normalizePathType(route?.pathType);
+      function calculateRouteStrokeWidth(route, pathTypeOverride = undefined) {
+        const pathType = normalizePathType(pathTypeOverride ?? route?.pathType);
         if (pathType === PATH_TYPE_BREZER) {
           return normalizeBrezerStrokeWidth(route?.brezerStrokeWidth);
         }
-        if (pathType === PATH_TYPE_POINT) {
-          const diameter = normalizePointDiameter(route?.pointDiameter);
+        if (pathType === PATH_TYPE_HOLLOW_POINT) {
+          const diameter = getRoutePointDiameterForPathType(route, PATH_TYPE_HOLLOW_POINT);
+          return Math.max(2, Math.round(diameter / 10));
+        }
+        if (pathType === PATH_TYPE_FILLED_POINT) {
+          const diameter = getRoutePointDiameterForPathType(route, PATH_TYPE_FILLED_POINT);
           return Math.max(2, Math.round(diameter / 10));
         }
         if (pathType === PATH_TYPE_RECTANGLE) {
@@ -6967,7 +7870,7 @@
 
       function drawRoute(route, options = {}) {
         const strokeColor = getRouteDisplayColor(route);
-        const points = Array.isArray(route.points) ? route.points : [];
+        const pointEntries = getRoutePointEntries(route);
 
         const alphaValue = Number(options.alpha);
         const routeAlpha = Number.isFinite(alphaValue)
@@ -6984,194 +7887,227 @@
           options?.routeAlphaMap instanceof Map ? options.routeAlphaMap : null;
         const isFocusedRoute = Boolean(options?.isFocused);
 
-        if (!points.length) {
+        if (!pointEntries.length) {
           return;
         }
 
-        const pathType = normalizePathType(route.pathType);
-        const supportsOverlapPattern =
-          pathType === PATH_TYPE_POINT || pathType === PATH_TYPE_RECTANGLE;
-        const shouldFilterOverlaps =
-          omitOverlapKeys && omitOverlapKeys.size > 0 && supportsOverlapPattern;
-
-        const pathPoints = [];
-        const visiblePoints = [];
         const interactionRegions = [];
 
-        points.forEach((point) => {
-          const normalizedX = Number(point?.x);
-          const normalizedY = Number(point?.y);
-          if (!Number.isFinite(normalizedX) || !Number.isFinite(normalizedY)) {
+        pointEntries.forEach(({ pathType, points }) => {
+          if (!Array.isArray(points) || !points.length) {
             return;
           }
 
-          const scaledPoint = {
-            x: normalizedX * canvas.width,
-            y: normalizedY * canvas.height,
-          };
-          pathPoints.push(scaledPoint);
+          const supportsOverlapPattern =
+            isNormalizedPointPathType(pathType) || pathType === PATH_TYPE_RECTANGLE;
+          const shouldFilterOverlaps =
+            omitOverlapKeys && omitOverlapKeys.size > 0 && supportsOverlapPattern;
 
-          const pointKey = supportsOverlapPattern
-            ? createNormalizedPointKey(normalizedX, normalizedY)
-            : null;
+          const pathPoints = [];
+          const visiblePoints = [];
 
-          if (shouldFilterOverlaps && pointKey && omitOverlapKeys.has(pointKey)) {
-            return;
-          }
-
-          const overlapKey =
-            pointKey && overlapGroups ? createOverlapGroupKey(pathType, pointKey) : null;
-          const overlapGroup =
-            overlapKey && overlapGroups ? overlapGroups.get(overlapKey) : null;
-
-          if (
-            overlapGroup &&
-            Array.isArray(overlapGroup.entries) &&
-            overlapGroup.entries.length > 1 &&
-            !isFocusedRoute
-          ) {
-            if (handledOverlapKeys && handledOverlapKeys.has(overlapKey)) {
+          points.forEach((point) => {
+            const normalizedX = Number(point?.x);
+            const normalizedY = Number(point?.y);
+            if (!Number.isFinite(normalizedX) || !Number.isFinite(normalizedY)) {
               return;
             }
 
-            const entriesWithAlpha = overlapGroup.entries.map((entry) => {
-              const mappedAlpha = routeAlphaMap?.get(entry.routeId);
-              const entryAlpha = Number.isFinite(mappedAlpha) ? mappedAlpha : 1;
-              return { ...entry, alpha: entryAlpha };
-            });
+            const scaledPoint = {
+              x: normalizedX * canvas.width,
+              y: normalizedY * canvas.height,
+            };
+            pathPoints.push(scaledPoint);
 
-            if (handledOverlapKeys) {
-              handledOverlapKeys.add(overlapKey);
+            const pointKey = supportsOverlapPattern
+              ? createNormalizedPointKey(normalizedX, normalizedY)
+              : null;
+
+            if (shouldFilterOverlaps && pointKey && omitOverlapKeys.has(pointKey)) {
+              return;
             }
 
-            if (pathType === PATH_TYPE_POINT) {
-              drawOverlappingPointGroup(ctx, scaledPoint, entriesWithAlpha);
-            } else if (pathType === PATH_TYPE_RECTANGLE) {
-              drawOverlappingRectangleGroup(ctx, scaledPoint, entriesWithAlpha);
+            const overlapKey =
+              pointKey && overlapGroups ? createOverlapGroupKey(pathType, pointKey) : null;
+            const overlapGroup =
+              overlapKey && overlapGroups ? overlapGroups.get(overlapKey) : null;
+
+            if (
+              overlapGroup &&
+              Array.isArray(overlapGroup.entries) &&
+              overlapGroup.entries.length > 1 &&
+              !isFocusedRoute
+            ) {
+              if (handledOverlapKeys && handledOverlapKeys.has(overlapKey)) {
+                return;
+              }
+
+              const entriesWithAlpha = overlapGroup.entries.map((entry) => {
+                const mappedAlpha = routeAlphaMap?.get(entry.routeId);
+                const entryAlpha = Number.isFinite(mappedAlpha) ? mappedAlpha : 1;
+                return { ...entry, alpha: entryAlpha };
+              });
+
+              if (handledOverlapKeys) {
+                handledOverlapKeys.add(overlapKey);
+              }
+
+              if (isNormalizedPointPathType(pathType)) {
+                drawOverlappingPointGroup(ctx, scaledPoint, entriesWithAlpha);
+              } else if (pathType === PATH_TYPE_RECTANGLE) {
+                drawOverlappingRectangleGroup(ctx, scaledPoint, entriesWithAlpha);
+              }
+              return;
             }
+
+            visiblePoints.push(scaledPoint);
+          });
+
+          if (!pathPoints.length) {
             return;
           }
 
-          visiblePoints.push(scaledPoint);
-        });
-
-        if (!pathPoints.length) {
-          return;
-        }
-
-        const pointDiameter = normalizePointDiameter(route.pointDiameter);
-        const rectangleWidth = normalizeRectangleSize(route.rectangleWidth, DEFAULT_RECTANGLE_WIDTH);
-        const rectangleHeight = normalizeRectangleSize(route.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT);
-
-        ctx.save();
-        ctx.globalAlpha = routeAlpha;
-        if (pathType === PATH_TYPE_POINT) {
-          const circleRadius = Math.max(1, pointDiameter / 2);
-          const strokeWidth = Math.max(2, Math.round(pointDiameter / 10));
-          if (visiblePoints.length) {
-            const path = new Path2D();
-
-            visiblePoints.forEach((point) => {
-              path.moveTo(point.x + circleRadius, point.y);
-              path.arc(point.x, point.y, circleRadius, 0, Math.PI * 2);
-            });
-
-            ctx.save();
-            ctx.lineWidth = strokeWidth;
-            ctx.strokeStyle = strokeColor;
-            ctx.lineJoin = 'round';
-            ctx.lineCap = 'round';
-            ctx.stroke(path);
-            ctx.restore();
-
-            const padding = Math.max(4, strokeWidth / 2);
-            visiblePoints.forEach((point) => {
-              interactionRegions.push({
-                type: 'circle',
-                cx: point.x,
-                cy: point.y,
-                r: circleRadius + padding,
-              });
-            });
-          }
-        } else if (pathType === PATH_TYPE_RECTANGLE) {
-          const rectWidth = Math.max(1, rectangleWidth);
-          const rectHeight = Math.max(1, rectangleHeight);
-          const halfWidth = Math.max(1, rectWidth / 2);
-          const halfHeight = Math.max(1, rectHeight / 2);
-          const strokeWidth = Math.max(2, Math.round(Math.max(rectWidth, rectHeight) / 10));
-          if (visiblePoints.length) {
-            const path = new Path2D();
-
-            visiblePoints.forEach((point) => {
-              path.rect(point.x - halfWidth, point.y - halfHeight, rectWidth, rectHeight);
-            });
-
-            ctx.save();
-            ctx.lineWidth = strokeWidth;
-            ctx.strokeStyle = strokeColor;
-            ctx.lineJoin = 'round';
-            ctx.lineCap = 'round';
-            ctx.stroke(path);
-            ctx.restore();
-
-            const padding = Math.max(4, strokeWidth / 2);
-            visiblePoints.forEach((point) => {
-              interactionRegions.push({
-                type: 'rect',
-                left: point.x - halfWidth - padding,
-                right: point.x + halfWidth + padding,
-                top: point.y - halfHeight - padding,
-                bottom: point.y + halfHeight + padding,
-              });
-            });
-          }
-        } else if (pathPoints.length >= 2) {
-          const path = new Path2D();
-          path.moveTo(pathPoints[0].x, pathPoints[0].y);
-
-          for (let i = 0; i < pathPoints.length - 1; i++) {
-            const p0 = i === 0 ? pathPoints[0] : pathPoints[i - 1];
-            const p1 = pathPoints[i];
-            const p2 = pathPoints[i + 1];
-            const p3 = i + 2 < pathPoints.length ? pathPoints[i + 2] : pathPoints[i + 1];
-
-            const cp1x = p1.x + (p2.x - p0.x) / 6;
-            const cp1y = p1.y + (p2.y - p0.y) / 6;
-            const cp2x = p2.x - (p3.x - p1.x) / 6;
-            const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-            path.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-          }
+          const resolvedPointDiameter = getRoutePointDiameterForPathType(route, pathType);
+          const rectangleWidth = normalizeRectangleSize(route.rectangleWidth, DEFAULT_RECTANGLE_WIDTH);
+          const rectangleHeight = normalizeRectangleSize(route.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT);
 
           ctx.save();
-          const strokeWidth = Math.max(6, Math.round(calculateRouteStrokeWidth(route)) || 6);
-          ctx.lineWidth = strokeWidth;
-          ctx.strokeStyle = strokeColor;
-          ctx.lineJoin = 'round';
-          ctx.lineCap = 'round';
-          ctx.stroke(path);
-          ctx.restore();
+          ctx.globalAlpha = routeAlpha;
 
-          const padding = Math.max(6, strokeWidth / 2 + 4);
-          for (let i = 0; i < pathPoints.length - 1; i += 1) {
-            const start = pathPoints[i];
-            const end = pathPoints[i + 1];
-            if (!start || !end) {
-              continue;
+          if (pathType === PATH_TYPE_HOLLOW_POINT) {
+            const circleRadius = Math.max(1, resolvedPointDiameter / 2);
+            const strokeWidth = Math.max(2, Math.round(resolvedPointDiameter / 10));
+            if (visiblePoints.length) {
+              const path = new Path2D();
+
+              visiblePoints.forEach((point) => {
+                path.moveTo(point.x + circleRadius, point.y);
+                path.arc(point.x, point.y, circleRadius, 0, Math.PI * 2);
+              });
+
+              ctx.save();
+              ctx.lineWidth = strokeWidth;
+              ctx.strokeStyle = strokeColor;
+              ctx.lineJoin = 'round';
+              ctx.lineCap = 'round';
+              ctx.stroke(path);
+              ctx.restore();
+
+              const padding = Math.max(4, strokeWidth / 2);
+              visiblePoints.forEach((point) => {
+                interactionRegions.push({
+                  type: 'circle',
+                  cx: point.x,
+                  cy: point.y,
+                  r: circleRadius + padding,
+                });
+              });
+            }
+          } else if (pathType === PATH_TYPE_FILLED_POINT) {
+            const circleRadius = Math.max(1, resolvedPointDiameter / 2);
+            if (visiblePoints.length) {
+              const path = new Path2D();
+
+              visiblePoints.forEach((point) => {
+                path.moveTo(point.x + circleRadius, point.y);
+                path.arc(point.x, point.y, circleRadius, 0, Math.PI * 2);
+              });
+
+              ctx.save();
+              ctx.fillStyle = strokeColor;
+              ctx.fill(path);
+              ctx.restore();
+
+              const padding = Math.max(4, circleRadius / 2);
+              visiblePoints.forEach((point) => {
+                interactionRegions.push({
+                  type: 'circle',
+                  cx: point.x,
+                  cy: point.y,
+                  r: circleRadius + padding,
+                });
+              });
+            }
+          } else if (pathType === PATH_TYPE_RECTANGLE) {
+            const rectWidth = Math.max(1, rectangleWidth);
+            const rectHeight = Math.max(1, rectangleHeight);
+            const halfWidth = Math.max(1, rectWidth / 2);
+            const halfHeight = Math.max(1, rectHeight / 2);
+            const strokeWidth = Math.max(2, Math.round(Math.max(rectWidth, rectHeight) / 10));
+            if (visiblePoints.length) {
+              const path = new Path2D();
+
+              visiblePoints.forEach((point) => {
+                path.rect(point.x - halfWidth, point.y - halfHeight, rectWidth, rectHeight);
+              });
+
+              ctx.save();
+              ctx.lineWidth = strokeWidth;
+              ctx.strokeStyle = strokeColor;
+              ctx.lineJoin = 'round';
+              ctx.lineCap = 'round';
+              ctx.stroke(path);
+              ctx.restore();
+
+              const padding = Math.max(4, strokeWidth / 2);
+              visiblePoints.forEach((point) => {
+                interactionRegions.push({
+                  type: 'rect',
+                  left: point.x - halfWidth - padding,
+                  right: point.x + halfWidth + padding,
+                  top: point.y - halfHeight - padding,
+                  bottom: point.y + halfHeight + padding,
+                });
+              });
+            }
+          } else if (pathType === PATH_TYPE_BREZER && pathPoints.length >= 2) {
+            const path = new Path2D();
+            path.moveTo(pathPoints[0].x, pathPoints[0].y);
+
+            for (let i = 0; i < pathPoints.length - 1; i++) {
+              const p0 = i === 0 ? pathPoints[0] : pathPoints[i - 1];
+              const p1 = pathPoints[i];
+              const p2 = pathPoints[i + 1];
+              const p3 = i + 2 < pathPoints.length ? pathPoints[i + 2] : pathPoints[i + 1];
+
+              const cp1x = p1.x + (p2.x - p0.x) / 6;
+              const cp1y = p1.y + (p2.y - p0.y) / 6;
+              const cp2x = p2.x - (p3.x - p1.x) / 6;
+              const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+              path.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
             }
 
-            interactionRegions.push({
-              type: 'segment',
-              x1: start.x,
-              y1: start.y,
-              x2: end.x,
-              y2: end.y,
-              padding,
-            });
+            ctx.save();
+            const strokeWidth = Math.max(6, Math.round(calculateRouteStrokeWidth(route, pathType)) || 6);
+            ctx.lineWidth = strokeWidth;
+            ctx.strokeStyle = strokeColor;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.stroke(path);
+            ctx.restore();
+
+            const padding = Math.max(6, strokeWidth / 2 + 4);
+            for (let i = 0; i < pathPoints.length - 1; i += 1) {
+              const start = pathPoints[i];
+              const end = pathPoints[i + 1];
+              if (!start || !end) {
+                continue;
+              }
+
+              interactionRegions.push({
+                type: 'segment',
+                x1: start.x,
+                y1: start.y,
+                x2: end.x,
+                y2: end.y,
+                padding,
+              });
+            }
           }
-        }
-        ctx.restore();
+
+          ctx.restore();
+        });
 
         if (interactionRegions.length) {
           interactionRegions.forEach((region) => {
@@ -7185,7 +8121,6 @@
           });
         }
       }
-
       function handlePointerMove(event) {
         updatePointerInteraction(event);
 
