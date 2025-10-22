@@ -1154,8 +1154,26 @@
       }
 
       .route-tooltip .betatip-upvote-icon {
-        font-size: 1.15rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.6rem;
+        height: 1.6rem;
+        min-width: 1.6rem;
+        border-radius: 999px;
+        border: 2px solid transparent;
+        font-size: 1.05rem;
         line-height: 1;
+        transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease,
+          box-shadow 0.2s ease;
+        pointer-events: none;
+      }
+
+      .route-tooltip .betatip-upvote-icon.is-upvoted {
+        border-color: transparent;
+        background: #3b82f6;
+        color: #fff;
+        box-shadow: none;
       }
 
       .route-tooltip .betatip-username {
@@ -4802,7 +4820,6 @@
           currentUsername = '';
           authenticatedUsernameClaim = '';
           ascendedRoutes.clear();
-          routeScoresCache.clear();
           routeBetatipsCache.clear();
           uidUsernameCache.clear();
           hideTooltip({ force: true });
@@ -4840,7 +4857,6 @@
       let pinnedRouteId = null;
       let pinnedPosition = null;
       const ascendedRoutes = new Set();
-      const routeScoresCache = new Map();
       const routeBetatipsCache = new Map();
       const uidUsernameCache = new Map();
       let userAscentDetails = new Map();
@@ -4980,30 +4996,42 @@
           return;
         }
 
-        routeScoresCache.forEach((scoresMap, routeId) => {
-          if (!(scoresMap instanceof Map)) {
+        const processCollection = (collection) => {
+          if (!Array.isArray(collection)) {
             return;
           }
 
-          const entry = scoresMap.get(normalizedUid);
-          if (!entry) {
-            return;
-          }
+          collection.forEach((route) => {
+            const routeId = getRouteId(route);
+            if (!routeId || userAscentDetails.has(routeId)) {
+              return;
+            }
 
-          const gradeValue = normalizeGradeValue(entry.grade);
-          const ascended = entry.ascended === true;
+            const entry = getRouteScoreEntry(route, normalizedUid);
+            if (!entry) {
+              return;
+            }
 
-          const ascentDetails = {
-            ascended,
-            grade: gradeValue,
-          };
+            const gradeValue = normalizeGradeValue(entry.grade);
+            const ascended = entry.ascended === true;
 
-          userAscentDetails.set(routeId, ascentDetails);
+            const ascentDetails = {
+              ascended,
+              grade: gradeValue,
+            };
 
-          if (ascended) {
-            ascendedRoutes.add(routeId);
-          }
-        });
+            userAscentDetails.set(routeId, ascentDetails);
+
+            if (ascended) {
+              ascendedRoutes.add(routeId);
+            }
+          });
+        };
+
+        processCollection(allRoutes);
+        if (routes !== allRoutes) {
+          processCollection(routes);
+        }
 
         synchroniseAscentsWithRoutes();
       }
@@ -5267,21 +5295,6 @@
         return [];
       }
 
-      function getRouteScoresMap(routeId) {
-        if (typeof routeId !== 'string' || !routeId.trim()) {
-          return new Map();
-        }
-
-        const normalizedId = routeId.trim();
-        let map = routeScoresCache.get(normalizedId);
-        if (!(map instanceof Map)) {
-          map = new Map();
-          routeScoresCache.set(normalizedId, map);
-        }
-
-        return map;
-      }
-
       function getRouteId(route) {
         if (!route) {
           return '';
@@ -5380,6 +5393,90 @@
         };
       }
 
+      function ensureRouteScoresMap(route) {
+        if (!route) {
+          return null;
+        }
+
+        if (route.scores instanceof Map) {
+          return route.scores;
+        }
+
+        const map = new Map();
+
+        if (Array.isArray(route.scores)) {
+          route.scores.forEach((value) => {
+            const userId = typeof value?.userId === 'string' ? value.userId.trim() : '';
+            if (!userId) {
+              return;
+            }
+            map.set(userId, normalizeRouteScoreEntry(value));
+          });
+        } else if (route.scores && typeof route.scores === 'object') {
+          Object.entries(route.scores).forEach(([key, value]) => {
+            if (typeof key === 'string' && key.trim()) {
+              map.set(key.trim(), normalizeRouteScoreEntry(value));
+            }
+          });
+        }
+
+        route.scores = map;
+        return map;
+      }
+
+      function getRouteScoreEntry(route, userId) {
+        const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
+        if (!route || !normalizedUserId) {
+          return null;
+        }
+
+        const scoresMap = ensureRouteScoresMap(route);
+        if (scoresMap instanceof Map) {
+          return scoresMap.get(normalizedUserId) ?? null;
+        }
+
+        return null;
+      }
+
+      function updateRouteScoreEntry(routeId, userId, details) {
+        const normalizedRouteId = typeof routeId === 'string' ? routeId.trim() : '';
+        const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
+
+        if (!normalizedRouteId || !normalizedUserId) {
+          return;
+        }
+
+        const normalizedEntry = details ? normalizeRouteScoreEntry(details) : null;
+
+        const applyUpdate = (collection) => {
+          if (!Array.isArray(collection)) {
+            return;
+          }
+
+          collection.forEach((route) => {
+            if (getRouteId(route) !== normalizedRouteId) {
+              return;
+            }
+
+            const scoresMap = ensureRouteScoresMap(route);
+            if (!(scoresMap instanceof Map)) {
+              return;
+            }
+
+            if (normalizedEntry) {
+              scoresMap.set(normalizedUserId, normalizedEntry);
+            } else {
+              scoresMap.delete(normalizedUserId);
+            }
+          });
+        };
+
+        applyUpdate(routes);
+        if (allRoutes !== routes) {
+          applyUpdate(allRoutes);
+        }
+      }
+
       function extractNumericGradesFromScoresMap(scoresMap) {
         const grades = [];
 
@@ -5430,22 +5527,21 @@
         return (sorted[midpoint - 1] + sorted[midpoint]) / 2;
       }
 
+      function computeMedianGradeFromRouteScores(scores) {
+        return computeMedianGrade(extractNumericGradesFromScoresMap(scores));
+      }
+
       function computeMedianGradeForRoute(routeId) {
         if (!routeId) {
           return null;
         }
 
-        const scoresMap = routeScoresCache.get(routeId);
-        let grades = extractNumericGradesFromScoresMap(scoresMap);
-
-        if (!grades.length) {
-          const directRoute = findRouteById(routeId);
-          if (directRoute && directRoute.scores) {
-            grades = extractNumericGradesFromScoresMap(directRoute.scores);
-          }
+        const directRoute = findRouteById(routeId);
+        if (directRoute) {
+          return computeMedianGradeFromRouteScores(directRoute.scores);
         }
 
-        return computeMedianGrade(grades);
+        return null;
       }
 
       async function loadBetatipUpvotes(betatipId) {
@@ -5565,6 +5661,11 @@
           return null;
         }
 
+        const directMedian = computeMedianGradeFromRouteScores(route?.scores);
+        if (typeof directMedian === 'number' && Number.isFinite(directMedian)) {
+          return directMedian;
+        }
+
         const routeId = getRouteId(route);
         const medianGrade = computeMedianGradeForRoute(routeId);
         return typeof medianGrade === 'number' && Number.isFinite(medianGrade)
@@ -5575,6 +5676,11 @@
       function resolveProgressionGradeValue(route) {
         if (!route) {
           return null;
+        }
+
+        const directMedian = computeMedianGradeFromRouteScores(route?.scores);
+        if (typeof directMedian === 'number' && Number.isFinite(directMedian)) {
+          return directMedian;
         }
 
         const routeId = getRouteId(route);
@@ -6081,13 +6187,18 @@
 
             const countSr = document.createElement('span');
             countSr.className = 'sr-only';
+            let countMessage = '';
             if (upvoteCount === 0) {
-              countSr.textContent = 'No upvotes yet';
+              countMessage = 'No upvotes yet';
             } else if (upvoteCount === 1) {
-              countSr.textContent = '1 upvote';
+              countMessage = '1 upvote';
             } else {
-              countSr.textContent = `${upvoteCount} upvotes`;
+              countMessage = `${upvoteCount} upvotes`;
             }
+            if (hasUpvoted) {
+              countMessage = `${countMessage}. You upvoted this beta tip.`;
+            }
+            countSr.textContent = countMessage;
             body.appendChild(countSr);
 
             const textEl = document.createElement('p');
@@ -6110,6 +6221,9 @@
             icon.className = 'betatip-upvote-icon';
             icon.setAttribute('aria-hidden', 'true');
             icon.textContent = '👍';
+            if (hasUpvoted) {
+              icon.classList.add('is-upvoted');
+            }
             upvoteButton.appendChild(icon);
 
             const srLabel = document.createElement('span');
@@ -6379,12 +6493,7 @@
             userAscentDetails.set(routeId, nextEntry);
           }
 
-          let scoresMap = routeScoresCache.get(routeId);
-          if (!(scoresMap instanceof Map)) {
-            scoresMap = new Map();
-            routeScoresCache.set(routeId, scoresMap);
-          }
-          scoresMap.set(userId, normalizeRouteScoreEntry(userPayload));
+          updateRouteScoreEntry(routeId, userId, userPayload);
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
@@ -7135,7 +7244,7 @@
               getDocs(collection(db, 'routes_users_betatips')),
             ]);
 
-          routeScoresCache.clear();
+          const routeScoresByRoute = new Map();
           routeBetatipsCache.clear();
 
           scoresSnapshot.forEach((docSnap) => {
@@ -7149,7 +7258,11 @@
             }
 
             const normalizedEntry = normalizeRouteScoreEntry(docSnap.data() || {});
-            const scoresMap = getRouteScoresMap(routeUid);
+            let scoresMap = routeScoresByRoute.get(routeUid);
+            if (!(scoresMap instanceof Map)) {
+              scoresMap = new Map();
+              routeScoresByRoute.set(routeUid, scoresMap);
+            }
             scoresMap.set(userUid, normalizedEntry);
           });
 
@@ -7264,7 +7377,10 @@
               const routeUid =
                 typeof data.uid === 'string' && data.uid.trim() ? data.uid.trim() : docSnap.id;
               const betatipsMap = getRouteBetatipsMap(routeUid);
-              const scoresMap = getRouteScoresMap(routeUid);
+              const scoresMap =
+                routeScoresByRoute.get(routeUid) instanceof Map
+                  ? new Map(routeScoresByRoute.get(routeUid))
+                  : new Map();
               if (data.hiddenFromClimbers === true) {
                 return null;
               }
@@ -7349,7 +7465,6 @@
           routes = [];
           focusedRouteId = null;
           updateClearFocusButton();
-          routeScoresCache.clear();
           routeBetatipsCache.clear();
           renderProgressionList();
           redraw();
@@ -7375,10 +7490,8 @@
 
         const routeRef = doc(db, 'routes', routeId, 'scores', userId);
         const isAscended = ascendedRoutes.has(routeId);
-        const previousDetails =
-          routeScoresCache.get(routeId) instanceof Map
-            ? routeScoresCache.get(routeId).get(userId)
-            : null;
+        const targetRoute = findRouteById(routeId) || route;
+        const previousDetails = getRouteScoreEntry(targetRoute, userId);
         const persistedGrade = normalizeGradeValue(previousDetails?.grade);
         const fallbackGrade = getUserGradeForRoute(routeId);
         const normalizedGrade =
@@ -7404,12 +7517,7 @@
             grade: sanitizedGrade,
           });
 
-          let scoresMap = routeScoresCache.get(routeId);
-          if (!(scoresMap instanceof Map)) {
-            scoresMap = new Map();
-            routeScoresCache.set(routeId, scoresMap);
-          }
-          scoresMap.set(userId, normalizeRouteScoreEntry(userPayload));
+          updateRouteScoreEntry(routeId, userId, userPayload);
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);

@@ -1142,6 +1142,112 @@
       return { imported, failed };
     }
 
+    const isPlainObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value));
+
+    function buildRouteScoreSubcollection(entries) {
+      if (!entries) {
+        return null;
+      }
+
+      const normalized = {};
+
+      const appendScore = (userId, value) => {
+        const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
+        if (!normalizedUserId) {
+          return;
+        }
+
+        if (value === null || value === undefined) {
+          return;
+        }
+
+        let candidate;
+
+        if (isPlainObject(value)) {
+          const { id: _ignoredId, userId: _ignoredUserId, uid: _ignoredUid, ...rest } = value;
+
+          candidate = {};
+          for (const [key, nestedValue] of Object.entries(rest)) {
+            if (nestedValue !== undefined) {
+              candidate[key] = nestedValue;
+            }
+          }
+        } else if (typeof value === 'number' || typeof value === 'boolean') {
+          candidate = { value };
+        } else if (typeof value === 'string') {
+          const trimmed = value.trim();
+          if (!trimmed) {
+            return;
+          }
+          candidate = { value: trimmed };
+        } else {
+          return;
+        }
+
+        if (!isPlainObject(candidate) || Object.keys(candidate).length === 0) {
+          return;
+        }
+
+        normalized[normalizedUserId] = candidate;
+      };
+
+      if (Array.isArray(entries)) {
+        for (const entry of entries) {
+          if (!isPlainObject(entry)) {
+            continue;
+          }
+
+          const candidateId =
+            (typeof entry.id === 'string' && entry.id.trim()) ||
+            (typeof entry.userId === 'string' && entry.userId.trim()) ||
+            (typeof entry.uid === 'string' && entry.uid.trim()) ||
+            '';
+
+          const { id: _ignoredId, userId: _ignoredUserId, uid: _ignoredUid, ...rest } = entry;
+
+          appendScore(candidateId, rest);
+        }
+      } else if (isPlainObject(entries)) {
+        for (const [userId, value] of Object.entries(entries)) {
+          if (isPlainObject(value)) {
+            const { id: _ignoredId, userId: _ignoredUserId, uid: _ignoredUid, ...rest } = value;
+            appendScore(userId, rest);
+          } else {
+            appendScore(userId, value);
+          }
+        }
+      }
+
+      return Object.keys(normalized).length > 0 ? normalized : null;
+    }
+
+    function moveRouteScoresToSubcollection(entry) {
+      if (!isPlainObject(entry) || !('scores' in entry)) {
+        return entry;
+      }
+
+      const existingSubcollections = entry[SUBCOLLECTIONS_FIELD];
+      if (isPlainObject(existingSubcollections) && existingSubcollections.scores) {
+        delete entry.scores;
+        return entry;
+      }
+
+      const subcollectionEntries = buildRouteScoreSubcollection(entry.scores);
+      delete entry.scores;
+
+      if (!subcollectionEntries) {
+        return entry;
+      }
+
+      if (!isPlainObject(entry[SUBCOLLECTIONS_FIELD])) {
+        entry[SUBCOLLECTIONS_FIELD] = {};
+      }
+
+      entry[SUBCOLLECTIONS_FIELD].scores = subcollectionEntries;
+
+      return entry;
+    }
+
     async function importCollectionEntries(collectionKey, entries) {
       const normalizedEntries = normalizeDumpEntries(entries);
 
@@ -1161,6 +1267,10 @@
         }
 
         try {
+          if (collectionKey === ROUTE_COLLECTION) {
+            moveRouteScoresToSubcollection(entry);
+          }
+
           const payload = buildFirestorePayloadFromDumpEntry(entry);
 
           if (shouldPreserveAdminIdentity(collectionKey, rawId, payload)) {
