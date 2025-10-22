@@ -5492,6 +5492,74 @@
         };
       }
 
+      function sanitizeUserEntry(details) {
+        const normalizedDetails =
+          details && typeof details === 'object' ? details : {};
+
+        const normalizedGrade = normalizeGradeValue(normalizedDetails.grade);
+        let ascendedValue = null;
+        if (normalizedDetails.ascended === true) {
+          ascendedValue = true;
+        } else if (normalizedDetails.ascended === false) {
+          ascendedValue = false;
+        }
+
+        const betatipValue =
+          typeof normalizedDetails.betatip === 'string'
+            ? normalizedDetails.betatip.replace(/\r\n/g, '\n').trim()
+            : null;
+
+        return {
+          grade: normalizedGrade,
+          ascended: ascendedValue,
+          betatip: betatipValue || null,
+        };
+      }
+
+      function normalizeRouteUsers(rawUsers) {
+        const map = new Map();
+
+        if (!rawUsers || typeof rawUsers !== 'object') {
+          return map;
+        }
+
+        const assignEntry = (key, value) => {
+          const normalizedKey = typeof key === 'string' ? key.trim() : '';
+          if (!normalizedKey) {
+            return;
+          }
+
+          map.set(normalizedKey, sanitizeUserEntry(value));
+        };
+
+        if (rawUsers instanceof Map) {
+          rawUsers.forEach((value, key) => {
+            assignEntry(key, value);
+          });
+          return map;
+        }
+
+        Object.entries(rawUsers).forEach(([key, value]) => {
+          assignEntry(key, value);
+        });
+
+        return map;
+      }
+
+      function ensureRouteUsersMap(route) {
+        if (!route) {
+          return new Map();
+        }
+
+        if (route.users instanceof Map) {
+          return route.users;
+        }
+
+        const normalized = normalizeRouteUsers(route.users);
+        route.users = normalized;
+        return normalized;
+      }
+
       function extractNumericGradesFromScoresMap(scoresMap) {
         const grades = [];
 
@@ -5505,6 +5573,31 @@
             grades.push(gradeValue);
           }
         });
+
+        return grades;
+      }
+
+      function extractNumericGradesFromRouteUsers(users) {
+        const grades = [];
+
+        if (users instanceof Map) {
+          users.forEach((value) => {
+            const gradeValue = normalizeGradeValue(value?.grade);
+            if (typeof gradeValue === 'number' && Number.isFinite(gradeValue)) {
+              grades.push(gradeValue);
+            }
+          });
+          return grades;
+        }
+
+        if (users && typeof users === 'object') {
+          Object.values(users).forEach((value) => {
+            const gradeValue = normalizeGradeValue(value?.grade);
+            if (typeof gradeValue === 'number' && Number.isFinite(gradeValue)) {
+              grades.push(gradeValue);
+            }
+          });
+        }
 
         return grades;
       }
@@ -5524,13 +5617,46 @@
         return (sorted[midpoint - 1] + sorted[midpoint]) / 2;
       }
 
-      function computeMedianGradeForRoute(routeId) {
-        if (!routeId) {
+      function findRouteById(routeId) {
+        if (typeof routeId !== 'string' || !routeId.trim()) {
           return null;
         }
 
-        const scoresMap = routeScoresCache.get(routeId);
-        const grades = extractNumericGradesFromScoresMap(scoresMap);
+        const normalizedId = routeId.trim();
+        const collections = [routes, allRoutes];
+
+        for (const collection of collections) {
+          if (!Array.isArray(collection)) {
+            continue;
+          }
+
+          const match = collection.find((entry) => getRouteId(entry) === normalizedId);
+          if (match) {
+            return match;
+          }
+        }
+
+        return null;
+      }
+
+      function computeMedianGradeForRoute(routeOrId) {
+        if (!routeOrId) {
+          return null;
+        }
+
+        const targetRoute =
+          typeof routeOrId === 'string'
+            ? findRouteById(routeOrId)
+            : typeof routeOrId === 'object' && routeOrId !== null
+            ? routeOrId
+            : null;
+
+        if (!targetRoute) {
+          return null;
+        }
+
+        const usersMap = ensureRouteUsersMap(targetRoute);
+        const grades = extractNumericGradesFromRouteUsers(usersMap);
         return computeMedianGrade(grades);
       }
 
@@ -5576,8 +5702,7 @@
           return null;
         }
 
-        const routeId = getRouteId(route);
-        const medianGrade = computeMedianGradeForRoute(routeId);
+        const medianGrade = computeMedianGradeForRoute(route);
         return typeof medianGrade === 'number' && Number.isFinite(medianGrade)
           ? medianGrade
           : null;
@@ -5588,8 +5713,7 @@
           return null;
         }
 
-        const routeId = getRouteId(route);
-        const medianGrade = computeMedianGradeForRoute(routeId);
+        const medianGrade = computeMedianGradeForRoute(route);
         return typeof medianGrade === 'number' && Number.isFinite(medianGrade)
           ? medianGrade
           : null;
@@ -6320,6 +6444,17 @@
             routeScoresCache.set(routeId, scoresMap);
           }
           scoresMap.set(userId, normalizeRouteScoreEntry(userPayload));
+
+          const targetRoute = findRouteById(routeId) || route;
+          const usersMap = ensureRouteUsersMap(targetRoute);
+          const existingDetails = usersMap instanceof Map ? usersMap.get(userId) || {} : {};
+          if (usersMap instanceof Map) {
+            usersMap.set(userId, {
+              ...existingDetails,
+              grade: sanitizedGrade,
+              ascended: isAscended,
+            });
+          }
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
@@ -7100,6 +7235,8 @@
 
               const grade = normalizeRouteGradeField(data.grade);
 
+              const usersMap = normalizeRouteUsers(data.users);
+
               const pointsByType = normalizeRoutePointsByType(
                 data.points,
                 data.pathType,
@@ -7160,6 +7297,7 @@
                 gradeBarWidth: wallSettings.gradeBarWidth,
                 gradeBarTransparency: wallSettings.gradeBarTransparency,
                 unfocusedTransparency: wallSettings.unfocusedTransparency,
+                users: usersMap,
                 betatips: betatipsMap,
               };
             })
@@ -7238,6 +7376,17 @@
             routeScoresCache.set(routeId, scoresMap);
           }
           scoresMap.set(userId, normalizeRouteScoreEntry(userPayload));
+
+          const targetRoute = findRouteById(routeId) || route;
+          const usersMap = ensureRouteUsersMap(targetRoute);
+          const existingDetails = usersMap instanceof Map ? usersMap.get(userId) || {} : {};
+          if (usersMap instanceof Map) {
+            usersMap.set(userId, {
+              ...existingDetails,
+              grade: sanitizedGrade,
+              ascended: nextAscended,
+            });
+          }
 
           synchroniseAscentsWithRoutes({ shouldRedraw: false });
           updateTooltipContent(route);
@@ -7453,8 +7602,7 @@
           return null;
         }
 
-        const routeId = getRouteId(route);
-        const grade = computeMedianGradeForRoute(routeId);
+        const grade = computeMedianGradeForRoute(route);
         return getGradeColorForValue(grade);
       }
 
