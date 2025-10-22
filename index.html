@@ -5250,16 +5250,22 @@
         return null;
       }
 
+      const normalizeUpvoteIdentifier = (value) => {
+        if (typeof value !== 'string') {
+          return '';
+        }
+
+        const trimmed = value.trim();
+        return trimmed ? trimmed : '';
+      };
+
       function normalizeUpvoteList(value) {
         const normalized = new Set();
 
         const addCandidate = (candidate) => {
-          if (typeof candidate !== 'string') {
-            return;
-          }
-          const normalizedName = normalizeUsername(candidate);
-          if (normalizedName) {
-            normalized.add(normalizedName);
+          const normalizedId = normalizeUpvoteIdentifier(candidate);
+          if (normalizedId) {
+            normalized.add(normalizedId);
           }
         };
 
@@ -5268,6 +5274,7 @@
         } else if (Array.isArray(value)) {
           value.forEach(addCandidate);
         } else if (value && typeof value === 'object') {
+          Object.keys(value).forEach(addCandidate);
           Object.values(value).forEach(addCandidate);
         } else {
           addCandidate(value);
