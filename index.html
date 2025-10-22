@@ -1142,7 +1142,7 @@
         justify-content: flex-start;
         gap: 0.5rem;
         margin-bottom: 0.35rem;
-        padding-right: calc(var(--tooltip-grade-size, 3.75rem) + 1.25rem);
+        padding-right: calc(var(--tooltip-grade-size, 4.875rem) + 1.25rem);
       }
 
       .route-tooltip .tooltip-title {
@@ -1208,20 +1208,18 @@
         height: 1.65rem;
         min-width: 1.65rem;
         border-radius: 999px;
-        border: 2px solid transparent;
         font-size: 1.05rem;
         line-height: 1;
-        transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease,
-          box-shadow 0.2s ease;
-        color: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.7);
+        transition: color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+        color: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.85);
+        background: transparent;
         pointer-events: none;
       }
 
       .route-tooltip .betatip-upvote-icon.is-upvoted {
-        border-color: rgba(59, 130, 246, 0.9);
-        background: rgba(59, 130, 246, 0.18);
-        color: #3b82f6;
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        background: rgba(59, 130, 246, 0.85);
+        color: #0f172a;
+        box-shadow: 0 0 0 0.15rem rgba(59, 130, 246, 0.35);
       }
 
       .route-tooltip .betatip-upvote-count {
@@ -1378,21 +1376,21 @@
         flex-direction: column;
         align-items: center;
         gap: 0.5rem;
-        min-width: var(--tooltip-grade-size, 3.75rem);
+        min-width: var(--tooltip-grade-size, 4.875rem);
         z-index: 1;
         pointer-events: none;
       }
 
       .route-tooltip .tooltip-grade-badge {
-        width: var(--tooltip-grade-size, 3.75rem);
-        height: var(--tooltip-grade-size, 3.75rem);
+        width: var(--tooltip-grade-size, 4.875rem);
+        height: var(--tooltip-grade-size, 4.875rem);
         border-radius: 50%;
         border: var(--tooltip-grade-stroke-width, 2px) solid var(--tooltip-accent, #7ed957);
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 700;
-        font-size: var(--tooltip-grade-font-size, 2.4rem);
+        font-size: var(--tooltip-grade-font-size, 3.12rem);
         line-height: 1;
         color: var(--tooltip-on-accent, #000);
         background: rgb(var(--tooltip-accent-rgb, 126, 217, 87));
@@ -5252,16 +5250,22 @@
         return null;
       }
 
+      const normalizeUpvoteIdentifier = (value) => {
+        if (typeof value !== 'string') {
+          return '';
+        }
+
+        const trimmed = value.trim();
+        return trimmed ? trimmed : '';
+      };
+
       function normalizeUpvoteList(value) {
         const normalized = new Set();
 
         const addCandidate = (candidate) => {
-          if (typeof candidate !== 'string') {
-            return;
-          }
-          const normalizedName = normalizeUsername(candidate);
-          if (normalizedName) {
-            normalized.add(normalizedName);
+          const normalizedId = normalizeUpvoteIdentifier(candidate);
+          if (normalizedId) {
+            normalized.add(normalizedId);
           }
         };
 
@@ -5270,6 +5274,7 @@
         } else if (Array.isArray(value)) {
           value.forEach(addCandidate);
         } else if (value && typeof value === 'object') {
+          Object.keys(value).forEach(addCandidate);
           Object.values(value).forEach(addCandidate);
         } else {
           addCandidate(value);
