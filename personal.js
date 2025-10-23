@@ -43,6 +43,9 @@ const signOutButton = document.getElementById('signOutButton');
 const setterLink = document.getElementById('setterLink');
 const setterLinkBaseHref = setterLink?.getAttribute('href') || 'setter.html';
 const tooltip = document.getElementById('routeTooltip');
+const routeOverlapPrompt = document.getElementById('routeOverlapPrompt');
+const routeOverlapList = document.getElementById('routeOverlapList');
+const routeOverlapCloseButton = document.getElementById('routeOverlapClose');
 const infoButton = document.getElementById('infoButton');
 const infoPopover = document.getElementById('infoPopover');
 const startPersonalTutorialButton = document.getElementById('startPersonalTutorialButton');
@@ -115,6 +118,9 @@ let tutorialSteps = [];
 let tutorialSecondaryActionMode = 'back';
 let tutorialHighlightedRouteId = null;
 let tutorialPreviousViewMode = null;
+
+let activeOverlapPromptContext = null;
+let overlapPromptReturnFocus = null;
 
 let tutorialOptOut = false;
 let tutorialAutoStartTimer = null;
@@ -1312,17 +1318,21 @@ function handleInfoRequestFor(targetKey, event, context = {}) {
   return true;
 }
 
-const PATH_TYPE_BREZER = 'brezer';
+const PATH_TYPE_BEZIER = 'bezier';
+const LEGACY_PATH_TYPE_BEZIER = 'brezer';
 const PATH_TYPE_HOLLOW_POINT = 'hollow-point';
 const PATH_TYPE_FILLED_POINT = 'filled-point';
 const PATH_TYPE_RECTANGLE = 'rectangle';
 const OVERLAP_GROUP_TYPE_POINT = 'point-group';
-const DEFAULT_PATH_TYPE = PATH_TYPE_BREZER;
+const DEFAULT_PATH_TYPE = PATH_TYPE_BEZIER;
 const MIN_POINT_DIAMETER = 12;
 const MAX_POINT_DIAMETER = 160;
 const DEFAULT_HOLLOW_POINT_DIAMETER = 48;
 const DEFAULT_FILLED_POINT_DIAMETER = 48;
 const DEFAULT_POINT_DIAMETER = DEFAULT_HOLLOW_POINT_DIAMETER;
+const MIN_FILLED_POINT_TRANSPARENCY = 0;
+const MAX_FILLED_POINT_TRANSPARENCY = 1;
+const DEFAULT_FILLED_POINT_TRANSPARENCY = 1;
 const MIN_HOLLOW_POINT_LINE_WIDTH = 1;
 const MAX_HOLLOW_POINT_LINE_WIDTH = 48;
 const DEFAULT_HOLLOW_POINT_LINE_WIDTH = Math.max(
@@ -1382,9 +1392,9 @@ const GRADE_COLOR_MAP = new Map([
   [31, '#BD0306'],
 ]);
 const DEFAULT_GRADELESS_COLOR = '#ffffff';
-const MIN_BREZER_STROKE_WIDTH = 2;
-const MAX_BREZER_STROKE_WIDTH = 40;
-const DEFAULT_BREZER_STROKE_WIDTH = 10;
+const MIN_BEZIER_STROKE_WIDTH = 2;
+const MAX_BEZIER_STROKE_WIDTH = 40;
+const DEFAULT_BEZIER_STROKE_WIDTH = 10;
 const VIEW_MODE_ASCENT_STATUS = 'ascent-status';
 const VIEW_MODE_HOLD_COLORS = 'hold-colors';
 const VIEW_MODE_GRADE_COLORS = 'grade-colors';
@@ -1413,8 +1423,8 @@ const ASCENT_STATUS_PROJECT_COLOR = '#4b5563';
 function normalizePathType(value) {
   if (typeof value === 'string') {
     const normalized = value.trim().toLowerCase().replace(/\s+/g, '-');
-    if (normalized === PATH_TYPE_BREZER) {
-      return PATH_TYPE_BREZER;
+    if (normalized === PATH_TYPE_BEZIER || normalized === LEGACY_PATH_TYPE_BEZIER) {
+      return PATH_TYPE_BEZIER;
     }
     if (normalized === PATH_TYPE_RECTANGLE) {
       return PATH_TYPE_RECTANGLE;
@@ -1491,14 +1501,14 @@ function normalizeRectangleSize(value, fallback = DEFAULT_RECTANGLE_WIDTH) {
   return clamped;
 }
 
-function normalizeBrezerStrokeWidth(value) {
+function normalizeBezierStrokeWidth(value) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
-    return DEFAULT_BREZER_STROKE_WIDTH;
+    return DEFAULT_BEZIER_STROKE_WIDTH;
   }
   const clamped = Math.min(
-    Math.max(Math.round(numeric), MIN_BREZER_STROKE_WIDTH),
-    MAX_BREZER_STROKE_WIDTH,
+    Math.max(Math.round(numeric), MIN_BEZIER_STROKE_WIDTH),
+    MAX_BEZIER_STROKE_WIDTH,
   );
   return clamped;
 }
@@ -1548,6 +1558,18 @@ function normalizeUnfocusedTransparency(value) {
   return Math.round(clamped * 1000) / 1000;
 }
 
+function normalizeFilledPointTransparency(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return DEFAULT_FILLED_POINT_TRANSPARENCY;
+  }
+  const clamped = Math.min(
+    Math.max(numeric, MIN_FILLED_POINT_TRANSPARENCY),
+    MAX_FILLED_POINT_TRANSPARENCY,
+  );
+  return Math.round(clamped * 1000) / 1000;
+}
+
 function normalizeWallSettings(raw = {}) {
   if (!raw || typeof raw !== 'object') {
     return {
@@ -1555,9 +1577,10 @@ function normalizeWallSettings(raw = {}) {
       hollowPointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
       hollowPointLineWidth: DEFAULT_HOLLOW_POINT_LINE_WIDTH,
       filledPointDiameter: DEFAULT_FILLED_POINT_DIAMETER,
+      filledPointTransparency: DEFAULT_FILLED_POINT_TRANSPARENCY,
       rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
       rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
-      brezerStrokeWidth: DEFAULT_BREZER_STROKE_WIDTH,
+      bezierStrokeWidth: DEFAULT_BEZIER_STROKE_WIDTH,
       gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
       gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
       gradeBarWidth: DEFAULT_GRADE_BAR_WIDTH,
@@ -1578,6 +1601,9 @@ function normalizeWallSettings(raw = {}) {
     raw.filledPointDiameter ?? raw.pointDiameter,
     DEFAULT_FILLED_POINT_DIAMETER,
   );
+  const filledPointTransparency = normalizeFilledPointTransparency(
+    raw.filledPointTransparency ?? raw.filledPointOpacity,
+  );
   const pointDiameter = hollowPointDiameter;
   const rectangleWidth = normalizeRectangleSize(
     raw.rectangleWidth,
@@ -1587,7 +1613,9 @@ function normalizeWallSettings(raw = {}) {
     raw.rectangleHeight,
     DEFAULT_RECTANGLE_HEIGHT,
   );
-  const brezerStrokeWidth = normalizeBrezerStrokeWidth(raw.brezerStrokeWidth);
+  const bezierStrokeWidth = normalizeBezierStrokeWidth(
+    raw.bezierStrokeWidth ?? raw.brezerStrokeWidth,
+  );
   const gradeBarBaseHeight = normalizeGradeBarHeight(
     raw.gradeBarBaseHeight,
     DEFAULT_GRADE_BAR_BASE_HEIGHT,
@@ -1609,9 +1637,10 @@ function normalizeWallSettings(raw = {}) {
     hollowPointDiameter,
     hollowPointLineWidth,
     filledPointDiameter,
+    filledPointTransparency,
     rectangleWidth,
     rectangleHeight,
-    brezerStrokeWidth,
+    bezierStrokeWidth,
     gradeBarBaseHeight,
     gradeBarMaxHeight,
     gradeBarWidth,
@@ -1665,6 +1694,18 @@ function getRouteHollowPointLineWidth(route) {
   return normalizeHollowPointLineWidth(route?.hollowPointLineWidth, diameter);
 }
 
+function getRouteFilledPointTransparency(route) {
+  if (!route || typeof route !== 'object') {
+    return DEFAULT_FILLED_POINT_TRANSPARENCY;
+  }
+  const value =
+    route.filledPointTransparency ??
+    route.pointTransparency ??
+    route.filledPointOpacity ??
+    route.pointOpacity;
+  return normalizeFilledPointTransparency(value);
+}
+
 const wallSettingsCache = new Map();
 
 const normalizeLocationName = (value) => {
@@ -1698,9 +1739,10 @@ function resolveWallSettings(locationKey, fallback = null) {
     hollowPointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
     hollowPointLineWidth: DEFAULT_HOLLOW_POINT_LINE_WIDTH,
     filledPointDiameter: DEFAULT_FILLED_POINT_DIAMETER,
+    filledPointTransparency: DEFAULT_FILLED_POINT_TRANSPARENCY,
     rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
     rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
-    brezerStrokeWidth: DEFAULT_BREZER_STROKE_WIDTH,
+    bezierStrokeWidth: DEFAULT_BEZIER_STROKE_WIDTH,
     gradeBarBaseHeight: DEFAULT_GRADE_BAR_BASE_HEIGHT,
     gradeBarMaxHeight: DEFAULT_GRADE_BAR_MAX_HEIGHT,
     gradeBarWidth: DEFAULT_GRADE_BAR_WIDTH,
@@ -3521,7 +3563,7 @@ function getRoutePointEntries(route) {
 }
 
 function selectNormalizedPointsForPath(rawPoints, pathType) {
-  const normalizedType = normalizePathType(pathType) || PATH_TYPE_BREZER;
+  const normalizedType = normalizePathType(pathType) || PATH_TYPE_BEZIER;
 
   const extractPoints = (value) => {
     if (!Array.isArray(value)) {
@@ -3554,7 +3596,7 @@ function selectNormalizedPointsForPath(rawPoints, pathType) {
     }
 
     const fallbackTypes = [
-      PATH_TYPE_BREZER,
+      PATH_TYPE_BEZIER,
       PATH_TYPE_HOLLOW_POINT,
       PATH_TYPE_FILLED_POINT,
       PATH_TYPE_RECTANGLE,
@@ -5211,6 +5253,235 @@ function hideTooltip(options = {}) {
   pinnedPosition = null;
 }
 
+function isRouteOverlapPromptOpen() {
+  return Boolean(routeOverlapPrompt && !routeOverlapPrompt.classList.contains('hidden'));
+}
+
+function handleRouteOverlapPromptKeyDown(event) {
+  if (!isRouteOverlapPromptOpen()) {
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeRouteOverlapPrompt();
+    return;
+  }
+
+  if (event.key === 'Tab') {
+    const optionButtons = routeOverlapList
+      ? Array.from(routeOverlapList.querySelectorAll('button.route-overlap-option'))
+      : [];
+    const focusableElements = [routeOverlapCloseButton, ...optionButtons].filter(
+      (element) => element instanceof HTMLElement,
+    );
+
+    if (!focusableElements.length) {
+      event.preventDefault();
+      return;
+    }
+
+    const activeElement = document.activeElement;
+    const currentIndex = focusableElements.indexOf(activeElement);
+
+    if (currentIndex === -1) {
+      event.preventDefault();
+      const target = event.shiftKey
+        ? focusableElements[focusableElements.length - 1]
+        : focusableElements[0];
+      target.focus({ preventScroll: true });
+      return;
+    }
+
+    if (event.shiftKey && currentIndex === 0) {
+      event.preventDefault();
+      focusableElements[focusableElements.length - 1].focus({ preventScroll: true });
+      return;
+    }
+
+    if (!event.shiftKey && currentIndex === focusableElements.length - 1) {
+      event.preventDefault();
+      focusableElements[0].focus({ preventScroll: true });
+    }
+  }
+}
+
+function handleRouteOverlapPromptPointerDown(event) {
+  if (!isRouteOverlapPromptOpen() || !routeOverlapPrompt) {
+    return;
+  }
+
+  const card = routeOverlapPrompt.querySelector('.route-overlap-card');
+  if (!card || card.contains(event.target)) {
+    return;
+  }
+
+  closeRouteOverlapPrompt();
+}
+
+function closeRouteOverlapPrompt(options = {}) {
+  const { restoreFocus = true } = options;
+
+  if (!routeOverlapPrompt) {
+    activeOverlapPromptContext = null;
+    overlapPromptReturnFocus = null;
+    return;
+  }
+
+  if (!isRouteOverlapPromptOpen()) {
+    activeOverlapPromptContext = null;
+    overlapPromptReturnFocus = null;
+    return;
+  }
+
+  routeOverlapPrompt.classList.add('hidden');
+  routeOverlapPrompt.setAttribute('aria-hidden', 'true');
+
+  if (routeOverlapList) {
+    routeOverlapList.replaceChildren();
+    routeOverlapList.scrollTop = 0;
+  }
+
+  document.removeEventListener('keydown', handleRouteOverlapPromptKeyDown, true);
+  document.removeEventListener('pointerdown', handleRouteOverlapPromptPointerDown, true);
+
+  const focusTarget = restoreFocus ? overlapPromptReturnFocus : null;
+  overlapPromptReturnFocus = null;
+  activeOverlapPromptContext = null;
+
+  if (focusTarget && typeof focusTarget.focus === 'function') {
+    focusTarget.focus({ preventScroll: true });
+  }
+}
+
+function buildRouteOverlapOption(route) {
+  const item = document.createElement('li');
+  item.setAttribute('role', 'presentation');
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'route-overlap-option';
+  button.dataset.routeId = route.id;
+  button.setAttribute('role', 'option');
+
+  const backgroundColor = getRouteDisplayColor(route);
+  const textColor = getRouteOverlapTextColor(backgroundColor);
+  if (backgroundColor) {
+    button.style.setProperty('--route-overlap-option-background', backgroundColor);
+  }
+  if (textColor) {
+    button.style.setProperty('--route-overlap-option-color', textColor);
+  }
+
+  const name = document.createElement('span');
+  name.className = 'route-overlap-option-name';
+  const providedTitle =
+    typeof route?.title === 'string' && route.title.trim() ? route.title.trim() : '';
+  const providedName =
+    typeof route?.name === 'string' && route.name.trim() ? route.name.trim() : '';
+  const fallbackId = typeof route?.id === 'string' && route.id.trim() ? route.id.trim() : '';
+  const routeName = providedTitle || providedName || fallbackId || 'Untitled Route';
+  name.textContent = routeName;
+
+  const grade = document.createElement('span');
+  grade.className = 'route-overlap-option-grade';
+  const gradeValue = resolveTooltipGradeValue(route);
+  const gradeDisplay = formatGradeDisplay(gradeValue);
+  grade.textContent = gradeDisplay;
+
+  const ariaParts = [routeName];
+  if (gradeDisplay && gradeDisplay !== '—') {
+    ariaParts.push(`grade ${gradeDisplay}`);
+  }
+  button.setAttribute('aria-label', ariaParts.join(', '));
+
+  button.append(name, grade);
+  button.addEventListener('click', handleRouteOverlapOptionSelect);
+
+  item.appendChild(button);
+  return item;
+}
+
+function openRouteOverlapPrompt(routeIds, entry = null) {
+  if (!routeOverlapPrompt || !routeOverlapList) {
+    return false;
+  }
+
+  const uniqueRouteIds = Array.from(
+    new Set(
+      Array.isArray(routeIds)
+        ? routeIds.filter((value) => typeof value === 'string' && value.trim())
+        : [],
+    ),
+  );
+
+  const resolvedRoutes = uniqueRouteIds
+    .map((routeId) => routes.find((route) => route?.id === routeId))
+    .filter(Boolean);
+
+  if (resolvedRoutes.length <= 1) {
+    return false;
+  }
+
+  closeRouteOverlapPrompt({ restoreFocus: false });
+
+  overlapPromptReturnFocus = document.activeElement instanceof HTMLElement
+    ? document.activeElement
+    : null;
+
+  activeOverlapPromptContext = {
+    routeIds: uniqueRouteIds,
+    canvasX: entry?.canvasX ?? null,
+    canvasY: entry?.canvasY ?? null,
+  };
+
+  const fragment = document.createDocumentFragment();
+  resolvedRoutes.forEach((route) => {
+    fragment.appendChild(buildRouteOverlapOption(route));
+  });
+
+  routeOverlapList.replaceChildren(fragment);
+  routeOverlapList.scrollTop = 0;
+
+  routeOverlapPrompt.classList.remove('hidden');
+  routeOverlapPrompt.setAttribute('aria-hidden', 'false');
+
+  const firstOption = routeOverlapList.querySelector('button.route-overlap-option');
+  if (firstOption) {
+    firstOption.focus({ preventScroll: true });
+  }
+
+  document.addEventListener('keydown', handleRouteOverlapPromptKeyDown, true);
+  document.addEventListener('pointerdown', handleRouteOverlapPromptPointerDown, true);
+
+  hideTooltip({ force: true });
+
+  return true;
+}
+
+function handleRouteOverlapOptionSelect(event) {
+  const button = event.currentTarget;
+  if (!button || typeof button.dataset?.routeId !== 'string') {
+    closeRouteOverlapPrompt();
+    return;
+  }
+
+  const selectedRoute = routes.find((route) => route?.id === button.dataset.routeId);
+  const context = activeOverlapPromptContext;
+  closeRouteOverlapPrompt();
+
+  if (!selectedRoute) {
+    return;
+  }
+
+  resetLastFocusActivation();
+  focusRoute(selectedRoute);
+
+  const clientX = Number.isFinite(context?.canvasX) ? context.canvasX : 0;
+  const clientY = Number.isFinite(context?.canvasY) ? context.canvasY : 0;
+  showTooltip(selectedRoute, clientX, clientY, { pin: true });
+}
+
 function updateClearFocusButton() {
   if (!clearFocusButton) {
     return;
@@ -5361,11 +5632,44 @@ function getRouteEntryAtClientPoint(clientX, clientY) {
 
   for (let index = routeInteractionEntries.length - 1; index >= 0; index -= 1) {
     const entry = routeInteractionEntries[index];
-    if (!entry || !entry.route) {
+    if (
+      !entry ||
+      (!entry.route && (!Array.isArray(entry.routes) || entry.routes.length === 0))
+    ) {
       continue;
     }
 
-    if (entry.type === 'circle') {
+    if (entry.type === 'overlap-circle') {
+      const radius = Number(entry.r) || 0;
+      const cx = Number(entry.cx);
+      const cy = Number(entry.cy);
+      if (radius > 0) {
+        const distance = distanceSquared(x, y, cx, cy);
+        if (distance <= radius * radius) {
+          return {
+            route: entry.route ?? null,
+            routes: Array.isArray(entry.routes) ? [...entry.routes] : [],
+            canvasX: entry.canvasX ?? cx,
+            canvasY: entry.canvasY ?? cy,
+            overlap: true,
+          };
+        }
+      }
+    } else if (entry.type === 'overlap-rect') {
+      const left = Number(entry.left);
+      const right = Number(entry.right);
+      const top = Number(entry.top);
+      const bottom = Number(entry.bottom);
+      if (x >= left && x <= right && y >= top && y <= bottom) {
+        return {
+          route: entry.route ?? null,
+          routes: Array.isArray(entry.routes) ? [...entry.routes] : [],
+          canvasX: entry.canvasX ?? (left + right) / 2,
+          canvasY: entry.canvasY ?? (top + bottom) / 2,
+          overlap: true,
+        };
+      }
+    } else if (entry.type === 'circle') {
       const radius = Number(entry.r) || 0;
       if (radius > 0) {
         const distance = distanceSquared(x, y, Number(entry.cx), Number(entry.cy));
@@ -5699,9 +6003,10 @@ async function loadRoutes() {
             data.hollowPointDiameter ?? data.pointDiameter,
           ),
           filledPointDiameter: data.filledPointDiameter ?? data.pointDiameter,
+          filledPointTransparency: data.filledPointTransparency ?? data.filledPointOpacity,
           rectangleWidth: data.rectangleWidth,
           rectangleHeight: data.rectangleHeight,
-          brezerStrokeWidth: data.brezerStrokeWidth,
+          bezierStrokeWidth: data.bezierStrokeWidth ?? data.brezerStrokeWidth,
           gradeBarBaseHeight: data.gradeBarBaseHeight,
           gradeBarMaxHeight: data.gradeBarMaxHeight,
           gradeBarWidth: data.gradeBarWidth,
@@ -5729,9 +6034,10 @@ async function loadRoutes() {
           hollowPointDiameter: wallSettings.hollowPointDiameter,
           hollowPointLineWidth: wallSettings.hollowPointLineWidth,
           filledPointDiameter: wallSettings.filledPointDiameter,
+          filledPointTransparency: wallSettings.filledPointTransparency,
           rectangleWidth: wallSettings.rectangleWidth,
           rectangleHeight: wallSettings.rectangleHeight,
-          brezerStrokeWidth: wallSettings.brezerStrokeWidth,
+          bezierStrokeWidth: wallSettings.bezierStrokeWidth,
           gradeBarBaseHeight: wallSettings.gradeBarBaseHeight,
           gradeBarMaxHeight: wallSettings.gradeBarMaxHeight,
           gradeBarWidth: wallSettings.gradeBarWidth,
@@ -6041,6 +6347,109 @@ function getRouteDisplayColor(route) {
   return getRouteStrokeColor(route);
 }
 
+const overlapColorCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+if (overlapColorCanvas) {
+  overlapColorCanvas.width = 1;
+  overlapColorCanvas.height = 1;
+}
+const overlapColorContext = overlapColorCanvas ? overlapColorCanvas.getContext('2d') : null;
+
+function parseColorToRGB(color) {
+  if (!overlapColorContext || typeof color !== 'string') {
+    return null;
+  }
+
+  const trimmed = color.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    overlapColorContext.fillStyle = '#000000';
+    overlapColorContext.fillStyle = trimmed;
+  } catch (error) {
+    return null;
+  }
+
+  const resolved = overlapColorContext.fillStyle;
+  if (typeof resolved !== 'string' || !resolved) {
+    return null;
+  }
+
+  if (resolved.startsWith('#')) {
+    let hex = resolved.slice(1);
+    if (hex.length === 3 || hex.length === 4) {
+      hex = hex
+        .slice(0, 3)
+        .split('')
+        .map((char) => char + char)
+        .join('');
+    } else if (hex.length === 6 || hex.length === 8) {
+      hex = hex.slice(0, 6);
+    } else {
+      return null;
+    }
+
+    const r = Number.parseInt(hex.slice(0, 2), 16);
+    const g = Number.parseInt(hex.slice(2, 4), 16);
+    const b = Number.parseInt(hex.slice(4, 6), 16);
+
+    if ([r, g, b].some((value) => Number.isNaN(value))) {
+      return null;
+    }
+
+    return { r, g, b };
+  }
+
+  if (resolved.startsWith('rgb')) {
+    const match = resolved.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+    if (!match) {
+      return null;
+    }
+
+    const r = Number.parseInt(match[1], 10);
+    const g = Number.parseInt(match[2], 10);
+    const b = Number.parseInt(match[3], 10);
+
+    if ([r, g, b].some((value) => Number.isNaN(value))) {
+      return null;
+    }
+
+    return { r, g, b };
+  }
+
+  return null;
+}
+
+function computeRelativeLuminance(rgb) {
+  if (!rgb) {
+    return 0;
+  }
+
+  const transformChannel = (channel) => {
+    const normalized = channel / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : Math.pow((normalized + 0.055) / 1.055, 2.4);
+  };
+
+  const r = transformChannel(rgb.r ?? 0);
+  const g = transformChannel(rgb.g ?? 0);
+  const b = transformChannel(rgb.b ?? 0);
+
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function getRouteOverlapTextColor(backgroundColor) {
+  const rgb = parseColorToRGB(backgroundColor);
+  if (!rgb) {
+    return '#0f172a';
+  }
+
+  const luminance = computeRelativeLuminance(rgb);
+  return luminance > 0.6 ? '#0f172a' : '#f8fafc';
+}
+
 function getOverlapGroupPathType(pathType) {
   const normalized = normalizePathType(pathType);
   if (normalized === PATH_TYPE_HOLLOW_POINT || normalized === PATH_TYPE_FILLED_POINT) {
@@ -6079,7 +6488,7 @@ function buildOverlappingShapeGroups(routeList = []) {
       return;
     }
 
-    const strokeColor = getRouteStrokeColor(route);
+    const displayColor = getRouteDisplayColor(route);
     const normalizedRectangleWidth = normalizeRectangleSize(
       route.rectangleWidth,
       DEFAULT_RECTANGLE_WIDTH,
@@ -6130,12 +6539,13 @@ function buildOverlappingShapeGroups(routeList = []) {
         const group = groups.get(groupKey);
         group.entries.push({
           routeId: route.id,
-          color: strokeColor,
+          color: displayColor,
           pathType: normalizedPathType,
           pointDiameter: normalizedPointDiameter,
           rectangleWidth: normalizedRectangleWidth,
           rectangleHeight: normalizedRectangleHeight,
           hollowPointLineWidth: normalizedHollowPointLineWidth,
+          filledPointTransparency: getRouteFilledPointTransparency(route),
         });
       });
     });
@@ -6196,9 +6606,11 @@ function drawOverlappingPointGroup(ctx, center, entries) {
     const angleStart = startAngle + step * index;
     const angleEnd = angleStart + step;
     const entryAlpha = Number.isFinite(entry.alpha) ? entry.alpha : 1;
+    const transparency = normalizeFilledPointTransparency(entry.filledPointTransparency);
+    const effectiveAlpha = entryAlpha * transparency;
     const fillColor = entry.color || '#ffde59';
 
-    ctx.globalAlpha = entryAlpha;
+    ctx.globalAlpha = effectiveAlpha;
     ctx.fillStyle = fillColor;
     ctx.beginPath();
     ctx.moveTo(center.x, center.y);
@@ -6222,7 +6634,9 @@ function drawOverlappingPointGroup(ctx, center, entries) {
     const angleStart = startAngle + step * index;
     const angleEnd = angleStart + step;
 
-    ctx.globalAlpha = Number.isFinite(entry.alpha) ? entry.alpha : 1;
+    const entryAlpha = Number.isFinite(entry.alpha) ? entry.alpha : 1;
+    const transparency = normalizeFilledPointTransparency(entry.filledPointTransparency);
+    ctx.globalAlpha = entryAlpha * transparency;
     ctx.lineWidth = strokeWidth;
     ctx.strokeStyle = entry.color || '#ffde59';
     ctx.beginPath();
@@ -6319,8 +6733,8 @@ function drawOverlappingRectangleGroup(ctx, center, entries) {
 
 function calculateRouteStrokeWidth(route, pathTypeOverride = undefined) {
   const pathType = normalizePathType(pathTypeOverride ?? route?.pathType);
-  if (pathType === PATH_TYPE_BREZER) {
-    return normalizeBrezerStrokeWidth(route?.brezerStrokeWidth);
+  if (pathType === PATH_TYPE_BEZIER) {
+    return normalizeBezierStrokeWidth(route?.bezierStrokeWidth);
   }
   if (pathType === PATH_TYPE_HOLLOW_POINT) {
     return getRouteHollowPointLineWidth(route);
@@ -6334,7 +6748,7 @@ function calculateRouteStrokeWidth(route, pathTypeOverride = undefined) {
     const height = normalizeRectangleSize(route?.rectangleHeight, DEFAULT_RECTANGLE_HEIGHT);
     return Math.max(2, Math.round(Math.max(width, height) / 10));
   }
-  return DEFAULT_BREZER_STROKE_WIDTH;
+  return DEFAULT_BEZIER_STROKE_WIDTH;
 }
 
 function drawRoute(route, options = {}) {
@@ -6407,26 +6821,84 @@ function drawRoute(route, options = {}) {
         overlapGroup.entries.length > 1 &&
         !isFocusedRoute
       ) {
-        if (handledOverlapKeys && handledOverlapKeys.has(overlapKey)) {
+        const overlapRouteIds = overlapGroup.entries
+          .map((entry) => (entry && typeof entry.routeId === 'string' ? entry.routeId : null))
+          .filter((value) => typeof value === 'string');
+        const uniqueRouteIds = Array.from(new Set(overlapRouteIds));
+
+        if (uniqueRouteIds.length > 1) {
+          if (handledOverlapKeys && handledOverlapKeys.has(overlapKey)) {
+            return;
+          }
+
+          const entriesWithAlpha = overlapGroup.entries.map((entry) => {
+            const mappedAlpha = routeAlphaMap?.get(entry.routeId);
+            const entryAlpha = Number.isFinite(mappedAlpha) ? mappedAlpha : 1;
+            const transparency =
+              entry.pathType === PATH_TYPE_FILLED_POINT
+                ? normalizeFilledPointTransparency(entry.filledPointTransparency)
+                : 1;
+            return {
+              ...entry,
+              alpha: entryAlpha,
+              filledPointTransparency: transparency,
+            };
+          });
+
+          if (handledOverlapKeys) {
+            handledOverlapKeys.add(overlapKey);
+          }
+
+          let overlapRegion = null;
+
+          if (isNormalizedPointPathType(pathType)) {
+            drawOverlappingPointGroup(ctx, scaledPoint, entriesWithAlpha);
+            const radii = entriesWithAlpha.map((entry) =>
+              Math.max(1, Number(entry.pointDiameter) / 2),
+            );
+            const baseRadius = radii.length ? Math.max(...radii, 4) : 6;
+            const detectionRadius = baseRadius + 12;
+            overlapRegion = {
+              type: 'overlap-circle',
+              cx: scaledPoint.x,
+              cy: scaledPoint.y,
+              r: detectionRadius,
+              canvasX: scaledPoint.x,
+              canvasY: scaledPoint.y,
+              routes: uniqueRouteIds,
+              overlap: true,
+            };
+          } else if (pathType === PATH_TYPE_RECTANGLE) {
+            drawOverlappingRectangleGroup(ctx, scaledPoint, entriesWithAlpha);
+            const widths = entriesWithAlpha.map((entry) =>
+              Math.max(1, Number(entry.rectangleWidth) || 0),
+            );
+            const heights = entriesWithAlpha.map((entry) =>
+              Math.max(1, Number(entry.rectangleHeight) || 0),
+            );
+            const width = widths.length ? Math.max(...widths, 4) : 4;
+            const height = heights.length ? Math.max(...heights, 4) : 4;
+            const halfWidth = width / 2;
+            const halfHeight = height / 2;
+            const padding = Math.max(8, Math.max(width, height) * 0.25);
+            overlapRegion = {
+              type: 'overlap-rect',
+              left: scaledPoint.x - halfWidth - padding,
+              right: scaledPoint.x + halfWidth + padding,
+              top: scaledPoint.y - halfHeight - padding,
+              bottom: scaledPoint.y + halfHeight + padding,
+              canvasX: scaledPoint.x,
+              canvasY: scaledPoint.y,
+              routes: uniqueRouteIds,
+              overlap: true,
+            };
+          }
+
+          if (overlapRegion) {
+            interactionRegions.push(overlapRegion);
+          }
           return;
         }
-
-        const entriesWithAlpha = overlapGroup.entries.map((entry) => {
-          const mappedAlpha = routeAlphaMap?.get(entry.routeId);
-          const entryAlpha = Number.isFinite(mappedAlpha) ? mappedAlpha : 1;
-          return { ...entry, alpha: entryAlpha };
-        });
-
-        if (handledOverlapKeys) {
-          handledOverlapKeys.add(overlapKey);
-        }
-
-        if (isNormalizedPointPathType(pathType)) {
-          drawOverlappingPointGroup(ctx, scaledPoint, entriesWithAlpha);
-        } else if (pathType === PATH_TYPE_RECTANGLE) {
-          drawOverlappingRectangleGroup(ctx, scaledPoint, entriesWithAlpha);
-        }
-        return;
       }
 
       visiblePoints.push(scaledPoint);
@@ -6483,6 +6955,8 @@ function drawRoute(route, options = {}) {
         });
 
         ctx.save();
+        const filledTransparency = getRouteFilledPointTransparency(route);
+        ctx.globalAlpha = routeAlpha * filledTransparency;
         ctx.fillStyle = strokeColor;
         ctx.fill(path);
         ctx.restore();
@@ -6529,7 +7003,7 @@ function drawRoute(route, options = {}) {
           });
         });
       }
-    } else if (pathType === PATH_TYPE_BREZER && pathPoints.length >= 2) {
+    } else if (pathType === PATH_TYPE_BEZIER && pathPoints.length >= 2) {
       const path = new Path2D();
       path.moveTo(pathPoints[0].x, pathPoints[0].y);
 
@@ -6583,10 +7057,11 @@ function drawRoute(route, options = {}) {
       if (!region) {
         return;
       }
-      routeInteractionEntries.push({
-        ...region,
-        route,
-      });
+      const interactionEntry = { ...region };
+      if (!Object.prototype.hasOwnProperty.call(interactionEntry, 'route')) {
+        interactionEntry.route = route;
+      }
+      routeInteractionEntries.push(interactionEntry);
     });
   }
 }
@@ -6609,7 +7084,7 @@ function handlePointerMove(event) {
 
   const entry = getRouteEntryAtClientPoint(point.x, point.y);
 
-  if (entry && entry.route) {
+  if (entry && (entry.route || (Array.isArray(entry.routes) && entry.routes.length))) {
     canvas.style.cursor = 'pointer';
   } else {
     canvas.style.cursor = '';
@@ -6642,17 +7117,41 @@ function handleCanvasPointerUp(event) {
 
   const entry = getRouteEntryAtClientPoint(interaction.x, interaction.y);
 
-  if (entry && entry.route) {
-    const shouldFocusRoute = shouldFocusFromInteraction(event, entry);
-    showTooltip(entry.route, interaction.x, interaction.y, { pin: true });
+  let resolvedEntry = entry;
+
+  if (entry) {
+    const candidateRoutes = Array.isArray(entry.routes)
+      ? entry.routes.filter((value) => typeof value === 'string')
+      : [];
+    const resolvedRoutes = candidateRoutes
+      .map((routeId) => routes.find((route) => route?.id === routeId))
+      .filter(Boolean);
+
+    if (resolvedRoutes.length > 1) {
+      resetLastFocusActivation();
+      const opened = openRouteOverlapPrompt(candidateRoutes, entry);
+      if (opened) {
+        return;
+      }
+    }
+
+    if ((!entry.route || typeof entry.route !== 'object') && resolvedRoutes.length >= 1) {
+      resolvedEntry = {
+        ...entry,
+        route: resolvedRoutes[0],
+      };
+    }
+  }
+
+  if (resolvedEntry && resolvedEntry.route) {
+    const shouldFocusRoute = shouldFocusFromInteraction(event, resolvedEntry);
+    showTooltip(resolvedEntry.route, interaction.x, interaction.y, { pin: true });
     if (shouldFocusRoute) {
-      focusRoute(entry.route);
+      focusRoute(resolvedEntry.route);
     }
   } else {
     resetLastFocusActivation();
-    if (!pinnedRouteId) {
-      hideTooltip({ force: true });
-    }
+    hideTooltip({ force: true });
   }
 }
 
@@ -6665,7 +7164,7 @@ function handleDocumentPointerDown(event) {
     return;
   }
 
-  if (event.target === canvas) {
+  if (isRouteOverlapPromptOpen()) {
     return;
   }
 
@@ -6673,11 +7172,13 @@ function handleDocumentPointerDown(event) {
     return;
   }
 
-  if (pinnedRouteId) {
-    return;
-  }
-
   hideTooltip({ force: true });
+}
+
+if (routeOverlapCloseButton) {
+  routeOverlapCloseButton.addEventListener('click', () => {
+    closeRouteOverlapPrompt();
+  });
 }
 
 if ('PointerEvent' in window) {

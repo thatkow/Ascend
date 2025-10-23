@@ -243,7 +243,7 @@
               <label class="control-field" data-help-text="Switch between freeform lines, hollow points, filled points, or rectangles while drawing.">
                 <span>Path</span>
                 <select id="pathTypeSelect">
-                  <option value="brezer">Brezer</option>
+                  <option value="bezier">Bezier</option>
                   <option value="hollow-point">Hollow point</option>
                   <option value="filled-point">Filled point</option>
                   <option value="rectangle">Rectangle</option>
@@ -340,6 +340,24 @@
                 />
               </label>
               <label
+                id="filledPointTransparencyField"
+                class="control-field"
+                data-help-text="Adjust the opacity for filled point holds drawn on this wall."
+              >
+                <span>
+                  Filled point transparency
+                  <span id="filledPointTransparencyValue"></span>
+                </span>
+                <input
+                  id="filledPointTransparencySlider"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value="100"
+                />
+              </label>
+              <label
                 id="hollowPointLineWidthField"
                 class="control-field"
                 data-help-text="Adjust the outline thickness used for hollow point holds."
@@ -394,16 +412,16 @@
                 />
               </label>
               <label
-                id="brezerStrokeWidthField"
+                id="bezierStrokeWidthField"
                 class="control-field"
-                data-help-text="Set the thickness of Brezer lines for freeform paths on this wall."
+                data-help-text="Set the thickness of Bezier lines for freeform paths on this wall."
               >
                 <span>
-                  Brezer stroke width
-                  <span id="brezerStrokeWidthValue"></span>
+                  Bezier stroke width
+                  <span id="bezierStrokeWidthValue"></span>
                 </span>
                 <input
-                  id="brezerStrokeWidthSlider"
+                  id="bezierStrokeWidthSlider"
                   type="range"
                   min="2"
                   max="40"
