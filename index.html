@@ -1390,7 +1390,7 @@
         align-items: center;
         justify-content: center;
         font-weight: 700;
-        font-size: var(--tooltip-grade-font-size, 3.12rem);
+        font-size: calc(var(--tooltip-grade-font-size, 3.12rem) * 0.7);
         line-height: 1;
         color: var(--tooltip-on-accent, #000);
         background: rgb(var(--tooltip-accent-rgb, 126, 217, 87));
@@ -6365,87 +6365,6 @@
         }
 
         section.appendChild(list);
-
-        if (currentUser) {
-          const form = document.createElement('form');
-          form.className = 'tooltip-betatips-form';
-          form.noValidate = true;
-
-          const textareaId = `betatip-${routeId.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
-          const label = document.createElement('label');
-          label.className = 'tooltip-betatips-label';
-          label.setAttribute('for', textareaId);
-
-          const labelText = document.createElement('span');
-          labelText.textContent = 'Share your beta';
-          label.appendChild(labelText);
-
-          const textarea = document.createElement('textarea');
-          textarea.id = textareaId;
-          textarea.className = 'tooltip-betatips-textarea';
-          textarea.maxLength = MAX_BETATIP_LENGTH;
-          textarea.placeholder = 'The trick is...to go up!';
-          textarea.value = '';
-
-          label.appendChild(textarea);
-          form.appendChild(label);
-
-          const actions = document.createElement('div');
-          actions.className = 'tooltip-betatips-actions';
-
-          const saveButton = document.createElement('button');
-          saveButton.type = 'submit';
-          saveButton.textContent = 'Save tip';
-          actions.appendChild(saveButton);
-
-          form.appendChild(actions);
-
-          const status = document.createElement('p');
-          status.className = 'tooltip-betatips-status';
-          status.setAttribute('role', 'status');
-          status.textContent = '';
-          form.appendChild(status);
-
-          const setSavingState = (saving) => {
-            textarea.disabled = saving;
-            saveButton.disabled = saving;
-          };
-
-          textarea.addEventListener('input', () => {
-            status.textContent = '';
-          });
-
-          let isSaving = false;
-
-          form.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            if (isSaving) {
-              return;
-            }
-
-            const trimmedValue = textarea.value.replace(/\r\n/g, '\n').trim();
-            if (!trimmedValue) {
-              status.textContent = 'Add some beta before saving.';
-              return;
-            }
-
-            status.textContent = '';
-            isSaving = true;
-            setSavingState(true);
-
-            try {
-              await saveBetatipForRoute(route, trimmedValue);
-              updateTooltipContent(route);
-            } catch (error) {
-              console.error('Failed to save beta tip:', error);
-              status.textContent = 'We couldn’t save your beta. Please try again.';
-              setSavingState(false);
-              isSaving = false;
-            }
-          });
-
-          section.appendChild(form);
-        }
 
         return section;
       }
