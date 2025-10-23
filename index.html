@@ -1281,86 +1281,11 @@
       }
 
       .route-tooltip .tooltip-betatips-empty {
+        margin: 0;
+        padding: 1rem 0;
+        text-align: center;
         font-size: 0.95rem;
         color: var(--tooltip-muted-foreground, #d1d5db);
-        font-style: italic;
-      }
-
-      .route-tooltip .tooltip-betatips-form {
-        display: flex;
-        flex-direction: column;
-        gap: 0.65rem;
-      }
-
-      .route-tooltip .tooltip-betatips-label {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-        font-size: 0.95rem;
-        color: var(--tooltip-foreground, #fff);
-      }
-
-      .route-tooltip .tooltip-betatips-textarea {
-        width: 100%;
-        min-height: 4.5rem;
-        resize: vertical;
-        border-radius: 0.75rem;
-        border: 1px solid rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.35);
-        background: rgba(14, 21, 15, 0.9);
-        color: var(--tooltip-foreground, #fff);
-        padding: 0.75rem 0.85rem;
-        font-size: 0.95rem;
-        line-height: 1.5;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
-      }
-
-      .route-tooltip .tooltip-betatips-textarea:focus {
-        outline: none;
-        border-color: var(--tooltip-accent, #7ed957);
-        box-shadow: 0 0 0 2px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.35);
-      }
-
-      .route-tooltip .tooltip-betatips-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-      }
-
-      .route-tooltip .tooltip-betatips-actions button {
-        border-radius: 999px;
-        border: 1px solid var(--tooltip-border-color, var(--tooltip-accent, #7ed957));
-        padding: 0.5rem 1.1rem;
-        font-size: 0.9rem;
-        font-weight: 600;
-        background: var(--tooltip-accent, #7ed957);
-        color: var(--tooltip-on-accent, #000);
-        cursor: pointer;
-        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-      }
-
-      .route-tooltip .tooltip-betatips-actions button:hover,
-      .route-tooltip .tooltip-betatips-actions button:focus-visible {
-        transform: translateY(-1px);
-        outline: none;
-        box-shadow: 0 10px 24px rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.35);
-      }
-
-      .route-tooltip .tooltip-betatips-actions button.is-quiet {
-        background: transparent;
-        color: var(--tooltip-muted-foreground, #d1d5db);
-        border-color: rgba(var(--tooltip-accent-rgb, 126, 217, 87), 0.35);
-      }
-
-      .route-tooltip .tooltip-betatips-actions button.is-quiet:hover,
-      .route-tooltip .tooltip-betatips-actions button.is-quiet:focus-visible {
-        border-color: var(--tooltip-accent, #7ed957);
-        color: var(--tooltip-foreground, #fff);
-      }
-
-      .route-tooltip .tooltip-betatips-status {
-        font-size: 0.85rem;
-        min-height: 1rem;
-        color: #fca5a5;
       }
 
       .route-tooltip .tooltip-line {
@@ -1390,7 +1315,7 @@
         align-items: center;
         justify-content: center;
         font-weight: 700;
-        font-size: calc(var(--tooltip-grade-font-size, 3.12rem) * 0.7);
+        font-size: var(--tooltip-grade-font-size, 3.12rem);
         line-height: 1;
         color: var(--tooltip-on-accent, #000);
         background: rgb(var(--tooltip-accent-rgb, 126, 217, 87));
@@ -1460,6 +1385,8 @@
       .route-tooltip .tooltip-grade-value {
         position: relative;
         z-index: 1;
+        font-size: calc(var(--tooltip-grade-font-size, 3.12rem) * 0.7);
+        line-height: 1;
       }
 
       .route-tooltip .tooltip-grade-badge.ascended {
