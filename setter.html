@@ -42,46 +42,6 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    .focus-footer {
-      position: absolute;
-      left: 50%;
-      bottom: 1.25rem;
-      transform: translateX(-50%);
-      z-index: 7;
-      pointer-events: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .clear-focus-button {
-      pointer-events: auto;
-      border-radius: 999px;
-      border: 1px solid rgba(126, 217, 87, 0.75);
-      background: linear-gradient(135deg, rgba(126, 217, 87, 0.95), rgba(126, 217, 87, 0.7));
-      color: #0c1905;
-      font-weight: 600;
-      padding: 0.6rem 1.5rem;
-      font-size: 0.95rem;
-      cursor: pointer;
-      box-shadow: 0 14px 30px rgba(126, 217, 87, 0.35);
-      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
-        border-color 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      letter-spacing: 0.01em;
-    }
-
-    .clear-focus-button:hover,
-    .clear-focus-button:focus-visible {
-      transform: translateY(-1px);
-      box-shadow: 0 18px 36px rgba(126, 217, 87, 0.4);
-      outline: none;
-      border-color: rgba(126, 217, 87, 0.9);
-      background: linear-gradient(135deg, rgba(126, 217, 87, 1), rgba(126, 217, 87, 0.82));
-    }
-
     .tutorial-overlay {
       position: fixed;
       inset: 0;
@@ -1346,17 +1306,6 @@
     </a>
     <div class="canvas-container">
       <canvas id="drawingCanvas"></canvas>
-      <div class="focus-footer">
-        <button
-          id="clearFocusButton"
-          class="clear-focus-button hidden"
-          type="button"
-          data-info-target="route-focus"
-          aria-hidden="true"
-        >
-          Clear Focus
-        </button>
-      </div>
     </div>
     <div class="control-panel" data-expanded="true">
       <div id="panelSidebar" class="panel-sidebar">
@@ -1650,6 +1599,24 @@
                   max="160"
                   step="1"
                   value="48"
+                />
+              </label>
+              <label
+                id="hollowPointLineWidthField"
+                class="control-field"
+                data-help-text="Adjust the outline thickness used for hollow point holds."
+              >
+                <span>
+                  Hollow point outline thickness
+                  <span id="hollowPointLineWidthValue"></span>
+                </span>
+                <input
+                  id="hollowPointLineWidthSlider"
+                  type="range"
+                  min="1"
+                  max="48"
+                  step="1"
+                  value="5"
                 />
               </label>
               <label
@@ -1954,7 +1921,6 @@
     const appContent = document.getElementById('appContent');
     const canvasContainer = document.querySelector('.canvas-container');
     const canvas = document.getElementById('drawingCanvas');
-    const clearFocusButton = document.getElementById('clearFocusButton');
     const authForm = document.getElementById('authForm');
     const authUsername = document.getElementById('authUsername');
     const authPassword = document.getElementById('authPassword');
@@ -2056,6 +2022,7 @@
     const PATH_TYPE_HOLLOW_POINT = 'hollow-point';
     const PATH_TYPE_FILLED_POINT = 'filled-point';
     const PATH_TYPE_RECTANGLE = 'rectangle';
+    const OVERLAP_GROUP_TYPE_POINT = 'point-group';
     const LEGACY_PATH_TYPE_POINT = 'point';
     const DEFAULT_PATH_TYPE = PATH_TYPE_BREZER;
     const BREZER_REMOVAL_RADIUS = 20;
@@ -2064,6 +2031,12 @@
     const DEFAULT_HOLLOW_POINT_DIAMETER = 48;
     const DEFAULT_FILLED_POINT_DIAMETER = 48;
     const DEFAULT_POINT_DIAMETER = DEFAULT_HOLLOW_POINT_DIAMETER;
+    const MIN_HOLLOW_POINT_LINE_WIDTH = 1;
+    const MAX_HOLLOW_POINT_LINE_WIDTH = 48;
+    const DEFAULT_HOLLOW_POINT_LINE_WIDTH = Math.max(
+      MIN_HOLLOW_POINT_LINE_WIDTH,
+      Math.min(MAX_HOLLOW_POINT_LINE_WIDTH, Math.round(DEFAULT_HOLLOW_POINT_DIAMETER / 10) || 2),
+    );
     const MIN_RECTANGLE_SIZE = 12;
     const MAX_RECTANGLE_SIZE = 200;
     const DEFAULT_RECTANGLE_WIDTH = 80;
@@ -3679,6 +3652,9 @@
     const hollowPointDiameterField = document.getElementById('hollowPointDiameterField');
     const hollowPointDiameterSlider = document.getElementById('hollowPointDiameterSlider');
     const hollowPointDiameterValue = document.getElementById('hollowPointDiameterValue');
+    const hollowPointLineWidthField = document.getElementById('hollowPointLineWidthField');
+    const hollowPointLineWidthSlider = document.getElementById('hollowPointLineWidthSlider');
+    const hollowPointLineWidthValue = document.getElementById('hollowPointLineWidthValue');
     const filledPointDiameterField = document.getElementById('filledPointDiameterField');
     const filledPointDiameterSlider = document.getElementById('filledPointDiameterSlider');
     const filledPointDiameterValue = document.getElementById('filledPointDiameterValue');
@@ -3804,6 +3780,32 @@
         MAX_POINT_DIAMETER,
       );
       return clamped;
+    }
+
+    function computeDefaultHollowPointLineWidth(diameter = DEFAULT_HOLLOW_POINT_DIAMETER) {
+      const normalizedDiameter = normalizePointDiameter(diameter, DEFAULT_HOLLOW_POINT_DIAMETER);
+      const baseline = Math.max(2, Math.round(normalizedDiameter / 10));
+      return Math.min(
+        Math.max(baseline, MIN_HOLLOW_POINT_LINE_WIDTH),
+        MAX_HOLLOW_POINT_LINE_WIDTH,
+      );
+    }
+
+    function normalizeHollowPointLineWidth(value, diameterFallback = DEFAULT_HOLLOW_POINT_DIAMETER) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return computeDefaultHollowPointLineWidth(diameterFallback);
+      }
+      const rounded = Math.round(numeric);
+      return Math.min(
+        Math.max(rounded, MIN_HOLLOW_POINT_LINE_WIDTH),
+        MAX_HOLLOW_POINT_LINE_WIDTH,
+      );
+    }
+
+    function getRouteHollowPointLineWidth(routeData) {
+      const diameter = getRoutePointDiameterForPathType(routeData, PATH_TYPE_HOLLOW_POINT);
+      return normalizeHollowPointLineWidth(routeData?.hollowPointLineWidth, diameter);
     }
 
     function normalizeRectangleSize(value, fallback = DEFAULT_RECTANGLE_WIDTH) {
@@ -3946,6 +3948,7 @@
       return {
         pointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
         hollowPointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
+        hollowPointLineWidth: DEFAULT_HOLLOW_POINT_LINE_WIDTH,
         filledPointDiameter: DEFAULT_FILLED_POINT_DIAMETER,
         rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
         rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
@@ -3966,6 +3969,10 @@
       const hollowPointDiameter = normalizePointDiameter(
         raw.hollowPointDiameter ?? raw.pointDiameter,
         DEFAULT_HOLLOW_POINT_DIAMETER,
+      );
+      const hollowPointLineWidth = normalizeHollowPointLineWidth(
+        raw.hollowPointLineWidth ?? raw.pointStrokeWidth ?? raw.hollowPointStrokeWidth,
+        hollowPointDiameter,
       );
       const filledPointDiameter = normalizePointDiameter(
         raw.filledPointDiameter ?? raw.pointDiameter,
@@ -3995,6 +4002,7 @@
       return {
         pointDiameter: hollowPointDiameter,
         hollowPointDiameter,
+        hollowPointLineWidth,
         filledPointDiameter,
         rectangleWidth,
         rectangleHeight,
@@ -4035,6 +4043,7 @@
       const settings = getWallSettingsWithFallback(locationKey, fallback);
       pointDiameter = settings.hollowPointDiameter ?? settings.pointDiameter;
       filledPointDiameter = settings.filledPointDiameter ?? settings.pointDiameter;
+      hollowPointLineWidth = settings.hollowPointLineWidth;
       rectangleWidth = settings.rectangleWidth;
       rectangleHeight = settings.rectangleHeight;
       brezerStrokeWidth = settings.brezerStrokeWidth;
@@ -4196,6 +4205,7 @@
             ...data,
             pointDiameter: settings.hollowPointDiameter ?? settings.pointDiameter,
             hollowPointDiameter: settings.hollowPointDiameter ?? settings.pointDiameter,
+            hollowPointLineWidth: settings.hollowPointLineWidth,
             filledPointDiameter: settings.filledPointDiameter ?? settings.pointDiameter,
             brezerStrokeWidth: settings.brezerStrokeWidth,
             rectangleWidth: settings.rectangleWidth,
@@ -4221,6 +4231,7 @@
           ...data,
           pointDiameter: settings.hollowPointDiameter ?? settings.pointDiameter,
           hollowPointDiameter: settings.hollowPointDiameter ?? settings.pointDiameter,
+          hollowPointLineWidth: settings.hollowPointLineWidth,
           filledPointDiameter: settings.filledPointDiameter ?? settings.pointDiameter,
           brezerStrokeWidth: settings.brezerStrokeWidth,
           rectangleWidth: settings.rectangleWidth,
@@ -4250,6 +4261,7 @@
       if (getCurrentLocationKey() === normalizedKey) {
         pointDiameter = merged.hollowPointDiameter ?? merged.pointDiameter;
         filledPointDiameter = merged.filledPointDiameter ?? merged.pointDiameter;
+        hollowPointLineWidth = merged.hollowPointLineWidth;
         brezerStrokeWidth = merged.brezerStrokeWidth;
         unfocusedTransparency = merged.unfocusedTransparency;
         gradeBarBaseHeight = merged.gradeBarBaseHeight;
@@ -4274,6 +4286,7 @@
         const wallPayload = {
           pointDiameter: merged.hollowPointDiameter ?? merged.pointDiameter,
           hollowPointDiameter: merged.hollowPointDiameter ?? merged.pointDiameter,
+          hollowPointLineWidth: merged.hollowPointLineWidth,
           filledPointDiameter: merged.filledPointDiameter ?? merged.pointDiameter,
           rectangleWidth: merged.rectangleWidth,
           rectangleHeight: merged.rectangleHeight,
@@ -4382,6 +4395,7 @@
           background_url: trimmedImage,
           pointDiameter: wallSettings.hollowPointDiameter,
           hollowPointDiameter: wallSettings.hollowPointDiameter,
+          hollowPointLineWidth: wallSettings.hollowPointLineWidth,
           filledPointDiameter: wallSettings.filledPointDiameter,
           rectangleWidth: wallSettings.rectangleWidth,
           rectangleHeight: wallSettings.rectangleHeight,
@@ -4565,8 +4579,8 @@
         if (fallbackLocation) {
           setLocation(fallbackLocation, { persist: true, refreshRoutes: false });
         } else {
-        currentLocation = null;
-        clearRouteFocus();
+          currentLocation = null;
+          clearRouteFocus();
           updateLocationButtonLabel();
           updateLocationOptionsState();
           applyBodyBackground('');
@@ -4620,6 +4634,7 @@
     let pathType = DEFAULT_PATH_TYPE;
     let isDrawingEnabled = false;
     let pointDiameter = DEFAULT_HOLLOW_POINT_DIAMETER;
+    let hollowPointLineWidth = DEFAULT_HOLLOW_POINT_LINE_WIDTH;
     let filledPointDiameter = DEFAULT_FILLED_POINT_DIAMETER;
     let rectangleWidth = DEFAULT_RECTANGLE_WIDTH;
     let rectangleHeight = DEFAULT_RECTANGLE_HEIGHT;
@@ -4741,14 +4756,6 @@
       updatePanModifierState(false);
     });
 
-    if (clearFocusButton) {
-      clearFocusButton.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        clearRouteFocus();
-      });
-    }
-
     if (canvas) {
       canvas.addEventListener('pointerdown', handleCanvasPointerDown);
       canvas.addEventListener('pointermove', handleCanvasPointerMove);
@@ -4770,25 +4777,6 @@
       pointerType: '',
       x: 0,
       y: 0,
-    };
-
-    const updateClearFocusButton = () => {
-      if (!clearFocusButton) {
-        return;
-      }
-
-      const hasFocus = Boolean(focusedRouteKey);
-      clearFocusButton.classList.toggle('hidden', !hasFocus);
-      clearFocusButton.setAttribute('aria-hidden', hasFocus ? 'false' : 'true');
-
-      if (hasFocus) {
-        clearFocusButton.removeAttribute('disabled');
-      } else {
-        clearFocusButton.setAttribute('disabled', 'true');
-        if (document.activeElement === clearFocusButton && typeof clearFocusButton.blur === 'function') {
-          clearFocusButton.blur();
-        }
-      }
     };
 
     const resetLastFocusActivation = () => {
@@ -4825,10 +4813,10 @@
       return '';
     };
 
-    const shouldFocusFromInteraction = (event, entry) => {
+    const resolveOverlayInteraction = (event, entry) => {
       if (!entry || typeof entry.routeKey !== 'string' || !entry.routeKey) {
         resetLastFocusActivation();
-        return false;
+        return null;
       }
 
       const pointerType = resolvePointerType(event);
@@ -4862,7 +4850,11 @@
         y: entry.canvasY ?? 0,
       };
 
-      return isDoubleActivation;
+      if (isDoubleActivation) {
+        return 'switch';
+      }
+
+      return 'focus';
     };
 
     const distanceSquared = (x1, y1, x2, y2) => {
@@ -4945,30 +4937,34 @@
       return null;
     };
 
-    const setFocusedRouteKey = (routeKey) => {
+    const setFocusedRouteKey = (routeKey, { resetActivation = false } = {}) => {
       const normalizedKey = typeof routeKey === 'string' ? routeKey : '';
       if (focusedRouteKey === normalizedKey) {
-        updateClearFocusButton();
+        if (resetActivation) {
+          resetLastFocusActivation();
+        }
         return;
       }
 
       focusedRouteKey = normalizedKey;
-      updateClearFocusButton();
+      if (resetActivation) {
+        resetLastFocusActivation();
+      }
       redraw();
     };
 
     const clearRouteFocus = () => {
       if (!focusedRouteKey) {
+        resetLastFocusActivation();
         return;
       }
 
       focusedRouteKey = '';
       resetLastFocusActivation();
-      updateClearFocusButton();
       redraw();
     };
 
-    const handlePotentialOverlayFocus = (event) => {
+    const handlePotentialOverlayFocus = async (event) => {
       if (!canvas) {
         return;
       }
@@ -4988,18 +4984,41 @@
         return;
       }
 
-      const shouldFocusRoute = shouldFocusFromInteraction(event, {
+      const interaction = resolveOverlayInteraction(event, {
         routeKey: entry.routeKey,
         canvasX: entry.canvasX,
         canvasY: entry.canvasY,
       });
 
-      if (shouldFocusRoute) {
-        setFocusedRouteKey(entry.routeKey);
+      if (interaction === 'switch') {
+        const label = entry.route?.title || entry.routeKey;
+        const confirmMessage = hasUnsavedChanges
+          ? `Switch to route “${label}”? This will discard your current drawing because it hasn't been saved yet.`
+          : `Switch to route “${label}”? This will discard your current drawing if it isn't saved.`;
+        const shouldSwitch = window.confirm(confirmMessage);
+        if (shouldSwitch) {
+          if (routeSelector) {
+            routeSelector.disabled = true;
+          }
+          try {
+            const loaded = await loadRouteByKey(entry.routeKey);
+            if (!loaded && routeSelector) {
+              routeSelector.value = currentRouteKey || '';
+            }
+          } finally {
+            if (routeSelector) {
+              routeSelector.disabled = false;
+            }
+          }
+        }
+        resetLastFocusActivation();
+        return;
+      }
+
+      if (interaction === 'focus' && entry.routeKey === currentRouteKey) {
+        setFocusedRouteKey(entry.routeKey, { resetActivation: true });
       }
     };
-
-    updateClearFocusButton();
 
     const updatePanelToggleState = () => {
       if (!panelToggleButton || !controlPanel) {
@@ -5729,6 +5748,10 @@
         DEFAULT_RECTANGLE_HEIGHT,
       );
       const fallbackBrezerStrokeWidth = normalizeBrezerStrokeWidth(rest.brezerStrokeWidth);
+      const fallbackHollowPointLineWidth = normalizeHollowPointLineWidth(
+        rest.hollowPointLineWidth,
+        fallbackHollowPointDiameter,
+      );
       const gradeBarBaseHeight = normalizeGradeBarHeight(
         rest.gradeBarBaseHeight,
         DEFAULT_GRADE_BAR_BASE_HEIGHT,
@@ -5747,6 +5770,7 @@
         pointDiameter: fallbackPointDiameter,
         hollowPointDiameter: fallbackHollowPointDiameter,
         filledPointDiameter: fallbackFilledPointDiameter,
+        hollowPointLineWidth: fallbackHollowPointLineWidth,
         rectangleWidth: fallbackRectangleWidth,
         rectangleHeight: fallbackRectangleHeight,
         brezerStrokeWidth: fallbackBrezerStrokeWidth,
@@ -5781,6 +5805,7 @@
         pathType: normalizedPathType,
         pointDiameter: wallSettings.hollowPointDiameter ?? wallSettings.pointDiameter,
         hollowPointDiameter: wallSettings.hollowPointDiameter ?? wallSettings.pointDiameter,
+        hollowPointLineWidth: wallSettings.hollowPointLineWidth,
         filledPointDiameter: wallSettings.filledPointDiameter ?? wallSettings.pointDiameter,
         rectangleWidth: wallSettings.rectangleWidth,
         rectangleHeight: wallSettings.rectangleHeight,
@@ -6191,6 +6216,12 @@
       if (gradeBarTransparencyInput) {
         gradeBarTransparencyInput.value = String(gradeBarTransparency);
       }
+      if (hollowPointLineWidthSlider) {
+        hollowPointLineWidthSlider.value = String(hollowPointLineWidth);
+      }
+      if (hollowPointLineWidthValue) {
+        hollowPointLineWidthValue.textContent = `${hollowPointLineWidth}px`;
+      }
     }
 
     const DEFAULT_CANVAS_ASPECT_RATIO = 1536 / 1024;
@@ -6292,6 +6323,7 @@
         rectangleWidth,
         rectangleHeight,
         brezerStrokeWidth,
+        hollowPointLineWidth,
       );
       if (points.length) {
         queueGradeBarOverlay({
@@ -6343,6 +6375,7 @@
           rectangleWidth,
           rectangleHeight,
           brezerStrokeWidth,
+          hollowPointLineWidth,
         );
       });
     }
@@ -6394,6 +6427,7 @@
       routeRectangleWidth = DEFAULT_RECTANGLE_WIDTH,
       routeRectangleHeight = DEFAULT_RECTANGLE_HEIGHT,
       routeBrezerStrokeWidth = DEFAULT_BREZER_STROKE_WIDTH,
+      routeHollowPointLineWidth = DEFAULT_HOLLOW_POINT_LINE_WIDTH,
     ) {
       if (!Array.isArray(routePoints) || !routePoints.length) {
         return;
@@ -6460,7 +6494,10 @@
 
       if (effectivePathType === PATH_TYPE_HOLLOW_POINT) {
         const radius = Math.max(1, effectivePointDiameter / 2);
-        const strokeWidth = Math.max(2, Math.round(effectivePointDiameter / 10));
+        const strokeWidth = normalizeHollowPointLineWidth(
+          routeHollowPointLineWidth,
+          effectivePointDiameter,
+        );
         ctx.lineWidth = strokeWidth;
         ctx.strokeStyle = color;
         routePoints.forEach((point) => {
@@ -6559,11 +6596,25 @@
         .filter(Boolean);
     }
 
+    function getOverlapGroupPathType(pathTypeValue) {
+      const normalized = normalizePathType(pathTypeValue);
+      if (normalized === PATH_TYPE_HOLLOW_POINT || normalized === PATH_TYPE_FILLED_POINT) {
+        return OVERLAP_GROUP_TYPE_POINT;
+      }
+      return normalized;
+    }
+
     function createOverlapGroupKey(pathTypeValue, pointKey) {
       if (!pathTypeValue || !pointKey) {
         return null;
       }
-      return `${pathTypeValue}::${pointKey}`;
+
+      const normalizedPathType = getOverlapGroupPathType(pathTypeValue);
+      if (!normalizedPathType) {
+        return null;
+      }
+
+      return `${normalizedPathType}::${pointKey}`;
     }
 
     function buildOverlayOverlapGroups(routeEntries = []) {
@@ -6575,8 +6626,9 @@
         }
 
         const { pathType: pathTypeValue, normalizedPoints } = entry;
+        const normalizedPathType = normalizePathType(pathTypeValue);
         if (
-          (!isNormalizedPointPathType(pathTypeValue) && pathTypeValue !== PATH_TYPE_RECTANGLE) ||
+          (!isNormalizedPointPathType(normalizedPathType) && normalizedPathType !== PATH_TYPE_RECTANGLE) ||
           !Array.isArray(normalizedPoints) ||
           !normalizedPoints.length
         ) {
@@ -6591,14 +6643,14 @@
             return;
           }
 
-          const groupKey = createOverlapGroupKey(pathTypeValue, key);
+          const groupKey = createOverlapGroupKey(normalizedPathType, key);
           if (!groupKey) {
             return;
           }
 
           if (!groups.has(groupKey)) {
             groups.set(groupKey, {
-              pathType: pathTypeValue,
+              pathType: normalizedPathType,
               entries: [],
             });
           }
@@ -6607,10 +6659,12 @@
           group.entries.push({
             routeId: entry.id,
             color: entry.color,
+            pathType: normalizedPathType,
             pointDiameter: entry.pointDiameter,
             rectangleWidth: entry.rectangleWidth,
             rectangleHeight: entry.rectangleHeight,
             alpha: entry.alpha,
+            hollowPointLineWidth: entry.hollowPointLineWidth,
           });
         });
       });
@@ -6632,6 +6686,28 @@
       const total = entries.length;
       const radii = entries.map((entry) => Math.max(1, Number(entry.pointDiameter) / 2));
       const radius = Math.max(...radii, 4);
+      const strokeWidths = entries.map((entry) => {
+        if (!entry) {
+          return MIN_HOLLOW_POINT_LINE_WIDTH;
+        }
+
+        const fallbackDiameter =
+          entry.pathType === PATH_TYPE_FILLED_POINT
+            ? DEFAULT_FILLED_POINT_DIAMETER
+            : DEFAULT_HOLLOW_POINT_DIAMETER;
+        const diameter = normalizePointDiameter(entry.pointDiameter, fallbackDiameter);
+
+        if (
+          (entry.pathType === PATH_TYPE_HOLLOW_POINT || entry.pathType === PATH_TYPE_FILLED_POINT) &&
+          entry.hollowPointLineWidth !== undefined
+        ) {
+          return normalizeHollowPointLineWidth(entry.hollowPointLineWidth, diameter);
+        }
+
+        return Math.max(2, Math.round(diameter / 10) || 2);
+      });
+      const maxStrokeWidth = strokeWidths.length ? Math.max(...strokeWidths) : 2;
+      const fillRadius = Math.max(1, radius - maxStrokeWidth * 0.6);
       const step = (Math.PI * 2) / total;
       const startAngle = -Math.PI / 2;
 
@@ -6641,7 +6717,26 @@
       ctx.lineJoin = 'miter';
 
       entries.forEach((entry, index) => {
-        const strokeWidth = Math.max(2, Math.round(Number(entry.pointDiameter) / 10) || 2);
+        if (entry?.pathType !== PATH_TYPE_FILLED_POINT) {
+          return;
+        }
+
+        const angleStart = startAngle + step * index;
+        const angleEnd = angleStart + step;
+        const entryAlpha = Number.isFinite(entry.alpha) ? entry.alpha : 1;
+        const fillColor = entry.color || '#ffde59';
+
+        ctx.globalAlpha = entryAlpha;
+        ctx.fillStyle = fillColor;
+        ctx.beginPath();
+        ctx.moveTo(center.x, center.y);
+        ctx.arc(center.x, center.y, fillRadius, angleStart, angleEnd);
+        ctx.closePath();
+        ctx.fill();
+      });
+
+      entries.forEach((entry, index) => {
+        const strokeWidth = strokeWidths[index] ?? Math.max(2, Math.round(Number(entry.pointDiameter) / 10) || 2);
         const angleStart = startAngle + step * index;
         const angleEnd = angleStart + step;
 
@@ -6750,7 +6845,6 @@
         overlayInteractionEntries = [];
         if (focusedRouteKey) {
           focusedRouteKey = '';
-          updateClearFocusButton();
           resetLastFocusActivation();
         }
         return;
@@ -6765,7 +6859,6 @@
 
       if (focusedRouteKey && !routesCache.has(focusedRouteKey)) {
         focusedRouteKey = '';
-        updateClearFocusButton();
       }
 
       overlayInteractionEntries = [];
@@ -6795,6 +6888,7 @@
           DEFAULT_RECTANGLE_HEIGHT,
         );
         const normalizedBrezerWidth = normalizeBrezerStrokeWidth(data.brezerStrokeWidth);
+        const normalizedHollowPointLineWidth = getRouteHollowPointLineWidth(data);
 
         const pointEntries = collectRoutePointEntries(data);
         pointEntries.forEach(({ pathType: entryPathType, normalizedPoints }) => {
@@ -6829,6 +6923,7 @@
             gradeBarMaxHeight: data.gradeBarMaxHeight,
             gradeBarWidth: data.gradeBarWidth,
             gradeBarTransparency: data.gradeBarTransparency,
+            hollowPointLineWidth: normalizedHollowPointLineWidth,
           });
         });
       });
@@ -6985,6 +7080,7 @@
             entryRectangleWidth,
             entryRectangleHeight,
             entry.brezerStrokeWidth,
+            entry.hollowPointLineWidth,
           );
         }
 
@@ -7221,7 +7317,7 @@
       }
 
       if (!isDrawingEnabled) {
-        handlePotentialOverlayFocus(event);
+        void handlePotentialOverlayFocus(event);
         return;
       }
 
@@ -7357,10 +7453,13 @@
         const label = cachedRouteData.title || routeKey;
         setStatus(`Loaded route “${label}”.`, 'success');
       }
+
+      setFocusedRouteKey(routeKey, { resetActivation: true });
     }
 
     function prepareNewRoute(statusMessage = '') {
       currentRouteKey = '';
+      clearRouteFocus();
       routeSelector.value = '';
       routeSetterInput.value = currentUsername || '';
       routeTitleInput.value = '';
@@ -7378,6 +7477,7 @@
       pathType = DEFAULT_PATH_TYPE;
       pointDiameter = wallSettings.hollowPointDiameter ?? wallSettings.pointDiameter;
       filledPointDiameter = wallSettings.filledPointDiameter ?? wallSettings.pointDiameter;
+      hollowPointLineWidth = wallSettings.hollowPointLineWidth;
       rectangleWidth = wallSettings.rectangleWidth;
       rectangleHeight = wallSettings.rectangleHeight;
       brezerStrokeWidth = wallSettings.brezerStrokeWidth;
@@ -7402,6 +7502,35 @@
       }
     }
 
+    async function loadRouteByKey(routeKey) {
+      if (typeof routeKey !== 'string' || !routeKey) {
+        return false;
+      }
+
+      let data = routesCache.get(routeKey);
+      if (!data) {
+        try {
+          const snap = await getDoc(doc(db, 'routes', routeKey));
+          if (snap.exists()) {
+            data = normalizeRouteData({ id: routeKey, ...snap.data() });
+            routesCache.set(routeKey, data);
+          }
+        } catch (error) {
+          console.error('Failed to fetch route:', error);
+          setStatus('Unable to load the selected route.', 'error');
+          return false;
+        }
+      }
+
+      if (!data) {
+        setStatus('Unable to load the selected route.', 'error');
+        return false;
+      }
+
+      applyRouteToCanvas(routeKey, data);
+      return true;
+    }
+
     async function loadRoutesList(selectedRouteKey = '') {
       try {
         routeSelector.disabled = true;
@@ -7412,6 +7541,7 @@
         const pathSettingsChanged =
           resolvedSettings.hollowPointDiameter !== previousSettings.hollowPointDiameter ||
           resolvedSettings.filledPointDiameter !== previousSettings.filledPointDiameter ||
+          resolvedSettings.hollowPointLineWidth !== previousSettings.hollowPointLineWidth ||
           resolvedSettings.rectangleWidth !== previousSettings.rectangleWidth ||
           resolvedSettings.rectangleHeight !== previousSettings.rectangleHeight ||
           resolvedSettings.unfocusedTransparency !== previousSettings.unfocusedTransparency;
@@ -7419,6 +7549,7 @@
         if (pathSettingsChanged) {
           pointDiameter = resolvedSettings.hollowPointDiameter ?? resolvedSettings.pointDiameter;
           filledPointDiameter = resolvedSettings.filledPointDiameter ?? resolvedSettings.pointDiameter;
+          hollowPointLineWidth = resolvedSettings.hollowPointLineWidth;
           rectangleWidth = resolvedSettings.rectangleWidth;
           rectangleHeight = resolvedSettings.rectangleHeight;
           unfocusedTransparency = resolvedSettings.unfocusedTransparency;
@@ -7729,6 +7860,10 @@
           filledPointDiameterSlider?.value ?? filledPointDiameter,
           DEFAULT_FILLED_POINT_DIAMETER,
         );
+        const nextHollowPointLineWidth = normalizeHollowPointLineWidth(
+          hollowPointLineWidthSlider?.value ?? hollowPointLineWidth,
+          nextHollowPointDiameter,
+        );
         const nextGradeBarBaseHeight = normalizeGradeBarHeight(
           gradeBarBaseHeightInput?.value,
           DEFAULT_GRADE_BAR_BASE_HEIGHT,
@@ -7748,6 +7883,7 @@
           await persistWallSettings(locationKey, {
             pointDiameter: nextHollowPointDiameter,
             hollowPointDiameter: nextHollowPointDiameter,
+            hollowPointLineWidth: nextHollowPointLineWidth,
             filledPointDiameter: nextFilledPointDiameter,
             brezerStrokeWidth,
             gradeBarBaseHeight: nextGradeBarBaseHeight,
@@ -7757,6 +7893,7 @@
           });
           pointDiameter = nextHollowPointDiameter;
           filledPointDiameter = nextFilledPointDiameter;
+          hollowPointLineWidth = nextHollowPointLineWidth;
           setStatus('Appearance saved.', 'success');
         } catch (error) {
           console.error('Failed to save appearance settings:', error);
@@ -7784,25 +7921,15 @@
         return;
       }
 
-      let data = routesCache.get(selectedKey);
-      if (!data) {
-        try {
-          const snap = await getDoc(doc(db, 'routes', selectedKey));
-          if (snap.exists()) {
-            data = normalizeRouteData({ id: selectedKey, ...snap.data() });
-            routesCache.set(selectedKey, data);
-          }
-        } catch (error) {
-          console.error('Failed to fetch route:', error);
+      routeSelector.disabled = true;
+      try {
+        const loaded = await loadRouteByKey(selectedKey);
+        if (!loaded) {
+          routeSelector.value = currentRouteKey || '';
         }
+      } finally {
+        routeSelector.disabled = false;
       }
-
-      if (!data) {
-        setStatus('Unable to load the selected route.', 'error');
-        return;
-      }
-
-      applyRouteToCanvas(selectedKey, data);
     });
 
     colorPicker.addEventListener('input', (event) => {
@@ -7865,6 +7992,7 @@
           const previewSettings = normalizeWallSettings({
             pointDiameter: nextValue,
             hollowPointDiameter: nextValue,
+            hollowPointLineWidth,
             filledPointDiameter,
             rectangleWidth,
             rectangleHeight,
@@ -7899,9 +8027,63 @@
             await persistWallSettings(locationKey, {
               pointDiameter: nextValue,
               hollowPointDiameter: nextValue,
+              hollowPointLineWidth,
             });
           } catch (error) {
             console.error('Failed to persist hollow point diameter:', error);
+          }
+        }
+      });
+    }
+
+    if (hollowPointLineWidthSlider) {
+      hollowPointLineWidthSlider.addEventListener('input', (event) => {
+        const nextValue = normalizeHollowPointLineWidth(event.target.value, pointDiameter);
+        if (hollowPointLineWidth === nextValue) {
+          updateAppearanceControls();
+          return;
+        }
+
+        hollowPointLineWidth = nextValue;
+        updateAppearanceControls();
+
+        const locationKey = getCurrentLocationKey();
+        const normalizedKey = normalizeWallKey(locationKey);
+        if (normalizedKey) {
+          const previewSettings = normalizeWallSettings({
+            pointDiameter,
+            hollowPointDiameter: pointDiameter,
+            hollowPointLineWidth: nextValue,
+            filledPointDiameter,
+            rectangleWidth,
+            rectangleHeight,
+            brezerStrokeWidth,
+            unfocusedTransparency,
+            gradeBarBaseHeight,
+            gradeBarMaxHeight,
+            gradeBarWidth,
+            gradeBarTransparency,
+          });
+          wallSettingsCache.set(normalizedKey, previewSettings);
+          updateRoutesForWall(normalizedKey, previewSettings);
+        }
+
+        redraw();
+      });
+
+      hollowPointLineWidthSlider.addEventListener('change', async (event) => {
+        const nextValue = normalizeHollowPointLineWidth(event.target.value, pointDiameter);
+        if (hollowPointLineWidth !== nextValue) {
+          hollowPointLineWidth = nextValue;
+          updateAppearanceControls();
+        }
+
+        const locationKey = getCurrentLocationKey();
+        if (locationKey) {
+          try {
+            await persistWallSettings(locationKey, { hollowPointLineWidth: nextValue });
+          } catch (error) {
+            console.error('Failed to persist hollow point outline thickness:', error);
           }
         }
       });
@@ -7929,6 +8111,7 @@
           const previewSettings = normalizeWallSettings({
             pointDiameter,
             hollowPointDiameter: pointDiameter,
+            hollowPointLineWidth,
             filledPointDiameter: nextValue,
             rectangleWidth,
             rectangleHeight,
@@ -7992,6 +8175,7 @@
             gradeBarMaxHeight,
             gradeBarWidth,
             gradeBarTransparency,
+            hollowPointLineWidth,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
           updateRoutesForWall(normalizedKey, previewSettings);
@@ -8042,6 +8226,7 @@
             gradeBarMaxHeight,
             gradeBarWidth,
             gradeBarTransparency,
+            hollowPointLineWidth,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
           updateRoutesForWall(normalizedKey, previewSettings);
@@ -8092,6 +8277,7 @@
             gradeBarMaxHeight,
             gradeBarWidth,
             gradeBarTransparency,
+            hollowPointLineWidth,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
           updateRoutesForWall(normalizedKey, previewSettings);
@@ -8142,6 +8328,7 @@
             gradeBarMaxHeight,
             gradeBarWidth,
             gradeBarTransparency,
+            hollowPointLineWidth,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
           updateRoutesForWall(normalizedKey, previewSettings);
