@@ -4825,10 +4825,10 @@
       return '';
     };
 
-    const shouldFocusFromInteraction = (event, entry) => {
+    const resolveOverlayInteraction = (event, entry) => {
       if (!entry || typeof entry.routeKey !== 'string' || !entry.routeKey) {
         resetLastFocusActivation();
-        return false;
+        return null;
       }
 
       const pointerType = resolvePointerType(event);
@@ -4862,7 +4862,11 @@
         y: entry.canvasY ?? 0,
       };
 
-      return isDoubleActivation;
+      if (isDoubleActivation) {
+        return 'switch';
+      }
+
+      return 'focus';
     };
 
     const distanceSquared = (x1, y1, x2, y2) => {
@@ -4968,7 +4972,7 @@
       redraw();
     };
 
-    const handlePotentialOverlayFocus = (event) => {
+    const handlePotentialOverlayFocus = async (event) => {
       if (!canvas) {
         return;
       }
@@ -4988,13 +4992,38 @@
         return;
       }
 
-      const shouldFocusRoute = shouldFocusFromInteraction(event, {
+      const interaction = resolveOverlayInteraction(event, {
         routeKey: entry.routeKey,
         canvasX: entry.canvasX,
         canvasY: entry.canvasY,
       });
 
-      if (shouldFocusRoute) {
+      if (interaction === 'switch') {
+        const label = entry.route?.title || entry.routeKey;
+        const confirmMessage = hasUnsavedChanges
+          ? `Switch to route “${label}”? This will discard your current drawing because it hasn't been saved yet.`
+          : `Switch to route “${label}”? This will discard your current drawing if it isn't saved.`;
+        const shouldSwitch = window.confirm(confirmMessage);
+        if (shouldSwitch) {
+          if (routeSelector) {
+            routeSelector.disabled = true;
+          }
+          try {
+            const loaded = await loadRouteByKey(entry.routeKey);
+            if (!loaded && routeSelector) {
+              routeSelector.value = currentRouteKey || '';
+            }
+          } finally {
+            if (routeSelector) {
+              routeSelector.disabled = false;
+            }
+          }
+        }
+        resetLastFocusActivation();
+        return;
+      }
+
+      if (interaction === 'focus') {
         setFocusedRouteKey(entry.routeKey);
       }
     };
@@ -7221,7 +7250,7 @@
       }
 
       if (!isDrawingEnabled) {
-        handlePotentialOverlayFocus(event);
+        void handlePotentialOverlayFocus(event);
         return;
       }
 
@@ -7400,6 +7429,35 @@
       } else {
         clearStatus();
       }
+    }
+
+    async function loadRouteByKey(routeKey) {
+      if (typeof routeKey !== 'string' || !routeKey) {
+        return false;
+      }
+
+      let data = routesCache.get(routeKey);
+      if (!data) {
+        try {
+          const snap = await getDoc(doc(db, 'routes', routeKey));
+          if (snap.exists()) {
+            data = normalizeRouteData({ id: routeKey, ...snap.data() });
+            routesCache.set(routeKey, data);
+          }
+        } catch (error) {
+          console.error('Failed to fetch route:', error);
+          setStatus('Unable to load the selected route.', 'error');
+          return false;
+        }
+      }
+
+      if (!data) {
+        setStatus('Unable to load the selected route.', 'error');
+        return false;
+      }
+
+      applyRouteToCanvas(routeKey, data);
+      return true;
     }
 
     async function loadRoutesList(selectedRouteKey = '') {
@@ -7784,25 +7842,15 @@
         return;
       }
 
-      let data = routesCache.get(selectedKey);
-      if (!data) {
-        try {
-          const snap = await getDoc(doc(db, 'routes', selectedKey));
-          if (snap.exists()) {
-            data = normalizeRouteData({ id: selectedKey, ...snap.data() });
-            routesCache.set(selectedKey, data);
-          }
-        } catch (error) {
-          console.error('Failed to fetch route:', error);
+      routeSelector.disabled = true;
+      try {
+        const loaded = await loadRouteByKey(selectedKey);
+        if (!loaded) {
+          routeSelector.value = currentRouteKey || '';
         }
+      } finally {
+        routeSelector.disabled = false;
       }
-
-      if (!data) {
-        setStatus('Unable to load the selected route.', 'error');
-        return;
-      }
-
-      applyRouteToCanvas(selectedKey, data);
     });
 
     colorPicker.addEventListener('input', (event) => {
