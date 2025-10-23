@@ -2418,6 +2418,7 @@
       const PATH_TYPE_HOLLOW_POINT = 'hollow-point';
       const PATH_TYPE_FILLED_POINT = 'filled-point';
       const PATH_TYPE_RECTANGLE = 'rectangle';
+      const OVERLAP_GROUP_TYPE_POINT = 'point-group';
       const DEFAULT_PATH_TYPE = PATH_TYPE_BREZER;
       const MIN_POINT_DIAMETER = 12;
       const MAX_POINT_DIAMETER = 160;
@@ -7496,11 +7497,25 @@
         return getRouteStrokeColor(route);
       }
 
+      function getOverlapGroupPathType(pathType) {
+        const normalized = normalizePathType(pathType);
+        if (normalized === PATH_TYPE_HOLLOW_POINT || normalized === PATH_TYPE_FILLED_POINT) {
+          return OVERLAP_GROUP_TYPE_POINT;
+        }
+        return normalized;
+      }
+
       function createOverlapGroupKey(pathType, pointKey) {
         if (!pathType || !pointKey) {
           return null;
         }
-        return `${pathType}::${pointKey}`;
+
+        const normalizedPathType = getOverlapGroupPathType(pathType);
+        if (!normalizedPathType) {
+          return null;
+        }
+
+        return `${normalizedPathType}::${pointKey}`;
       }
 
       function buildOverlappingShapeGroups(routeList = []) {
@@ -7533,13 +7548,19 @@
           pointEntries.forEach(({ pathType, points }) => {
             if (
               !Array.isArray(points) ||
-              !points.length ||
-              (!isNormalizedPointPathType(pathType) && pathType !== PATH_TYPE_RECTANGLE)
+              !points.length
             ) {
               return;
             }
 
-            const normalizedPointDiameter = getRoutePointDiameterForPathType(route, pathType);
+            const normalizedPathType = normalizePathType(pathType);
+            if (
+              (!isNormalizedPointPathType(normalizedPathType) && normalizedPathType !== PATH_TYPE_RECTANGLE)
+            ) {
+              return;
+            }
+
+            const normalizedPointDiameter = getRoutePointDiameterForPathType(route, normalizedPathType);
 
             points.forEach((point) => {
               const normalizedX = Number(point?.x);
@@ -7549,14 +7570,14 @@
                 return;
               }
 
-              const groupKey = createOverlapGroupKey(pathType, pointKey);
+              const groupKey = createOverlapGroupKey(normalizedPathType, pointKey);
               if (!groupKey) {
                 return;
               }
 
               if (!groups.has(groupKey)) {
                 groups.set(groupKey, {
-                  pathType,
+                  pathType: normalizedPathType,
                   entries: [],
                 });
               }
@@ -7565,6 +7586,7 @@
               group.entries.push({
                 routeId: route.id,
                 color: strokeColor,
+                pathType: normalizedPathType,
                 pointDiameter: normalizedPointDiameter,
                 rectangleWidth: normalizedRectangleWidth,
                 rectangleHeight: normalizedRectangleHeight,
@@ -7590,6 +7612,11 @@
         const total = entries.length;
         const radii = entries.map((entry) => Math.max(1, Number(entry.pointDiameter) / 2));
         const radius = Math.max(...radii, 4);
+        const strokeWidths = entries.map((entry) =>
+          Math.max(2, Math.round(Number(entry.pointDiameter) / 10) || 2),
+        );
+        const maxStrokeWidth = strokeWidths.length ? Math.max(...strokeWidths) : 2;
+        const fillRadius = Math.max(1, radius - maxStrokeWidth * 0.6);
         const step = (Math.PI * 2) / total;
         const startAngle = -Math.PI / 2;
 
@@ -7599,7 +7626,26 @@
         ctx.lineJoin = 'miter';
 
         entries.forEach((entry, index) => {
-          const strokeWidth = Math.max(2, Math.round(Number(entry.pointDiameter) / 10) || 2);
+          if (entry?.pathType !== PATH_TYPE_FILLED_POINT) {
+            return;
+          }
+
+          const angleStart = startAngle + step * index;
+          const angleEnd = angleStart + step;
+          const entryAlpha = Number.isFinite(entry.alpha) ? entry.alpha : 1;
+          const fillColor = entry.color || '#ffde59';
+
+          ctx.globalAlpha = entryAlpha;
+          ctx.fillStyle = fillColor;
+          ctx.beginPath();
+          ctx.moveTo(center.x, center.y);
+          ctx.arc(center.x, center.y, fillRadius, angleStart, angleEnd);
+          ctx.closePath();
+          ctx.fill();
+        });
+
+        entries.forEach((entry, index) => {
+          const strokeWidth = strokeWidths[index] ?? Math.max(2, Math.round(Number(entry.pointDiameter) / 10) || 2);
           const angleStart = startAngle + step * index;
           const angleEnd = angleStart + step;
 
