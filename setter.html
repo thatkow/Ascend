@@ -1602,6 +1602,24 @@
                 />
               </label>
               <label
+                id="hollowPointLineWidthField"
+                class="control-field"
+                data-help-text="Adjust the outline thickness used for hollow point holds."
+              >
+                <span>
+                  Hollow point outline thickness
+                  <span id="hollowPointLineWidthValue"></span>
+                </span>
+                <input
+                  id="hollowPointLineWidthSlider"
+                  type="range"
+                  min="1"
+                  max="48"
+                  step="1"
+                  value="5"
+                />
+              </label>
+              <label
                 id="rectangleWidthField"
                 class="control-field"
                 data-help-text="Adjust the width of rectangle holds when using the rectangle path."
@@ -2013,6 +2031,12 @@
     const DEFAULT_HOLLOW_POINT_DIAMETER = 48;
     const DEFAULT_FILLED_POINT_DIAMETER = 48;
     const DEFAULT_POINT_DIAMETER = DEFAULT_HOLLOW_POINT_DIAMETER;
+    const MIN_HOLLOW_POINT_LINE_WIDTH = 1;
+    const MAX_HOLLOW_POINT_LINE_WIDTH = 48;
+    const DEFAULT_HOLLOW_POINT_LINE_WIDTH = Math.max(
+      MIN_HOLLOW_POINT_LINE_WIDTH,
+      Math.min(MAX_HOLLOW_POINT_LINE_WIDTH, Math.round(DEFAULT_HOLLOW_POINT_DIAMETER / 10) || 2),
+    );
     const MIN_RECTANGLE_SIZE = 12;
     const MAX_RECTANGLE_SIZE = 200;
     const DEFAULT_RECTANGLE_WIDTH = 80;
@@ -3628,6 +3652,9 @@
     const hollowPointDiameterField = document.getElementById('hollowPointDiameterField');
     const hollowPointDiameterSlider = document.getElementById('hollowPointDiameterSlider');
     const hollowPointDiameterValue = document.getElementById('hollowPointDiameterValue');
+    const hollowPointLineWidthField = document.getElementById('hollowPointLineWidthField');
+    const hollowPointLineWidthSlider = document.getElementById('hollowPointLineWidthSlider');
+    const hollowPointLineWidthValue = document.getElementById('hollowPointLineWidthValue');
     const filledPointDiameterField = document.getElementById('filledPointDiameterField');
     const filledPointDiameterSlider = document.getElementById('filledPointDiameterSlider');
     const filledPointDiameterValue = document.getElementById('filledPointDiameterValue');
@@ -3753,6 +3780,32 @@
         MAX_POINT_DIAMETER,
       );
       return clamped;
+    }
+
+    function computeDefaultHollowPointLineWidth(diameter = DEFAULT_HOLLOW_POINT_DIAMETER) {
+      const normalizedDiameter = normalizePointDiameter(diameter, DEFAULT_HOLLOW_POINT_DIAMETER);
+      const baseline = Math.max(2, Math.round(normalizedDiameter / 10));
+      return Math.min(
+        Math.max(baseline, MIN_HOLLOW_POINT_LINE_WIDTH),
+        MAX_HOLLOW_POINT_LINE_WIDTH,
+      );
+    }
+
+    function normalizeHollowPointLineWidth(value, diameterFallback = DEFAULT_HOLLOW_POINT_DIAMETER) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return computeDefaultHollowPointLineWidth(diameterFallback);
+      }
+      const rounded = Math.round(numeric);
+      return Math.min(
+        Math.max(rounded, MIN_HOLLOW_POINT_LINE_WIDTH),
+        MAX_HOLLOW_POINT_LINE_WIDTH,
+      );
+    }
+
+    function getRouteHollowPointLineWidth(routeData) {
+      const diameter = getRoutePointDiameterForPathType(routeData, PATH_TYPE_HOLLOW_POINT);
+      return normalizeHollowPointLineWidth(routeData?.hollowPointLineWidth, diameter);
     }
 
     function normalizeRectangleSize(value, fallback = DEFAULT_RECTANGLE_WIDTH) {
@@ -3895,6 +3948,7 @@
       return {
         pointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
         hollowPointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
+        hollowPointLineWidth: DEFAULT_HOLLOW_POINT_LINE_WIDTH,
         filledPointDiameter: DEFAULT_FILLED_POINT_DIAMETER,
         rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
         rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
@@ -3915,6 +3969,10 @@
       const hollowPointDiameter = normalizePointDiameter(
         raw.hollowPointDiameter ?? raw.pointDiameter,
         DEFAULT_HOLLOW_POINT_DIAMETER,
+      );
+      const hollowPointLineWidth = normalizeHollowPointLineWidth(
+        raw.hollowPointLineWidth ?? raw.pointStrokeWidth ?? raw.hollowPointStrokeWidth,
+        hollowPointDiameter,
       );
       const filledPointDiameter = normalizePointDiameter(
         raw.filledPointDiameter ?? raw.pointDiameter,
@@ -3944,6 +4002,7 @@
       return {
         pointDiameter: hollowPointDiameter,
         hollowPointDiameter,
+        hollowPointLineWidth,
         filledPointDiameter,
         rectangleWidth,
         rectangleHeight,
@@ -3984,6 +4043,7 @@
       const settings = getWallSettingsWithFallback(locationKey, fallback);
       pointDiameter = settings.hollowPointDiameter ?? settings.pointDiameter;
       filledPointDiameter = settings.filledPointDiameter ?? settings.pointDiameter;
+      hollowPointLineWidth = settings.hollowPointLineWidth;
       rectangleWidth = settings.rectangleWidth;
       rectangleHeight = settings.rectangleHeight;
       brezerStrokeWidth = settings.brezerStrokeWidth;
@@ -4145,6 +4205,7 @@
             ...data,
             pointDiameter: settings.hollowPointDiameter ?? settings.pointDiameter,
             hollowPointDiameter: settings.hollowPointDiameter ?? settings.pointDiameter,
+            hollowPointLineWidth: settings.hollowPointLineWidth,
             filledPointDiameter: settings.filledPointDiameter ?? settings.pointDiameter,
             brezerStrokeWidth: settings.brezerStrokeWidth,
             rectangleWidth: settings.rectangleWidth,
@@ -4170,6 +4231,7 @@
           ...data,
           pointDiameter: settings.hollowPointDiameter ?? settings.pointDiameter,
           hollowPointDiameter: settings.hollowPointDiameter ?? settings.pointDiameter,
+          hollowPointLineWidth: settings.hollowPointLineWidth,
           filledPointDiameter: settings.filledPointDiameter ?? settings.pointDiameter,
           brezerStrokeWidth: settings.brezerStrokeWidth,
           rectangleWidth: settings.rectangleWidth,
@@ -4199,6 +4261,7 @@
       if (getCurrentLocationKey() === normalizedKey) {
         pointDiameter = merged.hollowPointDiameter ?? merged.pointDiameter;
         filledPointDiameter = merged.filledPointDiameter ?? merged.pointDiameter;
+        hollowPointLineWidth = merged.hollowPointLineWidth;
         brezerStrokeWidth = merged.brezerStrokeWidth;
         unfocusedTransparency = merged.unfocusedTransparency;
         gradeBarBaseHeight = merged.gradeBarBaseHeight;
@@ -4223,6 +4286,7 @@
         const wallPayload = {
           pointDiameter: merged.hollowPointDiameter ?? merged.pointDiameter,
           hollowPointDiameter: merged.hollowPointDiameter ?? merged.pointDiameter,
+          hollowPointLineWidth: merged.hollowPointLineWidth,
           filledPointDiameter: merged.filledPointDiameter ?? merged.pointDiameter,
           rectangleWidth: merged.rectangleWidth,
           rectangleHeight: merged.rectangleHeight,
@@ -4331,6 +4395,7 @@
           background_url: trimmedImage,
           pointDiameter: wallSettings.hollowPointDiameter,
           hollowPointDiameter: wallSettings.hollowPointDiameter,
+          hollowPointLineWidth: wallSettings.hollowPointLineWidth,
           filledPointDiameter: wallSettings.filledPointDiameter,
           rectangleWidth: wallSettings.rectangleWidth,
           rectangleHeight: wallSettings.rectangleHeight,
@@ -4569,6 +4634,7 @@
     let pathType = DEFAULT_PATH_TYPE;
     let isDrawingEnabled = false;
     let pointDiameter = DEFAULT_HOLLOW_POINT_DIAMETER;
+    let hollowPointLineWidth = DEFAULT_HOLLOW_POINT_LINE_WIDTH;
     let filledPointDiameter = DEFAULT_FILLED_POINT_DIAMETER;
     let rectangleWidth = DEFAULT_RECTANGLE_WIDTH;
     let rectangleHeight = DEFAULT_RECTANGLE_HEIGHT;
@@ -5682,6 +5748,10 @@
         DEFAULT_RECTANGLE_HEIGHT,
       );
       const fallbackBrezerStrokeWidth = normalizeBrezerStrokeWidth(rest.brezerStrokeWidth);
+      const fallbackHollowPointLineWidth = normalizeHollowPointLineWidth(
+        rest.hollowPointLineWidth,
+        fallbackHollowPointDiameter,
+      );
       const gradeBarBaseHeight = normalizeGradeBarHeight(
         rest.gradeBarBaseHeight,
         DEFAULT_GRADE_BAR_BASE_HEIGHT,
@@ -5700,6 +5770,7 @@
         pointDiameter: fallbackPointDiameter,
         hollowPointDiameter: fallbackHollowPointDiameter,
         filledPointDiameter: fallbackFilledPointDiameter,
+        hollowPointLineWidth: fallbackHollowPointLineWidth,
         rectangleWidth: fallbackRectangleWidth,
         rectangleHeight: fallbackRectangleHeight,
         brezerStrokeWidth: fallbackBrezerStrokeWidth,
@@ -5734,6 +5805,7 @@
         pathType: normalizedPathType,
         pointDiameter: wallSettings.hollowPointDiameter ?? wallSettings.pointDiameter,
         hollowPointDiameter: wallSettings.hollowPointDiameter ?? wallSettings.pointDiameter,
+        hollowPointLineWidth: wallSettings.hollowPointLineWidth,
         filledPointDiameter: wallSettings.filledPointDiameter ?? wallSettings.pointDiameter,
         rectangleWidth: wallSettings.rectangleWidth,
         rectangleHeight: wallSettings.rectangleHeight,
@@ -6144,6 +6216,12 @@
       if (gradeBarTransparencyInput) {
         gradeBarTransparencyInput.value = String(gradeBarTransparency);
       }
+      if (hollowPointLineWidthSlider) {
+        hollowPointLineWidthSlider.value = String(hollowPointLineWidth);
+      }
+      if (hollowPointLineWidthValue) {
+        hollowPointLineWidthValue.textContent = `${hollowPointLineWidth}px`;
+      }
     }
 
     const DEFAULT_CANVAS_ASPECT_RATIO = 1536 / 1024;
@@ -6245,6 +6323,7 @@
         rectangleWidth,
         rectangleHeight,
         brezerStrokeWidth,
+        hollowPointLineWidth,
       );
       if (points.length) {
         queueGradeBarOverlay({
@@ -6296,6 +6375,7 @@
           rectangleWidth,
           rectangleHeight,
           brezerStrokeWidth,
+          hollowPointLineWidth,
         );
       });
     }
@@ -6347,6 +6427,7 @@
       routeRectangleWidth = DEFAULT_RECTANGLE_WIDTH,
       routeRectangleHeight = DEFAULT_RECTANGLE_HEIGHT,
       routeBrezerStrokeWidth = DEFAULT_BREZER_STROKE_WIDTH,
+      routeHollowPointLineWidth = DEFAULT_HOLLOW_POINT_LINE_WIDTH,
     ) {
       if (!Array.isArray(routePoints) || !routePoints.length) {
         return;
@@ -6413,7 +6494,10 @@
 
       if (effectivePathType === PATH_TYPE_HOLLOW_POINT) {
         const radius = Math.max(1, effectivePointDiameter / 2);
-        const strokeWidth = Math.max(2, Math.round(effectivePointDiameter / 10));
+        const strokeWidth = normalizeHollowPointLineWidth(
+          routeHollowPointLineWidth,
+          effectivePointDiameter,
+        );
         ctx.lineWidth = strokeWidth;
         ctx.strokeStyle = color;
         routePoints.forEach((point) => {
@@ -6580,6 +6664,7 @@
             rectangleWidth: entry.rectangleWidth,
             rectangleHeight: entry.rectangleHeight,
             alpha: entry.alpha,
+            hollowPointLineWidth: entry.hollowPointLineWidth,
           });
         });
       });
@@ -6601,9 +6686,26 @@
       const total = entries.length;
       const radii = entries.map((entry) => Math.max(1, Number(entry.pointDiameter) / 2));
       const radius = Math.max(...radii, 4);
-      const strokeWidths = entries.map((entry) =>
-        Math.max(2, Math.round(Number(entry.pointDiameter) / 10) || 2),
-      );
+      const strokeWidths = entries.map((entry) => {
+        if (!entry) {
+          return MIN_HOLLOW_POINT_LINE_WIDTH;
+        }
+
+        const fallbackDiameter =
+          entry.pathType === PATH_TYPE_FILLED_POINT
+            ? DEFAULT_FILLED_POINT_DIAMETER
+            : DEFAULT_HOLLOW_POINT_DIAMETER;
+        const diameter = normalizePointDiameter(entry.pointDiameter, fallbackDiameter);
+
+        if (
+          (entry.pathType === PATH_TYPE_HOLLOW_POINT || entry.pathType === PATH_TYPE_FILLED_POINT) &&
+          entry.hollowPointLineWidth !== undefined
+        ) {
+          return normalizeHollowPointLineWidth(entry.hollowPointLineWidth, diameter);
+        }
+
+        return Math.max(2, Math.round(diameter / 10) || 2);
+      });
       const maxStrokeWidth = strokeWidths.length ? Math.max(...strokeWidths) : 2;
       const fillRadius = Math.max(1, radius - maxStrokeWidth * 0.6);
       const step = (Math.PI * 2) / total;
@@ -6786,6 +6888,7 @@
           DEFAULT_RECTANGLE_HEIGHT,
         );
         const normalizedBrezerWidth = normalizeBrezerStrokeWidth(data.brezerStrokeWidth);
+        const normalizedHollowPointLineWidth = getRouteHollowPointLineWidth(data);
 
         const pointEntries = collectRoutePointEntries(data);
         pointEntries.forEach(({ pathType: entryPathType, normalizedPoints }) => {
@@ -6820,6 +6923,7 @@
             gradeBarMaxHeight: data.gradeBarMaxHeight,
             gradeBarWidth: data.gradeBarWidth,
             gradeBarTransparency: data.gradeBarTransparency,
+            hollowPointLineWidth: normalizedHollowPointLineWidth,
           });
         });
       });
@@ -6976,6 +7080,7 @@
             entryRectangleWidth,
             entryRectangleHeight,
             entry.brezerStrokeWidth,
+            entry.hollowPointLineWidth,
           );
         }
 
@@ -7372,6 +7477,7 @@
       pathType = DEFAULT_PATH_TYPE;
       pointDiameter = wallSettings.hollowPointDiameter ?? wallSettings.pointDiameter;
       filledPointDiameter = wallSettings.filledPointDiameter ?? wallSettings.pointDiameter;
+      hollowPointLineWidth = wallSettings.hollowPointLineWidth;
       rectangleWidth = wallSettings.rectangleWidth;
       rectangleHeight = wallSettings.rectangleHeight;
       brezerStrokeWidth = wallSettings.brezerStrokeWidth;
@@ -7435,6 +7541,7 @@
         const pathSettingsChanged =
           resolvedSettings.hollowPointDiameter !== previousSettings.hollowPointDiameter ||
           resolvedSettings.filledPointDiameter !== previousSettings.filledPointDiameter ||
+          resolvedSettings.hollowPointLineWidth !== previousSettings.hollowPointLineWidth ||
           resolvedSettings.rectangleWidth !== previousSettings.rectangleWidth ||
           resolvedSettings.rectangleHeight !== previousSettings.rectangleHeight ||
           resolvedSettings.unfocusedTransparency !== previousSettings.unfocusedTransparency;
@@ -7442,6 +7549,7 @@
         if (pathSettingsChanged) {
           pointDiameter = resolvedSettings.hollowPointDiameter ?? resolvedSettings.pointDiameter;
           filledPointDiameter = resolvedSettings.filledPointDiameter ?? resolvedSettings.pointDiameter;
+          hollowPointLineWidth = resolvedSettings.hollowPointLineWidth;
           rectangleWidth = resolvedSettings.rectangleWidth;
           rectangleHeight = resolvedSettings.rectangleHeight;
           unfocusedTransparency = resolvedSettings.unfocusedTransparency;
@@ -7752,6 +7860,10 @@
           filledPointDiameterSlider?.value ?? filledPointDiameter,
           DEFAULT_FILLED_POINT_DIAMETER,
         );
+        const nextHollowPointLineWidth = normalizeHollowPointLineWidth(
+          hollowPointLineWidthSlider?.value ?? hollowPointLineWidth,
+          nextHollowPointDiameter,
+        );
         const nextGradeBarBaseHeight = normalizeGradeBarHeight(
           gradeBarBaseHeightInput?.value,
           DEFAULT_GRADE_BAR_BASE_HEIGHT,
@@ -7771,6 +7883,7 @@
           await persistWallSettings(locationKey, {
             pointDiameter: nextHollowPointDiameter,
             hollowPointDiameter: nextHollowPointDiameter,
+            hollowPointLineWidth: nextHollowPointLineWidth,
             filledPointDiameter: nextFilledPointDiameter,
             brezerStrokeWidth,
             gradeBarBaseHeight: nextGradeBarBaseHeight,
@@ -7780,6 +7893,7 @@
           });
           pointDiameter = nextHollowPointDiameter;
           filledPointDiameter = nextFilledPointDiameter;
+          hollowPointLineWidth = nextHollowPointLineWidth;
           setStatus('Appearance saved.', 'success');
         } catch (error) {
           console.error('Failed to save appearance settings:', error);
@@ -7878,6 +7992,7 @@
           const previewSettings = normalizeWallSettings({
             pointDiameter: nextValue,
             hollowPointDiameter: nextValue,
+            hollowPointLineWidth,
             filledPointDiameter,
             rectangleWidth,
             rectangleHeight,
@@ -7912,9 +8027,63 @@
             await persistWallSettings(locationKey, {
               pointDiameter: nextValue,
               hollowPointDiameter: nextValue,
+              hollowPointLineWidth,
             });
           } catch (error) {
             console.error('Failed to persist hollow point diameter:', error);
+          }
+        }
+      });
+    }
+
+    if (hollowPointLineWidthSlider) {
+      hollowPointLineWidthSlider.addEventListener('input', (event) => {
+        const nextValue = normalizeHollowPointLineWidth(event.target.value, pointDiameter);
+        if (hollowPointLineWidth === nextValue) {
+          updateAppearanceControls();
+          return;
+        }
+
+        hollowPointLineWidth = nextValue;
+        updateAppearanceControls();
+
+        const locationKey = getCurrentLocationKey();
+        const normalizedKey = normalizeWallKey(locationKey);
+        if (normalizedKey) {
+          const previewSettings = normalizeWallSettings({
+            pointDiameter,
+            hollowPointDiameter: pointDiameter,
+            hollowPointLineWidth: nextValue,
+            filledPointDiameter,
+            rectangleWidth,
+            rectangleHeight,
+            brezerStrokeWidth,
+            unfocusedTransparency,
+            gradeBarBaseHeight,
+            gradeBarMaxHeight,
+            gradeBarWidth,
+            gradeBarTransparency,
+          });
+          wallSettingsCache.set(normalizedKey, previewSettings);
+          updateRoutesForWall(normalizedKey, previewSettings);
+        }
+
+        redraw();
+      });
+
+      hollowPointLineWidthSlider.addEventListener('change', async (event) => {
+        const nextValue = normalizeHollowPointLineWidth(event.target.value, pointDiameter);
+        if (hollowPointLineWidth !== nextValue) {
+          hollowPointLineWidth = nextValue;
+          updateAppearanceControls();
+        }
+
+        const locationKey = getCurrentLocationKey();
+        if (locationKey) {
+          try {
+            await persistWallSettings(locationKey, { hollowPointLineWidth: nextValue });
+          } catch (error) {
+            console.error('Failed to persist hollow point outline thickness:', error);
           }
         }
       });
@@ -7942,6 +8111,7 @@
           const previewSettings = normalizeWallSettings({
             pointDiameter,
             hollowPointDiameter: pointDiameter,
+            hollowPointLineWidth,
             filledPointDiameter: nextValue,
             rectangleWidth,
             rectangleHeight,
@@ -8005,6 +8175,7 @@
             gradeBarMaxHeight,
             gradeBarWidth,
             gradeBarTransparency,
+            hollowPointLineWidth,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
           updateRoutesForWall(normalizedKey, previewSettings);
@@ -8055,6 +8226,7 @@
             gradeBarMaxHeight,
             gradeBarWidth,
             gradeBarTransparency,
+            hollowPointLineWidth,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
           updateRoutesForWall(normalizedKey, previewSettings);
@@ -8105,6 +8277,7 @@
             gradeBarMaxHeight,
             gradeBarWidth,
             gradeBarTransparency,
+            hollowPointLineWidth,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
           updateRoutesForWall(normalizedKey, previewSettings);
@@ -8155,6 +8328,7 @@
             gradeBarMaxHeight,
             gradeBarWidth,
             gradeBarTransparency,
+            hollowPointLineWidth,
           });
           wallSettingsCache.set(normalizedKey, previewSettings);
           updateRoutesForWall(normalizedKey, previewSettings);

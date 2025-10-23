@@ -2425,6 +2425,12 @@
       const DEFAULT_HOLLOW_POINT_DIAMETER = 48;
       const DEFAULT_FILLED_POINT_DIAMETER = 48;
       const DEFAULT_POINT_DIAMETER = DEFAULT_HOLLOW_POINT_DIAMETER;
+      const MIN_HOLLOW_POINT_LINE_WIDTH = 1;
+      const MAX_HOLLOW_POINT_LINE_WIDTH = 48;
+      const DEFAULT_HOLLOW_POINT_LINE_WIDTH = Math.max(
+        MIN_HOLLOW_POINT_LINE_WIDTH,
+        Math.min(MAX_HOLLOW_POINT_LINE_WIDTH, Math.round(DEFAULT_HOLLOW_POINT_DIAMETER / 10) || 2),
+      );
       const MIN_RECTANGLE_SIZE = 12;
       const MAX_RECTANGLE_SIZE = 200;
       const DEFAULT_RECTANGLE_WIDTH = 80;
@@ -2543,6 +2549,27 @@
         return clamped;
       }
 
+      function computeDefaultHollowPointLineWidth(diameter = DEFAULT_HOLLOW_POINT_DIAMETER) {
+        const normalizedDiameter = normalizePointDiameter(diameter, DEFAULT_HOLLOW_POINT_DIAMETER);
+        const baseline = Math.max(2, Math.round(normalizedDiameter / 10));
+        return Math.min(
+          Math.max(baseline, MIN_HOLLOW_POINT_LINE_WIDTH),
+          MAX_HOLLOW_POINT_LINE_WIDTH,
+        );
+      }
+
+      function normalizeHollowPointLineWidth(value, diameterFallback = DEFAULT_HOLLOW_POINT_DIAMETER) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return computeDefaultHollowPointLineWidth(diameterFallback);
+        }
+        const rounded = Math.round(numeric);
+        return Math.min(
+          Math.max(rounded, MIN_HOLLOW_POINT_LINE_WIDTH),
+          MAX_HOLLOW_POINT_LINE_WIDTH,
+        );
+      }
+
       function normalizeRectangleSize(value, fallback = DEFAULT_RECTANGLE_WIDTH) {
         const numeric = Number(value);
         if (!Number.isFinite(numeric)) {
@@ -2617,6 +2644,7 @@
           return {
             pointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
             hollowPointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
+            hollowPointLineWidth: DEFAULT_HOLLOW_POINT_LINE_WIDTH,
             filledPointDiameter: DEFAULT_FILLED_POINT_DIAMETER,
             rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
             rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
@@ -2631,6 +2659,10 @@
         const hollowPointDiameter = normalizePointDiameter(
           raw.hollowPointDiameter ?? raw.pointDiameter,
           DEFAULT_HOLLOW_POINT_DIAMETER,
+        );
+        const hollowPointLineWidth = normalizeHollowPointLineWidth(
+          raw.hollowPointLineWidth ?? raw.pointStrokeWidth ?? raw.hollowPointStrokeWidth,
+          hollowPointDiameter,
         );
         const filledPointDiameter = normalizePointDiameter(
           raw.filledPointDiameter ?? raw.pointDiameter,
@@ -2665,6 +2697,7 @@
         return {
           pointDiameter,
           hollowPointDiameter,
+          hollowPointLineWidth,
           filledPointDiameter,
           rectangleWidth,
           rectangleHeight,
@@ -2717,6 +2750,11 @@
         return getDefaultPointDiameterForPathType(normalized);
       }
 
+      function getRouteHollowPointLineWidth(route) {
+        const diameter = getRoutePointDiameterForPathType(route, PATH_TYPE_HOLLOW_POINT);
+        return normalizeHollowPointLineWidth(route?.hollowPointLineWidth, diameter);
+      }
+
       const wallSettingsCache = new Map();
 
       const normalizeLocationName = (value) => {
@@ -2748,6 +2786,7 @@
         return {
           pointDiameter: DEFAULT_POINT_DIAMETER,
           hollowPointDiameter: DEFAULT_HOLLOW_POINT_DIAMETER,
+          hollowPointLineWidth: DEFAULT_HOLLOW_POINT_LINE_WIDTH,
           filledPointDiameter: DEFAULT_FILLED_POINT_DIAMETER,
           rectangleWidth: DEFAULT_RECTANGLE_WIDTH,
           rectangleHeight: DEFAULT_RECTANGLE_HEIGHT,
@@ -7157,6 +7196,10 @@
               const fallbackWallSettings = {
                 pointDiameter: data.pointDiameter,
                 hollowPointDiameter: data.hollowPointDiameter ?? data.pointDiameter,
+                hollowPointLineWidth: normalizeHollowPointLineWidth(
+                  data.hollowPointLineWidth,
+                  data.hollowPointDiameter ?? data.pointDiameter,
+                ),
                 filledPointDiameter: data.filledPointDiameter ?? data.pointDiameter,
                 rectangleWidth: data.rectangleWidth,
                 rectangleHeight: data.rectangleHeight,
@@ -7186,6 +7229,7 @@
                 pathType: normalizePathType(data.pathType),
                 pointDiameter: wallSettings.pointDiameter,
                 hollowPointDiameter: wallSettings.hollowPointDiameter,
+                hollowPointLineWidth: wallSettings.hollowPointLineWidth,
                 filledPointDiameter: wallSettings.filledPointDiameter,
                 rectangleWidth: wallSettings.rectangleWidth,
                 rectangleHeight: wallSettings.rectangleHeight,
@@ -7544,6 +7588,7 @@
             route.rectangleHeight,
             DEFAULT_RECTANGLE_HEIGHT,
           );
+          const normalizedHollowPointLineWidth = getRouteHollowPointLineWidth(route);
 
           pointEntries.forEach(({ pathType, points }) => {
             if (
@@ -7590,6 +7635,7 @@
                 pointDiameter: normalizedPointDiameter,
                 rectangleWidth: normalizedRectangleWidth,
                 rectangleHeight: normalizedRectangleHeight,
+                hollowPointLineWidth: normalizedHollowPointLineWidth,
               });
             });
           });
@@ -7612,9 +7658,26 @@
         const total = entries.length;
         const radii = entries.map((entry) => Math.max(1, Number(entry.pointDiameter) / 2));
         const radius = Math.max(...radii, 4);
-        const strokeWidths = entries.map((entry) =>
-          Math.max(2, Math.round(Number(entry.pointDiameter) / 10) || 2),
-        );
+        const strokeWidths = entries.map((entry) => {
+          if (!entry) {
+            return MIN_HOLLOW_POINT_LINE_WIDTH;
+          }
+
+          const fallbackDiameter =
+            entry.pathType === PATH_TYPE_FILLED_POINT
+              ? DEFAULT_FILLED_POINT_DIAMETER
+              : DEFAULT_HOLLOW_POINT_DIAMETER;
+          const diameter = normalizePointDiameter(entry.pointDiameter, fallbackDiameter);
+
+          if (
+            (entry.pathType === PATH_TYPE_HOLLOW_POINT || entry.pathType === PATH_TYPE_FILLED_POINT) &&
+            entry.hollowPointLineWidth !== undefined
+          ) {
+            return normalizeHollowPointLineWidth(entry.hollowPointLineWidth, diameter);
+          }
+
+          return Math.max(2, Math.round(diameter / 10) || 2);
+        });
         const maxStrokeWidth = strokeWidths.length ? Math.max(...strokeWidths) : 2;
         const fillRadius = Math.max(1, radius - maxStrokeWidth * 0.6);
         const step = (Math.PI * 2) / total;
@@ -7645,7 +7708,17 @@
         });
 
         entries.forEach((entry, index) => {
-          const strokeWidth = strokeWidths[index] ?? Math.max(2, Math.round(Number(entry.pointDiameter) / 10) || 2);
+          const strokeWidth = strokeWidths[index] ?? Math.max(
+            2,
+            Math.round(
+              normalizePointDiameter(
+                entry?.pointDiameter,
+                entry?.pathType === PATH_TYPE_FILLED_POINT
+                  ? DEFAULT_FILLED_POINT_DIAMETER
+                  : DEFAULT_HOLLOW_POINT_DIAMETER,
+              ) / 10,
+            ) || 2,
+          );
           const angleStart = startAngle + step * index;
           const angleEnd = angleStart + step;
 
@@ -7750,8 +7823,7 @@
           return normalizeBrezerStrokeWidth(route?.brezerStrokeWidth);
         }
         if (pathType === PATH_TYPE_HOLLOW_POINT) {
-          const diameter = getRoutePointDiameterForPathType(route, PATH_TYPE_HOLLOW_POINT);
-          return Math.max(2, Math.round(diameter / 10));
+          return getRouteHollowPointLineWidth(route);
         }
         if (pathType === PATH_TYPE_FILLED_POINT) {
           const diameter = getRoutePointDiameterForPathType(route, PATH_TYPE_FILLED_POINT);
@@ -7873,7 +7945,7 @@
 
           if (pathType === PATH_TYPE_HOLLOW_POINT) {
             const circleRadius = Math.max(1, resolvedPointDiameter / 2);
-            const strokeWidth = Math.max(2, Math.round(resolvedPointDiameter / 10));
+            const strokeWidth = getRouteHollowPointLineWidth(route);
             if (visiblePoints.length) {
               const path = new Path2D();
 
