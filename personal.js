@@ -43,6 +43,9 @@ const signOutButton = document.getElementById('signOutButton');
 const setterLink = document.getElementById('setterLink');
 const setterLinkBaseHref = setterLink?.getAttribute('href') || 'setter.html';
 const tooltip = document.getElementById('routeTooltip');
+const routeOverlapPrompt = document.getElementById('routeOverlapPrompt');
+const routeOverlapList = document.getElementById('routeOverlapList');
+const routeOverlapCloseButton = document.getElementById('routeOverlapClose');
 const infoButton = document.getElementById('infoButton');
 const infoPopover = document.getElementById('infoPopover');
 const startPersonalTutorialButton = document.getElementById('startPersonalTutorialButton');
@@ -115,6 +118,9 @@ let tutorialSteps = [];
 let tutorialSecondaryActionMode = 'back';
 let tutorialHighlightedRouteId = null;
 let tutorialPreviousViewMode = null;
+
+let activeOverlapPromptContext = null;
+let overlapPromptReturnFocus = null;
 
 let tutorialOptOut = false;
 let tutorialAutoStartTimer = null;
@@ -5211,6 +5217,235 @@ function hideTooltip(options = {}) {
   pinnedPosition = null;
 }
 
+function isRouteOverlapPromptOpen() {
+  return Boolean(routeOverlapPrompt && !routeOverlapPrompt.classList.contains('hidden'));
+}
+
+function handleRouteOverlapPromptKeyDown(event) {
+  if (!isRouteOverlapPromptOpen()) {
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeRouteOverlapPrompt();
+    return;
+  }
+
+  if (event.key === 'Tab') {
+    const optionButtons = routeOverlapList
+      ? Array.from(routeOverlapList.querySelectorAll('button.route-overlap-option'))
+      : [];
+    const focusableElements = [routeOverlapCloseButton, ...optionButtons].filter(
+      (element) => element instanceof HTMLElement,
+    );
+
+    if (!focusableElements.length) {
+      event.preventDefault();
+      return;
+    }
+
+    const activeElement = document.activeElement;
+    const currentIndex = focusableElements.indexOf(activeElement);
+
+    if (currentIndex === -1) {
+      event.preventDefault();
+      const target = event.shiftKey
+        ? focusableElements[focusableElements.length - 1]
+        : focusableElements[0];
+      target.focus({ preventScroll: true });
+      return;
+    }
+
+    if (event.shiftKey && currentIndex === 0) {
+      event.preventDefault();
+      focusableElements[focusableElements.length - 1].focus({ preventScroll: true });
+      return;
+    }
+
+    if (!event.shiftKey && currentIndex === focusableElements.length - 1) {
+      event.preventDefault();
+      focusableElements[0].focus({ preventScroll: true });
+    }
+  }
+}
+
+function handleRouteOverlapPromptPointerDown(event) {
+  if (!isRouteOverlapPromptOpen() || !routeOverlapPrompt) {
+    return;
+  }
+
+  const card = routeOverlapPrompt.querySelector('.route-overlap-card');
+  if (!card || card.contains(event.target)) {
+    return;
+  }
+
+  closeRouteOverlapPrompt();
+}
+
+function closeRouteOverlapPrompt(options = {}) {
+  const { restoreFocus = true } = options;
+
+  if (!routeOverlapPrompt) {
+    activeOverlapPromptContext = null;
+    overlapPromptReturnFocus = null;
+    return;
+  }
+
+  if (!isRouteOverlapPromptOpen()) {
+    activeOverlapPromptContext = null;
+    overlapPromptReturnFocus = null;
+    return;
+  }
+
+  routeOverlapPrompt.classList.add('hidden');
+  routeOverlapPrompt.setAttribute('aria-hidden', 'true');
+
+  if (routeOverlapList) {
+    routeOverlapList.replaceChildren();
+    routeOverlapList.scrollTop = 0;
+  }
+
+  document.removeEventListener('keydown', handleRouteOverlapPromptKeyDown, true);
+  document.removeEventListener('pointerdown', handleRouteOverlapPromptPointerDown, true);
+
+  const focusTarget = restoreFocus ? overlapPromptReturnFocus : null;
+  overlapPromptReturnFocus = null;
+  activeOverlapPromptContext = null;
+
+  if (focusTarget && typeof focusTarget.focus === 'function') {
+    focusTarget.focus({ preventScroll: true });
+  }
+}
+
+function buildRouteOverlapOption(route) {
+  const item = document.createElement('li');
+  item.setAttribute('role', 'presentation');
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'route-overlap-option';
+  button.dataset.routeId = route.id;
+  button.setAttribute('role', 'option');
+
+  const backgroundColor = getRouteDisplayColor(route);
+  const textColor = getRouteOverlapTextColor(backgroundColor);
+  if (backgroundColor) {
+    button.style.setProperty('--route-overlap-option-background', backgroundColor);
+  }
+  if (textColor) {
+    button.style.setProperty('--route-overlap-option-color', textColor);
+  }
+
+  const name = document.createElement('span');
+  name.className = 'route-overlap-option-name';
+  const providedTitle =
+    typeof route?.title === 'string' && route.title.trim() ? route.title.trim() : '';
+  const providedName =
+    typeof route?.name === 'string' && route.name.trim() ? route.name.trim() : '';
+  const fallbackId = typeof route?.id === 'string' && route.id.trim() ? route.id.trim() : '';
+  const routeName = providedTitle || providedName || fallbackId || 'Untitled Route';
+  name.textContent = routeName;
+
+  const grade = document.createElement('span');
+  grade.className = 'route-overlap-option-grade';
+  const gradeValue = resolveTooltipGradeValue(route);
+  const gradeDisplay = formatGradeDisplay(gradeValue);
+  grade.textContent = gradeDisplay;
+
+  const ariaParts = [routeName];
+  if (gradeDisplay && gradeDisplay !== '—') {
+    ariaParts.push(`grade ${gradeDisplay}`);
+  }
+  button.setAttribute('aria-label', ariaParts.join(', '));
+
+  button.append(name, grade);
+  button.addEventListener('click', handleRouteOverlapOptionSelect);
+
+  item.appendChild(button);
+  return item;
+}
+
+function openRouteOverlapPrompt(routeIds, entry = null) {
+  if (!routeOverlapPrompt || !routeOverlapList) {
+    return false;
+  }
+
+  const uniqueRouteIds = Array.from(
+    new Set(
+      Array.isArray(routeIds)
+        ? routeIds.filter((value) => typeof value === 'string' && value.trim())
+        : [],
+    ),
+  );
+
+  const resolvedRoutes = uniqueRouteIds
+    .map((routeId) => routes.find((route) => route?.id === routeId))
+    .filter(Boolean);
+
+  if (resolvedRoutes.length <= 1) {
+    return false;
+  }
+
+  closeRouteOverlapPrompt({ restoreFocus: false });
+
+  overlapPromptReturnFocus = document.activeElement instanceof HTMLElement
+    ? document.activeElement
+    : null;
+
+  activeOverlapPromptContext = {
+    routeIds: uniqueRouteIds,
+    canvasX: entry?.canvasX ?? null,
+    canvasY: entry?.canvasY ?? null,
+  };
+
+  const fragment = document.createDocumentFragment();
+  resolvedRoutes.forEach((route) => {
+    fragment.appendChild(buildRouteOverlapOption(route));
+  });
+
+  routeOverlapList.replaceChildren(fragment);
+  routeOverlapList.scrollTop = 0;
+
+  routeOverlapPrompt.classList.remove('hidden');
+  routeOverlapPrompt.setAttribute('aria-hidden', 'false');
+
+  const firstOption = routeOverlapList.querySelector('button.route-overlap-option');
+  if (firstOption) {
+    firstOption.focus({ preventScroll: true });
+  }
+
+  document.addEventListener('keydown', handleRouteOverlapPromptKeyDown, true);
+  document.addEventListener('pointerdown', handleRouteOverlapPromptPointerDown, true);
+
+  hideTooltip({ force: true });
+
+  return true;
+}
+
+function handleRouteOverlapOptionSelect(event) {
+  const button = event.currentTarget;
+  if (!button || typeof button.dataset?.routeId !== 'string') {
+    closeRouteOverlapPrompt();
+    return;
+  }
+
+  const selectedRoute = routes.find((route) => route?.id === button.dataset.routeId);
+  const context = activeOverlapPromptContext;
+  closeRouteOverlapPrompt();
+
+  if (!selectedRoute) {
+    return;
+  }
+
+  resetLastFocusActivation();
+  focusRoute(selectedRoute);
+
+  const clientX = Number.isFinite(context?.canvasX) ? context.canvasX : 0;
+  const clientY = Number.isFinite(context?.canvasY) ? context.canvasY : 0;
+  showTooltip(selectedRoute, clientX, clientY, { pin: true });
+}
+
 function updateClearFocusButton() {
   if (!clearFocusButton) {
     return;
@@ -5361,11 +5596,44 @@ function getRouteEntryAtClientPoint(clientX, clientY) {
 
   for (let index = routeInteractionEntries.length - 1; index >= 0; index -= 1) {
     const entry = routeInteractionEntries[index];
-    if (!entry || !entry.route) {
+    if (
+      !entry ||
+      (!entry.route && (!Array.isArray(entry.routes) || entry.routes.length === 0))
+    ) {
       continue;
     }
 
-    if (entry.type === 'circle') {
+    if (entry.type === 'overlap-circle') {
+      const radius = Number(entry.r) || 0;
+      const cx = Number(entry.cx);
+      const cy = Number(entry.cy);
+      if (radius > 0) {
+        const distance = distanceSquared(x, y, cx, cy);
+        if (distance <= radius * radius) {
+          return {
+            route: entry.route ?? null,
+            routes: Array.isArray(entry.routes) ? [...entry.routes] : [],
+            canvasX: entry.canvasX ?? cx,
+            canvasY: entry.canvasY ?? cy,
+            overlap: true,
+          };
+        }
+      }
+    } else if (entry.type === 'overlap-rect') {
+      const left = Number(entry.left);
+      const right = Number(entry.right);
+      const top = Number(entry.top);
+      const bottom = Number(entry.bottom);
+      if (x >= left && x <= right && y >= top && y <= bottom) {
+        return {
+          route: entry.route ?? null,
+          routes: Array.isArray(entry.routes) ? [...entry.routes] : [],
+          canvasX: entry.canvasX ?? (left + right) / 2,
+          canvasY: entry.canvasY ?? (top + bottom) / 2,
+          overlap: true,
+        };
+      }
+    } else if (entry.type === 'circle') {
       const radius = Number(entry.r) || 0;
       if (radius > 0) {
         const distance = distanceSquared(x, y, Number(entry.cx), Number(entry.cy));
@@ -6041,6 +6309,109 @@ function getRouteDisplayColor(route) {
   return getRouteStrokeColor(route);
 }
 
+const overlapColorCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+if (overlapColorCanvas) {
+  overlapColorCanvas.width = 1;
+  overlapColorCanvas.height = 1;
+}
+const overlapColorContext = overlapColorCanvas ? overlapColorCanvas.getContext('2d') : null;
+
+function parseColorToRGB(color) {
+  if (!overlapColorContext || typeof color !== 'string') {
+    return null;
+  }
+
+  const trimmed = color.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    overlapColorContext.fillStyle = '#000000';
+    overlapColorContext.fillStyle = trimmed;
+  } catch (error) {
+    return null;
+  }
+
+  const resolved = overlapColorContext.fillStyle;
+  if (typeof resolved !== 'string' || !resolved) {
+    return null;
+  }
+
+  if (resolved.startsWith('#')) {
+    let hex = resolved.slice(1);
+    if (hex.length === 3 || hex.length === 4) {
+      hex = hex
+        .slice(0, 3)
+        .split('')
+        .map((char) => char + char)
+        .join('');
+    } else if (hex.length === 6 || hex.length === 8) {
+      hex = hex.slice(0, 6);
+    } else {
+      return null;
+    }
+
+    const r = Number.parseInt(hex.slice(0, 2), 16);
+    const g = Number.parseInt(hex.slice(2, 4), 16);
+    const b = Number.parseInt(hex.slice(4, 6), 16);
+
+    if ([r, g, b].some((value) => Number.isNaN(value))) {
+      return null;
+    }
+
+    return { r, g, b };
+  }
+
+  if (resolved.startsWith('rgb')) {
+    const match = resolved.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+    if (!match) {
+      return null;
+    }
+
+    const r = Number.parseInt(match[1], 10);
+    const g = Number.parseInt(match[2], 10);
+    const b = Number.parseInt(match[3], 10);
+
+    if ([r, g, b].some((value) => Number.isNaN(value))) {
+      return null;
+    }
+
+    return { r, g, b };
+  }
+
+  return null;
+}
+
+function computeRelativeLuminance(rgb) {
+  if (!rgb) {
+    return 0;
+  }
+
+  const transformChannel = (channel) => {
+    const normalized = channel / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : Math.pow((normalized + 0.055) / 1.055, 2.4);
+  };
+
+  const r = transformChannel(rgb.r ?? 0);
+  const g = transformChannel(rgb.g ?? 0);
+  const b = transformChannel(rgb.b ?? 0);
+
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function getRouteOverlapTextColor(backgroundColor) {
+  const rgb = parseColorToRGB(backgroundColor);
+  if (!rgb) {
+    return '#0f172a';
+  }
+
+  const luminance = computeRelativeLuminance(rgb);
+  return luminance > 0.6 ? '#0f172a' : '#f8fafc';
+}
+
 function getOverlapGroupPathType(pathType) {
   const normalized = normalizePathType(pathType);
   if (normalized === PATH_TYPE_HOLLOW_POINT || normalized === PATH_TYPE_FILLED_POINT) {
@@ -6079,7 +6450,7 @@ function buildOverlappingShapeGroups(routeList = []) {
       return;
     }
 
-    const strokeColor = getRouteStrokeColor(route);
+    const displayColor = getRouteDisplayColor(route);
     const normalizedRectangleWidth = normalizeRectangleSize(
       route.rectangleWidth,
       DEFAULT_RECTANGLE_WIDTH,
@@ -6130,7 +6501,7 @@ function buildOverlappingShapeGroups(routeList = []) {
         const group = groups.get(groupKey);
         group.entries.push({
           routeId: route.id,
-          color: strokeColor,
+          color: displayColor,
           pathType: normalizedPathType,
           pointDiameter: normalizedPointDiameter,
           rectangleWidth: normalizedRectangleWidth,
@@ -6407,26 +6778,76 @@ function drawRoute(route, options = {}) {
         overlapGroup.entries.length > 1 &&
         !isFocusedRoute
       ) {
-        if (handledOverlapKeys && handledOverlapKeys.has(overlapKey)) {
+        const overlapRouteIds = overlapGroup.entries
+          .map((entry) => (entry && typeof entry.routeId === 'string' ? entry.routeId : null))
+          .filter((value) => typeof value === 'string');
+        const uniqueRouteIds = Array.from(new Set(overlapRouteIds));
+
+        if (uniqueRouteIds.length > 1) {
+          if (handledOverlapKeys && handledOverlapKeys.has(overlapKey)) {
+            return;
+          }
+
+          const entriesWithAlpha = overlapGroup.entries.map((entry) => {
+            const mappedAlpha = routeAlphaMap?.get(entry.routeId);
+            const entryAlpha = Number.isFinite(mappedAlpha) ? mappedAlpha : 1;
+            return { ...entry, alpha: entryAlpha };
+          });
+
+          if (handledOverlapKeys) {
+            handledOverlapKeys.add(overlapKey);
+          }
+
+          let overlapRegion = null;
+
+          if (isNormalizedPointPathType(pathType)) {
+            drawOverlappingPointGroup(ctx, scaledPoint, entriesWithAlpha);
+            const radii = entriesWithAlpha.map((entry) =>
+              Math.max(1, Number(entry.pointDiameter) / 2),
+            );
+            const baseRadius = radii.length ? Math.max(...radii, 4) : 6;
+            const detectionRadius = baseRadius + 12;
+            overlapRegion = {
+              type: 'overlap-circle',
+              cx: scaledPoint.x,
+              cy: scaledPoint.y,
+              r: detectionRadius,
+              canvasX: scaledPoint.x,
+              canvasY: scaledPoint.y,
+              routes: uniqueRouteIds,
+              overlap: true,
+            };
+          } else if (pathType === PATH_TYPE_RECTANGLE) {
+            drawOverlappingRectangleGroup(ctx, scaledPoint, entriesWithAlpha);
+            const widths = entriesWithAlpha.map((entry) =>
+              Math.max(1, Number(entry.rectangleWidth) || 0),
+            );
+            const heights = entriesWithAlpha.map((entry) =>
+              Math.max(1, Number(entry.rectangleHeight) || 0),
+            );
+            const width = widths.length ? Math.max(...widths, 4) : 4;
+            const height = heights.length ? Math.max(...heights, 4) : 4;
+            const halfWidth = width / 2;
+            const halfHeight = height / 2;
+            const padding = Math.max(8, Math.max(width, height) * 0.25);
+            overlapRegion = {
+              type: 'overlap-rect',
+              left: scaledPoint.x - halfWidth - padding,
+              right: scaledPoint.x + halfWidth + padding,
+              top: scaledPoint.y - halfHeight - padding,
+              bottom: scaledPoint.y + halfHeight + padding,
+              canvasX: scaledPoint.x,
+              canvasY: scaledPoint.y,
+              routes: uniqueRouteIds,
+              overlap: true,
+            };
+          }
+
+          if (overlapRegion) {
+            interactionRegions.push(overlapRegion);
+          }
           return;
         }
-
-        const entriesWithAlpha = overlapGroup.entries.map((entry) => {
-          const mappedAlpha = routeAlphaMap?.get(entry.routeId);
-          const entryAlpha = Number.isFinite(mappedAlpha) ? mappedAlpha : 1;
-          return { ...entry, alpha: entryAlpha };
-        });
-
-        if (handledOverlapKeys) {
-          handledOverlapKeys.add(overlapKey);
-        }
-
-        if (isNormalizedPointPathType(pathType)) {
-          drawOverlappingPointGroup(ctx, scaledPoint, entriesWithAlpha);
-        } else if (pathType === PATH_TYPE_RECTANGLE) {
-          drawOverlappingRectangleGroup(ctx, scaledPoint, entriesWithAlpha);
-        }
-        return;
       }
 
       visiblePoints.push(scaledPoint);
@@ -6583,10 +7004,11 @@ function drawRoute(route, options = {}) {
       if (!region) {
         return;
       }
-      routeInteractionEntries.push({
-        ...region,
-        route,
-      });
+      const interactionEntry = { ...region };
+      if (!Object.prototype.hasOwnProperty.call(interactionEntry, 'route')) {
+        interactionEntry.route = route;
+      }
+      routeInteractionEntries.push(interactionEntry);
     });
   }
 }
@@ -6609,7 +7031,7 @@ function handlePointerMove(event) {
 
   const entry = getRouteEntryAtClientPoint(point.x, point.y);
 
-  if (entry && entry.route) {
+  if (entry && (entry.route || (Array.isArray(entry.routes) && entry.routes.length))) {
     canvas.style.cursor = 'pointer';
   } else {
     canvas.style.cursor = '';
@@ -6642,11 +7064,37 @@ function handleCanvasPointerUp(event) {
 
   const entry = getRouteEntryAtClientPoint(interaction.x, interaction.y);
 
-  if (entry && entry.route) {
-    const shouldFocusRoute = shouldFocusFromInteraction(event, entry);
-    showTooltip(entry.route, interaction.x, interaction.y, { pin: true });
+  let resolvedEntry = entry;
+
+  if (entry) {
+    const candidateRoutes = Array.isArray(entry.routes)
+      ? entry.routes.filter((value) => typeof value === 'string')
+      : [];
+    const resolvedRoutes = candidateRoutes
+      .map((routeId) => routes.find((route) => route?.id === routeId))
+      .filter(Boolean);
+
+    if (resolvedRoutes.length > 1) {
+      resetLastFocusActivation();
+      const opened = openRouteOverlapPrompt(candidateRoutes, entry);
+      if (opened) {
+        return;
+      }
+    }
+
+    if ((!entry.route || typeof entry.route !== 'object') && resolvedRoutes.length >= 1) {
+      resolvedEntry = {
+        ...entry,
+        route: resolvedRoutes[0],
+      };
+    }
+  }
+
+  if (resolvedEntry && resolvedEntry.route) {
+    const shouldFocusRoute = shouldFocusFromInteraction(event, resolvedEntry);
+    showTooltip(resolvedEntry.route, interaction.x, interaction.y, { pin: true });
     if (shouldFocusRoute) {
-      focusRoute(entry.route);
+      focusRoute(resolvedEntry.route);
     }
   } else {
     resetLastFocusActivation();
@@ -6665,6 +7113,10 @@ function handleDocumentPointerDown(event) {
     return;
   }
 
+  if (isRouteOverlapPromptOpen()) {
+    return;
+  }
+
   if (event.target === canvas) {
     return;
   }
@@ -6678,6 +7130,12 @@ function handleDocumentPointerDown(event) {
   }
 
   hideTooltip({ force: true });
+}
+
+if (routeOverlapCloseButton) {
+  routeOverlapCloseButton.addEventListener('click', () => {
+    closeRouteOverlapPrompt();
+  });
 }
 
 if ('PointerEvent' in window) {
