@@ -189,6 +189,35 @@
       aria-hidden="true"
     ></div>
     <div
+      id="routeOverlapPrompt"
+      class="route-overlap-prompt hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-hidden="true"
+      aria-labelledby="routeOverlapTitle"
+    >
+      <div class="route-overlap-card" role="document">
+        <div class="route-overlap-header">
+          <h2 id="routeOverlapTitle" class="route-overlap-title">Select a route</h2>
+          <button
+            id="routeOverlapClose"
+            class="route-overlap-close"
+            type="button"
+            aria-label="Close route selection dialog"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M6.7 6.7a1 1 0 0 1 1.4 0L12 10.6l3.9-3.9a1 1 0 0 1 1.4 1.4L13.4 12l3.9 3.9a1 1 0 0 1-1.4 1.4L12 13.4l-3.9 3.9a1 1 0 0 1-1.4-1.4L10.6 12 6.7 8.1a1 1 0 0 1 0-1.4Z"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+        </div>
+        <p class="route-overlap-description">Multiple routes share this start. Choose one to focus.</p>
+        <ul id="routeOverlapList" class="route-overlap-list" role="listbox"></ul>
+      </div>
+    </div>
+    <div
       id="locationModal"
       class="location-modal hidden"
       role="dialog"
