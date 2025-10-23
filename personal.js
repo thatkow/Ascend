@@ -5339,9 +5339,12 @@ function buildRouteOverlapOption(route) {
 
   const name = document.createElement('span');
   name.className = 'route-overlap-option-name';
-  const routeName = typeof route?.name === 'string' && route.name.trim()
-    ? route.name.trim()
-    : 'Untitled Route';
+  const providedTitle =
+    typeof route?.title === 'string' && route.title.trim() ? route.title.trim() : '';
+  const providedName =
+    typeof route?.name === 'string' && route.name.trim() ? route.name.trim() : '';
+  const fallbackId = typeof route?.id === 'string' && route.id.trim() ? route.id.trim() : '';
+  const routeName = providedTitle || providedName || fallbackId || 'Untitled Route';
   name.textContent = routeName;
 
   const grade = document.createElement('span');
@@ -5350,7 +5353,11 @@ function buildRouteOverlapOption(route) {
   const gradeDisplay = formatGradeDisplay(gradeValue);
   grade.textContent = gradeDisplay;
 
-  button.setAttribute('aria-label', `${routeName}, grade ${gradeDisplay}`);
+  const ariaParts = [routeName];
+  if (gradeDisplay && gradeDisplay !== '—') {
+    ariaParts.push(`grade ${gradeDisplay}`);
+  }
+  button.setAttribute('aria-label', ariaParts.join(', '));
 
   button.append(name, grade);
   button.addEventListener('click', handleRouteOverlapOptionSelect);
