@@ -1,3 +1,5 @@
+@import url('./shared/auth.css');
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -26,6 +28,10 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+}
+
+.auth-overlay {
+  z-index: 20;
 }
 
 .canvas-container.scrollable {
@@ -1079,97 +1085,6 @@ canvas.is-panning {
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
-}
-
-.auth-overlay {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.75);
-  padding: 1.5rem;
-  backdrop-filter: blur(2px);
-  z-index: 20;
-}
-
-.auth-card {
-  background: rgba(18, 18, 18, 0.95);
-  border-radius: 1rem;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  width: min(90vw, 360px);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-}
-
-.auth-card h1 {
-  font-size: 1.4rem;
-  text-align: center;
-}
-
-.auth-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  font-size: 0.95rem;
-}
-
-.auth-field input {
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(0, 0, 0, 0.35);
-  color: #fff;
-  padding: 0.65rem 1rem;
-  font-size: 1rem;
-}
-
-.auth-submit {
-  border: none;
-  border-radius: 999px;
-  padding: 0.75rem 1rem;
-  background: #7ed957;
-  color: #111;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-}
-
-.auth-submit:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 22px rgba(126, 217, 87, 0.3);
-}
-
-.auth-switch {
-  font-size: 0.9rem;
-  text-align: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  justify-content: center;
-  align-items: center;
-}
-
-.auth-switch button {
-  background: none;
-  border: none;
-  color: #7ed957;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.auth-error {
-  min-height: 1.25rem;
-  color: #ff7a7a;
-  text-align: center;
-  font-size: 0.85rem;
 }
 
 .unauthorized {

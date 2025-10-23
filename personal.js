@@ -1,6 +1,4 @@
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import {
-  getAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -10,7 +8,6 @@ import {
   getIdTokenResult,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import {
-  getFirestore,
   doc,
   getDoc,
   setDoc,
@@ -24,12 +21,14 @@ import {
   limit,
   where,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { firebaseConfig } from './config.js';
-
-const firebaseApp = initializeApp(firebaseConfig);
-const auth = getAuth(firebaseApp);
-
-const db = getFirestore(firebaseApp);
+import { auth, db } from './shared/firebase.js';
+import {
+  LOCATIONS,
+  LOCATION_STORAGE_KEY,
+  WALL_QUERY_PARAM,
+  getDefaultLocation,
+  isLocationVisible,
+} from './shared/location.js';
 
 const authOverlay = document.getElementById('authOverlay');
 const appContent = document.getElementById('appContent');
@@ -165,18 +164,6 @@ function persistTutorialOptOut(value) {
 }
 
 tutorialOptOut = readStoredTutorialOptOut();
-
-const LOCATIONS = [
-  { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
-  { key: 'old-wall', name: 'Old Wall', image: './location/Old Wall.jpg', hidden: false },
-];
-
-const isLocationVisible = (location) => !!location && location.hidden !== true;
-
-const getDefaultLocation = () => LOCATIONS.find(isLocationVisible) || null;
-
-const LOCATION_STORAGE_KEY = 'ascend.selectedWall';
-const WALL_QUERY_PARAM = 'wall';
 
 async function signOutAndRedirectToIndex() {
   try {
