@@ -1,6 +1,4 @@
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import {
-  getAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -9,7 +7,6 @@ import {
   deleteUser,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import {
-  getFirestore,
   doc,
   getDoc,
   setDoc,
@@ -23,11 +20,14 @@ import {
   deleteField,
   Timestamp,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { firebaseConfig } from './config.js';
-
-const firebaseApp = initializeApp(firebaseConfig);
-const auth = getAuth(firebaseApp);
-const db = getFirestore(firebaseApp);
+import { auth, db } from './shared/firebase.js';
+import {
+  LOCATIONS,
+  LOCATION_STORAGE_KEY,
+  WALL_QUERY_PARAM,
+  getDefaultLocation,
+  isLocationVisible,
+} from './shared/location.js';
 
 const authOverlay = document.getElementById('authOverlay');
 const appContent = document.getElementById('appContent');
@@ -121,14 +121,6 @@ let tutorialPreviousTabId = null;
 let tutorialSecondaryActionMode = 'back';
 let tutorialAutostartTimeoutId = null;
 let tutorialAutostartAttempts = 0;
-
-const LOCATIONS = [
-  { key: 'new-wall', name: 'New Wall', image: './location/New Wall.jpg', hidden: false },
-  { key: 'old-wall', name: 'Old Wall', image: './location/Old Wall.jpg', hidden: false },
-];
-
-const LOCATION_STORAGE_KEY = 'ascend.selectedWall';
-const WALL_QUERY_PARAM = 'wall';
 
 const PATH_TYPE_BREZER = 'brezer';
 const PATH_TYPE_HOLLOW_POINT = 'hollow-point';
