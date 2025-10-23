@@ -19,7 +19,7 @@ import {
   WALL_COLLECTION,
   ROUTE_COLLECTION,
   USER_COLLECTION,
-  ROUTE_SCORE_COLLECTION,
+  ROUTE_SCORE_SUBCOLLECTION,
   ROUTE_BETATIPS_COLLECTION,
   BETATIP_UPVOTES_SUBCOLLECTION,
   SUBCOLLECTIONS_FIELD,
@@ -1309,13 +1309,16 @@ adminDumpButton?.addEventListener('click', async () => {
   try {
     const collectionsToExport = [
       { key: WALL_COLLECTION, ref: collection(db, WALL_COLLECTION) },
-      { key: ROUTE_COLLECTION, ref: collection(db, ROUTE_COLLECTION) },
+      {
+        key: ROUTE_COLLECTION,
+        ref: collection(db, ROUTE_COLLECTION),
+        subcollections: [ROUTE_SCORE_SUBCOLLECTION],
+      },
       { key: USER_COLLECTION, ref: collection(db, USER_COLLECTION) },
-      { key: ROUTE_SCORE_COLLECTION, ref: collection(db, ROUTE_SCORE_COLLECTION) },
       {
         key: ROUTE_BETATIPS_COLLECTION,
         ref: collection(db, ROUTE_BETATIPS_COLLECTION),
-        includeUpvotes: true,
+        subcollections: [BETATIP_UPVOTES_SUBCOLLECTION],
       },
     ];
 
@@ -1329,49 +1332,51 @@ adminDumpButton?.addEventListener('click', async () => {
 
     let hadCollectionError = false;
 
-    for (const { key, ref, includeUpvotes } of collectionsToExport) {
+    for (const { key, ref, subcollections } of collectionsToExport) {
       try {
         const snapshot = await getDocs(ref);
-        if (includeUpvotes) {
-          const documents = [];
-          for (const docSnap of snapshot.docs) {
-            const serialized = serializeFirestoreDocument(docSnap);
-            if (!serialized) {
-              continue;
-            }
+        const documents = [];
 
-            try {
-              const upvotesSnapshot = await getDocs(
-                collection(docSnap.ref, BETATIP_UPVOTES_SUBCOLLECTION),
-              );
-              const upvoteEntries = upvotesSnapshot.docs
-                .map((upvoteDoc) => serializeFirestoreDocument(upvoteDoc))
-                .filter(Boolean);
-
-              if (!serialized[SUBCOLLECTIONS_FIELD]) {
-                serialized[SUBCOLLECTIONS_FIELD] = {};
-              }
-              serialized[SUBCOLLECTIONS_FIELD][BETATIP_UPVOTES_SUBCOLLECTION] = upvoteEntries;
-            } catch (subError) {
-              hadCollectionError = true;
-              console.error(
-                `Failed to export ${BETATIP_UPVOTES_SUBCOLLECTION} for betatip ${docSnap.id}:`,
-                subError,
-              );
-              if (!serialized[SUBCOLLECTIONS_FIELD]) {
-                serialized[SUBCOLLECTIONS_FIELD] = {};
-              }
-              serialized[SUBCOLLECTIONS_FIELD][BETATIP_UPVOTES_SUBCOLLECTION] = [];
-            }
-
-            documents.push(serialized);
+        for (const docSnap of snapshot.docs) {
+          const serialized = serializeFirestoreDocument(docSnap);
+          if (!serialized) {
+            continue;
           }
-          exportPayload.data[key] = documents;
-        } else {
-          exportPayload.data[key] = snapshot.docs
-            .map((docSnap) => serializeFirestoreDocument(docSnap))
-            .filter(Boolean);
+
+          if (Array.isArray(subcollections) && subcollections.length > 0) {
+            for (const subKey of subcollections) {
+              if (!subKey) {
+                continue;
+              }
+
+              try {
+                const subSnapshot = await getDocs(collection(docSnap.ref, subKey));
+                const subEntries = subSnapshot.docs
+                  .map((subDoc) => serializeFirestoreDocument(subDoc))
+                  .filter(Boolean);
+
+                if (!serialized[SUBCOLLECTIONS_FIELD]) {
+                  serialized[SUBCOLLECTIONS_FIELD] = {};
+                }
+                serialized[SUBCOLLECTIONS_FIELD][subKey] = subEntries;
+              } catch (subError) {
+                hadCollectionError = true;
+                console.error(
+                  `Failed to export ${subKey} for ${key} ${docSnap.id}:`,
+                  subError,
+                );
+                if (!serialized[SUBCOLLECTIONS_FIELD]) {
+                  serialized[SUBCOLLECTIONS_FIELD] = {};
+                }
+                serialized[SUBCOLLECTIONS_FIELD][subKey] = [];
+              }
+            }
+          }
+
+          documents.push(serialized);
         }
+
+        exportPayload.data[key] = documents;
       } catch (error) {
         hadCollectionError = true;
         console.error(`Failed to export ${key}:`, error);
@@ -1492,9 +1497,9 @@ removeOrphanedAscentsButton?.addEventListener('click', async () => {
   setControlsEnabled(false);
 
   try {
-    const [usersSnapshot, routeScoresSnapshot] = await Promise.all([
+    const [usersSnapshot, routesSnapshot] = await Promise.all([
       getDocs(collection(db, USER_COLLECTION)),
-      getDocs(collection(db, ROUTE_SCORE_COLLECTION)),
+      getDocs(collection(db, ROUTE_COLLECTION)),
     ]);
 
     const existingUserIds = new Set();
@@ -1504,60 +1509,73 @@ removeOrphanedAscentsButton?.addEventListener('click', async () => {
       }
     });
 
-    let checkedScoreDocs = 0;
-    let cleanedScoreDocs = 0;
+    let checkedRoutes = 0;
+    let cleanedRoutes = 0;
     let removedEntries = 0;
+    let failedRemovals = 0;
 
-    for (const scoreDoc of routeScoresSnapshot.docs) {
-      checkedScoreDocs += 1;
-      const scoresData = scoreDoc.data();
+    for (const routeDoc of routesSnapshot.docs) {
+      checkedRoutes += 1;
 
-      if (!scoresData || typeof scoresData !== 'object' || Array.isArray(scoresData)) {
-        continue;
+      let routeHadChanges = false;
+
+      try {
+        const scoresSnapshot = await getDocs(collection(routeDoc.ref, ROUTE_SCORE_SUBCOLLECTION));
+
+        for (const scoreDoc of scoresSnapshot.docs) {
+          const scoreUserId = typeof scoreDoc.id === 'string' ? scoreDoc.id.trim() : '';
+          if (!scoreUserId) {
+            continue;
+          }
+
+          const scoreData = scoreDoc.data ? scoreDoc.data() : {};
+          const entryIsScore =
+            scoreData === null ||
+            (scoreData &&
+              typeof scoreData === 'object' &&
+              !Array.isArray(scoreData) &&
+              ('grade' in scoreData || 'ascended' in scoreData || 'value' in scoreData));
+
+          if (!entryIsScore) {
+            continue;
+          }
+
+          if (!existingUserIds.has(scoreUserId)) {
+            try {
+              await deleteDoc(scoreDoc.ref);
+              removedEntries += 1;
+              routeHadChanges = true;
+            } catch (entryError) {
+              failedRemovals += 1;
+              console.error(
+                `Failed to delete score ${scoreDoc.id} for route ${routeDoc.id}:`,
+                entryError,
+              );
+            }
+          }
+        }
+      } catch (routeError) {
+        console.error(`Failed to inspect scores for route ${routeDoc.id}:`, routeError);
       }
 
-      const updates = {};
-      let hasChanges = false;
-
-      for (const [userId, userEntry] of Object.entries(scoresData)) {
-        if (typeof userId !== 'string' || !userId) {
-          continue;
-        }
-
-        const entryIsScore =
-          userEntry === null ||
-          (userEntry &&
-            typeof userEntry === 'object' &&
-            !Array.isArray(userEntry) &&
-            ('grade' in userEntry || 'ascended' in userEntry));
-
-        if (!entryIsScore) {
-          continue;
-        }
-
-        if (!existingUserIds.has(userId)) {
-          updates[userId] = deleteField();
-          hasChanges = true;
-          removedEntries += 1;
-        }
-      }
-
-      if (hasChanges) {
-        await setDoc(scoreDoc.ref, updates, { merge: true });
-        cleanedScoreDocs += 1;
+      if (routeHadChanges) {
+        cleanedRoutes += 1;
       }
     }
 
-    if (removedEntries === 0) {
-      setAdminStatus(
-        `Checked ${checkedScoreDocs} route score documents. No orphaned user entries found.`,
-        'info',
-      );
-    } else {
-      const docLabel = cleanedScoreDocs === 1 ? 'route score document' : 'route score documents';
+    if (removedEntries === 0 && failedRemovals === 0) {
+      setAdminStatus(`Checked ${checkedRoutes} routes. No orphaned user entries found.`, 'info');
+    } else if (failedRemovals > 0) {
       const entryLabel = removedEntries === 1 ? 'entry' : 'entries';
       setAdminStatus(
-        `Removed ${removedEntries} orphaned user ${entryLabel} across ${cleanedScoreDocs} ${docLabel}.`,
+        `Removed ${removedEntries} orphaned user ${entryLabel} with ${failedRemovals} errors. Check the console for details.`,
+        'error',
+      );
+    } else {
+      const routeLabel = cleanedRoutes === 1 ? 'route' : 'routes';
+      const entryLabel = removedEntries === 1 ? 'entry' : 'entries';
+      setAdminStatus(
+        `Removed ${removedEntries} orphaned user ${entryLabel} across ${cleanedRoutes} ${routeLabel}.`,
         'success',
       );
     }
@@ -1588,20 +1606,23 @@ adminClearButton?.addEventListener('click', async () => {
   try {
     const collectionsToClear = [
       { key: WALL_COLLECTION, ref: collection(db, WALL_COLLECTION) },
-      { key: ROUTE_COLLECTION, ref: collection(db, ROUTE_COLLECTION) },
+      {
+        key: ROUTE_COLLECTION,
+        ref: collection(db, ROUTE_COLLECTION),
+        subcollections: [ROUTE_SCORE_SUBCOLLECTION],
+      },
       { key: USER_COLLECTION, ref: collection(db, USER_COLLECTION) },
-      { key: ROUTE_SCORE_COLLECTION, ref: collection(db, ROUTE_SCORE_COLLECTION) },
       {
         key: ROUTE_BETATIPS_COLLECTION,
         ref: collection(db, ROUTE_BETATIPS_COLLECTION),
-        hasUpvotes: true,
+        subcollections: [BETATIP_UPVOTES_SUBCOLLECTION],
       },
     ];
 
     let deletedCount = 0;
     let failureCount = 0;
 
-    for (const { key, ref, hasUpvotes } of collectionsToClear) {
+    for (const { key, ref, subcollections } of collectionsToClear) {
       try {
         const snapshot = await getDocs(ref);
         for (const docSnap of snapshot.docs) {
@@ -1609,29 +1630,33 @@ adminClearButton?.addEventListener('click', async () => {
             continue;
           }
           try {
-            if (hasUpvotes) {
-              try {
-                const upvotesSnapshot = await getDocs(
-                  collection(docSnap.ref, BETATIP_UPVOTES_SUBCOLLECTION),
-                );
-                for (const upvoteDoc of upvotesSnapshot.docs) {
-                  try {
-                    await deleteDoc(upvoteDoc.ref);
-                    deletedCount += 1;
-                  } catch (upvoteError) {
-                    console.error(
-                      `Failed to delete upvote ${upvoteDoc.id} for betatip ${docSnap.id}:`,
-                      upvoteError,
-                    );
-                    failureCount += 1;
-                  }
+            if (Array.isArray(subcollections) && subcollections.length > 0) {
+              for (const subKey of subcollections) {
+                if (!subKey) {
+                  continue;
                 }
-              } catch (subcollectionError) {
-                console.error(
-                  `Failed to fetch upvotes for betatip ${docSnap.id}:`,
-                  subcollectionError,
-                );
-                failureCount += 1;
+
+                try {
+                  const subSnapshot = await getDocs(collection(docSnap.ref, subKey));
+                  for (const subDoc of subSnapshot.docs) {
+                    try {
+                      await deleteDoc(subDoc.ref);
+                      deletedCount += 1;
+                    } catch (subDocError) {
+                      console.error(
+                        `Failed to delete ${subKey} document ${subDoc.id} for ${key} ${docSnap.id}:`,
+                        subDocError,
+                      );
+                      failureCount += 1;
+                    }
+                  }
+                } catch (subcollectionError) {
+                  console.error(
+                    `Failed to fetch ${subKey} for ${key} ${docSnap.id}:`,
+                    subcollectionError,
+                  );
+                  failureCount += 1;
+                }
               }
             }
 

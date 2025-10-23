@@ -29,7 +29,7 @@ const db = getFirestore(firebaseApp);
 const WALL_COLLECTION = 'walls';
 const ROUTE_COLLECTION = 'routes';
 const USER_COLLECTION = 'users';
-const ROUTE_SCORE_COLLECTION = 'routes_users_scores';
+const ROUTE_SCORE_SUBCOLLECTION = 'scores';
 const ROUTE_BETATIPS_COLLECTION = 'routes_users_betatips';
 const BETATIP_UPVOTES_SUBCOLLECTION = 'upvotes';
 const SUBCOLLECTIONS_FIELD = '__subcollections';
@@ -55,7 +55,7 @@ export {
   WALL_COLLECTION,
   ROUTE_COLLECTION,
   USER_COLLECTION,
-  ROUTE_SCORE_COLLECTION,
+  ROUTE_SCORE_SUBCOLLECTION,
   ROUTE_BETATIPS_COLLECTION,
   BETATIP_UPVOTES_SUBCOLLECTION,
   SUBCOLLECTIONS_FIELD,
