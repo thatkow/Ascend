@@ -803,6 +803,11 @@ async function importDatabaseDump(dump) {
       continue;
     }
 
+    if (collectionKey === ROUTE_SCORE_COLLECTION) {
+      console.info(`Skipping import for removed collection: ${collectionKey}`);
+      continue;
+    }
+
     const { imported, failed } = await importCollectionEntries(collectionKey, entries);
     if (imported || failed) {
       processedCollections += 1;
@@ -1311,7 +1316,6 @@ adminDumpButton?.addEventListener('click', async () => {
       { key: WALL_COLLECTION, ref: collection(db, WALL_COLLECTION) },
       { key: ROUTE_COLLECTION, ref: collection(db, ROUTE_COLLECTION) },
       { key: USER_COLLECTION, ref: collection(db, USER_COLLECTION) },
-      { key: ROUTE_SCORE_COLLECTION, ref: collection(db, ROUTE_SCORE_COLLECTION) },
       {
         key: ROUTE_BETATIPS_COLLECTION,
         ref: collection(db, ROUTE_BETATIPS_COLLECTION),
@@ -1594,7 +1598,6 @@ adminClearButton?.addEventListener('click', async () => {
         ref: collection(db, ROUTE_BETATIPS_COLLECTION),
         hasUpvotes: true,
       },
-      { key: ROUTE_SCORE_COLLECTION, ref: collection(db, ROUTE_SCORE_COLLECTION) },
       { key: ROUTE_COLLECTION, ref: collection(db, ROUTE_COLLECTION) },
       // Users are cleared after dependent collections so role checks can still resolve.
       { key: USER_COLLECTION, ref: collection(db, USER_COLLECTION) },
