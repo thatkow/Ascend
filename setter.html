@@ -42,46 +42,6 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    .focus-footer {
-      position: absolute;
-      left: 50%;
-      bottom: 1.25rem;
-      transform: translateX(-50%);
-      z-index: 7;
-      pointer-events: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .clear-focus-button {
-      pointer-events: auto;
-      border-radius: 999px;
-      border: 1px solid rgba(126, 217, 87, 0.75);
-      background: linear-gradient(135deg, rgba(126, 217, 87, 0.95), rgba(126, 217, 87, 0.7));
-      color: #0c1905;
-      font-weight: 600;
-      padding: 0.6rem 1.5rem;
-      font-size: 0.95rem;
-      cursor: pointer;
-      box-shadow: 0 14px 30px rgba(126, 217, 87, 0.35);
-      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
-        border-color 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      letter-spacing: 0.01em;
-    }
-
-    .clear-focus-button:hover,
-    .clear-focus-button:focus-visible {
-      transform: translateY(-1px);
-      box-shadow: 0 18px 36px rgba(126, 217, 87, 0.4);
-      outline: none;
-      border-color: rgba(126, 217, 87, 0.9);
-      background: linear-gradient(135deg, rgba(126, 217, 87, 1), rgba(126, 217, 87, 0.82));
-    }
-
     .tutorial-overlay {
       position: fixed;
       inset: 0;
@@ -1346,17 +1306,6 @@
     </a>
     <div class="canvas-container">
       <canvas id="drawingCanvas"></canvas>
-      <div class="focus-footer">
-        <button
-          id="clearFocusButton"
-          class="clear-focus-button hidden"
-          type="button"
-          data-info-target="route-focus"
-          aria-hidden="true"
-        >
-          Clear Focus
-        </button>
-      </div>
     </div>
     <div class="control-panel" data-expanded="true">
       <div id="panelSidebar" class="panel-sidebar">
@@ -1954,7 +1903,6 @@
     const appContent = document.getElementById('appContent');
     const canvasContainer = document.querySelector('.canvas-container');
     const canvas = document.getElementById('drawingCanvas');
-    const clearFocusButton = document.getElementById('clearFocusButton');
     const authForm = document.getElementById('authForm');
     const authUsername = document.getElementById('authUsername');
     const authPassword = document.getElementById('authPassword');
@@ -4565,8 +4513,8 @@
         if (fallbackLocation) {
           setLocation(fallbackLocation, { persist: true, refreshRoutes: false });
         } else {
-        currentLocation = null;
-        clearRouteFocus();
+          currentLocation = null;
+          clearRouteFocus();
           updateLocationButtonLabel();
           updateLocationOptionsState();
           applyBodyBackground('');
@@ -4741,14 +4689,6 @@
       updatePanModifierState(false);
     });
 
-    if (clearFocusButton) {
-      clearFocusButton.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        clearRouteFocus();
-      });
-    }
-
     if (canvas) {
       canvas.addEventListener('pointerdown', handleCanvasPointerDown);
       canvas.addEventListener('pointermove', handleCanvasPointerMove);
@@ -4770,25 +4710,6 @@
       pointerType: '',
       x: 0,
       y: 0,
-    };
-
-    const updateClearFocusButton = () => {
-      if (!clearFocusButton) {
-        return;
-      }
-
-      const hasFocus = Boolean(focusedRouteKey);
-      clearFocusButton.classList.toggle('hidden', !hasFocus);
-      clearFocusButton.setAttribute('aria-hidden', hasFocus ? 'false' : 'true');
-
-      if (hasFocus) {
-        clearFocusButton.removeAttribute('disabled');
-      } else {
-        clearFocusButton.setAttribute('disabled', 'true');
-        if (document.activeElement === clearFocusButton && typeof clearFocusButton.blur === 'function') {
-          clearFocusButton.blur();
-        }
-      }
     };
 
     const resetLastFocusActivation = () => {
@@ -4949,26 +4870,30 @@
       return null;
     };
 
-    const setFocusedRouteKey = (routeKey) => {
+    const setFocusedRouteKey = (routeKey, { resetActivation = false } = {}) => {
       const normalizedKey = typeof routeKey === 'string' ? routeKey : '';
       if (focusedRouteKey === normalizedKey) {
-        updateClearFocusButton();
+        if (resetActivation) {
+          resetLastFocusActivation();
+        }
         return;
       }
 
       focusedRouteKey = normalizedKey;
-      updateClearFocusButton();
+      if (resetActivation) {
+        resetLastFocusActivation();
+      }
       redraw();
     };
 
     const clearRouteFocus = () => {
       if (!focusedRouteKey) {
+        resetLastFocusActivation();
         return;
       }
 
       focusedRouteKey = '';
       resetLastFocusActivation();
-      updateClearFocusButton();
       redraw();
     };
 
@@ -5023,12 +4948,10 @@
         return;
       }
 
-      if (interaction === 'focus') {
-        setFocusedRouteKey(entry.routeKey);
+      if (interaction === 'focus' && entry.routeKey === currentRouteKey) {
+        setFocusedRouteKey(entry.routeKey, { resetActivation: true });
       }
     };
-
-    updateClearFocusButton();
 
     const updatePanelToggleState = () => {
       if (!panelToggleButton || !controlPanel) {
@@ -6779,7 +6702,6 @@
         overlayInteractionEntries = [];
         if (focusedRouteKey) {
           focusedRouteKey = '';
-          updateClearFocusButton();
           resetLastFocusActivation();
         }
         return;
@@ -6794,7 +6716,6 @@
 
       if (focusedRouteKey && !routesCache.has(focusedRouteKey)) {
         focusedRouteKey = '';
-        updateClearFocusButton();
       }
 
       overlayInteractionEntries = [];
@@ -7386,10 +7307,13 @@
         const label = cachedRouteData.title || routeKey;
         setStatus(`Loaded route “${label}”.`, 'success');
       }
+
+      setFocusedRouteKey(routeKey, { resetActivation: true });
     }
 
     function prepareNewRoute(statusMessage = '') {
       currentRouteKey = '';
+      clearRouteFocus();
       routeSelector.value = '';
       routeSetterInput.value = currentUsername || '';
       routeTitleInput.value = '';
