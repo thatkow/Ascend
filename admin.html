@@ -59,46 +59,12 @@
         aria-live="polite"
       ></p>
       <ul id="userList" class="user-list hidden"></ul>
-      <div id="userActionPanel" class="user-action-panel" aria-live="polite">
-        <div class="user-action-summary">
-          <div class="user-action-summary-text">
-            <h3 id="selectedUserName">No user selected</h3>
-            <p id="selectedUserRole" class="user-action-role">
-              Select a user to manage their access.
-            </p>
-          </div>
-          <span
-            id="selectedUserRoleBadge"
-            class="user-role-badge hidden"
-            aria-hidden="true"
-          ></span>
-        </div>
-        <div class="user-action-buttons">
-          <button id="grantSetterButton" class="role-action-button" type="button">
-            Grant setter role
-          </button>
-          <button
-            id="revokeSetterButton"
-            class="role-action-button role-revoke-button"
-            type="button"
-          >
-            Revoke setter role
-          </button>
-          <button
-            id="deleteUserButton"
-            class="role-action-button role-revoke-button"
-            type="button"
-          >
-            Delete user account
-          </button>
-        </div>
-        <p
-          id="roleStatusMessage"
-          class="status-message hidden"
-          role="status"
-          aria-live="polite"
-        ></p>
-      </div>
+      <p
+        id="roleStatusMessage"
+        class="status-message hidden"
+        role="status"
+        aria-live="polite"
+      ></p>
     </section>
 
     <section class="secondary-actions">
@@ -109,13 +75,65 @@
       <button id="adminSignOutButton" class="secondary-button" type="button">Sign out</button>
     </section>
 
-    <p id="adminStatusMessage" class="status-message hidden" role="status" aria-live="polite"></p>
+  <p id="adminStatusMessage" class="status-message hidden" role="status" aria-live="polite"></p>
   </main>
 
   <div id="unauthorizedNotice" class="unauthorized hidden" role="alert">
     <strong>Access denied.</strong>
     <p>Your account does not have admin permission for the database tools.</p>
     <button id="unauthorizedSignOut" class="secondary-button" type="button">Sign out</button>
+  </div>
+
+  <div
+    id="userActionPopup"
+    class="user-action-popup hidden"
+    role="dialog"
+    aria-modal="false"
+    aria-live="polite"
+    aria-labelledby="popupSelectedUserName"
+  >
+    <div class="user-action-popup-inner" id="userActionPopupInner">
+      <button
+        id="userActionPopupClose"
+        class="user-action-popup-close"
+        type="button"
+        aria-label="Close user actions"
+      >
+        <span aria-hidden="true">×</span>
+      </button>
+      <div class="user-action-summary">
+        <div class="user-action-summary-text">
+          <h3 id="popupSelectedUserName">No user selected</h3>
+          <p id="popupSelectedUserRole" class="user-action-role">
+            Select a user to manage their access.
+          </p>
+        </div>
+        <span
+          id="popupSelectedUserRoleBadge"
+          class="user-role-badge hidden"
+          aria-hidden="true"
+        ></span>
+      </div>
+      <div class="user-action-buttons">
+        <button id="grantSetterButton" class="role-action-button" type="button">
+          Grant setter role
+        </button>
+        <button
+          id="revokeSetterButton"
+          class="role-action-button role-revoke-button"
+          type="button"
+        >
+          Revoke setter role
+        </button>
+        <button
+          id="deleteUserButton"
+          class="role-action-button role-revoke-button"
+          type="button"
+        >
+          Delete user account
+        </button>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="admin.js"></script>

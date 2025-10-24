@@ -45,13 +45,16 @@ const grantSetterButton = document.getElementById('grantSetterButton');
 const revokeSetterButton = document.getElementById('revokeSetterButton');
 const deleteUserButton = document.getElementById('deleteUserButton');
 const roleStatusMessage = document.getElementById('roleStatusMessage');
-const userActionPanel = document.getElementById('userActionPanel');
-const selectedUserName = document.getElementById('selectedUserName');
-const selectedUserRole = document.getElementById('selectedUserRole');
-const selectedUserRoleBadge = document.getElementById('selectedUserRoleBadge');
+const userActionPopup = document.getElementById('userActionPopup');
+const userActionPopupInner = document.getElementById('userActionPopupInner');
+const userActionPopupClose = document.getElementById('userActionPopupClose');
+const popupSelectedUserName = document.getElementById('popupSelectedUserName');
+const popupSelectedUserRole = document.getElementById('popupSelectedUserRole');
+const popupSelectedUserRoleBadge = document.getElementById('popupSelectedUserRoleBadge');
 const refreshUserListButton = document.getElementById('refreshUserListButton');
 const userListElement = document.getElementById('userList');
 const userListStatus = document.getElementById('userListStatus');
+const userAccessManager = document.getElementById('userAccessManager');
 
 const SYNTHETIC_EMAIL_DOMAIN = 'users.anuascend.local';
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
@@ -62,6 +65,8 @@ let currentAdminUsername = '';
 let selectedUser = null;
 let selectedListItem = null;
 let roleControlsEnabled = false;
+let userActionPopupVisible = false;
+let pendingPopupRepositionFrame = null;
 
 const normalizeUsername = (value) => {
   if (typeof value !== 'string') {
@@ -138,13 +143,22 @@ function updateUserActionAvailability() {
     );
   }
 
-  if (userActionPanel) {
-    if (allow && hasSelection) {
-      userActionPanel.classList.remove('user-action-panel--disabled');
-    } else {
-      userActionPanel.classList.add('user-action-panel--disabled');
+  if (userActionPopup) {
+    let popupState = 'empty';
+    if (hasSelection) {
+      popupState = allow ? 'ready' : 'disabled';
     }
-    userActionPanel.dataset.state = hasSelection ? 'ready' : 'empty';
+
+    if (popupState === 'ready') {
+      userActionPopup.classList.remove('user-action-popup--disabled');
+    } else if (popupState === 'disabled') {
+      userActionPopup.classList.add('user-action-popup--disabled');
+    } else {
+      userActionPopup.classList.remove('user-action-popup--disabled');
+    }
+
+    userActionPopup.dataset.state = popupState;
+    userActionPopup.setAttribute('aria-disabled', popupState === 'ready' ? 'false' : 'true');
   }
 }
 
@@ -156,37 +170,165 @@ function clearSelectedListItem() {
   }
 }
 
+function focusFirstAvailableActionButton() {
+  const buttons = [grantSetterButton, revokeSetterButton, deleteUserButton];
+  for (const button of buttons) {
+    if (button && !button.disabled) {
+      button.focus({ preventScroll: true });
+      return;
+    }
+  }
+}
+
+function positionUserActionPopup(target) {
+  if (!userActionPopup || !target) {
+    return;
+  }
+
+  const targetRect = target.getBoundingClientRect();
+  const popupRect = userActionPopup.getBoundingClientRect();
+  const viewportWidth = document.documentElement.clientWidth;
+  const viewportHeight = document.documentElement.clientHeight;
+  const scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+  const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || 0;
+  const spacing = 12;
+
+  let top = targetRect.bottom + scrollTop + spacing;
+  let placement = 'bottom';
+
+  if (top + popupRect.height > scrollTop + viewportHeight) {
+    const candidateTop = targetRect.top + scrollTop - popupRect.height - spacing;
+    if (candidateTop >= scrollTop + spacing) {
+      top = candidateTop;
+      placement = 'top';
+    } else {
+      top = Math.max(scrollTop + spacing, scrollTop + viewportHeight - popupRect.height - spacing);
+    }
+  }
+
+  let left = targetRect.left + scrollLeft;
+  const minLeft = scrollLeft + spacing;
+  const maxLeft = scrollLeft + viewportWidth - popupRect.width - spacing;
+  if (left < minLeft) {
+    left = minLeft;
+  } else if (left > maxLeft) {
+    left = maxLeft;
+  }
+
+  userActionPopup.style.top = `${Math.round(top)}px`;
+  userActionPopup.style.left = `${Math.round(left)}px`;
+  userActionPopup.dataset.placement = placement;
+
+  const anchorCenter = targetRect.left + targetRect.width / 2;
+  const popupLeftInViewport = left - scrollLeft;
+  const relativeAnchor = anchorCenter - popupLeftInViewport;
+  const maxAnchor = popupRect.width ? Math.max(popupRect.width - 24, 24) : relativeAnchor;
+  const clampedAnchor = Math.min(Math.max(relativeAnchor, 24), maxAnchor);
+  userActionPopup.style.setProperty(
+    '--user-action-popup-anchor',
+    `${Math.round(clampedAnchor)}px`,
+  );
+}
+
+function openUserActionPopup(target) {
+  if (!userActionPopup || !target) {
+    return;
+  }
+
+  userActionPopup.classList.remove('hidden');
+  userActionPopup.setAttribute('aria-hidden', 'false');
+  userActionPopupVisible = true;
+  userActionPopup.style.visibility = 'hidden';
+  userActionPopup.style.pointerEvents = 'none';
+
+  requestAnimationFrame(() => {
+    if (!userActionPopupVisible) {
+      return;
+    }
+
+    positionUserActionPopup(target);
+    userActionPopup.style.visibility = '';
+    userActionPopup.style.pointerEvents = '';
+    focusFirstAvailableActionButton();
+  });
+}
+
+function closeUserActionPopup({ clearSelection = false } = {}) {
+  if (!userActionPopup) {
+    return;
+  }
+
+  if (pendingPopupRepositionFrame !== null) {
+    cancelAnimationFrame(pendingPopupRepositionFrame);
+    pendingPopupRepositionFrame = null;
+  }
+
+  userActionPopup.classList.add('hidden');
+  userActionPopup.setAttribute('aria-hidden', 'true');
+  userActionPopup.style.top = '';
+  userActionPopup.style.left = '';
+  userActionPopup.style.visibility = '';
+  userActionPopup.style.pointerEvents = '';
+  userActionPopupVisible = false;
+
+  if (clearSelection) {
+    clearSelectedListItem();
+    selectedUser = null;
+    updateSelectedUserUI(null);
+    if (!roleStatusMessage || roleStatusMessage.dataset.variant !== 'success') {
+      setRoleStatus('Select a user from the list to manage their access.', 'info');
+    }
+  }
+}
+
+function scheduleUserActionPopupReposition() {
+  if (!userActionPopupVisible || !selectedListItem) {
+    return;
+  }
+
+  if (pendingPopupRepositionFrame !== null) {
+    return;
+  }
+
+  pendingPopupRepositionFrame = requestAnimationFrame(() => {
+    pendingPopupRepositionFrame = null;
+    if (userActionPopupVisible && selectedListItem) {
+      positionUserActionPopup(selectedListItem);
+    }
+  });
+}
+
 function updateSelectedUserUI(user) {
-  if (!userActionPanel) {
+  if (!userActionPopup) {
     return;
   }
 
   if (!user) {
-    if (selectedUserName) {
-      selectedUserName.textContent = 'No user selected';
+    if (popupSelectedUserName) {
+      popupSelectedUserName.textContent = 'No user selected';
     }
-    if (selectedUserRole) {
-      selectedUserRole.textContent = 'Select a user to manage their access.';
+    if (popupSelectedUserRole) {
+      popupSelectedUserRole.textContent = 'Select a user to manage their access.';
     }
-    if (selectedUserRoleBadge) {
-      selectedUserRoleBadge.textContent = '';
-      selectedUserRoleBadge.classList.add('hidden');
-      delete selectedUserRoleBadge.dataset.role;
+    if (popupSelectedUserRoleBadge) {
+      popupSelectedUserRoleBadge.textContent = '';
+      popupSelectedUserRoleBadge.classList.add('hidden');
+      delete popupSelectedUserRoleBadge.dataset.role;
     }
   } else {
     const displayLabel = formatUserDisplayName(user);
     const roleLabel = resolveRoleLabel(user.roleValue);
 
-    if (selectedUserName) {
-      selectedUserName.textContent = displayLabel;
+    if (popupSelectedUserName) {
+      popupSelectedUserName.textContent = displayLabel;
     }
-    if (selectedUserRole) {
-      selectedUserRole.textContent = `Current role: ${roleLabel}`;
+    if (popupSelectedUserRole) {
+      popupSelectedUserRole.textContent = `Current role: ${roleLabel}`;
     }
-    if (selectedUserRoleBadge) {
-      selectedUserRoleBadge.textContent = roleLabel;
-      selectedUserRoleBadge.dataset.role = user.roleValue || 'default';
-      selectedUserRoleBadge.classList.remove('hidden');
+    if (popupSelectedUserRoleBadge) {
+      popupSelectedUserRoleBadge.textContent = roleLabel;
+      popupSelectedUserRoleBadge.dataset.role = user.roleValue || 'default';
+      popupSelectedUserRoleBadge.classList.remove('hidden');
     }
   }
 
@@ -199,6 +341,11 @@ function handleUserSelection(user, listItem) {
   }
 
   if (selectedListItem === listItem && selectedUser?.uid === user.uid) {
+    if (userActionPopupVisible) {
+      closeUserActionPopup({ clearSelection: true });
+    } else {
+      openUserActionPopup(listItem);
+    }
     return;
   }
 
@@ -208,9 +355,10 @@ function handleUserSelection(user, listItem) {
   listItem.classList.add('user-list-item--selected');
   listItem.setAttribute('aria-selected', 'true');
   updateSelectedUserUI(user);
+  openUserActionPopup(listItem);
 
-  if (!roleStatusMessage || roleStatusMessage.classList.contains('hidden')) {
-    setRoleStatus('Use the actions below to manage access.', 'info');
+  if (!roleStatusMessage || roleStatusMessage.dataset.variant !== 'success') {
+    setRoleStatus('Use the popup to manage access for this user.', 'info');
   }
 }
 
@@ -270,6 +418,7 @@ function setRoleControlsEnabled(enabled) {
 }
 
 function resetRoleManagementUI(message = '', variant = 'info') {
+  closeUserActionPopup();
   clearSelectedListItem();
   selectedUser = null;
   updateSelectedUserUI(null);
@@ -396,6 +545,9 @@ function renderUserList(users) {
       selectedUser = matchedSelectedUser;
       selectedListItem = matchedListItem;
       updateSelectedUserUI(selectedUser);
+      if (userActionPopupVisible) {
+        positionUserActionPopup(matchedListItem);
+      }
     } else {
       resetRoleManagementUI('The previously selected user is no longer available.', 'warning');
     }
@@ -1200,6 +1352,41 @@ adminSetterToolsButton?.addEventListener('click', () => {
 refreshUserListButton?.addEventListener('click', () => {
   void refreshUserList();
 });
+
+userActionPopupClose?.addEventListener('click', () => {
+  closeUserActionPopup({ clearSelection: true });
+});
+
+document.addEventListener('click', (event) => {
+  if (!userActionPopupVisible || !userActionPopup) {
+    return;
+  }
+
+  const target = event.target;
+  if (userActionPopup.contains(target)) {
+    return;
+  }
+
+  if (selectedListItem && selectedListItem.contains(target)) {
+    return;
+  }
+
+  if (userAccessManager && userAccessManager.contains(target)) {
+    return;
+  }
+
+  closeUserActionPopup({ clearSelection: true });
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && userActionPopupVisible) {
+    event.preventDefault();
+    closeUserActionPopup({ clearSelection: true });
+  }
+});
+
+window.addEventListener('resize', scheduleUserActionPopupReposition);
+window.addEventListener('scroll', scheduleUserActionPopupReposition, { passive: true });
 
 function ensureImportIntentHandled() {
   const hash = window.location.hash.replace('#', '').toLowerCase();
