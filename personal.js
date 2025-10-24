@@ -140,18 +140,17 @@ function readStoredTutorialOptOut() {
     const storedVersion = storage.getItem(PERSONAL_TUTORIAL_VERSION_KEY);
     if (storedVersion !== PERSONAL_TUTORIAL_VERSION) {
       storage.setItem(PERSONAL_TUTORIAL_VERSION_KEY, PERSONAL_TUTORIAL_VERSION);
-      storage.removeItem(PERSONAL_TUTORIAL_OPT_OUT_KEY);
-      return false;
     }
 
-    return storage.getItem(PERSONAL_TUTORIAL_OPT_OUT_KEY) === 'true';
+    storage.removeItem(PERSONAL_TUTORIAL_OPT_OUT_KEY);
+    return false;
   } catch (error) {
     console.warn('Failed to read tutorial preference:', error);
     return false;
   }
 }
 
-function persistTutorialOptOut(value) {
+function persistTutorialOptOut() {
   try {
     const storage = window.localStorage;
     if (!storage) {
@@ -160,11 +159,7 @@ function persistTutorialOptOut(value) {
 
     storage.setItem(PERSONAL_TUTORIAL_VERSION_KEY, PERSONAL_TUTORIAL_VERSION);
 
-    if (value) {
-      storage.setItem(PERSONAL_TUTORIAL_OPT_OUT_KEY, 'true');
-    } else {
-      storage.removeItem(PERSONAL_TUTORIAL_OPT_OUT_KEY);
-    }
+    storage.removeItem(PERSONAL_TUTORIAL_OPT_OUT_KEY);
   } catch (error) {
     console.warn('Failed to persist tutorial preference:', error);
   }
@@ -808,7 +803,7 @@ async function startTutorial(options = {}) {
 
   if (force && tutorialOptOut) {
     tutorialOptOut = false;
-    persistTutorialOptOut(false);
+    persistTutorialOptOut();
   }
 
   if (tutorialAutoStartTimer !== null) {
@@ -870,7 +865,7 @@ async function finishTutorial() {
 
 async function skipTutorial() {
   tutorialOptOut = true;
-  persistTutorialOptOut(true);
+  persistTutorialOptOut();
   if (tutorialAutoStartTimer !== null) {
     clearTimeout(tutorialAutoStartTimer);
     tutorialAutoStartTimer = null;
