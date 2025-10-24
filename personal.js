@@ -47,7 +47,33 @@ const TOOLTIP_HISTORY_STATE_KEY = 'ascend.routeTooltip.open';
 let tooltipHistoryEntryActive = false;
 let suppressNextTooltipPopstate = false;
 
-let lastPrimaryPointerType = 'mouse';
+const DEVICE_LIKELY_HAS_TOUCH = (() => {
+  try {
+    if (typeof navigator !== 'undefined') {
+      if (typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 0) {
+        return true;
+      }
+      if (typeof navigator.msMaxTouchPoints === 'number' && navigator.msMaxTouchPoints > 0) {
+        return true;
+      }
+    }
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      try {
+        const coarseMatch = window.matchMedia('(pointer: coarse)');
+        if (coarseMatch?.matches) {
+          return true;
+        }
+      } catch (error) {
+        console.warn('Unable to evaluate coarse pointer media query:', error);
+      }
+    }
+  } catch (error) {
+    console.warn('Unable to determine touch capability:', error);
+  }
+  return false;
+})();
+
+let lastPrimaryPointerType = DEVICE_LIKELY_HAS_TOUCH ? 'touch' : 'mouse';
 
 function updateLastPrimaryPointerType(type) {
   if (typeof type === 'string' && type) {
@@ -4331,7 +4357,10 @@ function shouldBlockSingleClick(event) {
     lastPrimaryPointerType;
   const firesTouchEvents = Boolean(event?.sourceCapabilities?.firesTouchEvents);
   const isTouchLike =
-    pointerTypeFromEvent === 'touch' || pointerTypeFromEvent === 'pen' || firesTouchEvents;
+    pointerTypeFromEvent === 'touch' ||
+    pointerTypeFromEvent === 'pen' ||
+    firesTouchEvents ||
+    DEVICE_LIKELY_HAS_TOUCH;
   const isKeyboardActivation = event?.detail === 0;
 
   if (isTouchLike || isKeyboardActivation) {
