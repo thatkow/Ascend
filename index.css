@@ -1060,10 +1060,6 @@ canvas {
   flex-wrap: wrap;
 }
 
-.route-tooltip .tooltip-top-section .tooltip-lines {
-  flex: 1 1 12rem;
-}
-
 .route-tooltip .tooltip-title {
   display: block;
   font-size: 0.95rem;
