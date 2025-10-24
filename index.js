@@ -100,6 +100,7 @@ const tutorialPrimaryAction = document.getElementById('tutorialPrimaryAction');
 const tutorialSecondaryAction = document.getElementById('tutorialSecondaryAction');
 const tutorialProgress = document.getElementById('tutorialProgress');
 const tutorialBrand = document.getElementById('tutorialBrand');
+const tutorialSkipButton = document.getElementById('tutorialSkipButton');
 
 let infoHighlightsContainer = null;
 let infoModeActive = false;
@@ -2989,8 +2990,17 @@ function renderTutorialStep() {
   setTutorialDescriptionContent(step.body || []);
 
   if (tutorialProgress) {
-    tutorialProgress.textContent = `Step ${tutorialStepIndex + 1} of ${tutorialSteps.length}`;
-    tutorialProgress.classList.toggle('hidden', tutorialSteps.length === 0);
+    const shouldShowProgress = tutorialSteps.length > 0 && tutorialStepIndex > 0;
+    tutorialProgress.textContent = shouldShowProgress
+      ? `Step ${tutorialStepIndex + 1} of ${tutorialSteps.length}`
+      : '';
+    tutorialProgress.classList.toggle('hidden', !shouldShowProgress);
+  }
+
+  if (tutorialSkipButton) {
+    const shouldShowSkip = tutorialStepIndex === 0;
+    tutorialSkipButton.classList.toggle('hidden', !shouldShowSkip);
+    tutorialSkipButton.setAttribute('aria-hidden', shouldShowSkip ? 'false' : 'true');
   }
 
   if (tutorialPrimaryAction) {
@@ -3061,6 +3071,11 @@ function renderTutorialInvite() {
   tutorialActive = false;
 
   setTutorialBrandVisibility(false);
+
+  if (tutorialSkipButton) {
+    tutorialSkipButton.classList.add('hidden');
+    tutorialSkipButton.setAttribute('aria-hidden', 'true');
+  }
 
   if (tutorialProgress) {
     tutorialProgress.classList.add('hidden');
@@ -3158,6 +3173,11 @@ async function finishTutorial() {
     tutorialProgress.classList.add('hidden');
   }
 
+  if (tutorialSkipButton) {
+    tutorialSkipButton.classList.add('hidden');
+    tutorialSkipButton.setAttribute('aria-hidden', 'true');
+  }
+
   setTutorialBrandVisibility(false);
 
   closeTutorialOverlay();
@@ -3172,6 +3192,10 @@ function declineTutorial() {
   hideTutorialPointer();
   setTutorialOverlayAlignment('center');
   setTutorialBrandVisibility(false);
+  if (tutorialSkipButton) {
+    tutorialSkipButton.classList.add('hidden');
+    tutorialSkipButton.setAttribute('aria-hidden', 'true');
+  }
   closeTutorialOverlay();
 }
 
@@ -3209,8 +3233,19 @@ async function handleTutorialSecondaryAction() {
   }
 }
 
-function setupTutorialInteractions() {
-  renderTutorialInvite();
+function handleTutorialSkipAction() {
+  if (tutorialTransitionInProgress) {
+    return;
+  }
+
+  if (tutorialActive) {
+    void finishTutorial();
+  } else {
+    declineTutorial();
+  }
+}
+
+async function setupTutorialInteractions() {
   openTutorialOverlay();
 
   if (tutorialPrimaryAction) {
@@ -3223,6 +3258,18 @@ function setupTutorialInteractions() {
     tutorialSecondaryAction.addEventListener('click', () => {
       void handleTutorialSecondaryAction();
     });
+  }
+
+  if (tutorialSkipButton) {
+    tutorialSkipButton.addEventListener('click', () => {
+      handleTutorialSkipAction();
+    });
+  }
+
+  try {
+    await startTutorial();
+  } catch (error) {
+    console.warn('Unable to start tutorial:', error);
   }
 
   if (tutorialPrimaryAction) {
@@ -7031,7 +7078,7 @@ if (routeOverlapCloseButton) {
   });
 }
 
-setupTutorialInteractions();
+void setupTutorialInteractions();
 
 window.addEventListener('resize', resizeCanvas);
 

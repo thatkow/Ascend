@@ -121,6 +121,12 @@ body {
   pointer-events: auto;
 }
 
+.tutorial-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .tutorial-illustration {
   display: flex;
   flex-direction: column;
@@ -261,6 +267,36 @@ body {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: rgba(126, 217, 87, 0.8);
+}
+
+.tutorial-skip-button {
+  margin-left: auto;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(15, 23, 18, 0.65);
+  color: rgba(248, 250, 252, 0.85);
+  padding: 0.4rem 0.95rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease,
+    box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.tutorial-skip-button:hover,
+.tutorial-skip-button:focus-visible {
+  background: rgba(30, 41, 33, 0.9);
+  color: #7ed957;
+  border-color: rgba(126, 217, 87, 0.7);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(126, 217, 87, 0.18);
+  outline: none;
+}
+
+.tutorial-skip-button:focus-visible {
+  box-shadow: 0 0 0 2px rgba(126, 217, 87, 0.35), 0 12px 22px rgba(126, 217, 87, 0.18);
 }
 
 .tutorial-brand {
