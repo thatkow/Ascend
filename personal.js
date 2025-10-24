@@ -43,6 +43,9 @@ const signOutButton = document.getElementById('signOutButton');
 const setterLink = document.getElementById('setterLink');
 const setterLinkBaseHref = setterLink?.getAttribute('href') || 'setter.html';
 const tooltip = document.getElementById('routeTooltip');
+const TOOLTIP_HISTORY_STATE_KEY = 'ascend.routeTooltip.open';
+let tooltipHistoryEntryActive = false;
+let suppressNextTooltipPopstate = false;
 const routeOverlapPrompt = document.getElementById('routeOverlapPrompt');
 const routeOverlapList = document.getElementById('routeOverlapList');
 const routeOverlapCloseButton = document.getElementById('routeOverlapClose');
@@ -5306,11 +5309,34 @@ function positionTooltip() {
   return { x: clampedLeft, y: clampedTop };
 }
 
+function pushTooltipHistoryEntry() {
+  if (tooltipHistoryEntryActive) {
+    return;
+  }
+
+  if (!window.history || typeof window.history.pushState !== 'function') {
+    return;
+  }
+
+  try {
+    const baseState =
+      window.history.state && typeof window.history.state === 'object'
+        ? { ...window.history.state }
+        : {};
+    const nextState = { ...baseState, [TOOLTIP_HISTORY_STATE_KEY]: true };
+    window.history.pushState(nextState, '', window.location.href);
+    tooltipHistoryEntryActive = true;
+  } catch (error) {
+    console.warn('Unable to push tooltip history entry:', error);
+  }
+}
+
 function showTooltip(route, clientX, clientY, options = {}) {
   if (!tooltip) {
     return;
   }
 
+  const wasVisible = tooltip.classList.contains('visible');
   const { pin = false } = options;
 
   if (route.id !== activeRouteId) {
@@ -5321,6 +5347,10 @@ function showTooltip(route, clientX, clientY, options = {}) {
   tooltip.classList.add('visible');
   tooltip.setAttribute('aria-hidden', 'false');
   activeRouteId = route.id;
+
+  if (!wasVisible) {
+    pushTooltipHistoryEntry();
+  }
 
   if (pin) {
     pinnedRouteId = route.id;
@@ -5338,11 +5368,13 @@ function hideTooltip(options = {}) {
     return;
   }
 
-  const { force = false } = options;
+  const { force = false, skipHistory = false } = options;
 
   if (!force && pinnedRouteId) {
     return;
   }
+
+  const shouldRestoreHistory = tooltipHistoryEntryActive && !skipHistory;
 
   tooltip.classList.remove('visible');
   tooltip.classList.remove('pinned');
@@ -5350,6 +5382,51 @@ function hideTooltip(options = {}) {
   activeRouteId = null;
   pinnedRouteId = null;
   pinnedPosition = null;
+
+  if (skipHistory || shouldRestoreHistory) {
+    tooltipHistoryEntryActive = false;
+  }
+
+  if (shouldRestoreHistory) {
+    if (!suppressNextTooltipPopstate) {
+      suppressNextTooltipPopstate = true;
+    }
+
+    try {
+      window.history.back();
+    } catch (error) {
+      suppressNextTooltipPopstate = false;
+      console.warn('Unable to restore history after closing tooltip:', error);
+    }
+  }
+}
+
+function handleTooltipPopState(event) {
+  if (!tooltip) {
+    tooltipHistoryEntryActive = false;
+    return;
+  }
+
+  if (suppressNextTooltipPopstate) {
+    suppressNextTooltipPopstate = false;
+    return;
+  }
+
+  const state = event?.state;
+  const tooltipStateActive = Boolean(
+    state && typeof state === 'object' && state[TOOLTIP_HISTORY_STATE_KEY],
+  );
+
+  if (tooltipStateActive) {
+    tooltipHistoryEntryActive = true;
+    return;
+  }
+
+  tooltipHistoryEntryActive = false;
+
+  if (tooltip.classList.contains('visible')) {
+    hideTooltip({ force: true, skipHistory: true });
+  }
 }
 
 function isRouteOverlapPromptOpen() {
@@ -7278,6 +7355,10 @@ if (routeOverlapCloseButton) {
   routeOverlapCloseButton.addEventListener('click', () => {
     closeRouteOverlapPrompt();
   });
+}
+
+if (window.history && typeof window.history.pushState === 'function') {
+  window.addEventListener('popstate', handleTooltipPopState);
 }
 
 if ('PointerEvent' in window) {
