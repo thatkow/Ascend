@@ -47,33 +47,9 @@
       </button>
     </section>
 
-    <section id="roleManager" class="role-manager">
-      <h2>Manage user access</h2>
-      <label for="roleUsernameInput">
-        <span>Username</span>
-        <input id="roleUsernameInput" type="text" placeholder="username" autocomplete="off" />
-      </label>
-      <button id="grantSetterButton" class="role-action-button" type="button">Grant setter role</button>
-      <button
-        id="revokeSetterButton"
-        class="role-action-button role-revoke-button"
-        type="button"
-      >
-        Revoke setter role
-      </button>
-      <button
-        id="deleteUserButton"
-        class="role-action-button role-revoke-button"
-        type="button"
-      >
-        Delete user account
-      </button>
-      <p id="roleStatusMessage" class="status-message hidden" role="status" aria-live="polite"></p>
-    </section>
-
-    <section id="userDirectory" class="user-directory">
-      <div class="user-directory-header">
-        <h2>Current users</h2>
+    <section id="userAccessManager" class="user-access">
+      <div class="user-access-header">
+        <h2>User access</h2>
         <button id="refreshUserListButton" class="secondary-button" type="button">Refresh list</button>
       </div>
       <p
@@ -83,6 +59,46 @@
         aria-live="polite"
       ></p>
       <ul id="userList" class="user-list hidden"></ul>
+      <div id="userActionPanel" class="user-action-panel" aria-live="polite">
+        <div class="user-action-summary">
+          <div class="user-action-summary-text">
+            <h3 id="selectedUserName">No user selected</h3>
+            <p id="selectedUserRole" class="user-action-role">
+              Select a user to manage their access.
+            </p>
+          </div>
+          <span
+            id="selectedUserRoleBadge"
+            class="user-role-badge hidden"
+            aria-hidden="true"
+          ></span>
+        </div>
+        <div class="user-action-buttons">
+          <button id="grantSetterButton" class="role-action-button" type="button">
+            Grant setter role
+          </button>
+          <button
+            id="revokeSetterButton"
+            class="role-action-button role-revoke-button"
+            type="button"
+          >
+            Revoke setter role
+          </button>
+          <button
+            id="deleteUserButton"
+            class="role-action-button role-revoke-button"
+            type="button"
+          >
+            Delete user account
+          </button>
+        </div>
+        <p
+          id="roleStatusMessage"
+          class="status-message hidden"
+          role="status"
+          aria-live="polite"
+        ></p>
+      </div>
     </section>
 
     <section class="secondary-actions">
