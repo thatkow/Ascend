@@ -65,6 +65,13 @@ if ('PointerEvent' in window) {
     },
     true,
   );
+  window.addEventListener(
+    'touchstart',
+    () => {
+      updateLastPrimaryPointerType('touch');
+    },
+    true,
+  );
 } else {
   window.addEventListener(
     'mousedown',
@@ -4319,8 +4326,12 @@ function createTooltipCloseButton() {
 }
 
 function shouldBlockSingleClick(event) {
-  const pointerType = lastPrimaryPointerType;
-  const isTouchLike = pointerType === 'touch' || pointerType === 'pen';
+  const pointerTypeFromEvent =
+    (event && typeof event.pointerType === 'string' && event.pointerType) ||
+    lastPrimaryPointerType;
+  const firesTouchEvents = Boolean(event?.sourceCapabilities?.firesTouchEvents);
+  const isTouchLike =
+    pointerTypeFromEvent === 'touch' || pointerTypeFromEvent === 'pen' || firesTouchEvents;
   const isKeyboardActivation = event?.detail === 0;
 
   if (isTouchLike || isKeyboardActivation) {
