@@ -5133,7 +5133,12 @@ function updateTooltipContent(route) {
 
   const infoContainer = document.createElement('div');
   infoContainer.className = 'tooltip-lines';
-  fragment.appendChild(infoContainer);
+
+  const topSection = document.createElement('div');
+  topSection.className = 'tooltip-top-section';
+  topSection.appendChild(infoContainer);
+  topSection.appendChild(gradeCluster);
+  fragment.appendChild(topSection);
 
   const appendInfoLine = (text, className = '') => {
     if (!text) {
@@ -5171,7 +5176,7 @@ function updateTooltipContent(route) {
   content.className = 'tooltip-content';
   content.appendChild(fragment);
 
-  tooltip.replaceChildren(gradeCluster, content);
+  tooltip.replaceChildren(content);
 
   if (ariaLines.length) {
     tooltip.setAttribute('aria-label', ariaLines.join('\n'));
