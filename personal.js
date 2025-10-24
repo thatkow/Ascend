@@ -4280,6 +4280,18 @@ function createTooltipCloseButton() {
   return closeButton;
 }
 
+function shouldBlockSingleClick(event) {
+  if (!event || typeof event.detail !== 'number' || event.detail < 2) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === 'function') {
+      event.stopImmediatePropagation();
+    }
+    return true;
+  }
+  return false;
+}
+
 function buildGradeControls(route) {
   if (!route || !route.id) {
     return null;
@@ -4309,6 +4321,31 @@ function buildGradeControls(route) {
   gradeInput.dataset.infoTarget = 'route-grade';
 
   gradeLabel.appendChild(gradeInput);
+
+  gradeInput.readOnly = true;
+  gradeInput.classList.add('requires-double-click');
+
+  gradeInput.addEventListener(
+    'mousedown',
+    (event) => {
+      if (shouldBlockSingleClick(event)) {
+        return;
+      }
+    },
+    true,
+  );
+
+  gradeInput.addEventListener('click', (event) => {
+    if (shouldBlockSingleClick(event)) {
+      if (document.activeElement === gradeInput) {
+        gradeInput.blur();
+      }
+      return;
+    }
+    gradeInput.readOnly = false;
+    gradeInput.focus();
+    gradeInput.select();
+  });
 
   const gradeInputRow = document.createElement('div');
   gradeInputRow.className = 'grade-input-row';
@@ -4370,6 +4407,7 @@ function buildGradeControls(route) {
   });
 
   gradeInput.addEventListener('blur', () => {
+    gradeInput.readOnly = true;
     void commitGradeFromInput();
   });
 
@@ -4584,6 +4622,9 @@ function buildBetatipsSection(route, ariaLines = []) {
       if (currentUser && !isCurrent) {
         let isProcessingUpvote = false;
         upvoteButton.addEventListener('click', async (event) => {
+          if (shouldBlockSingleClick(event)) {
+            return;
+          }
           event.preventDefault();
           if (isProcessingUpvote) {
             return;
@@ -4622,6 +4663,9 @@ function buildBetatipsSection(route, ariaLines = []) {
 
         let isDeleting = false;
         deleteButton.addEventListener('click', async (event) => {
+          if (shouldBlockSingleClick(event)) {
+            return;
+          }
           event.preventDefault();
           if (isDeleting) {
             return;
@@ -4707,6 +4751,34 @@ function buildBetatipsSection(route, ariaLines = []) {
     textarea.maxLength = MAX_BETATIP_LENGTH;
     textarea.placeholder = 'The trick is...to go up!';
     textarea.value = '';
+    textarea.readOnly = true;
+    textarea.classList.add('requires-double-click');
+
+    textarea.addEventListener(
+      'mousedown',
+      (event) => {
+        if (shouldBlockSingleClick(event)) {
+          return;
+        }
+      },
+      true,
+    );
+
+    textarea.addEventListener('click', (event) => {
+      if (shouldBlockSingleClick(event)) {
+        if (document.activeElement === textarea) {
+          textarea.blur();
+        }
+        return;
+      }
+      textarea.readOnly = false;
+      textarea.focus();
+      textarea.select();
+    });
+
+    textarea.addEventListener('blur', () => {
+      textarea.readOnly = true;
+    });
 
     label.appendChild(textarea);
     form.appendChild(label);
@@ -4718,6 +4790,16 @@ function buildBetatipsSection(route, ariaLines = []) {
     saveButton.type = 'submit';
     saveButton.textContent = 'Save tip';
     actions.appendChild(saveButton);
+
+    saveButton.addEventListener(
+      'click',
+      (event) => {
+        if (shouldBlockSingleClick(event)) {
+          return;
+        }
+      },
+      true,
+    );
 
     form.appendChild(actions);
 
@@ -5127,6 +5209,9 @@ function updateTooltipContent(route) {
     actionButton.textContent = isAscended ? 'Ascended' : 'Not ascended';
     actionButton.dataset.infoTarget = 'route-ascent';
     actionButton.addEventListener('click', (event) => {
+      if (shouldBlockSingleClick(event)) {
+        return;
+      }
       event.preventDefault();
       event.stopPropagation();
       toggleRouteAscent(route);
