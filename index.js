@@ -99,6 +99,7 @@ const tutorialDescription = document.getElementById('tutorialDescription');
 const tutorialPrimaryAction = document.getElementById('tutorialPrimaryAction');
 const tutorialSecondaryAction = document.getElementById('tutorialSecondaryAction');
 const tutorialProgress = document.getElementById('tutorialProgress');
+const tutorialBrand = document.getElementById('tutorialBrand');
 
 let infoHighlightsContainer = null;
 let infoModeActive = false;
@@ -2979,6 +2980,8 @@ function renderTutorialStep() {
     return;
   }
 
+  setTutorialBrandVisibility(tutorialStepIndex === 0);
+
   if (tutorialTitle) {
     tutorialTitle.textContent = step.title || '';
   }
@@ -2999,6 +3002,15 @@ function renderTutorialStep() {
     tutorialSecondaryAction.textContent = 'Back';
     tutorialSecondaryAction.classList.toggle('hidden', tutorialStepIndex <= 0);
   }
+}
+
+function setTutorialBrandVisibility(shouldShow) {
+  if (!tutorialBrand) {
+    return;
+  }
+
+  tutorialBrand.classList.toggle('hidden', !shouldShow);
+  tutorialBrand.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
 }
 
 async function goToTutorialStep(index) {
@@ -3047,6 +3059,8 @@ function renderTutorialInvite() {
   tutorialOverlayMode = 'invite';
   tutorialInviteOpen = true;
   tutorialActive = false;
+
+  setTutorialBrandVisibility(false);
 
   if (tutorialProgress) {
     tutorialProgress.classList.add('hidden');
@@ -3135,6 +3149,8 @@ async function finishTutorial() {
     tutorialProgress.classList.add('hidden');
   }
 
+  setTutorialBrandVisibility(false);
+
   closeTutorialOverlay();
 }
 
@@ -3146,6 +3162,7 @@ function declineTutorial() {
   stopTutorialRoutePulse();
   hideTutorialPointer();
   setTutorialOverlayAlignment('center');
+  setTutorialBrandVisibility(false);
   closeTutorialOverlay();
 }
 

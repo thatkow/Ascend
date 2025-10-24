@@ -99,6 +99,7 @@ const tutorialDescription = document.getElementById('tutorialDescription');
 const tutorialPrimaryAction = document.getElementById('tutorialPrimaryAction');
 const tutorialSecondaryAction = document.getElementById('tutorialSecondaryAction');
 const tutorialProgress = document.getElementById('tutorialProgress');
+const tutorialBrand = document.getElementById('tutorialBrand');
 
 let infoHighlightsContainer = null;
 let infoModeActive = false;
@@ -485,6 +486,8 @@ function renderTutorialStepContent() {
     return;
   }
 
+  setTutorialBrandVisibility(tutorialStepIndex === 0);
+
   if (tutorialTitle) {
     tutorialTitle.textContent = step.title || '';
   }
@@ -516,6 +519,15 @@ function renderTutorialStepContent() {
     tutorialSecondaryAction.dataset.mode = tutorialSecondaryActionMode;
     tutorialSecondaryAction.classList.toggle('hidden', !shouldShowSecondary);
   }
+}
+
+function setTutorialBrandVisibility(shouldShow) {
+  if (!tutorialBrand) {
+    return;
+  }
+
+  tutorialBrand.classList.toggle('hidden', !shouldShow);
+  tutorialBrand.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
 }
 
 async function ensureRoutesAvailableForTutorial() {
@@ -852,6 +864,8 @@ async function finishTutorial() {
   if (tutorialProgress) {
     tutorialProgress.classList.add('hidden');
   }
+
+  setTutorialBrandVisibility(false);
 }
 
 async function skipTutorial() {
