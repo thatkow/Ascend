@@ -3072,21 +3072,30 @@ function renderTutorialInvite() {
   setTutorialOverlayAlignment('center');
   closeTutorialRouteTooltip();
 
+  const firstStep = tutorialSteps[0] || null;
+
   if (tutorialTitle) {
-    tutorialTitle.textContent = 'Take a tour?';
+    const inviteTitle = typeof firstStep?.title === 'string' && firstStep.title.trim().length
+      ? firstStep.title
+      : 'Welcome to Ascend';
+    tutorialTitle.textContent = inviteTitle;
   }
 
-  setTutorialDescriptionContent([
-    'Would you like a quick guided tour of the main controls before you dive in?',
-    'If you\'d rather explore on your own, you can close this dialog at any time.',
-  ]);
+  if (firstStep) {
+    setTutorialDescriptionContent(firstStep.body || []);
+  } else {
+    setTutorialDescriptionContent([
+      'Ascend helps you explore the latest problems on the wall and stay up to date with the gym.',
+      'Use this public view to browse climbs and see what sets are available right now.',
+    ]);
+  }
 
   if (tutorialPrimaryAction) {
-    tutorialPrimaryAction.textContent = 'Start tutorial';
+    tutorialPrimaryAction.textContent = 'Take a tour?';
   }
 
   if (tutorialSecondaryAction) {
-    tutorialSecondaryAction.textContent = 'Skip';
+    tutorialSecondaryAction.textContent = 'Close';
     tutorialSecondaryAction.classList.remove('hidden');
   }
 }
