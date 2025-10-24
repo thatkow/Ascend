@@ -986,7 +986,7 @@ canvas {
   --tooltip-muted-foreground: #d1d5db;
   --tooltip-surface: #0e150f;
   --tooltip-border-color: #7ed957;
-  --tooltip-grade-size: 4.5rem;
+  --tooltip-grade-size: 6.75rem;
   position: fixed;
   pointer-events: none;
   color: var(--tooltip-foreground, #fff);
@@ -1048,8 +1048,16 @@ canvas {
   align-items: flex-start;
   justify-content: flex-start;
   gap: 0.5rem;
-  margin-bottom: 0.35rem;
-  padding-right: calc(var(--tooltip-grade-size, 4.875rem) + 1.25rem);
+  margin-bottom: 0.75rem;
+}
+
+.route-tooltip .tooltip-top-section {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
 }
 
 .route-tooltip .tooltip-title {
@@ -1200,22 +1208,43 @@ canvas {
 }
 
 .route-tooltip .tooltip-grade-cluster {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  transform: none;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-  min-width: var(--tooltip-grade-size, 4.875rem);
-  z-index: 1;
+  min-width: var(--tooltip-grade-size, 6.75rem);
   pointer-events: none;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+@media (max-width: 600px) and (orientation: portrait) {
+  .route-tooltip .tooltip-top-section {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .route-tooltip .tooltip-grade-cluster {
+    order: -1;
+    margin-left: 0;
+  }
+
+  .route-tooltip .tooltip-grade-badge {
+    margin-inline: auto;
+  }
+
+  .route-tooltip .tooltip-top-section .tooltip-lines {
+    width: 100%;
+    text-align: left;
+  }
 }
 
 .route-tooltip .tooltip-grade-badge {
-  width: var(--tooltip-grade-size, 4.875rem);
-  height: var(--tooltip-grade-size, 4.875rem);
+  width: var(--tooltip-grade-size, 6.75rem);
+  height: var(--tooltip-grade-size, 6.75rem);
   border-radius: 50%;
   border: var(--tooltip-grade-stroke-width, 2px) solid var(--tooltip-accent, #7ed957);
   display: flex;
