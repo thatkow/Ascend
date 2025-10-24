@@ -3004,8 +3004,13 @@ function renderTutorialStep() {
   }
 
   if (tutorialPrimaryAction) {
-    tutorialPrimaryAction.textContent =
-      tutorialStepIndex === tutorialSteps.length - 1 ? 'Finish' : 'Next';
+    let primaryLabel = 'Next';
+    if (tutorialStepIndex === tutorialSteps.length - 1) {
+      primaryLabel = 'Finish';
+    } else if (tutorialStepIndex === 0) {
+      primaryLabel = 'Tutorial';
+    }
+    tutorialPrimaryAction.textContent = primaryLabel;
   }
 
   if (tutorialSecondaryAction) {

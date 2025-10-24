@@ -164,15 +164,6 @@
       <div id="tutorialDialogCard" class="tutorial-card" role="document" tabindex="-1">
         <div class="tutorial-card-header">
           <div id="tutorialProgress" class="tutorial-progress hidden" aria-live="polite"></div>
-          <button
-            id="tutorialSkipButton"
-            class="tutorial-skip-button hidden"
-            type="button"
-            data-tutorial-exempt="true"
-            aria-hidden="true"
-          >
-            Skip tutorial
-          </button>
         </div>
         <div id="tutorialBrand" class="tutorial-brand hidden" aria-hidden="true">
           <h1 class="tutorial-brand-title">Ascend</h1>
@@ -181,6 +172,15 @@
         <h2 id="tutorialTitle" class="tutorial-title"></h2>
         <div id="tutorialDescription" class="tutorial-description"></div>
         <div class="tutorial-actions">
+          <button
+            id="tutorialSkipButton"
+            class="tutorial-button tutorial-skip-button hidden"
+            type="button"
+            data-tutorial-exempt="true"
+            aria-hidden="true"
+          >
+            Skip
+          </button>
           <button
             id="tutorialSecondaryAction"
             class="tutorial-button tutorial-secondary hidden"
