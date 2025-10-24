@@ -46,6 +46,41 @@ const tooltip = document.getElementById('routeTooltip');
 const TOOLTIP_HISTORY_STATE_KEY = 'ascend.routeTooltip.open';
 let tooltipHistoryEntryActive = false;
 let suppressNextTooltipPopstate = false;
+
+let lastPrimaryPointerType = 'mouse';
+
+function updateLastPrimaryPointerType(type) {
+  if (typeof type === 'string' && type) {
+    lastPrimaryPointerType = type;
+  }
+}
+
+if ('PointerEvent' in window) {
+  window.addEventListener(
+    'pointerdown',
+    (event) => {
+      if (event?.isPrimary) {
+        updateLastPrimaryPointerType(event.pointerType || 'mouse');
+      }
+    },
+    true,
+  );
+} else {
+  window.addEventListener(
+    'mousedown',
+    () => {
+      updateLastPrimaryPointerType('mouse');
+    },
+    true,
+  );
+  window.addEventListener(
+    'touchstart',
+    () => {
+      updateLastPrimaryPointerType('touch');
+    },
+    true,
+  );
+}
 const routeOverlapPrompt = document.getElementById('routeOverlapPrompt');
 const routeOverlapList = document.getElementById('routeOverlapList');
 const routeOverlapCloseButton = document.getElementById('routeOverlapClose');
@@ -4284,6 +4319,14 @@ function createTooltipCloseButton() {
 }
 
 function shouldBlockSingleClick(event) {
+  const pointerType = lastPrimaryPointerType;
+  const isTouchLike = pointerType === 'touch' || pointerType === 'pen';
+  const isKeyboardActivation = event?.detail === 0;
+
+  if (isTouchLike || isKeyboardActivation) {
+    return false;
+  }
+
   if (!event || typeof event.detail !== 'number' || event.detail < 2) {
     event.preventDefault();
     event.stopPropagation();
