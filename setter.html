@@ -5,9 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ascend</title>
   <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="shared/page-loader.css" />
   <link rel="stylesheet" href="setter.css" />
 </head>
 <body>
+  <div id="pageLoader" class="page-loader" role="status" aria-live="polite">
+    <img src="banner.png" alt="Ascend" />
+  </div>
   <div id="authOverlay" class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="authTitle">
     <form id="authForm" class="auth-card">
       <h1 id="authTitle">Sign in to continue</h1>
@@ -641,6 +645,7 @@
     </div>
   </div>
 
+  <script defer src="shared/page-loader.js"></script>
   <script type="module" src="setter.js"></script>
 </body>
 </html>
