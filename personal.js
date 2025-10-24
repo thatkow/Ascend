@@ -47,11 +47,193 @@ const TOOLTIP_HISTORY_STATE_KEY = 'ascend.routeTooltip.open';
 let tooltipHistoryEntryActive = false;
 let suppressNextTooltipPopstate = false;
 
-let lastPrimaryPointerType = 'mouse';
+const DEVICE_LIKELY_HAS_TOUCH = (() => {
+  try {
+    if (typeof navigator !== 'undefined') {
+      if (typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 0) {
+        return true;
+      }
+      if (typeof navigator.msMaxTouchPoints === 'number' && navigator.msMaxTouchPoints > 0) {
+        return true;
+      }
+    }
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      try {
+        const coarseMatch = window.matchMedia('(pointer: coarse)');
+        if (coarseMatch?.matches) {
+          return true;
+        }
+      } catch (error) {
+        console.warn('Unable to evaluate coarse pointer media query:', error);
+      }
+    }
+  } catch (error) {
+    console.warn('Unable to determine touch capability:', error);
+  }
+  return false;
+})();
+
+let lastPrimaryPointerType = DEVICE_LIKELY_HAS_TOUCH ? 'touch' : 'mouse';
+
+function safeMatchMedia(query) {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return null;
+  }
+  try {
+    return window.matchMedia(query);
+  } catch (error) {
+    console.warn('Unable to evaluate media query:', query, error);
+  }
+  return null;
+}
+
+function addMediaQueryChangeListener(mediaQueryList, handler) {
+  if (!mediaQueryList || typeof handler !== 'function') {
+    return;
+  }
+  if (typeof mediaQueryList.addEventListener === 'function') {
+    mediaQueryList.addEventListener('change', handler);
+  } else if (typeof mediaQueryList.addListener === 'function') {
+    mediaQueryList.addListener(handler);
+  }
+}
+
+const coarsePointerMediaQuery = safeMatchMedia('(pointer: coarse)');
+
+const tooltipEditableFieldStates = new Set();
+
+function enforceTooltipEditableFieldMode(element) {
+  if (!element || typeof element !== 'object') {
+    return;
+  }
+  if (requiresDoubleClickToEdit) {
+    if ('readOnly' in element) {
+      element.readOnly = true;
+    }
+    element.classList?.add('requires-double-click');
+  } else {
+    if ('readOnly' in element) {
+      element.readOnly = false;
+    }
+    element.classList?.remove('requires-double-click');
+  }
+}
+
+function refreshTooltipEditableFields() {
+  tooltipEditableFieldStates.forEach((state) => {
+    if (!state || !state.element) {
+      return;
+    }
+    enforceTooltipEditableFieldMode(state.element);
+  });
+}
+
+function cleanupTooltipEditableFieldState(state) {
+  if (!state || !state.element) {
+    return;
+  }
+  const { element, handlers } = state;
+  if (handlers) {
+    if (handlers.pointerDown) {
+      element.removeEventListener('mousedown', handlers.pointerDown, true);
+    }
+    if (handlers.click) {
+      element.removeEventListener('click', handlers.click);
+    }
+    if (handlers.blur) {
+      element.removeEventListener('blur', handlers.blur);
+    }
+  }
+  state.element = null;
+}
+
+function resetTooltipEditableFieldRegistry() {
+  tooltipEditableFieldStates.forEach((state) => {
+    cleanupTooltipEditableFieldState(state);
+  });
+  tooltipEditableFieldStates.clear();
+}
+
+function computeRequiresDoubleClickToEdit() {
+  if (DEVICE_LIKELY_HAS_TOUCH) {
+    return false;
+  }
+  if (coarsePointerMediaQuery?.matches) {
+    return false;
+  }
+  if (lastPrimaryPointerType === 'touch' || lastPrimaryPointerType === 'pen') {
+    return false;
+  }
+  return true;
+}
+
+let requiresDoubleClickToEdit = computeRequiresDoubleClickToEdit();
+
+function updateRequiresDoubleClickToEdit() {
+  const next = computeRequiresDoubleClickToEdit();
+  if (next !== requiresDoubleClickToEdit) {
+    requiresDoubleClickToEdit = next;
+    refreshTooltipEditableFields();
+  }
+}
+
+addMediaQueryChangeListener(coarsePointerMediaQuery, updateRequiresDoubleClickToEdit);
+
+function registerTooltipEditableField(element, { selectOnFocus = false } = {}) {
+  if (!element) {
+    return;
+  }
+
+  const state = {
+    element,
+    selectOnFocus: Boolean(selectOnFocus),
+    handlers: {},
+  };
+
+  state.handlers.pointerDown = (event) => {
+    if (shouldBlockSingleClick(event)) {
+      return;
+    }
+  };
+
+  state.handlers.click = (event) => {
+    if (shouldBlockSingleClick(event)) {
+      if (document.activeElement === element && typeof element.blur === 'function') {
+        element.blur();
+      }
+      return;
+    }
+    if ('readOnly' in element) {
+      element.readOnly = false;
+    }
+    if (typeof element.focus === 'function') {
+      element.focus();
+    }
+    if (state.selectOnFocus && typeof element.select === 'function') {
+      try {
+        element.select();
+      } catch (error) {
+        console.warn('Unable to select editable tooltip field contents:', error);
+      }
+    }
+  };
+
+  state.handlers.blur = () => {
+    enforceTooltipEditableFieldMode(element);
+  };
+
+  element.addEventListener('mousedown', state.handlers.pointerDown, true);
+  element.addEventListener('click', state.handlers.click);
+  element.addEventListener('blur', state.handlers.blur);
+
+  tooltipEditableFieldStates.add(state);
+  enforceTooltipEditableFieldMode(element);
+}
 
 function updateLastPrimaryPointerType(type) {
   if (typeof type === 'string' && type) {
     lastPrimaryPointerType = type;
+    updateRequiresDoubleClickToEdit();
   }
 }
 
@@ -62,6 +244,13 @@ if ('PointerEvent' in window) {
       if (event?.isPrimary) {
         updateLastPrimaryPointerType(event.pointerType || 'mouse');
       }
+    },
+    true,
+  );
+  window.addEventListener(
+    'touchstart',
+    () => {
+      updateLastPrimaryPointerType('touch');
     },
     true,
   );
@@ -4319,8 +4508,18 @@ function createTooltipCloseButton() {
 }
 
 function shouldBlockSingleClick(event) {
-  const pointerType = lastPrimaryPointerType;
-  const isTouchLike = pointerType === 'touch' || pointerType === 'pen';
+  if (!requiresDoubleClickToEdit) {
+    return false;
+  }
+  const pointerTypeFromEvent =
+    (event && typeof event.pointerType === 'string' && event.pointerType) ||
+    lastPrimaryPointerType;
+  const firesTouchEvents = Boolean(event?.sourceCapabilities?.firesTouchEvents);
+  const isTouchLike =
+    pointerTypeFromEvent === 'touch' ||
+    pointerTypeFromEvent === 'pen' ||
+    firesTouchEvents ||
+    DEVICE_LIKELY_HAS_TOUCH;
   const isKeyboardActivation = event?.detail === 0;
 
   if (isTouchLike || isKeyboardActivation) {
@@ -4368,30 +4567,7 @@ function buildGradeControls(route) {
 
   gradeLabel.appendChild(gradeInput);
 
-  gradeInput.readOnly = true;
-  gradeInput.classList.add('requires-double-click');
-
-  gradeInput.addEventListener(
-    'mousedown',
-    (event) => {
-      if (shouldBlockSingleClick(event)) {
-        return;
-      }
-    },
-    true,
-  );
-
-  gradeInput.addEventListener('click', (event) => {
-    if (shouldBlockSingleClick(event)) {
-      if (document.activeElement === gradeInput) {
-        gradeInput.blur();
-      }
-      return;
-    }
-    gradeInput.readOnly = false;
-    gradeInput.focus();
-    gradeInput.select();
-  });
+  registerTooltipEditableField(gradeInput, { selectOnFocus: true });
 
   const gradeInputRow = document.createElement('div');
   gradeInputRow.className = 'grade-input-row';
@@ -4453,7 +4629,7 @@ function buildGradeControls(route) {
   });
 
   gradeInput.addEventListener('blur', () => {
-    gradeInput.readOnly = true;
+    enforceTooltipEditableFieldMode(gradeInput);
     void commitGradeFromInput();
   });
 
@@ -4797,34 +4973,7 @@ function buildBetatipsSection(route, ariaLines = []) {
     textarea.maxLength = MAX_BETATIP_LENGTH;
     textarea.placeholder = 'The trick is...to go up!';
     textarea.value = '';
-    textarea.readOnly = true;
-    textarea.classList.add('requires-double-click');
-
-    textarea.addEventListener(
-      'mousedown',
-      (event) => {
-        if (shouldBlockSingleClick(event)) {
-          return;
-        }
-      },
-      true,
-    );
-
-    textarea.addEventListener('click', (event) => {
-      if (shouldBlockSingleClick(event)) {
-        if (document.activeElement === textarea) {
-          textarea.blur();
-        }
-        return;
-      }
-      textarea.readOnly = false;
-      textarea.focus();
-      textarea.select();
-    });
-
-    textarea.addEventListener('blur', () => {
-      textarea.readOnly = true;
-    });
+    registerTooltipEditableField(textarea, { selectOnFocus: true });
 
     label.appendChild(textarea);
     form.appendChild(label);
@@ -5201,6 +5350,8 @@ function updateTooltipContent(route) {
   if (!tooltip) {
     return;
   }
+
+  resetTooltipEditableFieldRegistry();
 
   applyTooltipColorScheme(route);
 
