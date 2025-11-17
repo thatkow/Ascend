@@ -2,6 +2,7 @@ const STORAGE_KEY = 'ascend.colorblindMode';
 const COLORBLIND_CLASS = 'colorblind-mode';
 const listeners = new Set();
 let toggleButton = null;
+let toggleLabelElement = null;
 let colorblindModeEnabled = readInitialState();
 
 function readInitialState() {
@@ -42,9 +43,10 @@ function updateToggleButtonState() {
     return;
   }
 
-  const label = colorblindModeEnabled ? 'Colorblind mode: On' : 'Colorblind mode: Off';
   const description = colorblindModeEnabled ? 'Disable colorblind mode' : 'Enable colorblind mode';
-  toggleButton.textContent = label;
+  if (toggleLabelElement) {
+    toggleLabelElement.textContent = description;
+  }
   toggleButton.setAttribute('aria-pressed', String(colorblindModeEnabled));
   toggleButton.setAttribute('aria-label', description);
   toggleButton.setAttribute('title', description);
@@ -95,8 +97,32 @@ function ensureToggleButton() {
     toggleColorblindMode();
   });
 
+  const iconWrapper = document.createElement('span');
+  iconWrapper.className = 'colorblind-toggle__icon';
+  iconWrapper.setAttribute('aria-hidden', 'true');
+  iconWrapper.innerHTML = `
+    <svg viewBox="0 0 48 48" role="presentation" focusable="false">
+      <defs>
+        <linearGradient id="colorblindToggleHighlight" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#facc15" />
+          <stop offset="100%" stop-color="#f97316" />
+        </linearGradient>
+      </defs>
+      <circle cx="19" cy="24" r="13" fill="url(#colorblindToggleHighlight)" stroke="rgba(15,23,42,0.35)" stroke-width="2" />
+      <circle cx="29" cy="24" r="13" fill="#22d3ee" fill-opacity="0.85" stroke="rgba(15,23,42,0.35)" stroke-width="2" />
+      <path d="M10 24c4-7 10-11 14-11s10 4 14 11c-4 7-10 11-14 11s-10-4-14-11z" fill="none" stroke="#0f172a" stroke-opacity="0.45" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  `;
+
+  const srLabel = document.createElement('span');
+  srLabel.className = 'colorblind-toggle__sr-label';
+
+  button.appendChild(iconWrapper);
+  button.appendChild(srLabel);
+
   document.body.appendChild(button);
   toggleButton = button;
+  toggleLabelElement = srLabel;
   updateToggleButtonState();
   return button;
 }
