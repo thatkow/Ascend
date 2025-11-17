@@ -29,6 +29,11 @@ import {
   getDefaultLocation,
   isLocationVisible,
 } from './shared/location.js';
+import {
+  initializeColorblindModeToggle,
+  isColorblindModeEnabled,
+  onColorblindModeChange,
+} from './shared/colorblind-mode.js';
 
 const authOverlay = document.getElementById('authOverlay');
 const appContent = document.getElementById('appContent');
@@ -104,6 +109,8 @@ const tutorialSecondaryAction = document.getElementById('tutorialSecondaryAction
 const tutorialProgress = document.getElementById('tutorialProgress');
 const tutorialBrand = document.getElementById('tutorialBrand');
 const tutorialSkipButton = document.getElementById('tutorialSkipButton');
+
+initializeColorblindModeToggle();
 
 let infoHighlightsContainer = null;
 let infoModeActive = false;
@@ -192,7 +199,7 @@ function createGradeChartElement() {
   chart.className = 'info-callout-chart';
   wrapper.appendChild(chart);
 
-  const gradeEntries = Array.from(GRADE_COLOR_MAP.entries());
+  const gradeEntries = Array.from(getActiveGradeColorMap().entries());
   const totalGrades = gradeEntries.length;
   const minimumHeight = 22;
   const maximumHeight = 100;
@@ -797,7 +804,43 @@ const GRADE_COLOR_MAP = new Map([
   [30, '#C10407'],
   [31, '#BD0306'],
 ]);
+const COLORBLIND_GRADE_COLOR_MAP = new Map([
+  [1, '#440154'],
+  [2, '#4A0952'],
+  [3, '#501051'],
+  [4, '#56184F'],
+  [5, '#5D204E'],
+  [6, '#63274C'],
+  [7, '#692F4B'],
+  [8, '#6F3749'],
+  [9, '#753E47'],
+  [10, '#7C4646'],
+  [11, '#824E44'],
+  [12, '#885543'],
+  [13, '#8E5D41'],
+  [14, '#946540'],
+  [15, '#9A6C3E'],
+  [16, '#A0743C'],
+  [17, '#A77C3B'],
+  [18, '#AD8339'],
+  [19, '#B38B38'],
+  [20, '#B99336'],
+  [21, '#BF9A35'],
+  [22, '#C6A233'],
+  [23, '#CCAA32'],
+  [24, '#D2B130'],
+  [25, '#D8B92E'],
+  [26, '#DEC12D'],
+  [27, '#E4C82B'],
+  [28, '#EAD02A'],
+  [29, '#F1D828'],
+  [30, '#F7DF27'],
+  [31, '#FDE725'],
+]);
 const DEFAULT_GRADELESS_COLOR = '#ffffff';
+function getActiveGradeColorMap() {
+  return isColorblindModeEnabled() ? COLORBLIND_GRADE_COLOR_MAP : GRADE_COLOR_MAP;
+}
 const MIN_BEZIER_STROKE_WIDTH = 2;
 const MAX_BEZIER_STROKE_WIDTH = 40;
 const DEFAULT_BEZIER_STROKE_WIDTH = 10;
@@ -3357,6 +3400,18 @@ const ascendedRoutes = new Set();
 const routeBetatipsCache = new Map();
 const uidUsernameCache = new Map();
 let userAscentDetails = new Map();
+onColorblindModeChange(() => {
+  renderProgressionList();
+  redraw();
+
+  if (pinnedRouteId) {
+    const pinnedRoute = routes.find((route) => route?.id === pinnedRouteId);
+    if (pinnedRoute) {
+      updateTooltipContent(pinnedRoute);
+      positionTooltip();
+    }
+  }
+});
 const normalizeRouteUidValue = (value) =>
   typeof value === 'string' && value.trim() ? value.trim() : '';
 const getRouteId = (route) => {
@@ -6285,7 +6340,8 @@ function getGradeColorForValue(value) {
   }
 
   const clamped = Math.min(Math.max(rounded, MIN_GRADE_VALUE), MAX_GRADE_VALUE);
-  return GRADE_COLOR_MAP.get(clamped) ?? null;
+  const palette = getActiveGradeColorMap();
+  return palette.get(clamped) ?? null;
 }
 
 function getRouteGradeColor(route) {

@@ -24,6 +24,7 @@ import {
   BETATIP_UPVOTES_SUBCOLLECTION,
   SUBCOLLECTIONS_FIELD,
 } from './admin_api.js';
+import { initializeColorblindModeToggle } from './shared/colorblind-mode.js';
 
 const authOverlay = document.getElementById('authOverlay');
 const authForm = document.getElementById('authForm');
@@ -38,6 +39,8 @@ const adminDumpButton = document.getElementById('adminDumpButton');
 const adminImportButton = document.getElementById('adminImportButton');
 const adminImportInput = document.getElementById('adminImportInput');
 const adminClearButton = document.getElementById('adminClearButton');
+
+initializeColorblindModeToggle();
 const adminSignOutButton = document.getElementById('adminSignOutButton');
 const adminSetterToolsButton = document.getElementById('adminSetterToolsButton');
 const removeOrphanedAscentsButton = document.getElementById('removeOrphanedAscentsButton');

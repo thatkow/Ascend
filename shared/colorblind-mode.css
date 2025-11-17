@@ -1,0 +1,52 @@
+:root {
+  --colorblind-toggle-bg: rgba(15, 23, 42, 0.9);
+  --colorblind-toggle-border: rgba(255, 255, 255, 0.25);
+  --colorblind-toggle-color: #f8fafc;
+  --colorblind-toggle-shadow: 0 8px 24px rgba(15, 23, 42, 0.35);
+}
+
+.colorblind-toggle {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 4000;
+  border: 1px solid var(--colorblind-toggle-border);
+  border-radius: 999px;
+  background: var(--colorblind-toggle-bg);
+  color: var(--colorblind-toggle-color);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 0.65rem 1.25rem;
+  box-shadow: var(--colorblind-toggle-shadow);
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.colorblind-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.45);
+}
+
+.colorblind-toggle:focus-visible {
+  outline: 3px solid #facc15;
+  outline-offset: 3px;
+}
+
+body.colorblind-mode .colorblind-toggle {
+  background: rgba(30, 64, 175, 0.95);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 12px 30px rgba(30, 64, 175, 0.45);
+}
+
+body.colorblind-mode .view-toggle-icon--grades rect:nth-of-type(1) {
+  fill: #440154 !important;
+}
+
+body.colorblind-mode .view-toggle-icon--grades rect:nth-of-type(2) {
+  fill: #a0743c !important;
+}
+
+body.colorblind-mode .view-toggle-icon--grades rect:nth-of-type(3) {
+  fill: #fde725 !important;
+}

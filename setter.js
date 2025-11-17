@@ -28,6 +28,7 @@ import {
   getDefaultLocation,
   isLocationVisible,
 } from './shared/location.js';
+import { initializeColorblindModeToggle } from './shared/colorblind-mode.js';
 
 const authOverlay = document.getElementById('authOverlay');
 const appContent = document.getElementById('appContent');
@@ -66,6 +67,8 @@ const previewLink = document.getElementById('previewLink');
 const previewLinkBaseHref = previewLink?.getAttribute('href') || 'index.html';
 const climberViewBaseHref = 'index.html';
 let climberViewTargetHref = climberViewBaseHref;
+
+initializeColorblindModeToggle();
 
 async function signOutAndRedirectToIndex() {
   try {
