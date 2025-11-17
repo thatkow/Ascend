@@ -1668,6 +1668,20 @@ const COLORBLIND_GRADE_COLOR_MAP = new Map([
   [31, '#FDE725'],
 ]);
 const DEFAULT_GRADELESS_COLOR = '#ffffff';
+const PAUL_TOL_BRIGHT_PALETTE = [
+  '#4477AA',
+  '#66CCEE',
+  '#228833',
+  '#CCBB44',
+  '#EE6677',
+  '#AA3377',
+  '#BBBBBB',
+  '#AA4499',
+  '#44AA99',
+  '#117733',
+  '#332288',
+  '#DDCC77',
+];
 function getActiveGradeColorMap() {
   return isColorblindModeEnabled() ? COLORBLIND_GRADE_COLOR_MAP : GRADE_COLOR_MAP;
 }
@@ -3463,6 +3477,7 @@ const uidUsernameCache = new Map();
 let userAscentDetails = new Map();
 let progressionPreviouslyFocusedElement = null;
 onColorblindModeChange(() => {
+  resetColorblindHoldColorCache();
   renderProgressionList();
   redraw();
 
@@ -6778,7 +6793,11 @@ function getRouteDisplayColor(route) {
     const gradeColor = getRouteGradeColor(route);
     return gradeColor ?? DEFAULT_GRADELESS_COLOR;
   }
-  return getRouteStrokeColor(route);
+  const holdColor = getRouteStrokeColor(route);
+  if (viewMode === VIEW_MODE_HOLD_COLORS && isColorblindModeEnabled()) {
+    return mapHoldColorToColorblindPalette(holdColor);
+  }
+  return holdColor;
 }
 
 const overlapColorCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
@@ -6853,6 +6872,111 @@ function parseColorToRGB(color) {
   }
 
   return null;
+}
+
+function srgbChannelToLinear(value) {
+  const normalized = Math.max(0, Math.min(255, value)) / 255;
+  if (normalized <= 0.04045) {
+    return normalized / 12.92;
+  }
+  return ((normalized + 0.055) / 1.055) ** 2.4;
+}
+
+function xyzToLabComponent(value) {
+  const epsilon = 216 / 24389;
+  const kappa = 24389 / 27;
+  if (value > epsilon) {
+    return Math.cbrt(value);
+  }
+  return (kappa * value + 16) / 116;
+}
+
+function convertRGBToLab(rgb) {
+  if (!rgb) {
+    return null;
+  }
+
+  const r = srgbChannelToLinear(rgb.r ?? 0);
+  const g = srgbChannelToLinear(rgb.g ?? 0);
+  const b = srgbChannelToLinear(rgb.b ?? 0);
+
+  const x = r * 0.4124564 + g * 0.3575761 + b * 0.1804375;
+  const y = r * 0.2126729 + g * 0.7151522 + b * 0.072175;
+  const z = r * 0.0193339 + g * 0.119192 + b * 0.9503041;
+
+  const xn = 0.95047;
+  const yn = 1;
+  const zn = 1.08883;
+
+  const fx = xyzToLabComponent(x / xn);
+  const fy = xyzToLabComponent(y / yn);
+  const fz = xyzToLabComponent(z / zn);
+
+  const L = 116 * fy - 16;
+  const a = 500 * (fx - fy);
+  const bLab = 200 * (fy - fz);
+  return { L, a, b: bLab };
+}
+
+const COLORBLIND_HOLD_COLOR_CACHE = new Map();
+const COLORBLIND_HOLD_COLOR_LAB_PALETTE = PAUL_TOL_BRIGHT_PALETTE.map((hex) => {
+  const rgb = parseColorToRGB(hex);
+  const lab = convertRGBToLab(rgb);
+  if (!lab) {
+    return null;
+  }
+  return { hex, lab };
+}).filter(Boolean);
+
+function getColorblindHoldPaletteMatch(rgbLab) {
+  if (!rgbLab || !COLORBLIND_HOLD_COLOR_LAB_PALETTE.length) {
+    return null;
+  }
+
+  let closest = null;
+  let smallestDistance = Number.POSITIVE_INFINITY;
+  COLORBLIND_HOLD_COLOR_LAB_PALETTE.forEach((entry) => {
+    const dL = rgbLab.L - entry.lab.L;
+    const dA = rgbLab.a - entry.lab.a;
+    const dB = rgbLab.b - entry.lab.b;
+    const distance = dL * dL + dA * dA + dB * dB;
+    if (distance < smallestDistance) {
+      smallestDistance = distance;
+      closest = entry.hex;
+    }
+  });
+
+  return closest;
+}
+
+function mapHoldColorToColorblindPalette(color) {
+  if (typeof color !== 'string' || !color.trim()) {
+    return color;
+  }
+
+  const rgb = parseColorToRGB(color);
+  if (!rgb) {
+    return color;
+  }
+
+  const cacheKey = `${rgb.r},${rgb.g},${rgb.b}`;
+  if (COLORBLIND_HOLD_COLOR_CACHE.has(cacheKey)) {
+    return COLORBLIND_HOLD_COLOR_CACHE.get(cacheKey);
+  }
+
+  const lab = convertRGBToLab(rgb);
+  if (!lab) {
+    return color;
+  }
+
+  const match = getColorblindHoldPaletteMatch(lab);
+  const resolved = match ?? color;
+  COLORBLIND_HOLD_COLOR_CACHE.set(cacheKey, resolved);
+  return resolved;
+}
+
+function resetColorblindHoldColorCache() {
+  COLORBLIND_HOLD_COLOR_CACHE.clear();
 }
 
 function computeRelativeLuminance(rgb) {
